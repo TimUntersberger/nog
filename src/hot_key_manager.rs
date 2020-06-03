@@ -10,6 +10,7 @@ use winapi::shared::minwindef::WPARAM;
 use winapi::shared::minwindef::UINT;
 use winapi::shared::windef::POINT;
 use winapi::shared::windef::HWND;
+
 use num_traits::FromPrimitive;
 
 #[derive(Clone, Copy, FromPrimitive, PartialEq)]

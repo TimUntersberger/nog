@@ -1,4 +1,5 @@
 use crate::GRID;
+use crate::CONFIG;
 use crate::window::Window;
 use crate::util::get_title_of_window;
 use winapi::um::winuser::EVENT_OBJECT_CREATE;
@@ -60,12 +61,15 @@ unsafe fn handle_event_object_show(window_handle: HWND, window_title: String){
     println!("should manage is {}", should_manage);
 
     if should_manage {
-        SetWindowLongA(window_handle, GWL_STYLE, 
-            window_style & 
-            !WS_CAPTION as i32 & 
-            !WS_THICKFRAME as i32 |
-            WS_BORDER as i32
-        );
+        if CONFIG.remove_title_bar {
+            SetWindowLongA(window_handle, GWL_STYLE, 
+                window_style & 
+                !WS_CAPTION as i32 & 
+                !WS_THICKFRAME as i32 |
+                WS_BORDER as i32
+            );
+        }
+
         if let Ok(mut grid) = GRID.lock() {
             grid.split(Window {
                 id: window_handle as i32,

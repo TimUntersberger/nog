@@ -1,3 +1,4 @@
+use crate::CONFIG;
 use crate::tile::Tile;
 use crate::window::Window;
 use winapi::um::winuser::SetForegroundWindow;
@@ -122,10 +123,14 @@ impl TileGrid {
             bottom: 0
         };
         SystemParametersInfoA(SPI_GETWORKAREA, 0, &mut rect as *mut _ as *mut std::ffi::c_void, 0);
-        // self.height = rect.bottom + 9;
-        // self.width = rect.right + 15;
-        self.height = rect.bottom;
-        self.width = rect.right;
+
+        if CONFIG.remove_title_bar {
+            self.height = rect.bottom;
+            self.width = rect.right;
+        } else {
+            self.height = rect.bottom + 9;
+            self.width = rect.right + 15;
+        }
     }
     pub fn close_tile_by_window_id(&mut self, id: i32) -> Option<Tile> {
         let maybe_removed_tile = self.tiles
@@ -247,59 +252,70 @@ impl TileGrid {
             } 
         }
     }
+    unsafe fn draw_tile_with_title_bar(&self, tile: &Tile) {
+        let column_width = self.width / self.columns;
+        let row_height = self.height / self.rows;
+
+        let column_delta = match tile.column {
+            Some(column) => if column > 1 {
+                15
+            } else {
+                0
+            },
+            None => 0
+        };
+
+        let row_delta = match tile.row {
+            Some(row) => if row > 1 {
+                10
+            } else {
+                0
+            },
+            None => 0
+        };
+
+        let x = match tile.column {
+            Some(column) => column_width * (column - 1) - 8 - column_delta,
+            None => -8
+        };
+
+        let y = match tile.row {
+            Some(row) => row_height * (row - 1) - row_delta - 1,
+            None => -1
+        };
+
+        let height = match tile.row {
+            Some(_row) => row_height + row_delta,
+            None => self.height
+        };
+
+        let width = match tile.column {
+            Some(_column) => column_width + column_delta,
+            None => self.width
+        };
+
+        SetWindowPos(tile.window.id as HWND, std::ptr::null_mut(), x, y, width, height, 0);
+    }
+
     unsafe fn draw_tile(&self, tile: &Tile){
         let column_width = self.width / self.columns;
         let row_height = self.height / self.rows;
 
-        // let column_delta = match tile.column {
-        //     Some(column) => if column > 1 {
-        //         15
-        //     } else {
-        //         0
-        //     },
-        //     None => 0
-        // };
-
-        // let row_delta = match tile.row {
-        //     Some(row) => if row > 1 {
-        //         10
-        //     } else {
-        //         0
-        //     },
-        //     None => 0
-        // };
-
-        // let x = match tile.column {
-        //     Some(column) => column_width * (column - 1) - 8 - column_delta,
-        //     None => -8
-        // };
         let x = match tile.column {
             Some(column) => column_width * (column - 1),
             None => 0
         };
 
-        // let y = match tile.row {
-        //     Some(row) => row_height * (row - 1) - row_delta - 1,
-        //     None => -1
-        // };
         let y = match tile.row {
             Some(row) => row_height * (row - 1),
             None => 0
         };
 
-        // let height = match tile.row {
-        //     Some(_row) => row_height + row_delta,
-        //     None => self.height
-        // };
         let height = match tile.row {
             Some(_row) => row_height,
             None => self.height
         };  
 
-        // let width = match tile.column {
-        //     Some(_column) => column_width + column_delta,
-        //     None => self.width
-        // };
         let width = match tile.column {
             Some(_column) => column_width,
             None => self.width
@@ -334,7 +350,11 @@ impl TileGrid {
             }
             println!("{} {}", tile.column.unwrap_or(0), tile.row.unwrap_or(0));
             unsafe {
-                self.draw_tile(tile);
+                if CONFIG.remove_title_bar {
+                    self.draw_tile(tile);
+                } else {
+                    self.draw_tile_with_title_bar(tile);
+                }
             }
         }
         
