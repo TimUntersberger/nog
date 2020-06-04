@@ -12,8 +12,9 @@ use winapi::shared::windef::POINT;
 use winapi::shared::windef::HWND;
 
 use num_traits::FromPrimitive;
+use strum_macros::EnumString;
 
-#[derive(Clone, Copy, FromPrimitive, PartialEq)]
+#[derive(Clone, Copy, FromPrimitive, PartialEq, EnumString)]
 #[allow(dead_code)]
 pub enum Key {
     Enter = 0x0D,
@@ -47,7 +48,7 @@ pub enum Key {
     Z = 0x5A 
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, EnumString)]
 #[allow(dead_code)]
 pub enum Modifier {
     Alt = 0x0001,

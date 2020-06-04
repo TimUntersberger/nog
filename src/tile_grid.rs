@@ -8,12 +8,12 @@ use winapi::um::winuser::SystemParametersInfoA;
 use winapi::um::winuser::SPI_GETWORKAREA;
 use winapi::um::winuser::SetWindowPos;
 
-#[derive(Clone)]
+#[derive(Clone, EnumString)]
 pub enum SplitDirection {
     Horizontal,
     Vertical
 }
-
+//TODO(#20)
 pub struct TileGrid {
     pub tiles: Vec<Tile>,
     pub focused_window_id: Option<i32>,

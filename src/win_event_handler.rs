@@ -52,12 +52,18 @@ fn is_os_window(title: &str) -> bool {
     return OS_WINDOWS.iter().any(|name| title.contains(name));
 }
 
-unsafe fn handle_event_object_show(window_handle: HWND, window_title: String){
+pub unsafe fn split_window(window_handle: HWND) {
+    if let Some(window_title) = get_title_of_window(window_handle) {
+        handle_event_object_show(window_handle, &window_title, true);
+    }
+}
+
+unsafe fn handle_event_object_show(window_handle: HWND, window_title: &str, ignore_window_style: bool){
     // gets the GWL_STYLE of the window. GWL_STYLE returns a bitmask that can be used to find out attributes about a window
     let window_style = GetWindowLongA(window_handle, GWL_STYLE);
     // checks whether the window has a titlebar
     // if the window doesn't have a titlebar, it usually means that we shouldn't manage the window (because it's a tooltip or something like that)
-    let should_manage = (window_style & WS_CAPTION as i32) == WS_CAPTION as i32;
+    let should_manage = ignore_window_style || (window_style & WS_CAPTION as i32) == WS_CAPTION as i32;
     println!("should manage is {}", should_manage);
 
     if should_manage {
@@ -73,9 +79,11 @@ unsafe fn handle_event_object_show(window_handle: HWND, window_title: String){
         if let Ok(mut grid) = GRID.lock() {
             grid.split(Window {
                 id: window_handle as i32,
-                name: window_title.clone()
+                name: window_title.to_string(),
+                original_style: window_style
             });
             grid.print_grid();
+        
         }
     }
 }
@@ -104,7 +112,7 @@ unsafe extern "system" fn handler(_: HWINEVENTHOOK, event: DWORD, window_handle:
             }, event, object_type, child, window_title, window_handle as i32);
 
             match event {
-                EVENT_OBJECT_SHOW => handle_event_object_show(window_handle, window_title),
+                EVENT_OBJECT_SHOW => handle_event_object_show(window_handle, &window_title, false),
                 EVENT_OBJECT_DESTROY => handle_event_object_destroy(window_handle),
                 _ => {}
             }
