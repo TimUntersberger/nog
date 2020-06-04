@@ -106,6 +106,23 @@ fn main() {
                         grid.print_grid();
                     }
                 })),
+                Keybinding::Quit(key, modifiers) => (key, modifiers, Box::new(move || {   
+                    if let Ok(mut grid) = GRID.lock() {
+                        grid
+                            .tiles
+                            .iter()
+                            .map(|tile| (tile.window.id, tile.window.original_style))
+                            .collect::<Vec<(i32, i32)>>() // collect because of borrow checker
+                            .iter()
+                            .for_each(|(id, style)| {
+                                SetWindowLongA(*id as HWND, GWL_STYLE, *style);
+                                grid.close_tile_by_window_id(*id);
+                            });
+                    }
+
+                    win_event_handler::unregister();
+                    std::process::exit(0);
+                })),
                 Keybinding::Split(key, modifiers, direction) => (key, modifiers, Box::new(move || {   
                     if let Ok(mut grid) = GRID.lock() {
                         grid.set_focused_split_direction(direction.clone());

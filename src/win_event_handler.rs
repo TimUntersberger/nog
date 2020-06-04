@@ -17,6 +17,7 @@ use winapi::shared::minwindef::DWORD;
 use winapi::shared::ntdef::LONG;
 use winapi::um::winuser::OBJID_WINDOW;
 use winapi::um::winuser::SetWinEventHook;
+use winapi::um::winuser::UnhookWinEvent;
 use winapi::um::winuser::EVENT_MIN;
 use winapi::um::winuser::EVENT_MAX;
 
@@ -47,6 +48,8 @@ static OS_WINDOWS: [&str; 24] = [
     "Hidden Window",
     "Ribb"
 ];
+
+static mut hook: Option<HWINEVENTHOOK> = None;
 
 fn is_os_window(title: &str) -> bool {
     return OS_WINDOWS.iter().any(|name| title.contains(name));
@@ -121,7 +124,7 @@ unsafe extern "system" fn handler(_: HWINEVENTHOOK, event: DWORD, window_handle:
 }
 
 pub unsafe fn register(){
-    SetWinEventHook(
+    hook = Some(SetWinEventHook(
         EVENT_MIN, 
         EVENT_MAX, 
         std::ptr::null_mut(),
@@ -129,5 +132,9 @@ pub unsafe fn register(){
         0,
         0,
         0
-    );
+    ));
+}
+
+pub unsafe fn unregister(){
+    UnhookWinEvent(hook.unwrap());
 }

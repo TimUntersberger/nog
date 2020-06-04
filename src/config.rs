@@ -10,6 +10,7 @@ pub type FocusDirection = String;
 
 pub enum Keybinding {
     CloseTile(Key, Vec<Modifier>),
+    Quit(Key, Vec<Modifier>),
     ToggleFloatingMode(Key, Vec<Modifier>),
     Shell(Key, Vec<Modifier>, Command),
     Focus(Key, Vec<Modifier>, FocusDirection),
@@ -100,6 +101,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>>{
                                     .to_string()
                             ),
                             "CloseTile" => Keybinding::CloseTile(key, modifiers),
+                            "Quit" => Keybinding::Quit(key, modifiers),
                             "ToggleFloatingMode" => Keybinding::ToggleFloatingMode(key, modifiers),
                             "Focus" => Keybinding::Focus(
                                 key, 
