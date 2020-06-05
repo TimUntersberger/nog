@@ -6,8 +6,13 @@ extern crate strum_macros;
 use winapi::um::winuser::SendMessageA;
 use winapi::um::winuser::WM_DESTROY;
 use winapi::um::winuser::GetForegroundWindow;
+use winapi::um::winuser::FindWindowA;
 use winapi::um::winuser::SetWindowLongA;
+use winapi::um::winuser::SetWindowPos;
+use winapi::um::winuser::ShowWindow;
+use winapi::um::winuser::SW_SHOW;
 use winapi::um::winuser::GWL_STYLE;
+use winapi::shared::windef::RECT;
 use winapi::shared::windef::HWND;
 use std::sync::Mutex;
 use lazy_static::lazy_static;
@@ -44,10 +49,46 @@ lazy_static! {
     pub static ref CONFIG: Config = config::load().unwrap();
 }
 
+unsafe fn on_quit(){
+    if let Ok(mut grid) = GRID.lock() {
+        grid
+            .tiles
+            .iter()
+            .map(|tile| (tile.window.id, tile.window.original_style, tile.window.original_rect))
+            .collect::<Vec<(i32, i32, RECT)>>() // collect because of borrow checker
+            .iter()
+            .for_each(|(id, style, original_rect)| {
+                SetWindowLongA(*id as HWND, GWL_STYLE, *style);
+                SetWindowPos(
+                    *id as HWND, 
+                    std::ptr::null_mut(), 
+                    original_rect.left, 
+                    original_rect.top, 
+                    original_rect.right - original_rect.left, 
+                    original_rect.bottom - original_rect.top, 
+                    0
+                );
+                grid.close_tile_by_window_id(*id);
+            });
+        if CONFIG.remove_task_bar {
+            println!("{}", grid.taskbar_window);
+            ShowWindow(grid.taskbar_window as HWND, SW_SHOW);
+        }
+    }
+    win_event_handler::unregister();
+    std::process::exit(0);
+}
+
 fn main() {
     lazy_static::initialize(&CONFIG);
+    lazy_static::initialize(&GRID);
+
 
     unsafe {
+        ctrlc::set_handler(|| {
+            on_quit();
+        });
+
         let mut hot_key_manager = HotKeyManager::new();
 
         for keybinding in CONFIG.keybindings.iter() {
@@ -78,6 +119,15 @@ fn main() {
                         let window_id = tile.window.id;
                         if window_id as HWND == window_handle {
                             SetWindowLongA(window_handle, GWL_STYLE, tile.window.original_style);
+                            SetWindowPos(
+                                window_id as HWND, 
+                                std::ptr::null_mut(), 
+                                tile.window.original_rect.left, 
+                                tile.window.original_rect.top, 
+                                tile.window.original_rect.right - tile.window.original_rect.left, 
+                                tile.window.original_rect.bottom - tile.window.original_rect.top, 
+                                0
+                            );
 
                             if let Ok(mut grid) = GRID.lock() {
                                 grid.close_tile_by_window_id(window_id);
@@ -107,21 +157,7 @@ fn main() {
                     }
                 })),
                 Keybinding::Quit(key, modifiers) => (key, modifiers, Box::new(move || {   
-                    if let Ok(mut grid) = GRID.lock() {
-                        grid
-                            .tiles
-                            .iter()
-                            .map(|tile| (tile.window.id, tile.window.original_style))
-                            .collect::<Vec<(i32, i32)>>() // collect because of borrow checker
-                            .iter()
-                            .for_each(|(id, style)| {
-                                SetWindowLongA(*id as HWND, GWL_STYLE, *style);
-                                grid.close_tile_by_window_id(*id);
-                            });
-                    }
-
-                    win_event_handler::unregister();
-                    std::process::exit(0);
+                    on_quit();
                 })),
                 Keybinding::Split(key, modifiers, direction) => (key, modifiers, Box::new(move || {   
                     if let Ok(mut grid) = GRID.lock() {

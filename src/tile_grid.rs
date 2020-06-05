@@ -2,10 +2,15 @@ use crate::CONFIG;
 use crate::tile::Tile;
 use crate::window::Window;
 use winapi::um::winuser::SetForegroundWindow;
+use winapi::um::winuser::GetWindowRect;
+use winapi::um::winuser::FindWindowA;
+use winapi::um::winuser::ShowWindow;
+use winapi::um::winuser::SW_HIDE;
 use winapi::shared::windef::HWND;
 use winapi::shared::windef::RECT;
-use winapi::um::winuser::SystemParametersInfoA;
-use winapi::um::winuser::SPI_GETWORKAREA;
+use winapi::um::winuser::GetSystemMetrics;
+use winapi::um::winuser::SM_CXSCREEN;
+use winapi::um::winuser::SM_CYSCREEN;
 use winapi::um::winuser::SetWindowPos;
 
 #[derive(Clone, EnumString)]
@@ -17,6 +22,7 @@ pub enum SplitDirection {
 pub struct TileGrid {
     pub tiles: Vec<Tile>,
     pub focused_window_id: Option<i32>,
+    pub taskbar_window: i32,
     pub rows: i32,
     pub columns: i32,
     pub height: i32,
@@ -28,6 +34,7 @@ impl TileGrid {
         Self {
             tiles: Vec::<Tile>::new(),
             focused_window_id: None,
+            taskbar_window: 0,
             rows: 0,
             columns: 0,
             height: 0,
@@ -122,14 +129,28 @@ impl TileGrid {
             right: 0,
             bottom: 0
         };
-        SystemParametersInfoA(SPI_GETWORKAREA, 0, &mut rect as *mut _ as *mut std::ffi::c_void, 0);
 
-        if CONFIG.remove_title_bar {
-            self.height = rect.bottom;
-            self.width = rect.right;
-        } else {
-            self.height = rect.bottom + 9;
-            self.width = rect.right + 15;
+        self.height = GetSystemMetrics(SM_CYSCREEN);
+        self.width = GetSystemMetrics(SM_CXSCREEN);
+
+
+        if !CONFIG.remove_title_bar {
+            self.height = self.height + 9;
+            self.width = self.width + 15;
+        } 
+
+        self.taskbar_window = FindWindowA("Shell_TrayWnd".as_ptr() as *const i8, std::ptr::null()) as i32;
+        let taskbar_is_visible = rect.top + 2 < self.height;
+
+        GetWindowRect(self.taskbar_window as HWND, &mut rect);
+
+        if taskbar_is_visible {
+            if CONFIG.remove_task_bar {
+                ShowWindow(self.taskbar_window as HWND, SW_HIDE);
+            }
+            else {
+                self.height = self.height - (rect.bottom - rect.top);
+            }
         }
     }
     pub fn close_tile_by_window_id(&mut self, id: i32) -> Option<Tile> {

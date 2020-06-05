@@ -19,13 +19,15 @@ pub enum Keybinding {
 
 pub struct Config {
     pub remove_title_bar: bool,
+    pub remove_task_bar: bool,
     pub keybindings: Vec<Keybinding>
 }
 
 impl Config {
     pub fn new() -> Self {
         Self {
-            remove_title_bar: true,
+            remove_title_bar: false,
+            remove_task_bar: false,
             keybindings: Vec::new()
         }
     }
@@ -68,6 +70,9 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>>{
             match config_key {
                 "remove_title_bar" => {
                     config.remove_title_bar = value.as_bool().ok_or("remove_title_bar has to a bool")?;
+                },
+                "remove_task_bar" => {
+                    config.remove_task_bar = value.as_bool().ok_or("remove_task_bar has to a bool")?;
                 },
                 "keybindings" => {
                     let bindings = value.as_vec().ok_or("keybindings has to be an array")?; 

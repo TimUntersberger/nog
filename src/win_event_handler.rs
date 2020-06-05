@@ -5,14 +5,17 @@ use crate::util::get_title_of_window;
 use winapi::um::winuser::EVENT_OBJECT_CREATE;
 use winapi::um::winuser::EVENT_OBJECT_SHOW;
 use winapi::um::winuser::EVENT_OBJECT_DESTROY;
-use winapi::shared::windef::HWND;
+use winapi::um::winuser::GetParent;
 use winapi::um::winuser::GetWindowLongA;
 use winapi::um::winuser::SetWindowLongA;
+use winapi::um::winuser::GetWindowRect;
 use winapi::um::winuser::GWL_STYLE;
 use winapi::um::winuser::WS_CAPTION;
 use winapi::um::winuser::WS_THICKFRAME;
 use winapi::um::winuser::WS_BORDER;
+use winapi::shared::windef::HWND;
 use winapi::shared::windef::HWINEVENTHOOK;
+use winapi::shared::windef::RECT;
 use winapi::shared::minwindef::DWORD;
 use winapi::shared::ntdef::LONG;
 use winapi::um::winuser::OBJID_WINDOW;
@@ -64,9 +67,10 @@ pub unsafe fn split_window(window_handle: HWND) {
 unsafe fn handle_event_object_show(window_handle: HWND, window_title: &str, ignore_window_style: bool){
     // gets the GWL_STYLE of the window. GWL_STYLE returns a bitmask that can be used to find out attributes about a window
     let window_style = GetWindowLongA(window_handle, GWL_STYLE);
+    let parent = GetParent(window_handle) as i32;
     // checks whether the window has a titlebar
     // if the window doesn't have a titlebar, it usually means that we shouldn't manage the window (because it's a tooltip or something like that)
-    let should_manage = ignore_window_style || (window_style & WS_CAPTION as i32) == WS_CAPTION as i32;
+    let should_manage = parent == 0 && (ignore_window_style || (window_style & WS_CAPTION as i32) == WS_CAPTION as i32);
     println!("should manage is {}", should_manage);
 
     if should_manage {
@@ -80,11 +84,17 @@ unsafe fn handle_event_object_show(window_handle: HWND, window_title: &str, igno
         }
 
         if let Ok(mut grid) = GRID.lock() {
+            let mut rect: RECT = RECT { bottom: 0, left: 0, right: 0, top: 0};
+
+            GetWindowRect(window_handle, &mut rect);
+
             grid.split(Window {
                 id: window_handle as i32,
                 name: window_title.to_string(),
-                original_style: window_style
+                original_style: window_style,
+                original_rect: rect
             });
+
             grid.print_grid();
         
         }
