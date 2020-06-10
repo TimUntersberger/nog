@@ -104,14 +104,12 @@ impl HotKeyManager {
         };
 
         loop {
-            if GetMessageW(&mut msg, 0 as HWND, WM_HOTKEY, WM_HOTKEY) == 0 {
+            if GetMessageW(&mut msg, 0 as HWND, 0, 0) == 0 {
                 break;
             }
 
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
-
-            println!("Received Message of type {}", msg.hwnd as i32);
 
             if msg.message == WM_HOTKEY {
                 if let Some(key) = Key::from_usize(msg.wParam) {
@@ -121,6 +119,9 @@ impl HotKeyManager {
                         }
                     }
                 }
+            }
+            else if msg.message == winapi::um::winuser::WM_PAINT {
+                println!("Received paint!");
             }
         }
     }

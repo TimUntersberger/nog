@@ -18,6 +18,8 @@ pub enum Keybinding {
 }
 
 pub struct Config {
+    pub app_bar_bg: i32,
+    pub app_bar_workspace_bg: i32,
     pub remove_title_bar: bool,
     pub remove_task_bar: bool,
     pub keybindings: Vec<Keybinding>
@@ -26,6 +28,8 @@ pub struct Config {
 impl Config {
     pub fn new() -> Self {
         Self {
+            app_bar_bg: 0x0027242c,
+            app_bar_workspace_bg: 0x00161616,
             remove_title_bar: false,
             remove_task_bar: false,
             keybindings: Vec::new()
@@ -68,6 +72,12 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>>{
             let config_key = key.as_str().ok_or("Invalid config key")?;
 
             match config_key {
+                "app_bar_bg" => {
+                    config.app_bar_bg = i32::from_str_radix(value.as_str().ok_or("app_bar_bg has to be a string")?, 16)?;
+                },
+                "app_bar_workspace_bg" => {
+                    config.app_bar_workspace_bg = i32::from_str_radix(value.as_str().ok_or("app_bar_workspace_bg has to be a string")?, 16)?;
+                },
                 "remove_title_bar" => {
                     config.remove_title_bar = value.as_bool().ok_or("remove_title_bar has to a bool")?;
                 },
@@ -138,5 +148,6 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>>{
             }
         }
     }
+    
     Ok(config)
 }

@@ -18,6 +18,7 @@ pub enum SplitDirection {
     Horizontal,
     Vertical
 }
+
 //TODO(#20)
 pub struct TileGrid {
     pub tiles: Vec<Tile>,

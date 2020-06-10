@@ -10,6 +10,7 @@ use winapi::um::winuser::SetWindowLongA;
 use winapi::um::winuser::SetWindowPos;
 use winapi::um::winuser::ShowWindow;
 use winapi::um::winuser::SW_SHOW;
+use winapi::um::winuser::SW_HIDE;
 use winapi::um::winuser::GWL_STYLE;
 use winapi::shared::windef::RECT;
 use winapi::shared::windef::HWND;
@@ -18,6 +19,10 @@ use lazy_static::lazy_static;
 use std::process::Command;
 
 mod tile_grid;
+mod task_bar;
+mod direction;
+mod display;
+mod workspace;
 mod hot_key_manager;
 mod config;
 mod tile;
@@ -83,6 +88,11 @@ fn main() {
     lazy_static::initialize(&GRID);
 
     unsafe {
+        task_bar::init();
+
+        if CONFIG.remove_task_bar {
+            ShowWindow(task_bar::WINDOW as HWND, SW_HIDE);
+        }
 
         app_bar::create();
 
@@ -93,7 +103,7 @@ fn main() {
         let mut hot_key_manager = HotKeyManager::new();
 
         for keybinding in CONFIG.keybindings.iter() {
-            let (key, modifiers, callback): (&Key, &Vec<Modifier>, Box<dyn Fn()>) = match keybinding {
+            let (key, modifiers, callback): (&Key, &Vec<Modifier>, Box<dyn Fn() + Send + Sync>) = match keybinding {
                 Keybinding::Shell(key, modifiers, cmd) => (key, modifiers, Box::new(move || { 
                     Command::new("cmd").args(&["/C", &cmd]).spawn(); 
                 })),
@@ -175,6 +185,6 @@ fn main() {
         }
 
         win_event_handler::register();
-        hot_key_manager.start()
+        hot_key_manager.start();
     }
 }
