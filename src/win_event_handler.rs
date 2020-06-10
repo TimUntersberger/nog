@@ -25,7 +25,7 @@ use winapi::um::winuser::EVENT_MIN;
 use winapi::um::winuser::EVENT_MAX;
 
 static HANDLED_EVENTS: [u32; 2] = [EVENT_OBJECT_SHOW, EVENT_OBJECT_DESTROY];
-static OS_WINDOWS: [&str; 24] = [
+static OS_WINDOWS: [&str; 25] = [
     "Task Switching",
     "OLEChannelWnd",
     ".NET-BroadcastEventWindow",
@@ -49,7 +49,8 @@ static OS_WINDOWS: [&str; 24] = [
     "FolderView",
     "Address: Quick access",
     "Hidden Window",
-    "Ribb"
+    "Ribb",
+    "wwm_app_bar"
 ];
 
 static mut hook: Option<HWINEVENTHOOK> = None;

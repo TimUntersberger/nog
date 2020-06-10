@@ -111,6 +111,8 @@ impl HotKeyManager {
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
 
+            println!("Received Message of type {}", msg.hwnd as i32);
+
             if msg.message == WM_HOTKEY {
                 if let Some(key) = Key::from_usize(msg.wParam) {
                     for hot_key in &self.hot_keys {

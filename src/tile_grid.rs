@@ -130,9 +130,8 @@ impl TileGrid {
             bottom: 0
         };
 
-        self.height = GetSystemMetrics(SM_CYSCREEN);
+        self.height = GetSystemMetrics(SM_CYSCREEN) - 20;
         self.width = GetSystemMetrics(SM_CXSCREEN);
-
 
         if !CONFIG.remove_title_bar {
             self.height = self.height + 9;
@@ -315,7 +314,7 @@ impl TileGrid {
             None => self.width
         };
 
-        SetWindowPos(tile.window.id as HWND, std::ptr::null_mut(), x, y, width, height, 0);
+        SetWindowPos(tile.window.id as HWND, std::ptr::null_mut(), x, y + 20, width, height, 0);
     }
 
     unsafe fn draw_tile(&self, tile: &Tile){
@@ -342,7 +341,7 @@ impl TileGrid {
             None => self.width
         };
 
-        SetWindowPos(tile.window.id as HWND, std::ptr::null_mut(), x, y, width, height, 0);
+        SetWindowPos(tile.window.id as HWND, std::ptr::null_mut(), x, y + 20, width, height, 0);
     }
 
     pub fn print_grid(&self) -> () {

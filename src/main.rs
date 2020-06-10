@@ -6,7 +6,6 @@ extern crate strum_macros;
 use winapi::um::winuser::SendMessageA;
 use winapi::um::winuser::WM_DESTROY;
 use winapi::um::winuser::GetForegroundWindow;
-use winapi::um::winuser::FindWindowA;
 use winapi::um::winuser::SetWindowLongA;
 use winapi::um::winuser::SetWindowPos;
 use winapi::um::winuser::ShowWindow;
@@ -24,6 +23,7 @@ mod config;
 mod tile;
 mod window;
 mod util;
+mod app_bar;
 mod win_event_handler;
 
 use tile::Tile;
@@ -71,7 +71,6 @@ unsafe fn on_quit(){
                 grid.close_tile_by_window_id(*id);
             });
         if CONFIG.remove_task_bar {
-            println!("{}", grid.taskbar_window);
             ShowWindow(grid.taskbar_window as HWND, SW_SHOW);
         }
     }
@@ -83,8 +82,10 @@ fn main() {
     lazy_static::initialize(&CONFIG);
     lazy_static::initialize(&GRID);
 
-
     unsafe {
+
+        app_bar::create();
+
         ctrlc::set_handler(|| {
             on_quit();
         });
