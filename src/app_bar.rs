@@ -31,31 +31,33 @@ use winapi::um::wingdi::SetBkMode;
 
 use crate::CONFIG;
 
+pub static mut HEIGHT: i32 = 0;
+
 unsafe extern "system" fn window_cb(hwnd: HWND, msg: UINT, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
     println!("Received event: {}", msg);
 
-    // if msg == WM_PAINT && WINDOW != 0 {
-    //     let mut rect = RECT {
-    //         left: 0,
-    //         top: 0,
-    //         right: 0,
-    //         bottom: 0
-    //     };
+    if msg == WM_PAINT && WINDOW != 0 {
+        let mut rect = RECT {
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0
+        };
 
-    //     GetClientRect(WINDOW as HWND, &mut rect);
+        GetClientRect(WINDOW as HWND, &mut rect);
 
-    //     let mut paint = PAINTSTRUCT {
-    //         hdc: GetDC(WINDOW as HWND),
-    //         fErase: 0,
-    //         rcPaint: rect,
-    //         fRestore: 0,
-    //         fIncUpdate: 0,
-    //         rgbReserved: [0; 32]
-    //     };
+        let mut paint = PAINTSTRUCT {
+            hdc: GetDC(WINDOW as HWND),
+            fErase: 0,
+            rcPaint: rect,
+            fRestore: 0,
+            fIncUpdate: 0,
+            rgbReserved: [0; 32]
+        };
 
-    //     BeginPaint(WINDOW as HWND, &mut paint);
-    //     EndPaint(WINDOW as HWND, &paint);
-    // }
+        BeginPaint(WINDOW as HWND, &mut paint);
+        EndPaint(WINDOW as HWND, &paint);
+    }
 
     return DefWindowProcA(hwnd, msg, w_param, l_param);
 }
@@ -63,6 +65,7 @@ unsafe extern "system" fn window_cb(hwnd: HWND, msg: UINT, w_param: WPARAM, l_pa
 static mut WINDOW: i32 = 0;
 
 pub unsafe fn create() {
+    HEIGHT = 0;
     let name = "wwm_app_bar";
     let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
     let background_brush = CreateSolidBrush(CONFIG.app_bar_bg as u32);
@@ -90,7 +93,7 @@ pub unsafe fn create() {
         0,
         0,
         1920,
-        20,
+        HEIGHT,
         std::ptr::null_mut(),
         std::ptr::null_mut(),
         instance,
@@ -134,10 +137,8 @@ pub unsafe fn draw_workspace(idx: i32, id: i32){
 
         GetClientRect(WINDOW as HWND, &mut rect);
 
-        let workspace_rect_width = 20;
-
-        rect.left = rect.left + workspace_rect_width * idx;
-        rect.right = rect.left + workspace_rect_width;
+        rect.left = rect.left + HEIGHT * idx;
+        rect.right = rect.left + HEIGHT;
 
         let hdc = GetDC(WINDOW as HWND);
         FillRect(hdc, &mut rect, CreateSolidBrush(CONFIG.app_bar_workspace_bg as u32));

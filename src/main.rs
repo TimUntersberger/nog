@@ -20,9 +20,7 @@ use std::process::Command;
 
 mod tile_grid;
 mod task_bar;
-mod direction;
 mod display;
-mod workspace;
 mod hot_key_manager;
 mod config;
 mod tile;
