@@ -12,21 +12,27 @@ use winapi::um::winuser::SM_CXSCREEN;
 pub static mut HEIGHT: i32 = 0;
 pub static mut WIDTH: i32 = 0;
 
-pub unsafe fn init(){
-    HEIGHT = GetSystemMetrics(SM_CYSCREEN) - app_bar::HEIGHT;
-    WIDTH = GetSystemMetrics(SM_CXSCREEN);
+pub fn init(){
+    unsafe {
+        HEIGHT = GetSystemMetrics(SM_CYSCREEN);
+        WIDTH = GetSystemMetrics(SM_CXSCREEN);
 
-    if !CONFIG.remove_title_bar {
-        HEIGHT = HEIGHT + 9;
-        WIDTH = WIDTH + 15;
-    } 
+        if CONFIG.display_app_bar {
+            HEIGHT = HEIGHT - app_bar::HEIGHT;
+        }
 
-    // +2 because the taskbar is apparently still on the screen when hidden haha
-    let taskbar_is_visible = task_bar::Y + 2 + app_bar::HEIGHT < HEIGHT;
+        if !CONFIG.remove_title_bar {
+            HEIGHT = HEIGHT + 9;
+            WIDTH = WIDTH + 15;
+        } 
 
-    println!("{}, {}", task_bar::Y, HEIGHT);
+        // +2 because the taskbar is apparently still on the screen when hidden haha
+        let taskbar_is_visible = task_bar::Y + 2 + app_bar::HEIGHT < HEIGHT;
 
-    if taskbar_is_visible && !CONFIG.remove_task_bar {
-        HEIGHT = HEIGHT - task_bar::HEIGHT;
+        println!("{}, {}", task_bar::Y, task_bar::HEIGHT);
+
+        if taskbar_is_visible && !CONFIG.remove_task_bar {
+            HEIGHT = HEIGHT - task_bar::HEIGHT;
+        }
     }
 }

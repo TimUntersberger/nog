@@ -1,16 +1,8 @@
 use crate::CONFIG;
 use crate::tile::Tile;
 use crate::window::Window;
-use winapi::um::winuser::SetForegroundWindow;
-use winapi::um::winuser::GetWindowRect;
-use winapi::um::winuser::FindWindowA;
-use winapi::um::winuser::ShowWindow;
-use winapi::um::winuser::SW_HIDE;
+use crate::util;
 use winapi::shared::windef::HWND;
-use winapi::shared::windef::RECT;
-use winapi::um::winuser::GetSystemMetrics;
-use winapi::um::winuser::SM_CXSCREEN;
-use winapi::um::winuser::SM_CYSCREEN;
 use winapi::um::winuser::SetWindowPos;
 
 #[derive(Clone, EnumString)]
@@ -59,10 +51,10 @@ impl TileGrid {
             focused_tile.split_direction = direction;
         }
     }
-    pub unsafe fn focus_right(&mut self){
+    pub fn focus_right(&mut self) -> Result<(), util::WinApiResultError>{
         if let Some(focused_tile) = self.get_focused_tile() {
             if focused_tile.column == Some(self.columns) || focused_tile.column == None {
-                return;
+                return Ok(());
             }
 
             let maybe_next_tile = self.tiles
@@ -71,14 +63,16 @@ impl TileGrid {
 
             if let Some(next_tile) = maybe_next_tile {
                 self.focused_window_id = Some(next_tile.window.id);
-                SetForegroundWindow(next_tile.window.id as HWND);
+                next_tile.window.to_foreground()?;
             }
         }
+
+        Ok(())
     }
-    pub unsafe fn focus_left(&mut self){
+    pub fn focus_left(&mut self) -> Result<(), util::WinApiResultError>{
         if let Some(focused_tile) = self.get_focused_tile() {
             if focused_tile.column == Some(1) || focused_tile.column == None {
-                return;
+                return Ok(());
             }
 
             let maybe_next_tile = self.tiles
@@ -87,14 +81,16 @@ impl TileGrid {
 
             if let Some(next_tile) = maybe_next_tile {
                 self.focused_window_id = Some(next_tile.window.id);
-                SetForegroundWindow(next_tile.window.id as HWND);
+                next_tile.window.to_foreground()?;
             }
         }
+
+        Ok(())
     }
-    pub unsafe fn focus_up(&mut self){
+    pub fn focus_up(&mut self) -> Result<(), util::WinApiResultError>{
         if let Some(focused_tile) = self.get_focused_tile() {
             if focused_tile.row == Some(1) || focused_tile.row == None {
-                return;
+                return Ok(());
             }
 
             let maybe_next_tile = self.tiles
@@ -103,14 +99,16 @@ impl TileGrid {
 
             if let Some(next_tile) = maybe_next_tile {
                 self.focused_window_id = Some(next_tile.window.id);
-                SetForegroundWindow(next_tile.window.id as HWND);
+                next_tile.window.to_foreground()?;
             }
         }
+
+        Ok(())
     }
-    pub unsafe fn focus_down(&mut self){
+    pub fn focus_down(&mut self) -> Result<(), util::WinApiResultError>{
         if let Some(focused_tile) = self.get_focused_tile() {
             if focused_tile.row == Some(self.rows) || focused_tile.row == None {
-                return;
+                return Ok(());
             }
 
             let maybe_next_tile = self.tiles
@@ -119,39 +117,11 @@ impl TileGrid {
 
             if let Some(next_tile) = maybe_next_tile {
                 self.focused_window_id = Some(next_tile.window.id);
-                SetForegroundWindow(next_tile.window.id as HWND);
+                next_tile.window.to_foreground()?;
             }
         }
-    }
-    pub unsafe fn fetch_resolution(&mut self) {
-        let mut rect = RECT {
-            left: 0,
-            top: 0,
-            right: 0,
-            bottom: 0
-        };
 
-        self.height = GetSystemMetrics(SM_CYSCREEN) - 20;
-        self.width = GetSystemMetrics(SM_CXSCREEN);
-
-        if !CONFIG.remove_title_bar {
-            self.height = self.height + 9;
-            self.width = self.width + 15;
-        } 
-
-        self.taskbar_window = FindWindowA("Shell_TrayWnd".as_ptr() as *const i8, std::ptr::null()) as i32;
-        let taskbar_is_visible = rect.top + 2 < self.height;
-
-        GetWindowRect(self.taskbar_window as HWND, &mut rect);
-
-        if taskbar_is_visible {
-            if CONFIG.remove_task_bar {
-                ShowWindow(self.taskbar_window as HWND, SW_HIDE);
-            }
-            else {
-                self.height = self.height - (rect.bottom - rect.top);
-            }
-        }
+        Ok(())
     }
     pub fn close_tile_by_window_id(&mut self, id: i32) -> Option<Tile> {
         let maybe_removed_tile = self.tiles
@@ -315,7 +285,7 @@ impl TileGrid {
             None => self.width
         };
 
-        SetWindowPos(tile.window.id as HWND, std::ptr::null_mut(), x, y + 20, width, height, 0);
+        SetWindowPos(tile.window.id as HWND, std::ptr::null_mut(), x, y, width, height, 0);
     }
 
     unsafe fn draw_tile(&self, tile: &Tile){
@@ -342,7 +312,7 @@ impl TileGrid {
             None => self.width
         };
 
-        SetWindowPos(tile.window.id as HWND, std::ptr::null_mut(), x, y + 20, width, height, 0);
+        SetWindowPos(tile.window.id as HWND, std::ptr::null_mut(), x, y, width, height, 0);
     }
 
     pub fn print_grid(&self) -> () {

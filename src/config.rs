@@ -22,6 +22,7 @@ pub struct Config {
     pub app_bar_workspace_bg: i32,
     pub remove_title_bar: bool,
     pub remove_task_bar: bool,
+    pub display_app_bar: bool,
     pub keybindings: Vec<Keybinding>
 }
 
@@ -32,6 +33,7 @@ impl Config {
             app_bar_workspace_bg: 0x00161616,
             remove_title_bar: false,
             remove_task_bar: false,
+            display_app_bar: false,
             keybindings: Vec::new()
         }
     }
@@ -46,13 +48,13 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>>{
     pathbuf.push("wwm");
 
     if !pathbuf.exists() {
-        std::fs::create_dir(pathbuf.clone());
+        std::fs::create_dir(pathbuf.clone())?;
     }
 
     pathbuf.push("config.yaml");
 
     if !pathbuf.exists() {
-        std::fs::File::create(pathbuf.clone());
+        std::fs::File::create(pathbuf.clone())?;
     }
 
     let path = match pathbuf.to_str() {
@@ -83,6 +85,9 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>>{
                 },
                 "remove_task_bar" => {
                     config.remove_task_bar = value.as_bool().ok_or("remove_task_bar has to a bool")?;
+                },
+                "display_app_bar" => {
+                    config.display_app_bar = value.as_bool().ok_or("display_app_bar has to a bool")?;
                 },
                 "keybindings" => {
                     let bindings = value.as_vec().ok_or("keybindings has to be an array")?; 

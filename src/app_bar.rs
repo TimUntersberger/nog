@@ -1,3 +1,4 @@
+use winapi::shared::minwindef::HINSTANCE;
 use winapi::shared::minwindef::LPARAM;
 use winapi::shared::minwindef::LRESULT;
 use winapi::shared::minwindef::UINT;
@@ -12,7 +13,6 @@ use winapi::um::winuser::WM_PAINT;
 use winapi::um::winuser::PAINTSTRUCT;
 use winapi::um::winuser::GetDC;
 use winapi::um::winuser::GetClientRect;
-use winapi::um::winuser::ReleaseDC;
 use winapi::um::winuser::BeginPaint;
 use winapi::um::winuser::FillRect;
 use winapi::um::winuser::DrawTextA;
@@ -30,6 +30,7 @@ use winapi::um::wingdi::TRANSPARENT;
 use winapi::um::wingdi::SetBkMode;
 
 use crate::CONFIG;
+use crate::util;
 
 pub static mut HEIGHT: i32 = 0;
 
@@ -64,53 +65,51 @@ unsafe extern "system" fn window_cb(hwnd: HWND, msg: UINT, w_param: WPARAM, l_pa
 
 static mut WINDOW: i32 = 0;
 
-pub unsafe fn create() {
-    HEIGHT = 0;
+pub fn create() -> Result<(), util::WinApiResultError> {
     let name = "wwm_app_bar";
-    let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
-    let background_brush = CreateSolidBrush(CONFIG.app_bar_bg as u32);
 
-    let class = WNDCLASSA {
-        hInstance: instance,
-        lpszClassName: name.as_ptr() as *const i8,
-        lpfnWndProc: Some(window_cb),
-        cbClsExtra: 0,
-        cbWndExtra: 0,
-        style: 0,
-        hIcon: 0 as HICON,
-        hCursor: 0 as HCURSOR,
-        hbrBackground: background_brush,
-        lpszMenuName: 0 as *const i8,
-    };
+    unsafe {
+        HEIGHT = 0;
+        let instance = util::winapi_nullable_to_result(winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut()) as i32)?;
+        let background_brush = util::winapi_nullable_to_result(CreateSolidBrush(CONFIG.app_bar_bg as u32) as i32)?;
 
-    RegisterClassA(&class);
+        let class = WNDCLASSA {
+            hInstance: instance as HINSTANCE,
+            lpszClassName: name.as_ptr() as *const i8,
+            lpfnWndProc: Some(window_cb),
+            cbClsExtra: 0,
+            cbWndExtra: 0,
+            style: 0,
+            hIcon: 0 as HICON,
+            hCursor: 0 as HCURSOR,
+            hbrBackground: background_brush as HBRUSH,
+            lpszMenuName: 0 as *const i8,
+        };
 
-    let window_handle = winapi::um::winuser::CreateWindowExA(
-        winapi::um::winuser::WS_EX_NOACTIVATE | winapi::um::winuser::WS_EX_TOPMOST,
-        name.as_ptr() as *const i8,
-        name.as_ptr() as *const i8,
-        winapi::um::winuser::WS_POPUPWINDOW & !winapi::um::winuser::WS_BORDER,
-        0,
-        0,
-        1920,
-        HEIGHT,
-        std::ptr::null_mut(),
-        std::ptr::null_mut(),
-        instance,
-        std::ptr::null_mut(),
-    );
+        RegisterClassA(&class);
 
-    if window_handle == 0 as HWND {
-        println!(
-            "window: {} | error: {}",
-            window_handle as i32,
-            winapi::um::errhandlingapi::GetLastError() as i32
-        );
-    } else {
+        let window_handle = util::winapi_ptr_to_result(winapi::um::winuser::CreateWindowExA(
+            winapi::um::winuser::WS_EX_NOACTIVATE | winapi::um::winuser::WS_EX_TOPMOST,
+            name.as_ptr() as *const i8,
+            name.as_ptr() as *const i8,
+            winapi::um::winuser::WS_POPUPWINDOW & !winapi::um::winuser::WS_BORDER,
+            0,
+            0,
+            1920,
+            HEIGHT,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            instance as HINSTANCE,
+            std::ptr::null_mut(),
+        ))?;
+
         println!("window: {}", window_handle as i32);
         WINDOW = window_handle as i32;
         ShowWindow(window_handle, SW_SHOW);
+
     }
+
+    Ok(())
 }
 
 pub unsafe fn clear(){
