@@ -11,6 +11,7 @@ pub type FocusDirection = String;
 pub enum Keybinding {
     CloseTile(Key, Vec<Modifier>),
     Quit(Key, Vec<Modifier>),
+    ChangeWorkspace(Key, Vec<Modifier>, i32),
     ToggleFloatingMode(Key, Vec<Modifier>),
     Shell(Key, Vec<Modifier>, Command),
     Focus(Key, Vec<Modifier>, FocusDirection),
@@ -61,8 +62,6 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>>{
         Some(string) => string,
         None => ""
     };
-
-    println!("Config path: {}", path);
 
     let file_content = std::fs::read_to_string(path).unwrap();
     let yaml = &yaml_rust::YamlLoader::load_from_str(&file_content).unwrap()[0];
@@ -122,6 +121,13 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>>{
                             ),
                             "CloseTile" => Keybinding::CloseTile(key, modifiers),
                             "Quit" => Keybinding::Quit(key, modifiers),
+                            "ChangeWorkspace" => Keybinding::ChangeWorkspace(
+                                key, 
+                                modifiers, 
+                                binding["id"]
+                                    .as_i64()
+                                    .ok_or("a keybinding of type shell has to have a key property")? as i32
+                            ),
                             "ToggleFloatingMode" => Keybinding::ToggleFloatingMode(key, modifiers),
                             "Focus" => Keybinding::Focus(
                                 key, 
@@ -143,8 +149,6 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>>{
                         };
 
                         config.keybindings.push(keybinding);
-
-                        println!("type: {} | key: {}", typ, key_combo);
                     }
                 },
                 s => {

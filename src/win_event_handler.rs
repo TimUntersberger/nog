@@ -1,8 +1,10 @@
 use crate::util;
 use crate::window::Window;
 use crate::CONFIG;
-use crate::GRID;
-use winapi::shared::minwindef::BOOL;
+use crate::GRIDS;
+use crate::WORKSPACE_ID;
+use log::debug;
+use num_traits::FromPrimitive;
 use winapi::shared::minwindef::DWORD;
 use winapi::shared::ntdef::LONG;
 use winapi::shared::windef::HWINEVENTHOOK;
@@ -77,36 +79,51 @@ fn handle_event_object_show(
     let should_manage = parent.is_err()
         && (ignore_window_style
             || (window.original_style & WS_CAPTION as i32) == WS_CAPTION as i32);
-    println!("should manage is {}", should_manage);
+
+    debug!("should manage is {}", should_manage);
 
     if should_manage {
         if CONFIG.remove_title_bar {
             window.remove_title_bar()?;
         }
+        let mut grids = GRIDS.lock().unwrap();
+        let grid = grids
+            .iter_mut()
+            .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
+            .unwrap();
+        window.original_rect = window.get_rect()?;
 
-        if let Ok(mut grid) = GRID.lock() {
-            window.original_rect = window.get_rect()?;
+        grid.split(window);
 
-            grid.split(window);
-
-            grid.print_grid();
-        }
+        grid.print_grid();
     }
 
     Ok(())
 }
 fn handle_event_object_destroy(window_handle: HWND) {
-    if let Ok(mut grid) = GRID.lock() {
-        grid.close_tile_by_window_id(window_handle as i32);
-        grid.print_grid();
-    }
+    let mut grids = GRIDS.lock().unwrap();
+    let grid = grids
+        .iter_mut()
+        .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
+        .unwrap();
+    grid.close_tile_by_window_id(window_handle as i32);
+    grid.print_grid();
 }
+
+#[derive(Clone, Copy, Debug, FromPrimitive)]
+enum WinEvent {
+    EventObjectCreate = EVENT_OBJECT_CREATE as isize,
+    EventObjectDestroy = EVENT_OBJECT_DESTROY as isize,
+    EventObjectShow = EVENT_OBJECT_SHOW as isize,
+    Unknown,
+}
+
 unsafe extern "system" fn handler(
     _: HWINEVENTHOOK,
     event: DWORD,
     window_handle: HWND,
     object_type: LONG,
-    child: LONG,
+    _: LONG,
     _: DWORD,
     _: DWORD,
 ) {
@@ -118,7 +135,7 @@ unsafe extern "system" fn handler(
         let res = util::get_title_of_window(window_handle);
 
         if res.is_err() {
-            return
+            return;
         }
 
         let window_title = res.unwrap();
@@ -127,18 +144,10 @@ unsafe extern "system" fn handler(
             return;
         }
 
-        println!(
-            "[{}] {}({} | {}, {}): '{}' {}",
-            chrono::offset::Utc::now().format("%Y-%m-%d %H:%M:%S"),
-            match event {
-                EVENT_OBJECT_CREATE => "EVENT_OBJECT_CREATE",
-                EVENT_OBJECT_DESTROY => "EVENT_OBJECT_DESTROY",
-                EVENT_OBJECT_SHOW => "EVENT_OBJECT_SHOW",
-                _ => "UNKNOWN",
-            },
+        debug!(
+            "{:?}({}): '{}' | {}",
+            WinEvent::from_u32(event).unwrap_or(WinEvent::Unknown),
             event,
-            object_type,
-            child,
             window_title,
             window_handle as i32
         );
@@ -173,8 +182,12 @@ pub fn register() -> Result<(), util::WinApiResultError> {
     Ok(())
 }
 
-pub fn unregister() -> util::WinApiResult<BOOL> {
+pub fn unregister() -> Result<(), util::WinApiResultError> {
     unsafe {
-        return util::winapi_err_to_result(UnhookWinEvent(HOOK.unwrap()));
+        if HOOK.is_some() {
+            util::winapi_err_to_result(UnhookWinEvent(HOOK.unwrap()))?;
+        }
     }
+
+    Ok(())
 }

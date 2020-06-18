@@ -6,12 +6,14 @@ use winapi::um::winuser::TranslateMessage;
 use winapi::um::winuser::MSG;
 use winapi::um::winuser::WM_HOTKEY;
 
+use log::{debug};
+
 use num_traits::FromPrimitive;
 use strum_macros::EnumString;
 
 use crate::util;
 
-#[derive(Clone, Copy, FromPrimitive, PartialEq, EnumString)]
+#[derive(Clone, Copy, FromPrimitive, PartialEq, EnumString, Display)]
 #[allow(dead_code)]
 pub enum Key {
     Enter = 0x0D,
@@ -43,6 +45,26 @@ pub enum Key {
     X = 0x58,
     Y = 0x59,
     Z = 0x5A,
+    #[strum(serialize = "0")]
+    Zero = 0x30,
+    #[strum(serialize = "1")]
+    One = 0x31,
+    #[strum(serialize = "2")]
+    Two = 0x32,
+    #[strum(serialize = "3")]
+    Three = 0x33,
+    #[strum(serialize = "4")]
+    Four = 0x34,
+    #[strum(serialize = "5")]
+    Five = 0x35,
+    #[strum(serialize = "6")]
+    Six = 0x36,
+    #[strum(serialize = "7")]
+    Seven = 0x37,
+    #[strum(serialize = "8")]
+    Eight = 0x38,
+    #[strum(serialize = "9")]
+    Nine = 0x39,
 }
 
 #[derive(Clone, Copy, EnumString)]
@@ -110,9 +132,7 @@ impl HotKeyManager {
                             }
                         }
                     }
-                } else if msg.message == winapi::um::winuser::WM_PAINT {
-                    println!("Received paint!");
-                }
+                } 
             }
         }
 

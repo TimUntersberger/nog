@@ -1,55 +1,57 @@
+use winapi::um::winuser::FindWindowA;
 use winapi::shared::minwindef::BOOL;
 use winapi::um::winuser::GetWindowRect;
 use winapi::um::winuser::SW_HIDE;
 use winapi::um::winuser::SW_SHOW;
 use winapi::um::winuser::ShowWindow;
-use winapi::um::shellapi::SHAppBarMessage;
-use winapi::um::shellapi::APPBARDATA;
-use winapi::um::shellapi::ABM_GETTASKBARPOS;
 use winapi::shared::windef::RECT;
 use winapi::shared::windef::HWND;
+use std::ffi::CString;
+use log::{debug};
+use std::sync::Mutex;
+use lazy_static::lazy_static;
 
 use crate::util;
 
-pub static mut X: i32 = 0;
-pub static mut Y: i32 = 0;
-pub static mut WINDOW: i32 = 0;
-pub static mut HEIGHT: i32 = 0;
-pub static mut WIDTH: i32 = 0;
-
-pub fn set_hwnd(hwnd: HWND) {
-    unsafe {
-        WINDOW = hwnd as i32;
-    }
+lazy_static! {
+    pub static ref X: Mutex<i32> = Mutex::new(0);
+    pub static ref Y: Mutex<i32> = Mutex::new(0);
+    pub static ref WINDOW: Mutex<i32> = Mutex::new(0);
+    pub static ref HEIGHT: Mutex<i32> = Mutex::new(0);
+    pub static ref WIDTH: Mutex<i32> = Mutex::new(0);
 }
 
-pub fn init() -> util::WinApiResult<BOOL> {
+pub fn init() {
     let mut rect = RECT::default(); 
+    let window_name = CString::new("Shell_TrayWnd").unwrap();
+
+    let mut gwindow = WINDOW.lock().unwrap();
+    let mut gx = X.lock().unwrap();
+    let mut gy = Y.lock().unwrap();
+    let mut gwidth = WIDTH.lock().unwrap();
+    let mut gheight = HEIGHT.lock().unwrap();
 
     unsafe {
-        let mut data = APPBARDATA::default();
-        SHAppBarMessage(ABM_GETTASKBARPOS, &mut data);
-        println!("{}", winapi::um::winuser::FindWindowA("Shell_TrayWnd".as_ptr() as *const i8, std::ptr::null()) as i32);
-        //WINDOW = winapi::um::winuser::FindWindowA("Shell_TrayWnd".as_ptr() as *const i8, std::ptr::null()) as i32;
-        // util::winapi_err_to_result(GetWindowRect(WINDOW as HWND, &mut rect))?;
-        let rect = data.rc;
-        X = rect.left;
-        Y = rect.top;
-        HEIGHT = rect.bottom - rect.top;
-        WIDTH = rect.right - rect.left;
-    }
+        *gwindow = FindWindowA(window_name.as_ptr(), std::ptr::null()) as i32;
+        GetWindowRect(*gwindow as HWND, &mut rect);
 
-    Ok(1)
-}
+        *gx = rect.left;
+        *gy = rect.top;
+        *gheight = rect.bottom - rect.top;
+        *gwidth = rect.right - rect.left;
 
-pub fn show() -> util::WinApiResult<BOOL> {
-    unsafe {
-        return util::winapi_err_to_result(ShowWindow(WINDOW as HWND, SW_SHOW));
+        debug!("Initialized Taskbar(x: {}, y: {}, width: {}, height: {})", *gx, *gy, *gwidth, *gheight);
     }
 }
 
-pub fn hide() -> util::WinApiResult<BOOL> {
+pub fn show() {
     unsafe {
-        return util::winapi_err_to_result(ShowWindow(WINDOW as HWND, SW_HIDE));
+        ShowWindow(*WINDOW.lock().unwrap() as HWND, SW_SHOW);
+    }
+}
+
+pub fn hide() {
+    unsafe {
+        ShowWindow(*WINDOW.lock().unwrap() as HWND, SW_HIDE);
     }
 }

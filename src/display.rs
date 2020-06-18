@@ -6,33 +6,46 @@ use winapi::um::winuser::GetSystemMetrics;
 use winapi::um::winuser::SM_CYSCREEN;
 use winapi::um::winuser::SM_CXSCREEN;
 
+use log::{debug};
+
 // height of the "display"
 // this is not the height of the real display
 // it is the real display minus the appbar height
-pub static mut HEIGHT: i32 = 0;
-pub static mut WIDTH: i32 = 0;
+#[derive(Default)]
+pub struct Display {
+    pub height: i32,
+    pub width: i32
+}
 
-pub fn init(){
-    unsafe {
-        HEIGHT = GetSystemMetrics(SM_CYSCREEN);
-        WIDTH = GetSystemMetrics(SM_CXSCREEN);
+impl Display {
+    pub fn init(&mut self) {
+        unsafe {
+            self.height = GetSystemMetrics(SM_CYSCREEN);
+            self.width = GetSystemMetrics(SM_CXSCREEN);
+        }
 
         if CONFIG.display_app_bar {
-            HEIGHT = HEIGHT - app_bar::HEIGHT;
+            self.height = self.height - *app_bar::HEIGHT.lock().unwrap();
         }
 
         if !CONFIG.remove_title_bar {
-            HEIGHT = HEIGHT + 9;
-            WIDTH = WIDTH + 15;
+            self.height = self.height + 9;
+            self.width = self.width + 15;
         } 
 
         // +2 because the taskbar is apparently still on the screen when hidden haha
-        let taskbar_is_visible = task_bar::Y + 2 + app_bar::HEIGHT < HEIGHT;
+        let taskbar_is_visible = *task_bar::Y.lock().unwrap() + 2 < self.height;
 
-        println!("{}, {}", task_bar::Y, task_bar::HEIGHT);
+        if taskbar_is_visible {
+            debug!("Taskbar is visible");
+        } else {
+            debug!("Taskbar is not visible");
+        }
 
         if taskbar_is_visible && !CONFIG.remove_task_bar {
-            HEIGHT = HEIGHT - task_bar::HEIGHT;
+            self.height = self.height - *task_bar::HEIGHT.lock().unwrap();
         }
+
+        debug!("Initialized Display(width: {}, height: {})", self.width, self.height);
     }
 }

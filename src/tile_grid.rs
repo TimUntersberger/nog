@@ -2,6 +2,7 @@ use crate::CONFIG;
 use crate::tile::Tile;
 use crate::window::Window;
 use crate::util;
+use crate::app_bar;
 use winapi::shared::windef::HWND;
 use winapi::um::winuser::SetWindowPos;
 
@@ -11,8 +12,16 @@ pub enum SplitDirection {
     Vertical
 }
 
+// TODO: A TileGrid will need a last focus stack where each item has a direction and window id.
+// When a focus function gets called peek at the last focus stack to know whether the sequence cancels itself to pop the last item.
+
+// the stack will need maximum limit. right now im thinking about like 5 items max?
+
 //TODO(#20)
+#[derive(Clone)]
 pub struct TileGrid {
+    pub id: i32,
+    pub visible: bool,
     pub tiles: Vec<Tile>,
     pub focused_window_id: Option<i32>,
     pub taskbar_window: i32,
@@ -23,8 +32,10 @@ pub struct TileGrid {
 }
 
 impl TileGrid {
-    pub fn new() -> Self {
+    pub fn new(id: i32) -> Self {
         Self {
+            id,
+            visible: false,
             tiles: Vec::<Tile>::new(),
             focused_window_id: None,
             taskbar_window: 0,
@@ -33,6 +44,22 @@ impl TileGrid {
             height: 0,
             width: 0
         }
+    }
+    pub fn hide(&mut self) {
+        for tile in &self.tiles {
+            tile.window.hide();
+        }
+        self.visible = false;
+    }
+    pub fn show(&mut self) {
+        for tile in &self.tiles {
+            tile.window.show();
+            tile.window.to_foreground();
+        }
+        if let Some(tile) = self.get_focused_tile() {
+            tile.window.to_foreground();
+        }
+        self.visible = true;
     }
     pub fn get_focused_tile(&self) -> Option<&Tile> {
         return self.focused_window_id
@@ -243,7 +270,7 @@ impl TileGrid {
             } 
         }
     }
-    unsafe fn draw_tile_with_title_bar(&self, tile: &Tile) {
+    fn draw_tile_with_title_bar(&self, tile: &Tile) {
         let column_width = self.width / self.columns;
         let row_height = self.height / self.rows;
 
@@ -285,10 +312,13 @@ impl TileGrid {
             None => self.width
         };
 
-        SetWindowPos(tile.window.id as HWND, std::ptr::null_mut(), x, y, width, height, 0);
+        unsafe {
+            //TODO: handle error
+            SetWindowPos(tile.window.id as HWND, std::ptr::null_mut(), x, y + *app_bar::HEIGHT.lock().unwrap(), width, height, 0);
+        }
     }
 
-    unsafe fn draw_tile(&self, tile: &Tile){
+    fn draw_tile(&self, tile: &Tile){
         let column_width = self.width / self.columns;
         let row_height = self.height / self.rows;
 
@@ -312,7 +342,10 @@ impl TileGrid {
             None => self.width
         };
 
-        SetWindowPos(tile.window.id as HWND, std::ptr::null_mut(), x, y, width, height, 0);
+        unsafe {
+            //TODO: handle error
+            SetWindowPos(tile.window.id as HWND, std::ptr::null_mut(), x, y + *app_bar::HEIGHT.lock().unwrap(), width, height, 0);
+        }
     }
 
     pub fn print_grid(&self) -> () {
@@ -340,12 +373,10 @@ impl TileGrid {
                 }
             }
             println!("{} {}", tile.column.unwrap_or(0), tile.row.unwrap_or(0));
-            unsafe {
-                if CONFIG.remove_title_bar {
-                    self.draw_tile(tile);
-                } else {
-                    self.draw_tile_with_title_bar(tile);
-                }
+            if CONFIG.remove_title_bar {
+                self.draw_tile(tile);
+            } else {
+                self.draw_tile_with_title_bar(tile);
             }
         }
         
