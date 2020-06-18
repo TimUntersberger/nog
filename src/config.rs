@@ -111,7 +111,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>>{
                             .ok_or("Invalid key")?;
 
                         let keybinding = match typ {
-                            "shell" => Keybinding::Shell(
+                            "Shell" => Keybinding::Shell(
                                 key,
                                 modifiers,
                                 binding["cmd"]
