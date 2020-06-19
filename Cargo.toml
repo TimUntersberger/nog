@@ -5,9 +5,6 @@ log = "debug"
 authors = ["timun"]
 edition = "2018"
 
-[package.metadata.wix]
-product-icon = './logo.ico'
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
