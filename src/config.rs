@@ -64,7 +64,13 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>>{
     };
 
     let file_content = std::fs::read_to_string(path).unwrap();
-    let yaml = &yaml_rust::YamlLoader::load_from_str(&file_content).unwrap()[0];
+
+    let vec_yaml = yaml_rust::YamlLoader::load_from_str(&file_content).unwrap();
+    let mut yaml = &yaml_rust::Yaml::Null;
+    if !vec_yaml.is_empty() {
+        yaml = &vec_yaml[0];
+    }
+
     let mut config = Config::new();
 
     if let yaml_rust::yaml::Yaml::Hash(hash) = yaml {
