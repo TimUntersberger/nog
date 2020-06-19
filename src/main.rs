@@ -111,14 +111,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Initializing config");
     lazy_static::initialize(&CONFIG);
+
     info!("Initializing taskbar");
-
-    if CONFIG.display_app_bar {
-        info!("Creating appbar");
-        app_bar::create()?;
-        app_bar::draw_workspace(0, 1, true)?;
-    }
-
     task_bar::init();
 
     if CONFIG.remove_task_bar {
@@ -128,6 +122,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Initializing display");
     lazy_static::initialize(&DISPLAY);
+
+    if CONFIG.display_app_bar {
+        info!("Creating appbar");
+        app_bar::create(&*DISPLAY.lock().unwrap())?;
+        app_bar::draw_workspace(0, 1, true)?;
+    }
 
     info!("Initializing workspaces");
     lazy_static::initialize(&WORKSPACES);

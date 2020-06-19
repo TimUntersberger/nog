@@ -1,3 +1,4 @@
+use crate::display::Display;
 use log::debug;
 use std::sync::Mutex;
 use winapi::shared::minwindef::HINSTANCE;
@@ -61,7 +62,7 @@ unsafe extern "system" fn window_cb(
     return DefWindowProcA(hwnd, msg, w_param, l_param);
 }
 
-pub fn create() -> Result<(), util::WinApiResultError> {
+pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
     let name = "wwm_app_bar";
     let mut height_guard = HEIGHT.lock().unwrap();
     *height_guard = 20;
@@ -90,7 +91,7 @@ pub fn create() -> Result<(), util::WinApiResultError> {
             winapi::um::winuser::WS_POPUPWINDOW & !winapi::um::winuser::WS_BORDER,
             0,
             0,
-            1920,
+            display.width,
             *height_guard,
             std::ptr::null_mut(),
             std::ptr::null_mut(),
