@@ -191,7 +191,7 @@ keybindings:
 
 ```
 cargo build --release
-cargo wix init
 ./rcedit ./target/release/wwm.exe --set-icon ./logo.ico
+cargo wix init --force
 cargo wix --bin-path "C:\Program Files (x86)\WiX Toolset v3.11\bin" --no-build
 ```

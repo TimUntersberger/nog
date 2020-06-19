@@ -1,7 +1,10 @@
 [package]
 name = "wwm"
-version = "0.1.0"
+version = "0.1.1"
 log = "debug"
+description = "A tiling window manager for Windows 10"
+license = "MIT"
+homepage = "http://www.github.com/TimUntersberger/wwm"
 authors = ["timun"]
 edition = "2018"
 
