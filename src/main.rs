@@ -225,6 +225,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     grid.close_tile_by_window_id(tile.window.id);
                                     grid.print_grid();
                                 } else {
+                                    drop(grids);
+                                    drop(gid);
                                     win_event_handler::split_window(window_handle as HWND)?;
                                 }
                             } else {
