@@ -10,6 +10,17 @@ macro_rules! if_hex {
         }
     };
 }
+macro_rules! if_regex {
+    ($config:ident, $target:ident, $value:ident, $key:ident) => {
+        if ($target == stringify!($key)) {
+            $config.$key = 
+                Regex::new($value
+                    .as_str()
+                    .ok_or(format!("{} has to be a string", stringify!($key)))?
+                )?;
+        }
+    };
+}
 macro_rules! if_bool {
     ($config:ident, $target:ident, $value:ident, $key:ident) => {
         if ($target == stringify!($key)) {

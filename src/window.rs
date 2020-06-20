@@ -32,20 +32,25 @@ use gwl_ex_style::GwlExStyle;
 #[derive(Clone)]
 pub struct Window {
     pub id: i32,
-    pub name: String,
+    pub title: String,
+    pub has_custom_titlebar: bool,
     pub original_style: GwlStyle,
     pub original_rect: RECT,
 }
 
-impl Window {
-    pub fn new() -> Self {
+impl Default for Window {
+    fn default() -> Self {
         Self {
             id: 0,
-            name: String::from(""),
+            title: String::from(""),
+            has_custom_titlebar: false,
             original_style: GwlStyle::default(),
             original_rect: RECT::default(),
         }
     }
+}
+
+impl Window {
     pub fn reset_style(&self) -> Result<(), util::WinApiResultError> {
         unsafe {
             util::winapi_nullable_to_result(SetWindowLongA(
@@ -157,7 +162,11 @@ impl Window {
         let mut new_style = self.original_style.clone();
 
         new_style.remove(GwlStyle::CAPTION);
-        new_style.remove(GwlStyle::THICKFRAME);
+
+        if !self.has_custom_titlebar {
+            new_style.remove(GwlStyle::THICKFRAME);
+        }
+
         new_style.insert(GwlStyle::BORDER);
 
         unsafe {

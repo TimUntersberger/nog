@@ -396,8 +396,8 @@ impl TileGrid {
                     let window = &(*rows[row as usize][column as usize]);
                     if let Some(id) = self.focused_window_id {
                         match window.id == id {
-                            true => print!("* {}({}) *|", window.name, window.id),
-                            false => print!(" {}({}) |", window.name, window.id)
+                            true => print!("* {}({}) *|", window.title, window.id),
+                            false => print!(" {}({}) |", window.title, window.id)
                         }
                     }
                 }

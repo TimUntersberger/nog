@@ -211,7 +211,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 if tile.window.id as HWND == window_handle {
                                     debug!(
                                         "Reseting window '{}' | {}",
-                                        tile.window.name, tile.window.id
+                                        tile.window.title, tile.window.id
                                     );
                                     tile.window.reset_style()?;
                                     tile.window.reset_pos()?;
@@ -220,7 +220,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                                     debug!(
                                         "Unmanaging window '{}' | {}",
-                                        tile.window.name, tile.window.id
+                                        tile.window.title, tile.window.id
                                     );
                                     grid.close_tile_by_window_id(tile.window.id);
                                     grid.print_grid();

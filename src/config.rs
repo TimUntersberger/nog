@@ -22,9 +22,10 @@ pub enum Keybinding {
     Split(Key, Vec<Modifier>, SplitDirection),
 }
 
+#[derive(Debug)]
 pub struct Rule {
-    pattern: Regex,
-    has_custom_titlebar: bool,
+    pub pattern: Regex,
+    pub has_custom_titlebar: bool,
 }
 
 impl Default for Rule {
@@ -103,7 +104,27 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
             if_bool!(config, config_key, value, remove_title_bar);
             if_bool!(config, config_key, value, remove_task_bar);
             if_bool!(config, config_key, value, display_app_bar);
-            
+
+            if config_key == "rules" {
+                let rules = value.as_vec().ok_or("rules has to be an array")?;
+
+                for yaml_rule in rules {
+                    if let yaml_rust::Yaml::Hash(hash) = yaml_rule {
+                        let mut rule = Rule::default();
+
+                        for entry in hash.iter() {
+                            let (key, value) = entry;
+                            let hash_key = key.as_str().ok_or("Invalid config key")?;
+
+                            if_regex!(rule, hash_key, value, pattern);
+                            if_bool!(rule, hash_key, value, has_custom_titlebar);
+                        }
+
+                        config.rules.push(rule);
+                    }
+                }
+            }
+
             if config_key == "keybindings" {
                 let bindings = value.as_vec().ok_or("keybindings has to be an array")?;
 

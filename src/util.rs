@@ -11,6 +11,7 @@ pub fn get_title_of_window(window_handle: HWND) -> Result<String, WinApiResultEr
 
     Ok(buffer
         .iter()
+        .take_while(|b| **b != 0)
         .map(|byte| char::from(*byte as u8))
         .collect::<String>())
 }

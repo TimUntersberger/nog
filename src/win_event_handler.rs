@@ -1,6 +1,6 @@
 use crate::util;
-use crate::window::gwl_style::GwlStyle;
 use crate::window::gwl_ex_style::GwlExStyle;
+use crate::window::gwl_style::GwlStyle;
 use crate::window::Window;
 use crate::CONFIG;
 use crate::GRIDS;
@@ -69,18 +69,27 @@ fn handle_event_object_show(
     // gets the GWL_STYLE of the window. GWL_STYLE returns a bitmask that can be used to find out attributes about a window
     let mut window = Window {
         id: window_handle as i32,
-        name: window_title.to_string(),
-        original_style: GwlStyle::default(),
-        original_rect: RECT::default(),
+        title: window_title.to_string(),
+        ..Window::default()
     };
     window.original_style = window.get_style()?;
+
     let exstyle = window.get_ex_style()?;
     let parent = window.get_parent_window();
-    // checks whether the window has a titlebar
-    // if the window doesn't have a titlebar, it usually means that we shouldn't manage the window (because it's a tooltip or something like that)
-    let should_manage = parent.is_err()
-        && (ignore_window_style || 
-            (window.original_style.contains(GwlStyle::CAPTION) && !exstyle.contains(GwlExStyle::DLGMODALFRAME)));
+
+    let correct_style = ignore_window_style
+        || (window.original_style.contains(GwlStyle::CAPTION)
+            && !exstyle.contains(GwlExStyle::DLGMODALFRAME));
+
+    for rule in &CONFIG.rules {
+        if rule.pattern.is_match(&window.title) {
+            if rule.has_custom_titlebar {
+                window.has_custom_titlebar = true;
+            }
+        }
+    }
+
+    let should_manage = parent.is_err() && correct_style;
 
     debug!("should manage is {}", should_manage);
 
