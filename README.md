@@ -8,6 +8,25 @@ Terminal: Windows Terminal | Colourscheme: Nord
 
 [Demo](https://giant.gfycat.com/ThriftyMassiveJabiru.webm)
 
+## Table Of Contents
+
+  * [Config](#config)
+     * [Toggles](#toggles)
+     * [Rules](#rules)
+        * [Settings](#settings)
+        * [Examples](#examples)
+     * [Keybindings](#keybindings)
+        * [ChangeWorkspace](#changeworkspace)
+        * [Shell](#shell)
+        * [CloseTile](#closetile)
+        * [Quit](#quit)
+        * [ToggleFloatingMode](#togglefloatingmode)
+        * [Focus](#focus)
+        * [Split](#split)
+     * [Example Config](#example-config)
+  * [Development](#development)
+     * [Create installer](#create-installer)
+
 ## Config
 
 The config lives in `C:\Users\<User>\AppData\Roaming\wwm\config.yaml`
