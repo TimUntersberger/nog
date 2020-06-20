@@ -11,6 +11,7 @@ Terminal: Windows Terminal | Colourscheme: Nord
 ## Table Of Contents
 
   * [Config](#config)
+     * [Colors](#colors)
      * [Toggles](#toggles)
      * [Rules](#rules)
         * [Settings](#settings)
@@ -31,6 +32,14 @@ Terminal: Windows Terminal | Colourscheme: Nord
 ## Config
 
 The config lives in `C:\Users\<User>\AppData\Roaming\wwm\config.yaml`
+
+### Colors
+
+A color has to be a valid hex value (e.g 0x0027242c)
+
+The `app_bar_bg` setting defines the background color of the appbar
+
+The `app_bar_workspace_bg` setting defines the background color of a workspace in the background
 
 ### Toggles
 
