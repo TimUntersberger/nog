@@ -123,7 +123,6 @@ impl HotKeyManager {
         let mut msg: MSG = MSG::default();
 
         unsafe {
-
             while GetMessageW(&mut msg, 0 as HWND, 0, 0) != 0 {
                 TranslateMessage(&msg);
                 DispatchMessageW(&msg);

@@ -1,3 +1,5 @@
+use winapi::um::wingdi::GetTextExtentPoint32A;
+use crate::DISPLAY;
 use crate::display::Display;
 use log::debug;
 use std::sync::Mutex;
@@ -7,6 +9,7 @@ use winapi::shared::minwindef::LRESULT;
 use winapi::shared::minwindef::UINT;
 use winapi::shared::minwindef::WPARAM;
 use winapi::shared::windef::HBRUSH;
+use winapi::shared::windef::SIZE;
 use winapi::shared::windef::HWND;
 use winapi::shared::windef::RECT;
 use winapi::um::wingdi::CreateSolidBrush;
@@ -28,6 +31,7 @@ use winapi::um::winuser::DT_VCENTER;
 use winapi::um::winuser::PAINTSTRUCT;
 use winapi::um::winuser::SW_SHOW;
 use winapi::um::winuser::WM_PAINT;
+use winapi::um::winuser::WM_ERASEBKGND;
 use winapi::um::winuser::WNDCLASSA;
 use lazy_static::lazy_static;
 
@@ -48,8 +52,11 @@ unsafe extern "system" fn window_cb(
     l_param: LPARAM,
 ) -> LRESULT {
     let window = *WINDOW.lock().unwrap();
-
-    if msg == WM_PAINT && window != 0 {
+    if msg == WM_ERASEBKGND {
+        println!("received erase");
+    }
+    else if msg == WM_PAINT && window != 0 {
+        println!("received paint");
         let mut paint = PAINTSTRUCT::default();
 
         GetClientRect(window as HWND, &mut paint.rcPaint);
@@ -117,6 +124,56 @@ pub fn clear() {
         GetClientRect(window as HWND, &mut rect);
         FillRect(dc, &mut rect, brush);
     }
+}
+
+pub fn draw_datetime() -> Result<(), util::WinApiResultError> {
+    let window = *WINDOW.lock().unwrap() as HWND;
+    if window != std::ptr::null_mut() {
+        let mut rect = RECT::default();
+
+        unsafe {
+            debug!("Getting the rect for the appbar");
+            util::winapi_nullable_to_result(GetClientRect(window, &mut rect))?;
+            
+            let text = format!("{}", chrono::Local::now().format("%e %b %Y      %T"));
+            let text_len = text.len() as i32;
+            let c_text = CString::new(text).unwrap();
+            let display = DISPLAY.lock().unwrap();
+
+            debug!("Getting the device context");
+            let hdc = util::winapi_ptr_to_result(GetDC(window))?;
+
+            let mut size = SIZE::default();
+
+            util::winapi_nullable_to_result(GetTextExtentPoint32A(hdc, c_text.as_ptr(), text_len, &mut size))?;
+
+            rect.left = display.width / 2 - (size.cx / 2) - 10;
+            rect.right = display.width / 2 + (size.cx / 2) + 10;
+
+            let brush = util::winapi_ptr_to_result(CreateSolidBrush(CONFIG.app_bar_bg as u32))?;
+
+            // debug!("Drawing the background");
+            // util::winapi_nullable_to_result(FillRect(hdc, &mut rect, brush))?;
+
+            debug!("Setting the background color to transparent");
+            util::winapi_nullable_to_result(SetBkMode(hdc, TRANSPARENT as i32))?;
+
+            debug!("Setting the text color");
+            //TODO: handle error
+            SetTextColor(hdc, 0x00ffffff);
+
+            debug!("Writing the text");
+            util::winapi_nullable_to_result(DrawTextA(
+                hdc,
+                c_text.as_ptr(),
+                text_len,
+                &mut rect,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+            ))?;
+        }
+    }
+
+    Ok(())
 }
 
 pub fn draw_workspace(idx: i32, id: i32, focused: bool) -> Result<(), util::WinApiResultError> {

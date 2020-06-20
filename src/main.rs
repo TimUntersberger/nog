@@ -129,6 +129,7 @@ pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError>  {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
+    
 
     ctrlc::set_handler(|| {
         if let Err(e) = on_quit() {
@@ -334,6 +335,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Registering windows event handler");
     win_event_handler::register()?;
+
     info!("Starting hot key manager");
     hot_key_manager.start()?;
 
