@@ -24,14 +24,13 @@ Terminal: Windows Terminal | Colourscheme: Nord
         * [Focus](#focus)
         * [Split](#split)
      * [Example Config](#example-config)
+  * [Screenshots](#screenshots)
   * [Development](#development)
      * [Create installer](#create-installer)
-
+     
 ## Config
 
 The config lives in `C:\Users\<User>\AppData\Roaming\wwm\config.yaml`
-
-wwm itself doesn't have any default keybindings defined, so you have to define them yourself. Every setting besides keybindings has a default value which can be seen in the example config.
 
 ### Toggles
 
@@ -295,6 +294,24 @@ keybindings:
     key: Control+Alt+4
     id: 4
 ```
+
+## Screenshots
+
+### default
+
+![Screenshot 4](/screen-4.png?raw=true "Screenshot 4")
+
+### display_app_bar
+
+![Screenshot 3](/screen-3.png?raw=true "Screenshot 2")
+
+### display_app_bar + remove_title_bar
+
+![Screenshot 2](/screen-2.png?raw=true "Screenshot 3")
+
+### display_app_bar + remove_title_bar + remove_task_bar
+
+![Screenshot 1](/screen-1.png?raw=true "Screenshot 1")
 
 ## Development
 
