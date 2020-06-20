@@ -321,9 +321,10 @@ impl TileGrid {
         let column_width = self.width / self.columns;
         let row_height = self.height / self.rows;
 
-        let x = match tile.column {
-            Some(column) => column_width * (column - 1),
-            None => 0
+        let mut x = 0;
+        
+        if let Some(column) = tile.column {
+            x = column_width * (column - 1);
         };
 
         let y = match tile.row {
@@ -336,10 +337,15 @@ impl TileGrid {
             None => self.height
         };  
 
-        let width = match tile.column {
+        let mut width = match tile.column {
             Some(_column) => column_width,
             None => self.width
         };
+
+        if tile.window.has_custom_titlebar {
+            x = x - 6;
+            width = width + 12;
+        }
 
         unsafe {
             //TODO: handle error
