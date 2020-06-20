@@ -26,6 +26,8 @@ pub enum Keybinding {
 pub struct Rule {
     pub pattern: Regex,
     pub has_custom_titlebar: bool,
+    pub manage: bool,
+    pub workspace: i32,
     pub x: i32,
     pub width: i32
 }
@@ -35,6 +37,8 @@ impl Default for Rule {
         Self {
             pattern: Regex::new("").unwrap(),
             has_custom_titlebar: false,
+            manage: true,
+            workspace: -1,
             x: 0,
             width: 0
         }
@@ -122,6 +126,8 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
 
                             if_regex!(rule, hash_key, value, pattern);
                             if_bool!(rule, hash_key, value, has_custom_titlebar);
+                            if_bool!(rule, hash_key, value, manage);
+                            if_i32!(rule, hash_key, value, workspace);
                             if_i32!(rule, hash_key, value, x);
                             if_i32!(rule, hash_key, value, width);
                         }

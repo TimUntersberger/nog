@@ -39,17 +39,25 @@ lazy_static! {
         return Mutex::new(display);
     };
     pub static ref GRIDS: Mutex<Vec<TileGrid>> = {
-        return Mutex::new((1..10).map(|i| {
-            let mut grid = TileGrid::new(i);
+        return Mutex::new(
+            (1..10)
+                .map(|i| {
+                    let mut grid = TileGrid::new(i);
 
-            grid.height = DISPLAY.lock().unwrap().height;
-            grid.width = DISPLAY.lock().unwrap().width;
+                    grid.height = DISPLAY.lock().unwrap().height;
+                    grid.width = DISPLAY.lock().unwrap().width;
 
-            grid
-        }).collect::<Vec<TileGrid>>());
+                    grid
+                })
+                .collect::<Vec<TileGrid>>(),
+        );
     };
     pub static ref WORKSPACES: Mutex<Vec<Workspace>> = {
-        return Mutex::new((1..10).map(|i| Workspace::new(i)).collect::<Vec<Workspace>>());
+        return Mutex::new(
+            (1..10)
+                .map(|i| Workspace::new(i))
+                .collect::<Vec<Workspace>>(),
+        );
     };
     pub static ref WORKSPACE_ID: Mutex<i32> = Mutex::new(1);
 }
@@ -73,19 +81,48 @@ fn on_quit() -> Result<(), util::WinApiResultError> {
     std::process::exit(0);
 }
 
-fn draw_workspaces(){
+fn draw_workspaces() {
     let id = *WORKSPACE_ID.lock().unwrap();
 
     app_bar::clear();
 
-    GRIDS.lock().unwrap()
+    GRIDS
+        .lock()
+        .unwrap()
         .iter()
         .filter(|t| t.tiles.len() > 0 || t.id == id)
         .enumerate()
         .for_each(|(i, t)| {
             app_bar::draw_workspace(i as i32, t.id, t.id == id);
         });
-        
+}
+
+pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError>  {
+    let mut grids = GRIDS.lock().unwrap();
+    let mut gid = WORKSPACE_ID.lock().unwrap();
+
+    if *gid == id {
+        debug!("Workspace is already selected");
+        return Ok(());
+    }
+
+    let old_id = *gid;
+
+    *gid = id;
+
+    grids.iter_mut().find(|g| g.id == *gid).unwrap().show();
+
+    //without this delay there is a slight flickering of the background
+    std::thread::sleep(std::time::Duration::from_millis(5));
+
+    grids.iter_mut().find(|g| g.id == old_id).unwrap().hide();
+
+    drop(grids);
+    drop(gid);
+
+    draw_workspaces();
+
+    Ok(())
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -165,30 +202,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 modifiers,
                 Box::new(move || {
                     debug!("Received hotkey of type ChangeWorkspace");
-
-                    let mut grids = GRIDS.lock().unwrap();
-                    let mut gid = WORKSPACE_ID.lock().unwrap();
-
-                    if *gid == *id {
-                        debug!("Workspace is already selected");
-                        return Ok(());
-                    }
-
-                    let old_id = *gid;
-
-                    *gid = *id;
-
-                    grids.iter_mut().find(|g| g.id == *gid).unwrap().show();
-
-                    //without this delay there is a slight flickering of the background
-                    std::thread::sleep(std::time::Duration::from_millis(5));
-
-                    grids.iter_mut().find(|g| g.id == old_id).unwrap().hide();
-
-                    drop(grids);
-                    drop(gid);
-
-                    draw_workspaces();
+                    
+                    change_workspace(*id)?;
 
                     Ok(())
                 }),

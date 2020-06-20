@@ -3,6 +3,7 @@ use crate::window::gwl_ex_style::GwlExStyle;
 use crate::window::gwl_style::GwlStyle;
 use crate::window::Window;
 use crate::CONFIG;
+use crate::change_workspace;
 use crate::GRIDS;
 use crate::WORKSPACE_ID;
 use log::debug;
@@ -11,7 +12,6 @@ use winapi::shared::minwindef::DWORD;
 use winapi::shared::ntdef::LONG;
 use winapi::shared::windef::HWINEVENTHOOK;
 use winapi::shared::windef::HWND;
-use winapi::shared::windef::RECT;
 use winapi::um::winuser::SetWinEventHook;
 use winapi::um::winuser::UnhookWinEvent;
 use winapi::um::winuser::EVENT_MAX;
@@ -89,20 +89,28 @@ fn handle_event_object_show(
         }
     }
 
-    let should_manage = parent.is_err() && correct_style;
-
+    let should_manage = window.rule.clone().unwrap_or_default().manage && parent.is_err() && correct_style;
 
     if should_manage {
         debug!("Managing window");
+        let rule = window.rule.clone().unwrap_or_default();
+        let mut workspace_id = *WORKSPACE_ID.lock().unwrap();
+
+        if rule.workspace != -1 {
+            workspace_id = rule.workspace;
+            change_workspace(workspace_id)?;
+        }
 
         if CONFIG.remove_title_bar {
             window.remove_title_bar()?;
         }
+
         let mut grids = GRIDS.lock().unwrap();
         let grid = grids
             .iter_mut()
-            .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
+            .find(|g| g.id == workspace_id)
             .unwrap();
+
         window.original_rect = window.get_rect()?;
 
         grid.split(window);
