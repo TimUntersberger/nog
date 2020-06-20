@@ -22,6 +22,73 @@ The `remove_title_bar` setting removes the windows styles responsible for giving
 
 The `remove_task_bar` setting hides the taskbar on launch and shows it again when closing the program.
 
+### Rules
+
+**[WARNING]: Rules are still WIP so the name of a setting can change at any time**
+
+Because Windows can sometimes have some really annoying applications that introduce various edge cases I decided to support rules.
+
+A rule basically just changes the way a window gets managed by wwm.
+
+wwm knows whether to apply the rule based on a regex that has to be provided.
+
+Example
+```yaml
+pattern: ^.*- Mozilla Firefox$
+has_custom_titlebar: true
+x: -6
+width: 12
+```
+
+This example rule tells wwm that firefox will have a custom titlebar. Some applications like firefox and chrome don't use the native titlebar to minimize wasted space.  
+
+The problem is that sometimes the application then behaves weirdly when trying to move/resize it, that's why I also defined an x and width value. These just manipulate where the window gets placed and its size.
+
+Right below the values settings can you find some rules that I found while developing the application that were helpful.
+
+#### Settings
+
+<details>
+  <summary>pattern</summary></br>
+  A regex that tells wwm which window this rule applies to.
+</br></br></details>
+
+<details>
+  <summary>has_custom_titlebar</summary></br>
+  When a window has a custom titlebar wwm will change how it removes the "titlebar" from the window.
+</br></br></details>
+
+<details>
+  <summary>x</summary></br>
+  Manipulates the location of the window. </br>
+  NEW_X = ORIGINAL_X + x
+</br></br></details>
+
+<details>
+  <summary>width</summary></br>
+  Manipulates the size of the window. </br>
+  NEW_WIDTH = ORIGINAL_WIDTH + width
+</br></br></details>
+
+#### Examples
+
+Firefox
+```yaml
+pattern: ^.*- Mozilla Firefox$
+has_custom_titlebar: true
+x: -6
+width: 12
+```
+
+Chrome
+```yaml
+pattern: ^.*- Google Chrome$
+has_custom_titlebar: true
+x: -8
+width: 16
+```
+
+
 ### Keybindings
 
 Each keybinding has to have a type, key and maybe additional settings which can be looked up for each type specifically.
