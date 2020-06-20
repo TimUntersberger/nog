@@ -476,6 +476,7 @@ dependencies = [
  "log",
  "num-derive",
  "num-traits",
+ "regex",
  "strum",
  "strum_macros",
  "thiserror",

@@ -1,6 +1,10 @@
-use crate::hot_key_manager::{Modifier, Key};
+use crate::hot_key_manager::{Key, Modifier};
 use crate::tile_grid::SplitDirection;
+use regex::Regex;
 use std::io::{Error, ErrorKind};
+
+#[macro_use]
+mod macros;
 
 use std::str::FromStr;
 
@@ -15,7 +19,21 @@ pub enum Keybinding {
     ToggleFloatingMode(Key, Vec<Modifier>),
     Shell(Key, Vec<Modifier>, Command),
     Focus(Key, Vec<Modifier>, FocusDirection),
-    Split(Key, Vec<Modifier>, SplitDirection)
+    Split(Key, Vec<Modifier>, SplitDirection),
+}
+
+pub struct Rule {
+    pattern: Regex,
+    has_custom_titlebar: bool,
+}
+
+impl Default for Rule {
+    fn default() -> Self {
+        Self {
+            pattern: Regex::new("").unwrap(),
+            has_custom_titlebar: false,
+        }
+    }
 }
 
 pub struct Config {
@@ -24,7 +42,8 @@ pub struct Config {
     pub remove_title_bar: bool,
     pub remove_task_bar: bool,
     pub display_app_bar: bool,
-    pub keybindings: Vec<Keybinding>
+    pub keybindings: Vec<Keybinding>,
+    pub rules: Vec<Rule>,
 }
 
 impl Config {
@@ -35,15 +54,16 @@ impl Config {
             remove_title_bar: false,
             remove_task_bar: false,
             display_app_bar: false,
-            keybindings: Vec::new()
+            keybindings: Vec::new(),
+            rules: Vec::new(),
         }
     }
 }
 
-pub fn load() -> Result<Config, Box<dyn std::error::Error>>{
+pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
     let mut pathbuf = match dirs::config_dir() {
         Some(path) => path,
-        None => std::path::PathBuf::new()
+        None => std::path::PathBuf::new(),
     };
 
     pathbuf.push("wwm");
@@ -60,7 +80,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>>{
 
     let path = match pathbuf.to_str() {
         Some(string) => string,
-        None => ""
+        None => "",
     };
 
     let file_content = std::fs::read_to_string(path).unwrap();
@@ -78,91 +98,70 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>>{
             let (key, value) = entry;
             let config_key = key.as_str().ok_or("Invalid config key")?;
 
-            match config_key {
-                "app_bar_bg" => {
-                    config.app_bar_bg = i32::from_str_radix(value.as_str().ok_or("app_bar_bg has to be a string")?, 16)?;
-                },
-                "app_bar_workspace_bg" => {
-                    config.app_bar_workspace_bg = i32::from_str_radix(value.as_str().ok_or("app_bar_workspace_bg has to be a string")?, 16)?;
-                },
-                "remove_title_bar" => {
-                    config.remove_title_bar = value.as_bool().ok_or("remove_title_bar has to a bool")?;
-                },
-                "remove_task_bar" => {
-                    config.remove_task_bar = value.as_bool().ok_or("remove_task_bar has to a bool")?;
-                },
-                "display_app_bar" => {
-                    config.display_app_bar = value.as_bool().ok_or("display_app_bar has to a bool")?;
-                },
-                "keybindings" => {
-                    let bindings = value.as_vec().ok_or("keybindings has to be an array")?; 
+            if_hex!(config, config_key, value, app_bar_bg);
+            if_hex!(config, config_key, value, app_bar_workspace_bg);
+            if_bool!(config, config_key, value, remove_title_bar);
+            if_bool!(config, config_key, value, remove_task_bar);
+            if_bool!(config, config_key, value, display_app_bar);
+            
+            if config_key == "keybindings" {
+                let bindings = value.as_vec().ok_or("keybindings has to be an array")?;
 
-                    for binding in bindings {
-                        //type
-                        let typ = binding["type"].as_str().ok_or("a keybinding has to have a type property")?;
-                        let key_combo = binding["key"].as_str().ok_or("a keybinding has to have a key property")?;
-                        let key_combo_parts = key_combo.split("+").collect::<Vec<&str>>();
-                        let modifier_count = key_combo_parts.len() - 1;
+                for binding in bindings {
+                    //type
+                    let typ = ensure_str!("keybinding", binding, type);
+                    let key_combo = ensure_str!("keybinding", binding, key);
+                    let key_combo_parts = key_combo.split("+").collect::<Vec<&str>>();
+                    let modifier_count = key_combo_parts.len() - 1;
 
-                        let modifiers = key_combo_parts
-                            .iter()
-                            .take(modifier_count)
-                            .map(|x| Modifier::from_str(x).unwrap())
-                            .collect::<Vec<Modifier>>();
+                    let modifiers = key_combo_parts
+                        .iter()
+                        .take(modifier_count)
+                        .map(|x| Modifier::from_str(x).unwrap())
+                        .collect::<Vec<Modifier>>();
 
-                        let key = key_combo_parts
-                            .iter()
-                            .last()
-                            .and_then(|x| Key::from_str(x).ok())
-                            .ok_or("Invalid key")?;
+                    let key = key_combo_parts
+                        .iter()
+                        .last()
+                        .and_then(|x| Key::from_str(x).ok())
+                        .ok_or("Invalid key")?;
 
-                        let keybinding = match typ {
-                            "Shell" => Keybinding::Shell(
-                                key,
-                                modifiers,
-                                binding["cmd"]
-                                    .as_str()
-                                    .ok_or("a keybinding of type shell has to have a cmd property")?
-                                    .to_string()
-                            ),
-                            "CloseTile" => Keybinding::CloseTile(key, modifiers),
-                            "Quit" => Keybinding::Quit(key, modifiers),
-                            "ChangeWorkspace" => Keybinding::ChangeWorkspace(
-                                key, 
-                                modifiers, 
-                                binding["id"]
-                                    .as_i64()
-                                    .ok_or("a keybinding of type shell has to have a key property")? as i32
-                            ),
-                            "ToggleFloatingMode" => Keybinding::ToggleFloatingMode(key, modifiers),
-                            "Focus" => Keybinding::Focus(
-                                key, 
-                                modifiers, 
-                                binding["direction"]
-                                    .as_str()
-                                    .ok_or("a keybinding of type shell has to have a direction property")?
-                                    .to_string()
-                            ),
-                            "Split" => Keybinding::Split(
-                                key, 
-                                modifiers, 
-                                binding["direction"]
-                                    .as_str()
-                                    .ok_or("a keybinding of type shell has to have a direction property")
-                                    .map(SplitDirection::from_str)?? // xd double question mark
-                                ),
-                            x => return Err(Box::new(Error::new(ErrorKind::InvalidInput, "unknown type ".to_string() + x)))
-                        };
+                    let keybinding = match typ {
+                        "Shell" => Keybinding::Shell(
+                            key,
+                            modifiers,
+                            ensure_str!("keybinding of type shell", binding, cmd).to_string(),
+                        ),
+                        "CloseTile" => Keybinding::CloseTile(key, modifiers),
+                        "Quit" => Keybinding::Quit(key, modifiers),
+                        "ChangeWorkspace" => Keybinding::ChangeWorkspace(
+                            key,
+                            modifiers,
+                            ensure_i32!("keybinding of type shell", binding, id),
+                        ),
+                        "ToggleFloatingMode" => Keybinding::ToggleFloatingMode(key, modifiers),
+                        "Focus" => Keybinding::Focus(
+                            key,
+                            modifiers,
+                            ensure_str!("keybinding of type shell", binding, direction).to_string(),
+                        ),
+                        "Split" => Keybinding::Split(
+                            key,
+                            modifiers,
+                            SplitDirection::from_str(ensure_str!("keybinding of type shell", binding, direction))?
+                        ),
+                        x => {
+                            return Err(Box::new(Error::new(
+                                ErrorKind::InvalidInput,
+                                "unknown type ".to_string() + x,
+                            )))
+                        }
+                    };
 
-                        config.keybindings.push(keybinding);
-                    }
-                },
-                s => {
-                    return Err(Box::new(Error::new(ErrorKind::InvalidInput, "unknown option ".to_string() + s)));
+                    config.keybindings.push(keybinding);
                 }
             }
         }
     }
-    
     Ok(config)
 }
