@@ -210,7 +210,7 @@ values
 
 A Split keybinding takes a direction, the new SplitDirection of the currently focused window. The SplitDirection specifies how a new window gets placed in the grid.
 
-config.yaml
+### Example Config
 ```yaml
 display_app_bar: true
 remove_title_bar: true
