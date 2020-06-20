@@ -356,9 +356,8 @@ impl TileGrid {
     }
 
     pub fn print_grid(&self) -> () {
-        println!("rows: {} | columns: {}", self.rows, self.columns);
-
         if self.rows == 0 || self.columns == 0 {
+            print!("\nEmpty\n\n");
             return;
         }
 
@@ -379,23 +378,14 @@ impl TileGrid {
                     None => rows[0][0] = &tile.window
                 }
             }
-            println!("{} {}", tile.column.unwrap_or(0), tile.row.unwrap_or(0));
             if CONFIG.remove_title_bar {
                 self.draw_tile(tile);
             } else {
                 self.draw_tile_with_title_bar(tile);
             }
         }
-        
-        for row in &rows {
-            print!("|");
-            for column in row {
-                print!(" {} |", (*column) as usize);
-            }
-            print!("\n");
-        }
 
-        println!();
+        print!("\n");
 
         for row in 0..self.rows {
             print!("|");
@@ -412,5 +402,7 @@ impl TileGrid {
             }
             print!("\n");
         }
+
+        print!("\n");
     }
 }

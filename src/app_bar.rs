@@ -47,7 +47,6 @@ unsafe extern "system" fn window_cb(
     w_param: WPARAM,
     l_param: LPARAM,
 ) -> LRESULT {
-    //println!("Received event: {}", msg);
     let window = *WINDOW.lock().unwrap();
 
     if msg == WM_PAINT && window != 0 {

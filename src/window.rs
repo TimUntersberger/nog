@@ -161,13 +161,12 @@ impl Window {
     }
     pub fn remove_title_bar(&self) -> Result<i32, util::WinApiResultError> {
         let mut new_style = self.original_style.clone();
+        let rule = self.rule.clone().unwrap_or_default();
 
         new_style.remove(GwlStyle::CAPTION);
 
-        if let Some(rule) = &self.rule {
-            if !rule.has_custom_titlebar {
-                new_style.remove(GwlStyle::THICKFRAME);
-            }
+        if !rule.has_custom_titlebar {
+            new_style.remove(GwlStyle::THICKFRAME);
         }
 
         new_style.insert(GwlStyle::BORDER);

@@ -83,6 +83,7 @@ fn handle_event_object_show(
 
     for rule in &CONFIG.rules {
         if rule.pattern.is_match(&window.title) {
+            debug!("Rule({:?}) matched!", rule.pattern);
             window.rule = Some(rule.clone());
             break;
         }
@@ -90,9 +91,10 @@ fn handle_event_object_show(
 
     let should_manage = parent.is_err() && correct_style;
 
-    debug!("should manage is {}", should_manage);
 
     if should_manage {
+        debug!("Managing window");
+
         if CONFIG.remove_title_bar {
             window.remove_title_bar()?;
         }
