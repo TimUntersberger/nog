@@ -55,19 +55,28 @@ Right below the values settings can you find some rules that I found while devel
 
 <details>
   <summary>has_custom_titlebar</summary></br>
-  When a window has a custom titlebar wwm will change how it removes the "titlebar" from the window.
+  A boolean that tells wwm how to remove the "titlebar"
+</br></br></details>
+
+<details>
+  <summary>workspace [TODO]</summary></br>
+  An integer between 1 and 10 that tells wwm in which workspace to put the window.
+</br></br></details>
+
+<details>
+  <summary>manage [TODO]</summary></br>
+  A boolean that tells wwm whether to manage the matched window. </br>
+  This overrides the logic that normally decides whether to manage the window.
 </br></br></details>
 
 <details>
   <summary>x</summary></br>
-  Manipulates the location of the window. </br>
-  NEW_X = ORIGINAL_X + x
+  An integer that gets added to the calculated x position of the window
 </br></br></details>
 
 <details>
   <summary>width</summary></br>
-  Manipulates the size of the window. </br>
-  NEW_WIDTH = ORIGINAL_WIDTH + width
+  An integer that gets added to the calculated width of the window
 </br></br></details>
 
 #### Examples
