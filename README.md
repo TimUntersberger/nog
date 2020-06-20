@@ -212,9 +212,20 @@ A Split keybinding takes a direction, the new SplitDirection of the currently fo
 
 config.yaml
 ```yaml
-display_app_bar: false
-remove_title_bar: false
-remove_task_bar: false
+display_app_bar: true
+remove_title_bar: true
+remove_task_bar: true
+
+rules:
+  - pattern: ^.*- Mozilla Firefox$
+    has_custom_titlebar: true
+    x: -6
+    width: 12
+  - pattern: ^.*- Google Chrome$
+    has_custom_titlebar: true
+    x: -8
+    width: 16
+
 keybindings:
   - type: Shell
     key: Control+Alt+Enter
