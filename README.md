@@ -32,8 +32,6 @@ Terminal: Windows Terminal | Colourscheme: Nord
 
 The config lives in `C:\Users\<User>\AppData\Roaming\wwm\config.yaml`
 
-wwm itself doesn't have any default keybindings defined, so you have to define them yourself. Every setting besides keybindings has a default value which can be seen in the example config.
-
 ### Toggles
 
 The `display_app_bar` setting creates a window at the top of the display that shows all currently used workspaces.
