@@ -78,12 +78,12 @@ Right below the values settings can you find some rules that I found while devel
 </br></br></details>
 
 <details>
-  <summary>workspace [TODO]</summary></br>
+  <summary>workspace</summary></br>
   An integer between 1 and 10 that tells wwm in which workspace to put the window.
 </br></br></details>
 
 <details>
-  <summary>manage [TODO]</summary></br>
+  <summary>manage</summary></br>
   A boolean that tells wwm whether to manage the matched window. </br>
   This overrides the logic that normally decides whether to manage the window.
 </br></br></details>
