@@ -341,10 +341,12 @@ impl TileGrid {
             Some(_column) => column_width,
             None => self.width
         };
-
-        if tile.window.has_custom_titlebar {
-            x = x - 6;
-            width = width + 12;
+        
+        if let Some(rule) = &tile.window.rule {
+            if rule.has_custom_titlebar {
+                x = x - rule.x;
+                width = width + rule.width;
+            }
         }
 
         unsafe {

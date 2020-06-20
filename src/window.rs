@@ -1,6 +1,7 @@
 pub mod gwl_style;
 pub mod gwl_ex_style;
 
+use crate::config::Rule;
 use winapi::um::winuser::WM_CLOSE;
 use winapi::um::winuser::GWL_EXSTYLE;
 use winapi::um::winuser::HWND_NOTOPMOST;
@@ -33,7 +34,7 @@ use gwl_ex_style::GwlExStyle;
 pub struct Window {
     pub id: i32,
     pub title: String,
-    pub has_custom_titlebar: bool,
+    pub rule: Option<Rule>,
     pub original_style: GwlStyle,
     pub original_rect: RECT,
 }
@@ -43,7 +44,7 @@ impl Default for Window {
         Self {
             id: 0,
             title: String::from(""),
-            has_custom_titlebar: false,
+            rule: None,
             original_style: GwlStyle::default(),
             original_rect: RECT::default(),
         }
@@ -163,8 +164,10 @@ impl Window {
 
         new_style.remove(GwlStyle::CAPTION);
 
-        if !self.has_custom_titlebar {
-            new_style.remove(GwlStyle::THICKFRAME);
+        if let Some(rule) = &self.rule {
+            if !rule.has_custom_titlebar {
+                new_style.remove(GwlStyle::THICKFRAME);
+            }
         }
 
         new_style.insert(GwlStyle::BORDER);

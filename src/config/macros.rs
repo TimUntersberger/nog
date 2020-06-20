@@ -31,6 +31,16 @@ macro_rules! if_bool {
     };
 }
 
+macro_rules! if_i32 {
+    ($config:ident, $target:ident, $value:ident, $key:ident) => {
+        if ($target == stringify!($key)) {
+            $config.$key = $value
+                .as_i64()
+                .ok_or(format!("{} has to be an integer", stringify!($key)))? as i32;
+        }
+    };
+}
+
 macro_rules! ensure_str {
     ($name:tt, $hash:ident, $key:ident) => {
         $hash[stringify!($key)]

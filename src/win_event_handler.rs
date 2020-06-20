@@ -83,9 +83,8 @@ fn handle_event_object_show(
 
     for rule in &CONFIG.rules {
         if rule.pattern.is_match(&window.title) {
-            if rule.has_custom_titlebar {
-                window.has_custom_titlebar = true;
-            }
+            window.rule = Some(rule.clone());
+            break;
         }
     }
 
