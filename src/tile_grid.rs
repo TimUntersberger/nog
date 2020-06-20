@@ -344,7 +344,7 @@ impl TileGrid {
         
         if let Some(rule) = &tile.window.rule {
             if rule.has_custom_titlebar {
-                x = x - rule.x;
+                x = x + rule.x;
                 width = width + rule.width;
             }
         }
