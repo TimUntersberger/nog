@@ -1,5 +1,10 @@
+
 # wwm
 Windows window manager
+
+![Preview](/preview.png?raw=true "Preview")
+
+Terminal: Windows Terminal | Colourscheme: Nord
 
 [Demo](https://giant.gfycat.com/ThriftyMassiveJabiru.webm)
 
