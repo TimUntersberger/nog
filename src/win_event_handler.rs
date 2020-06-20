@@ -1,4 +1,6 @@
 use crate::util;
+use crate::window::gwl_style::GwlStyle;
+use crate::window::gwl_ex_style::GwlExStyle;
 use crate::window::Window;
 use crate::CONFIG;
 use crate::GRIDS;
@@ -18,7 +20,6 @@ use winapi::um::winuser::EVENT_OBJECT_CREATE;
 use winapi::um::winuser::EVENT_OBJECT_DESTROY;
 use winapi::um::winuser::EVENT_OBJECT_SHOW;
 use winapi::um::winuser::OBJID_WINDOW;
-use winapi::um::winuser::WS_CAPTION;
 
 static HANDLED_EVENTS: [u32; 2] = [EVENT_OBJECT_SHOW, EVENT_OBJECT_DESTROY];
 static OS_WINDOWS: [&str; 25] = [
@@ -69,16 +70,17 @@ fn handle_event_object_show(
     let mut window = Window {
         id: window_handle as i32,
         name: window_title.to_string(),
-        original_style: 0,
+        original_style: GwlStyle::default(),
         original_rect: RECT::default(),
     };
     window.original_style = window.get_style()?;
+    let exstyle = window.get_ex_style()?;
     let parent = window.get_parent_window();
     // checks whether the window has a titlebar
     // if the window doesn't have a titlebar, it usually means that we shouldn't manage the window (because it's a tooltip or something like that)
     let should_manage = parent.is_err()
-        && (ignore_window_style
-            || (window.original_style & WS_CAPTION as i32) == WS_CAPTION as i32);
+        && (ignore_window_style || 
+            (window.original_style.contains(GwlStyle::CAPTION) && !exstyle.contains(GwlExStyle::DLGMODALFRAME)));
 
     debug!("should manage is {}", should_manage);
 

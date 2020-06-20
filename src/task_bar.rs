@@ -1,5 +1,4 @@
 use winapi::um::winuser::FindWindowA;
-use winapi::shared::minwindef::BOOL;
 use winapi::um::winuser::GetWindowRect;
 use winapi::um::winuser::SW_HIDE;
 use winapi::um::winuser::SW_SHOW;

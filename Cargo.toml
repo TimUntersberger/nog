@@ -22,5 +22,6 @@ strum = "0.18.0"
 strum_macros = "0.18.0"
 dirs = "2.0"
 yaml-rust = "0.4.4"
+bitflags = "1.2"
 thiserror = "1.0"
 ctrlc = { version = "3.0", features = ["termination"] }

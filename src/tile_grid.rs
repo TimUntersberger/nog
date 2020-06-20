@@ -54,10 +54,11 @@ impl TileGrid {
     pub fn show(&mut self) {
         for tile in &self.tiles {
             tile.window.show();
-            tile.window.to_foreground();
+            tile.window.to_foreground(true);
+            tile.window.remove_topmost();
         }
         if let Some(tile) = self.get_focused_tile() {
-            tile.window.to_foreground();
+            tile.window.focus();
         }
         self.visible = true;
     }
@@ -90,7 +91,7 @@ impl TileGrid {
 
             if let Some(next_tile) = maybe_next_tile {
                 self.focused_window_id = Some(next_tile.window.id);
-                next_tile.window.to_foreground()?;
+                next_tile.window.focus()?;
             }
         }
 
@@ -108,7 +109,7 @@ impl TileGrid {
 
             if let Some(next_tile) = maybe_next_tile {
                 self.focused_window_id = Some(next_tile.window.id);
-                next_tile.window.to_foreground()?;
+                next_tile.window.focus()?;
             }
         }
 
@@ -126,7 +127,7 @@ impl TileGrid {
 
             if let Some(next_tile) = maybe_next_tile {
                 self.focused_window_id = Some(next_tile.window.id);
-                next_tile.window.to_foreground()?;
+                next_tile.window.focus()?;
             }
         }
 
@@ -144,7 +145,7 @@ impl TileGrid {
 
             if let Some(next_tile) = maybe_next_tile {
                 self.focused_window_id = Some(next_tile.window.id);
-                next_tile.window.to_foreground()?;
+                next_tile.window.focus()?;
             }
         }
 
@@ -164,8 +165,6 @@ impl TileGrid {
             let is_empty_column = !self.tiles
                 .iter()
                 .any(|tile| tile.column == removed_tile.column);
-
-            println!("Row is empty = {} | Column is empty = {}", is_empty_row, is_empty_column);
 
             if is_empty_row {
                 self.rows = self.rows - 1;

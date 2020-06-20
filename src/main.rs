@@ -27,7 +27,6 @@ use display::Display;
 use hot_key_manager::HotKeyManager;
 use hot_key_manager::Key;
 use hot_key_manager::Modifier;
-use tile::Tile;
 use tile_grid::TileGrid;
 use window::Window;
 use workspace::Workspace;
@@ -53,27 +52,17 @@ lazy_static! {
         return Mutex::new((1..10).map(|i| Workspace::new(i)).collect::<Vec<Workspace>>());
     };
     pub static ref WORKSPACE_ID: Mutex<i32> = Mutex::new(1);
-    // pub static ref GRID: Mutex<TileGrid> = {
-    //     let mut grid = TileGrid::new();
-
-    //     grid.height = DISPLAY.lock().unwrap().height;
-    //     grid.width = DISPLAY.lock().unwrap().width;
-
-    //     return Mutex::new(grid);
-    // };
 }
 
 fn on_quit() -> Result<(), util::WinApiResultError> {
     let mut grids = GRIDS.lock().unwrap();
-    let grid = grids
-        .iter_mut()
-        .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
-        .unwrap();
 
-    for tile in grid.tiles.clone() {
-        grid.close_tile_by_window_id(tile.window.id);
-        tile.window.reset_style()?;
-        tile.window.reset_pos()?;
+    for grid in grids.iter_mut() {
+        for tile in grid.tiles.clone() {
+            grid.close_tile_by_window_id(tile.window.id);
+            tile.window.reset_style()?;
+            tile.window.reset_pos()?;
+        }
     }
 
     if CONFIG.remove_task_bar {
@@ -162,7 +151,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .unwrap();
 
                     if let Some(tile) = grid.get_focused_tile() {
-                        tile.window.send_destroy();
+                        tile.window.send_close();
                         let id = tile.window.id; //need this variable because of borrow checker
                         grid.close_tile_by_window_id(id);
                         grid.print_grid();
