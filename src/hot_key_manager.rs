@@ -45,6 +45,10 @@ pub enum Key {
     X = 0x58,
     Y = 0x59,
     Z = 0x5A,
+    Left = 0x25,
+    Up = 0x26,
+    Right = 0x27,
+    Down = 0x28,
     #[strum(serialize = "0")]
     Zero = 0x30,
     #[strum(serialize = "1")]
