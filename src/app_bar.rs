@@ -38,7 +38,7 @@ use crate::CONFIG;
 
 lazy_static! {
     pub static ref HEIGHT: Mutex<i32> = Mutex::new(0);
-    static ref WINDOW: Mutex<i32> = Mutex::new(0);
+    pub static ref WINDOW: Mutex<i32> = Mutex::new(0);
 }
 
 unsafe extern "system" fn window_cb(

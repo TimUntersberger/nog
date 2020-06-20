@@ -62,6 +62,11 @@ impl TileGrid {
         }
         self.visible = true;
     }
+    pub fn get_tile_by_id(&self, id: i32) -> Option<&Tile> {
+        return self.tiles
+                .iter()
+                .find(|tile| tile.window.id == id);
+    }
     pub fn get_focused_tile(&self) -> Option<&Tile> {
         return self.focused_window_id
             .and_then(|id| self.tiles

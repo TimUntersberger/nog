@@ -110,11 +110,13 @@ pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError>  {
 
     *gid = id;
 
+    debug!("Showing the next workspace");
     grids.iter_mut().find(|g| g.id == *gid).unwrap().show();
 
     //without this delay there is a slight flickering of the background
     std::thread::sleep(std::time::Duration::from_millis(5));
 
+    debug!("Hiding the current workspace");
     grids.iter_mut().find(|g| g.id == old_id).unwrap().hide();
 
     drop(grids);
@@ -214,6 +216,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Box::new(move || {
                     debug!("Received hotkey of type ToggleFloatingMode");
                     let window_handle = Window::get_foreground_window()?;
+
                     if let Ok(mut grids) = GRIDS.lock() {
                         if let Ok(gid) = WORKSPACE_ID.lock() {
                             let temp = grids
@@ -222,6 +225,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 .unwrap()
                                 .get_focused_tile()
                                 .map(|x| x.clone());
+
                             if let Some(tile) = temp {
                                 if tile.window.id as HWND == window_handle {
                                     debug!(
@@ -240,11 +244,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     grid.close_tile_by_window_id(tile.window.id);
                                     grid.print_grid();
                                 } else {
+                                    //the else block below has to have the same code
+                                    //TODO: refactor to combine both of these else blocks
+                                    for grid in grids.iter() {
+                                        if grid.get_tile_by_id(window_handle as i32).is_some() {
+                                            debug!("Window is in a different workspace. Aborting.");
+                                            return Ok(());
+                                        }
+                                    }
+
                                     drop(grids);
                                     drop(gid);
                                     win_event_handler::split_window(window_handle as HWND)?;
                                 }
                             } else {
+                                for grid in grids.iter() {
+                                    if grid.get_tile_by_id(window_handle as i32).is_some() {
+                                        debug!("Window is in a different workspace. Aborting.");
+                                        return Ok(());
+                                    }
+                                }
+
                                 drop(grids);
                                 drop(gid);
                                 win_event_handler::split_window(window_handle as HWND)?;

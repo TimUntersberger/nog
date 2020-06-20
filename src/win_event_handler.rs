@@ -72,10 +72,11 @@ fn handle_event_object_show(
         title: window_title.to_string(),
         ..Window::default()
     };
-    window.original_style = window.get_style()?;
+    window.original_style = window.get_style().unwrap_or(GwlStyle::default());
 
-    let exstyle = window.get_ex_style()?;
+    let exstyle = window.get_ex_style().unwrap_or(GwlExStyle::default());
     let parent = window.get_parent_window();
+
 
     let correct_style = ignore_window_style
         || (window.original_style.contains(GwlStyle::CAPTION)
