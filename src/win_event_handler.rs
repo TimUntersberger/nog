@@ -16,12 +16,12 @@ use winapi::um::winuser::SetWinEventHook;
 use winapi::um::winuser::UnhookWinEvent;
 use winapi::um::winuser::EVENT_MAX;
 use winapi::um::winuser::EVENT_MIN;
-use winapi::um::winuser::EVENT_OBJECT_CREATE;
 use winapi::um::winuser::EVENT_OBJECT_DESTROY;
 use winapi::um::winuser::EVENT_OBJECT_SHOW;
+use winapi::um::winuser::EVENT_SYSTEM_FOREGROUND;
 use winapi::um::winuser::OBJID_WINDOW;
 
-static HANDLED_EVENTS: [u32; 2] = [EVENT_OBJECT_SHOW, EVENT_OBJECT_DESTROY];
+static HANDLED_EVENTS: [u32; 3] = [EVENT_OBJECT_SHOW, EVENT_OBJECT_DESTROY, EVENT_SYSTEM_FOREGROUND];
 static OS_WINDOWS: [&str; 25] = [
     "Task Switching",
     "OLEChannelWnd",
@@ -121,22 +121,44 @@ fn handle_event_object_show(
 
     Ok(())
 }
-fn handle_event_object_destroy(window_handle: HWND) {
+fn handle_event_object_destroy(window_handle: HWND) -> Result<(), util::WinApiResultError> {
     let mut grids = GRIDS.lock().unwrap();
     let grid = grids
         .iter_mut()
         .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
         .unwrap();
+
     grid.close_tile_by_window_id(window_handle as i32);
     grid.print_grid();
+
+    Ok(())
+}
+
+fn handle_event_system_foreground(window_handle: HWND) -> Result<(), util::WinApiResultError> {
+    let mut grids = GRIDS.lock().unwrap();
+    let mut grid = grids
+        .iter_mut()
+        .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
+        .unwrap();
+
+    if let Some(id) = grid.focused_window_id {
+        if window_handle == id as HWND {
+            return Ok(());
+        }
+
+        if let Some(_) = grid.get_tile_by_id(window_handle as i32) {
+            grid.focused_window_id = Some(window_handle as i32);
+        }
+    }
+
+    Ok(())
 }
 
 #[derive(Clone, Copy, Debug, FromPrimitive)]
 enum WinEvent {
-    EventObjectCreate = EVENT_OBJECT_CREATE as isize,
     EventObjectDestroy = EVENT_OBJECT_DESTROY as isize,
     EventObjectShow = EVENT_OBJECT_SHOW as isize,
-    Unknown,
+    EventSystemForeground = EVENT_SYSTEM_FOREGROUND as isize,
 }
 
 unsafe extern "system" fn handler(
@@ -167,16 +189,16 @@ unsafe extern "system" fn handler(
 
         debug!(
             "{:?}({}): '{}' | {}",
-            WinEvent::from_u32(event).unwrap_or(WinEvent::Unknown),
+            WinEvent::from_u32(event),
             event,
             window_title,
             window_handle as i32
         );
 
-        let res = match event {
-            EVENT_OBJECT_SHOW => handle_event_object_show(window_handle, &window_title, false),
-            EVENT_OBJECT_DESTROY => Ok(handle_event_object_destroy(window_handle)),
-            _ => Ok(()),
+        let res = match WinEvent::from_u32(event).unwrap() {
+            WinEvent::EventSystemForeground => handle_event_system_foreground(window_handle),
+            WinEvent::EventObjectShow => handle_event_object_show(window_handle, &window_title, false),
+            WinEvent::EventObjectDestroy => handle_event_object_destroy(window_handle),
         };
 
         if let Err(error) = res {
