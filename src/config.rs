@@ -9,8 +9,14 @@ mod macros;
 use std::str::FromStr;
 
 pub type Command = String;
-//TODO(#19)
-pub type FocusDirection = String;
+
+#[derive(Clone, Copy, EnumString, PartialEq)]
+pub enum FocusDirection {
+    Left,
+    Right,
+    Up,
+    Down
+}
 
 pub enum Keybinding {
     CloseTile(Key, Vec<Modifier>),
@@ -176,7 +182,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                         "Focus" => Keybinding::Focus(
                             key,
                             modifiers,
-                            ensure_str!("keybinding of type shell", binding, direction).to_string(),
+                            FocusDirection::from_str(ensure_str!("keybinding of type shell", binding, direction))?,
                         ),
                         "Split" => Keybinding::Split(
                             key,

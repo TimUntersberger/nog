@@ -3,8 +3,10 @@ use crate::tile::Tile;
 use crate::window::Window;
 use crate::util;
 use crate::app_bar;
+use crate::config::FocusDirection;
 use winapi::shared::windef::HWND;
 use winapi::um::winuser::SetWindowPos;
+use log::{debug};
 
 #[derive(Clone, EnumString)]
 pub enum SplitDirection {
@@ -22,6 +24,7 @@ pub enum SplitDirection {
 pub struct TileGrid {
     pub id: i32,
     pub visible: bool,
+    focus_stack: Vec<(FocusDirection, i32)>,
     pub tiles: Vec<Tile>,
     pub focused_window_id: Option<i32>,
     pub taskbar_window: i32,
@@ -36,7 +39,8 @@ impl TileGrid {
         Self {
             id,
             visible: false,
-            tiles: Vec::<Tile>::new(),
+            tiles: Vec::new(),
+            focus_stack: Vec::with_capacity(5),
             focused_window_id: None,
             taskbar_window: 0,
             rows: 0,
@@ -62,10 +66,11 @@ impl TileGrid {
         }
         self.visible = true;
     }
-    pub fn get_tile_by_id(&self, id: i32) -> Option<&Tile> {
+    pub fn get_tile_by_id(&self, id: i32) -> Option<Tile> {
         return self.tiles
                 .iter()
-                .find(|tile| tile.window.id == id);
+                .find(|tile| tile.window.id == id)
+                .map(|t| t.clone());
     }
     pub fn get_focused_tile(&self) -> Option<&Tile> {
         return self.focused_window_id
@@ -84,77 +89,93 @@ impl TileGrid {
             focused_tile.split_direction = direction;
         }
     }
-    pub fn focus_right(&mut self) -> Result<(), util::WinApiResultError>{
-        if let Some(focused_tile) = self.get_focused_tile() {
-            if focused_tile.column == Some(self.columns) || focused_tile.column == None {
-                return Ok(());
+    fn get_next_tile(&self, direction: FocusDirection) -> Option<Tile> {
+        self.get_focused_tile().and_then(|focused_tile| {
+            //Whether it is possible to go in that direction or not
+            let possible = !match direction {
+                FocusDirection::Right => focused_tile.column == Some(self.columns) || focused_tile.column == None,
+                FocusDirection::Left => focused_tile.column == Some(1) || focused_tile.column == None,
+                FocusDirection::Up => focused_tile.row == Some(1) || focused_tile.row == None,
+                FocusDirection::Down => focused_tile.row == Some(self.rows) || focused_tile.row == None,
+            };
+
+            if !possible {
+                debug!("It is not possible to focus in this direction");
+                return None;
             }
 
-            let maybe_next_tile = self.tiles
-                .iter()
-                .find(|tile| (tile.row == None || tile.row == focused_tile.row) && tile.column == focused_tile.column.map(|x| x + 1));
+            debug!("It is possible to focus in this direction");
 
-            if let Some(next_tile) = maybe_next_tile {
-                self.focused_window_id = Some(next_tile.window.id);
-                next_tile.window.focus()?;
+            self.tiles
+                .iter()
+                .find(|tile| match direction {
+                    FocusDirection::Right => (tile.row == None || tile.row == focused_tile.row) && tile.column == focused_tile.column.map(|x| x + 1),
+                    FocusDirection::Left => (tile.row == None || tile.row == focused_tile.row) && tile.column == focused_tile.column.map(|x| x - 1),
+                    FocusDirection::Up => (tile.column == None || tile.column == focused_tile.column) && tile.row == focused_tile.row.map(|x| x - 1),
+                    FocusDirection::Down => (tile.column == None || tile.column == focused_tile.column) && tile.row == focused_tile.row.map(|x| x + 1),
+                })
+                .map(|t| t.clone())
+        })
+    }
+    pub fn focus(&mut self, direction: FocusDirection) -> Result<(), util::WinApiResultError> {
+        if let Some(prev) = self.focus_stack.pop() {
+            // This variable says that the focus action cancels the previous focus action.
+            // Example: Left -> Right
+            let counters = match direction {
+                FocusDirection::Left => prev.0 == FocusDirection::Right,
+                FocusDirection::Right => prev.0 == FocusDirection::Left,
+                FocusDirection::Up => prev.0 == FocusDirection::Down,
+                FocusDirection::Down => prev.0 == FocusDirection::Up,
+            };
+
+            if counters {
+                let maybe_tile = self.get_tile_by_id(prev.1);
+
+                if maybe_tile.is_some() {
+
+                    debug!("The focus direction counters the previous one. Reverting the previous one.");
+                    let tile = maybe_tile.unwrap();
+
+                    self.focused_window_id = Some(prev.1);
+                    
+                    tile.window.focus()?;
+
+                    return Ok(())
+                }
+            }
+
+            self.focus_stack.push(prev);
+
+            if self.focus_stack.len() == self.focus_stack.capacity() {
+                debug!("Focus stack exceeded the limit. Removing oldest one");
+                self.focus_stack.drain(0..1);
             }
         }
 
+        let maybe_next_tile = self.get_next_tile(direction);
+
+        if maybe_next_tile.is_some() {
+            let next_tile = maybe_next_tile.unwrap();
+
+            self.focus_stack.push((direction, self.focused_window_id.unwrap()));
+
+            self.focused_window_id = Some(next_tile.window.id);
+            next_tile.window.focus()?;
+        }
+
         Ok(())
+    }
+    pub fn focus_right(&mut self) -> Result<(), util::WinApiResultError>{
+        self.focus(FocusDirection::Right)
     }
     pub fn focus_left(&mut self) -> Result<(), util::WinApiResultError>{
-        if let Some(focused_tile) = self.get_focused_tile() {
-            if focused_tile.column == Some(1) || focused_tile.column == None {
-                return Ok(());
-            }
-
-            let maybe_next_tile = self.tiles
-                .iter()
-                .find(|tile| (tile.row == None || tile.row == focused_tile.row) && tile.column == focused_tile.column.map(|x| x - 1));
-
-            if let Some(next_tile) = maybe_next_tile {
-                self.focused_window_id = Some(next_tile.window.id);
-                next_tile.window.focus()?;
-            }
-        }
-
-        Ok(())
+        self.focus(FocusDirection::Left)
     }
     pub fn focus_up(&mut self) -> Result<(), util::WinApiResultError>{
-        if let Some(focused_tile) = self.get_focused_tile() {
-            if focused_tile.row == Some(1) || focused_tile.row == None {
-                return Ok(());
-            }
-
-            let maybe_next_tile = self.tiles
-                .iter()
-                .find(|tile| (tile.column == None || tile.column == focused_tile.column) && tile.row == focused_tile.row.map(|x| x - 1));
-
-            if let Some(next_tile) = maybe_next_tile {
-                self.focused_window_id = Some(next_tile.window.id);
-                next_tile.window.focus()?;
-            }
-        }
-
-        Ok(())
+        self.focus(FocusDirection::Up)
     }
     pub fn focus_down(&mut self) -> Result<(), util::WinApiResultError>{
-        if let Some(focused_tile) = self.get_focused_tile() {
-            if focused_tile.row == Some(self.rows) || focused_tile.row == None {
-                return Ok(());
-            }
-
-            let maybe_next_tile = self.tiles
-                .iter()
-                .find(|tile| (tile.column == None || tile.column == focused_tile.column) && tile.row == focused_tile.row.map(|x| x + 1));
-
-            if let Some(next_tile) = maybe_next_tile {
-                self.focused_window_id = Some(next_tile.window.id);
-                next_tile.window.focus()?;
-            }
-        }
-
-        Ok(())
+        self.focus(FocusDirection::Down)
     }
     pub fn close_tile_by_window_id(&mut self, id: i32) -> Option<Tile> {
         let maybe_removed_tile = self.tiles

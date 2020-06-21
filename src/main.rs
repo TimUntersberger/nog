@@ -287,16 +287,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
                         .unwrap();
 
-                    match direction.as_str() {
-                        "Left" => grid.focus_left(),
-                        "Right" => grid.focus_right(),
-                        "Up" => grid.focus_up(),
-                        "Down" => grid.focus_down(),
-                        x => {
-                            error!("invalid direction {} for focus keybinding", x);
-                            panic!();
-                        }
-                    }?;
+                    grid.focus(*direction)?;
                     grid.print_grid();
 
                     Ok(())
