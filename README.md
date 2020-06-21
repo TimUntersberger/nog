@@ -23,6 +23,7 @@ Terminal: Windows Terminal | Colourscheme: Nord
         * [Quit](#quit)
         * [ToggleFloatingMode](#togglefloatingmode)
         * [Focus](#focus)
+        * [Swap](#swap)
         * [Split](#split)
      * [Example Config](#example-config)
   * [Screenshots](#screenshots)
@@ -179,7 +180,7 @@ A Shell keybinding takes a cmd, which has to be a valid cmd statement. So if it 
 
 example
 ```yaml
-type: Shell
+type: CloseTile
 key: Control+Alt+Q
 ```
 
@@ -189,7 +190,7 @@ A CloseTile keybinding closes the currently focused tile and its window.
 
 example
 ```yaml
-type: Shell
+type: Quit
 key: Control+Alt+X
 ```
 
@@ -199,7 +200,7 @@ A Quit keybinding closes wwm and unmanages each window.
 
 example
 ```yaml
-type: Shell
+type: ToggleFloatingMode
 key: Control+Alt+F
 ```
 
@@ -209,8 +210,8 @@ A ToggleFloatingMode keybinding either manages the currently focused window if i
 
 example
 ```yaml
-type: Shell
-key: Control+Alt+H
+type: Focus
+key: Alt+H
 direction: Left
 ```
 
@@ -222,11 +223,28 @@ values
 
 A Focus keybinding takes a direction, specifying which window gets the focus.
 
+#### Swap
+
+example
+```yaml
+type: Swap
+key: Control+Alt+H
+direction: Left
+```
+
+values
+* Left
+* Right
+* Up
+* Down
+
+A Swap keybinding takes a direction, specifying which window gets swapped with the current one.
+
 #### Split
 
 example
 ```yaml
-type: Shell
+type: Split
 key: Control+Alt+Minus
 direction: Horizontal
 ```
