@@ -29,6 +29,7 @@ Terminal: Windows Terminal | Colourscheme: Nord
   * [Screenshots](#screenshots)
   * [Development](#development)
      * [Create installer](#create-installer)
+     * [Create TOC](#create-toc)
      
 ## Config
 
