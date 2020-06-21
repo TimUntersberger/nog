@@ -10,22 +10,27 @@ use std::str::FromStr;
 
 pub type Command = String;
 
-#[derive(Clone, Copy, EnumString, PartialEq)]
-pub enum FocusDirection {
+#[derive(Clone, Copy, EnumString, PartialEq, Debug)]
+pub enum Direction {
     Left,
     Right,
     Up,
     Down
 }
 
+pub type FocusDirection = Direction;
+pub type SwapDirection = Direction;
+
+#[derive(Display)]
 pub enum Keybinding {
-    CloseTile(Key, Vec<Modifier>),
-    Quit(Key, Vec<Modifier>),
-    ChangeWorkspace(Key, Vec<Modifier>, i32),
-    ToggleFloatingMode(Key, Vec<Modifier>),
-    Shell(Key, Vec<Modifier>, Command),
-    Focus(Key, Vec<Modifier>, FocusDirection),
-    Split(Key, Vec<Modifier>, SplitDirection),
+    CloseTile(Key, Modifier),
+    Quit(Key, Modifier),
+    ChangeWorkspace(Key, Modifier, i32),
+    ToggleFloatingMode(Key, Modifier),
+    Shell(Key, Modifier, Command),
+    Focus(Key, Modifier, FocusDirection),
+    Swap(Key, Modifier, SwapDirection),
+    Split(Key, Modifier, SplitDirection),
 }
 
 #[derive(Debug, Clone)]
@@ -153,11 +158,21 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                     let key_combo_parts = key_combo.split("+").collect::<Vec<&str>>();
                     let modifier_count = key_combo_parts.len() - 1;
 
-                    let modifiers = key_combo_parts
+                    let modifier = key_combo_parts
                         .iter()
                         .take(modifier_count)
-                        .map(|x| Modifier::from_str(x).unwrap())
-                        .collect::<Vec<Modifier>>();
+                        .map(|x| match *x {
+                            "Alt" => Modifier::ALT,
+                            "Control" => Modifier::CONTROL,
+                            "Shift" => Modifier::SHIFT,
+                            "Win" => Modifier::WIN,
+                            _ => Modifier::default()
+                        })
+                        .fold(Modifier::default(), |mut sum, crr| {
+                            sum.insert(crr);
+
+                            sum
+                        });
 
                     let key = key_combo_parts
                         .iter()
@@ -168,25 +183,30 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                     let keybinding = match typ {
                         "Shell" => Keybinding::Shell(
                             key,
-                            modifiers,
+                            modifier,
                             ensure_str!("keybinding of type shell", binding, cmd).to_string(),
                         ),
-                        "CloseTile" => Keybinding::CloseTile(key, modifiers),
-                        "Quit" => Keybinding::Quit(key, modifiers),
+                        "CloseTile" => Keybinding::CloseTile(key, modifier),
+                        "Quit" => Keybinding::Quit(key, modifier),
                         "ChangeWorkspace" => Keybinding::ChangeWorkspace(
                             key,
-                            modifiers,
+                            modifier,
                             ensure_i32!("keybinding of type shell", binding, id),
                         ),
-                        "ToggleFloatingMode" => Keybinding::ToggleFloatingMode(key, modifiers),
+                        "ToggleFloatingMode" => Keybinding::ToggleFloatingMode(key, modifier),
                         "Focus" => Keybinding::Focus(
                             key,
-                            modifiers,
+                            modifier,
                             FocusDirection::from_str(ensure_str!("keybinding of type shell", binding, direction))?,
+                        ),
+                        "Swap" => Keybinding::Swap(
+                            key,
+                            modifier,
+                            SwapDirection::from_str(ensure_str!("keybinding of type shell", binding, direction))?,
                         ),
                         "Split" => Keybinding::Split(
                             key,
-                            modifiers,
+                            modifier,
                             SplitDirection::from_str(ensure_str!("keybinding of type shell", binding, direction))?
                         ),
                         x => {

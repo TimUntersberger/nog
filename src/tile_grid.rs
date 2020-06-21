@@ -1,3 +1,5 @@
+use crate::config::Direction;
+use crate::config::SwapDirection;
 use crate::CONFIG;
 use crate::tile::Tile;
 use crate::window::Window;
@@ -67,10 +69,15 @@ impl TileGrid {
         self.visible = true;
     }
     pub fn get_tile_by_id(&self, id: i32) -> Option<Tile> {
-        return self.tiles
+        self.tiles
                 .iter()
                 .find(|tile| tile.window.id == id)
-                .map(|t| t.clone());
+                .map(|t| t.clone())
+    }
+    pub fn get_tile_by_id_mut(&mut self, id: i32) -> Option<&mut Tile> {
+        self.tiles
+                .iter_mut()
+                .find(|tile| tile.window.id == id)
     }
     pub fn get_focused_tile(&self) -> Option<&Tile> {
         return self.focused_window_id
@@ -88,6 +95,9 @@ impl TileGrid {
         if let Some(focused_tile) = self.get_focused_tile_mut() {
             focused_tile.split_direction = direction;
         }
+    }
+    fn get_next_tile_id(&self, direction: FocusDirection) -> Option<i32> {
+        self.get_next_tile(direction).map(|t| t.window.id)
     }
     fn get_next_tile(&self, direction: FocusDirection) -> Option<Tile> {
         self.get_focused_tile().and_then(|focused_tile| {
@@ -117,9 +127,49 @@ impl TileGrid {
                 .map(|t| t.clone())
         })
     }
-    pub fn focus(&mut self, direction: FocusDirection) -> Result<(), util::WinApiResultError> {
+    fn set_location(&mut self, id: i32, row: Option<i32>, col: Option<i32>) {
+        if let Some(mut tile) = self.get_tile_by_id_mut(id) {
+            tile.row = row;
+            tile.column = col;
+        }
+    }
+    fn swap_tiles(&mut self, x: i32, y: i32) {
+        //borrow checker bullshit
+        let x_tile = {
+            let tile = self.get_tile_by_id(x).unwrap();
+            (tile.window.id, tile.row, tile.column)
+        };
+        let y_tile = {
+            let tile = self.get_tile_by_id(y).unwrap();
+            (tile.window.id, tile.row, tile.column)
+        };
+        
+        self.set_location(x_tile.0, y_tile.1, y_tile.2);
+        self.set_location(y_tile.0, x_tile.1, x_tile.2);
+    }
+    pub fn swap(&mut self, direction: SwapDirection) -> Result<(), util::WinApiResultError> {
+        if let Some(tile) = self.check_focus_stack(direction)? {
+            //if the focus stack is not empty, then some tile must have focus
+            let focused_id = self.focused_window_id.unwrap();
+            self.swap_tiles(tile.window.id, focused_id);
+            //self.focused_window_id = Some(tile.window.id);
+            //tile.window.focus()?;
+            return Ok(());
+        }
+        let maybe_next_id = self.get_next_tile_id(direction);
+        if maybe_next_id.is_some() {
+            let next_id = maybe_next_id.unwrap();
+            //if we get a next tile we can assume that a tile is focused
+            let focused_id = self.focused_window_id.unwrap();
+            self.swap_tiles(next_id, focused_id);
+            self.focus_stack.push((direction, next_id));
+        }
+
+        Ok(())
+    }
+    fn check_focus_stack(&mut self, direction: Direction) -> Result<Option<Tile>, util::WinApiResultError> {
         if let Some(prev) = self.focus_stack.pop() {
-            // This variable says that the focus action cancels the previous focus action.
+            // This variable says that the action cancels the previous action.
             // Example: Left -> Right
             let counters = match direction {
                 FocusDirection::Left => prev.0 == FocusDirection::Right,
@@ -132,15 +182,10 @@ impl TileGrid {
                 let maybe_tile = self.get_tile_by_id(prev.1);
 
                 if maybe_tile.is_some() {
-
-                    debug!("The focus direction counters the previous one. Reverting the previous one.");
+                    debug!("The direction counters the previous one. Reverting the previous one.");
                     let tile = maybe_tile.unwrap();
-
-                    self.focused_window_id = Some(prev.1);
                     
-                    tile.window.focus()?;
-
-                    return Ok(())
+                    return Ok(Some(tile));
                 }
             }
 
@@ -150,6 +195,16 @@ impl TileGrid {
                 debug!("Focus stack exceeded the limit. Removing oldest one");
                 self.focus_stack.drain(0..1);
             }
+        }
+
+        return Ok(None);
+    }
+    pub fn focus(&mut self, direction: FocusDirection) -> Result<(), util::WinApiResultError> {
+        println!("{:?}", self.focus_stack);
+        if let Some(tile) = self.check_focus_stack(direction)? {
+            self.focused_window_id = Some(tile.window.id);
+            tile.window.focus()?;
+            return Ok(());
         }
 
         let maybe_next_tile = self.get_next_tile(direction);

@@ -5,15 +5,16 @@ use winapi::um::winuser::RegisterHotKey;
 use winapi::um::winuser::TranslateMessage;
 use winapi::um::winuser::MSG;
 use winapi::um::winuser::WM_HOTKEY;
-
+use bitflags::bitflags;
 use log::{debug};
 
 use num_traits::FromPrimitive;
+use num_traits::ToPrimitive;
 use strum_macros::EnumString;
 
 use crate::util;
 
-#[derive(Clone, Copy, FromPrimitive, PartialEq, EnumString, Display)]
+#[derive(Clone, Copy, FromPrimitive, ToPrimitive, PartialEq, EnumString, Display)]
 #[allow(dead_code)]
 pub enum Key {
     Enter = 0x0D,
@@ -71,19 +72,21 @@ pub enum Key {
     Nine = 0x39,
 }
 
-#[derive(Clone, Copy, EnumString)]
-#[allow(dead_code)]
-pub enum Modifier {
-    Alt = 0x0001,
-    Control = 0x0002,
-    Shift = 0x0004,
-    Win = 0x0008,
+bitflags!{
+    #[derive(Default)]
+    #[allow(dead_code)]
+    pub struct Modifier: u32 {
+        const ALT = 0x0001;
+        const CONTROL = 0x0002;
+        const SHIFT = 0x0004;
+        const WIN = 0x0008;
+    }
 }
 
 #[allow(dead_code)]
 pub struct HotKey {
     key: Key,
-    modifiers: Vec<Modifier>,
+    modifier: Modifier,
     callback: Box<dyn Fn() -> Result<(), Box<dyn std::error::Error>>>,
 }
 
@@ -97,23 +100,17 @@ impl HotKeyManager {
             hot_keys: Vec::new(),
         }
     }
-    pub fn register_hot_key<F: 'static>(&mut self, key: Key, modifiers: Vec<Modifier>, callback: F) -> Result<(), util::WinApiResultError>
+    pub fn register_hot_key<F: 'static>(&mut self, key: Key, modifier: Modifier, callback: F, id: i32) -> Result<(), util::WinApiResultError>
     where
         F: Fn() -> Result<(), Box<dyn std::error::Error>>,
     {
-        let mut flags: u32 = 0;
-
-        for modifier in &modifiers {
-            flags = flags | *modifier as u32;
-        }
-
         unsafe {
-            util::winapi_nullable_to_result(RegisterHotKey(0 as HWND, key as i32, flags, key as u32))?;
+            util::winapi_nullable_to_result(RegisterHotKey(0 as HWND, id, modifier.bits(), key as u32))?;
         }
 
         self.hot_keys.push(HotKey {
             key: key,
-            modifiers: modifiers,
+            modifier,
             callback: Box::new(callback),
         });
 
@@ -128,9 +125,12 @@ impl HotKeyManager {
                 DispatchMessageW(&msg);
 
                 if msg.message == WM_HOTKEY {
-                    if let Some(key) = Key::from_usize(msg.wParam) {
+                    let modifier = Modifier::from_bits((msg.lParam & 0xffff) as u32).unwrap();
+
+                    if let Some(key) = Key::from_isize(msg.lParam >> 16) {
                         for hot_key in &self.hot_keys {
-                            if hot_key.key == key {
+                            if hot_key.key == key && modifier == hot_key.modifier {
+                                println!("{} {:?}", hot_key.key as u32, hot_key.modifier);
                                 (hot_key.callback)()?;
                             }
                         }

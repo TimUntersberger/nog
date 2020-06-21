@@ -163,27 +163,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut hot_key_manager = HotKeyManager::new();
 
-    for keybinding in CONFIG.keybindings.iter() {
-        let (key, modifiers, callback): (
+    for (i, keybinding) in CONFIG.keybindings.iter().enumerate() {
+        let (key_type, key, modifier, callback): (
+            &Keybinding,
             &Key,
-            &Vec<Modifier>,
+            &Modifier,
             Box<dyn Fn() -> Result<(), Box<dyn std::error::Error>> + Send + Sync>,
         ) = match keybinding {
-            Keybinding::Shell(key, modifiers, cmd) => (
+            Keybinding::Shell(key, modifier, cmd) => (
+                keybinding,
                 key,
-                modifiers,
+                modifier,
                 Box::new(move || {
-                    debug!("Received hotkey of type Shell");
+                    info!("Received hotkey of type Shell");
                     Command::new("cmd").args(&["/C", &cmd]).spawn()?;
 
                     Ok(())
                 }),
             ),
-            Keybinding::CloseTile(key, modifiers) => (
+            Keybinding::CloseTile(key, modifier) => (
+                keybinding,
                 key,
-                modifiers,
+                modifier,
                 Box::new(move || {
-                    debug!("Received hotkey of type CloseTile");
+                    info!("Received hotkey of type CloseTile");
                     let mut grids = GRIDS.lock().unwrap();
                     let grid = grids
                         .iter_mut()
@@ -200,22 +203,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Ok(())
                 }),
             ),
-            Keybinding::ChangeWorkspace(key, modifiers, id) => (
+            Keybinding::ChangeWorkspace(key, modifier, id) => (
+                keybinding,
                 key,
-                modifiers,
+                modifier,
                 Box::new(move || {
-                    debug!("Received hotkey of type ChangeWorkspace");
+                    info!("Received hotkey of type ChangeWorkspace");
                     
                     change_workspace(*id)?;
 
                     Ok(())
                 }),
             ),
-            Keybinding::ToggleFloatingMode(key, modifiers) => (
+            Keybinding::ToggleFloatingMode(key, modifier) => (
+                keybinding,
                 key,
-                modifiers,
+                modifier,
                 Box::new(move || {
-                    debug!("Received hotkey of type ToggleFloatingMode");
+                    info!("Received hotkey of type ToggleFloatingMode");
                     let window_handle = Window::get_foreground_window()?;
 
                     if let Ok(mut grids) = GRIDS.lock() {
@@ -276,11 +281,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Ok(())
                 }),
             ),
-            Keybinding::Focus(key, modifiers, direction) => (
+            Keybinding::Focus(key, modifier, direction) => (
+                keybinding,
                 key,
-                modifiers,
+                modifier,
                 Box::new(move || {
-                    debug!("Received hotkey of type Focus");
+                    info!("Received hotkey of type Focus");
                     let mut grids = GRIDS.lock().unwrap();
                     let grid = grids
                         .iter_mut()
@@ -293,21 +299,42 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Ok(())
                 }),
             ),
-            Keybinding::Quit(key, modifiers) => (
+            Keybinding::Swap(key, modifier, direction) => (
+                keybinding,
                 key,
-                modifiers,
+                modifier,
                 Box::new(move || {
-                    debug!("Received hotkey of type Quit");
+                    info!("Received hotkey of type Swap");
+                    let mut grids = GRIDS.lock().unwrap();
+
+                    let grid = grids
+                        .iter_mut()
+                        .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
+                        .unwrap();
+
+                    grid.swap(*direction)?;
+                    grid.print_grid();
+
+                    Ok(())
+                }),
+            ),
+            Keybinding::Quit(key, modifier) => (
+                keybinding,
+                key,
+                modifier,
+                Box::new(move || {
+                    info!("Received hotkey of type Quit");
                     on_quit()?;
 
                     Ok(())
                 }),
             ),
-            Keybinding::Split(key, modifiers, direction) => (
+            Keybinding::Split(key, modifier, direction) => (
+                keybinding,
                 key,
-                modifiers,
+                modifier,
                 Box::new(move || {
-                    debug!("Received hotkey of type Split");
+                    info!("Received hotkey of type Split");
                     let mut grids = GRIDS.lock().unwrap();
                     grids
                         .iter_mut()
@@ -320,8 +347,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ),
         };
 
-        info!("Registering hotkey {}", *key);
-        hot_key_manager.register_hot_key(*key, modifiers.clone(), callback)?;
+        info!("Registering Keybinding({}+{}, {}) {}", format!("{:?}", modifier).replace(" | ", "+"),*key, *key_type, *key as i32);
+        hot_key_manager.register_hot_key(*key, *modifier, callback, i as i32)?;
     }
 
     info!("Registering windows event handler");
