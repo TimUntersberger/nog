@@ -103,9 +103,9 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
         None => "",
     };
 
-    let file_content = std::fs::read_to_string(path).unwrap();
+    let file_content = std::fs::read_to_string(path)?;
 
-    let vec_yaml = yaml_rust::YamlLoader::load_from_str(&file_content).unwrap();
+    let vec_yaml = yaml_rust::YamlLoader::load_from_str(&file_content)?;
     let mut yaml = &yaml_rust::Yaml::Null;
     if !vec_yaml.is_empty() {
         yaml = &vec_yaml[0];

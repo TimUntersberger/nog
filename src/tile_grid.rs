@@ -16,12 +16,6 @@ pub enum SplitDirection {
     Vertical
 }
 
-// TODO: A TileGrid will need a last focus stack where each item has a direction and window id.
-// When a focus function gets called peek at the last focus stack to know whether the sequence cancels itself to pop the last item.
-
-// the stack will need maximum limit. right now im thinking about like 5 items max?
-
-//TODO(#20)
 #[derive(Clone)]
 pub struct TileGrid {
     pub id: i32,
