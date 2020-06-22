@@ -57,6 +57,7 @@ impl Default for Rule {
 }
 
 pub struct Config {
+    pub app_bar_height: i32,
     pub app_bar_bg: i32,
     pub app_bar_workspace_bg: i32,
     pub margin: i32,
@@ -71,6 +72,7 @@ pub struct Config {
 impl Config {
     pub fn new() -> Self {
         Self {
+            app_bar_height: 20,
             app_bar_bg: 0x0027242c,
             app_bar_workspace_bg: 0x00161616,
             margin: 0,
@@ -124,6 +126,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
 
             if_hex!(config, config_key, value, app_bar_bg);
             if_hex!(config, config_key, value, app_bar_workspace_bg);
+            if_i32!(config, config_key, value, app_bar_height);
             if_i32!(config, config_key, value, margin);
             if_i32!(config, config_key, value, padding);
             if_bool!(config, config_key, value, remove_title_bar);

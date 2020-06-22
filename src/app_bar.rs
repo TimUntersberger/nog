@@ -45,8 +45,6 @@ lazy_static! {
     pub static ref WINDOW: Mutex<i32> = Mutex::new(0);
 }
 
-pub const APP_BAR_HEIGHT: i32 = 20;
-
 unsafe extern "system" fn window_cb(
     hwnd: HWND,
     msg: UINT,
@@ -73,7 +71,7 @@ unsafe extern "system" fn window_cb(
 pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
     let name = "wwm_app_bar";
     let mut height_guard = HEIGHT.lock().unwrap();
-    *height_guard = APP_BAR_HEIGHT;
+    *height_guard = CONFIG.app_bar_height;
 
     unsafe {
         let instance = util::winapi_nullable_to_result(

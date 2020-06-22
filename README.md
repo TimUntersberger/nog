@@ -12,7 +12,7 @@ Terminal: Windows Terminal | Colourscheme: Nord
 
   * [Config](#config)
      * [Gap](#gap)
-     * [Colors](#colors)
+     * [Bar](#bar)
      * [Toggles](#toggles)
      * [Rules](#rules)
         * [Settings](#settings)
@@ -44,7 +44,9 @@ The `margin` setting defines the size of the gap around the grid
 
 The `padding` setting defines the size of the gap inside the grid
 
-### Colors
+### bar
+
+The `app_bar_height` setting defines the height of the app bar
 
 A color has to be a valid hex value (e.g 0x0027242c)
 

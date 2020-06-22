@@ -25,7 +25,7 @@ impl Display {
         }
 
         if CONFIG.display_app_bar {
-            self.height = self.height - app_bar::APP_BAR_HEIGHT;
+            self.height = self.height - CONFIG.app_bar_height;
         }
 
         if !CONFIG.remove_title_bar {
