@@ -130,7 +130,6 @@ impl HotKeyManager {
                     if let Some(key) = Key::from_isize(msg.lParam >> 16) {
                         for hot_key in &self.hot_keys {
                             if hot_key.key == key && modifier == hot_key.modifier {
-                                println!("{} {:?}", hot_key.key as u32, hot_key.modifier);
                                 (hot_key.callback)()?;
                             }
                         }

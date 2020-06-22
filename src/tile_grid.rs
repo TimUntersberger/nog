@@ -1,33 +1,33 @@
-use crate::config::Direction;
-use crate::config::SwapDirection;
-use crate::CONFIG;
-use crate::tile::Tile;
-use crate::window::Window;
-use crate::util;
 use crate::app_bar;
+use crate::config::Direction;
 use crate::config::FocusDirection;
+use crate::config::SwapDirection;
+use crate::tile::Tile;
+use crate::util;
+use crate::window::Window;
+use crate::CONFIG;
+use log::debug;
 use winapi::shared::windef::HWND;
 use winapi::um::winuser::SetWindowPos;
-use log::{debug};
 
-#[derive(Clone, EnumString)]
+#[derive(Clone, EnumString, Copy)]
 pub enum SplitDirection {
     Horizontal,
-    Vertical
+    Vertical,
 }
 
 #[derive(Clone)]
 pub struct TileGrid {
     pub id: i32,
     pub visible: bool,
-    focus_stack: Vec<(FocusDirection, i32)>,
+    pub focus_stack: Vec<(FocusDirection, i32)>,
     pub tiles: Vec<Tile>,
     pub focused_window_id: Option<i32>,
     pub taskbar_window: i32,
     pub rows: i32,
     pub columns: i32,
     pub height: i32,
-    pub width: i32
+    pub width: i32,
 }
 
 impl TileGrid {
@@ -42,7 +42,7 @@ impl TileGrid {
             rows: 0,
             columns: 0,
             height: 0,
-            width: 0
+            width: 0,
         }
     }
     pub fn hide(&mut self) {
@@ -64,26 +64,22 @@ impl TileGrid {
     }
     pub fn get_tile_by_id(&self, id: i32) -> Option<Tile> {
         self.tiles
-                .iter()
-                .find(|tile| tile.window.id == id)
-                .map(|t| t.clone())
+            .iter()
+            .find(|tile| tile.window.id == id)
+            .map(|t| t.clone())
     }
     pub fn get_tile_by_id_mut(&mut self, id: i32) -> Option<&mut Tile> {
-        self.tiles
-                .iter_mut()
-                .find(|tile| tile.window.id == id)
+        self.tiles.iter_mut().find(|tile| tile.window.id == id)
     }
     pub fn get_focused_tile(&self) -> Option<&Tile> {
-        return self.focused_window_id
-            .and_then(|id| self.tiles
-                .iter()
-                .find(|tile| tile.window.id == id));
+        return self
+            .focused_window_id
+            .and_then(|id| self.tiles.iter().find(|tile| tile.window.id == id));
     }
     pub fn get_focused_tile_mut(&mut self) -> Option<&mut Tile> {
-        return self.focused_window_id
-            .and_then(move |id| self.tiles
-                .iter_mut()
-                .find(|tile| tile.window.id == id));
+        return self
+            .focused_window_id
+            .and_then(move |id| self.tiles.iter_mut().find(|tile| tile.window.id == id));
     }
     pub fn set_focused_split_direction(&mut self, direction: SplitDirection) {
         if let Some(focused_tile) = self.get_focused_tile_mut() {
@@ -97,10 +93,16 @@ impl TileGrid {
         self.get_focused_tile().and_then(|focused_tile| {
             //Whether it is possible to go in that direction or not
             let possible = !match direction {
-                FocusDirection::Right => focused_tile.column == Some(self.columns) || focused_tile.column == None,
-                FocusDirection::Left => focused_tile.column == Some(1) || focused_tile.column == None,
+                FocusDirection::Right => {
+                    focused_tile.column == Some(self.columns) || focused_tile.column == None
+                }
+                FocusDirection::Left => {
+                    focused_tile.column == Some(1) || focused_tile.column == None
+                }
                 FocusDirection::Up => focused_tile.row == Some(1) || focused_tile.row == None,
-                FocusDirection::Down => focused_tile.row == Some(self.rows) || focused_tile.row == None,
+                FocusDirection::Down => {
+                    focused_tile.row == Some(self.rows) || focused_tile.row == None
+                }
             };
 
             if !possible {
@@ -113,10 +115,34 @@ impl TileGrid {
             self.tiles
                 .iter()
                 .find(|tile| match direction {
-                    FocusDirection::Right => (tile.row == None || tile.row == focused_tile.row) && tile.column == focused_tile.column.map(|x| x + 1),
-                    FocusDirection::Left => (tile.row == None || tile.row == focused_tile.row) && tile.column == focused_tile.column.map(|x| x - 1),
-                    FocusDirection::Up => (tile.column == None || tile.column == focused_tile.column) && tile.row == focused_tile.row.map(|x| x - 1),
-                    FocusDirection::Down => (tile.column == None || tile.column == focused_tile.column) && tile.row == focused_tile.row.map(|x| x + 1),
+                    FocusDirection::Right => {
+                        (focused_tile.row == None
+                            || tile.row == None
+                            || tile.row == focused_tile.row)
+                            && tile.column == focused_tile.column.map(|x| x + 1)
+                        // && (tile.row == Some(1) || tile.row == None)
+                    }
+                    FocusDirection::Left => {
+                        (focused_tile.row == None
+                            || tile.row == None
+                            || tile.row == focused_tile.row)
+                            && tile.column == focused_tile.column.map(|x| x - 1)
+                        // && (tile.row == Some(1) || tile.row == None)
+                    }
+                    FocusDirection::Up => {
+                        (focused_tile.column == None
+                            || tile.column == None
+                            || tile.column == focused_tile.column)
+                            && tile.row == focused_tile.row.map(|x| x - 1)
+                        // && (tile.column == Some(1) || tile.column == None)
+                    }
+                    FocusDirection::Down => {
+                        (focused_tile.column == None
+                            || tile.column == None
+                            || tile.column == focused_tile.column)
+                            && tile.row == focused_tile.row.map(|x| x + 1)
+                        // && (tile.column == Some(1) || tile.column == None)
+                    }
                 })
                 .map(|t| t.clone())
         })
@@ -137,7 +163,6 @@ impl TileGrid {
             let tile = self.get_tile_by_id(y).unwrap();
             (tile.window.id, tile.row, tile.column)
         };
-        
         self.set_location(x_tile.0, y_tile.1, y_tile.2);
         self.set_location(y_tile.0, x_tile.1, x_tile.2);
     }
@@ -146,8 +171,6 @@ impl TileGrid {
             //if the focus stack is not empty, then some tile must have focus
             let focused_id = self.focused_window_id.unwrap();
             self.swap_tiles(tile.window.id, focused_id);
-            //self.focused_window_id = Some(tile.window.id);
-            //tile.window.focus()?;
             return Ok(());
         }
         let maybe_next_id = self.get_next_tile_id(direction);
@@ -161,7 +184,10 @@ impl TileGrid {
 
         Ok(())
     }
-    fn check_focus_stack(&mut self, direction: Direction) -> Result<Option<Tile>, util::WinApiResultError> {
+    fn check_focus_stack(
+        &mut self,
+        direction: Direction,
+    ) -> Result<Option<Tile>, util::WinApiResultError> {
         if let Some(prev) = self.focus_stack.pop() {
             // This variable says that the action cancels the previous action.
             // Example: Left -> Right
@@ -178,7 +204,6 @@ impl TileGrid {
                 if maybe_tile.is_some() {
                     debug!("The direction counters the previous one. Reverting the previous one.");
                     let tile = maybe_tile.unwrap();
-                    
                     return Ok(Some(tile));
                 }
             }
@@ -194,7 +219,7 @@ impl TileGrid {
         return Ok(None);
     }
     pub fn focus(&mut self, direction: FocusDirection) -> Result<(), util::WinApiResultError> {
-        println!("{:?}", self.focus_stack);
+        //TODO: Fix no split -> split | no focus stack
         if let Some(tile) = self.check_focus_stack(direction)? {
             self.focused_window_id = Some(tile.window.id);
             tile.window.focus()?;
@@ -206,89 +231,132 @@ impl TileGrid {
         if maybe_next_tile.is_some() {
             let next_tile = maybe_next_tile.unwrap();
 
-            self.focus_stack.push((direction, self.focused_window_id.unwrap()));
+            self.focus_stack
+                .push((direction, self.focused_window_id.unwrap()));
 
             self.focused_window_id = Some(next_tile.window.id);
             next_tile.window.focus()?;
         }
 
+        debug!("Couldn't find a valid tile");
+
         Ok(())
     }
-    pub fn focus_right(&mut self) -> Result<(), util::WinApiResultError>{
+    pub fn focus_right(&mut self) -> Result<(), util::WinApiResultError> {
         self.focus(FocusDirection::Right)
     }
-    pub fn focus_left(&mut self) -> Result<(), util::WinApiResultError>{
+    pub fn focus_left(&mut self) -> Result<(), util::WinApiResultError> {
         self.focus(FocusDirection::Left)
     }
-    pub fn focus_up(&mut self) -> Result<(), util::WinApiResultError>{
+    pub fn focus_up(&mut self) -> Result<(), util::WinApiResultError> {
         self.focus(FocusDirection::Up)
     }
-    pub fn focus_down(&mut self) -> Result<(), util::WinApiResultError>{
+    pub fn focus_down(&mut self) -> Result<(), util::WinApiResultError> {
         self.focus(FocusDirection::Down)
     }
     pub fn close_tile_by_window_id(&mut self, id: i32) -> Option<Tile> {
-        let maybe_removed_tile = self.tiles
+        let maybe_removed_tile = self
+            .tiles
             .iter()
             .position(|tile| tile.window.id == id)
             .map(|idx| self.tiles.remove(idx));
 
         if let Some(removed_tile) = maybe_removed_tile.clone() {
-            let is_empty_row = !self.tiles
-                .iter()
-                .any(|tile| tile.row == removed_tile.row);
+            let is_empty_row = removed_tile.row != None
+                && !self.tiles.iter().any(|tile| tile.row == removed_tile.row);
 
-            let is_empty_column = !self.tiles
-                .iter()
-                .any(|tile| tile.column == removed_tile.column);
+            let is_empty_column = removed_tile.column != None
+                && !self
+                    .tiles
+                    .iter()
+                    .any(|tile| tile.column == removed_tile.column);
 
             if is_empty_row {
-                self.rows = self.rows - 1;
-                let tiles_after_deleted_tile = self.tiles
-                    .iter_mut()
-                    .filter(|t| t.row > removed_tile.row);
+                debug!("row is now empty");
 
-                for tile in tiles_after_deleted_tile {
-                    tile.row = tile.row.map(|x| x - 1);
+                self.rows = self.rows - 1;
+                if self.rows == 1 {
+                    self.tiles
+                        .iter_mut()
+                        .filter(|t| t.row > removed_tile.row)
+                        .for_each(|t| {
+                            t.row = None;
+                        });
+                } else {
+                    self.tiles
+                        .iter_mut()
+                        .filter(|t| t.row > removed_tile.row)
+                        .for_each(|t| {
+                            t.row.map(|x| x - 1);
+                        });
                 }
+            } else if !is_empty_column {
+                self.tiles
+                    .iter_mut()
+                    .filter(|t| t.column == removed_tile.column)
+                    .for_each(|t| t.row = None);
             }
 
             if is_empty_column {
-                self.columns = self.columns - 1;
-                let tiles_after_deleted_tile = self.tiles
-                    .iter_mut()
-                    .filter(|t| t.column > removed_tile.column);
+                debug!("column is now empty");
 
-                for tile in tiles_after_deleted_tile {
-                    tile.column = tile.column.map(|x| x - 1);
+                self.columns = self.columns - 1;
+
+                if self.columns == 1 {
+                    self.tiles
+                        .iter_mut()
+                        .filter(|t| t.column != removed_tile.column)
+                        .for_each(|t| {
+                            t.column = None;
+                        })
+                } else {
+                    self.tiles
+                        .iter_mut()
+                        .filter(|t| t.column > removed_tile.column)
+                        .for_each(|t| {
+                            t.column.map(|x| x - 1);
+                        })
+                }
+            } else {
+                let mut tiles_in_column: Vec<&mut Tile> = self.tiles
+                    .iter_mut()
+                    .filter(|t| t.column == removed_tile.column)
+                    .collect();
+
+                let tile_count = tiles_in_column.len();
+
+                println!("{}", tile_count);
+                
+                for t in tiles_in_column.iter_mut() {
+                    t.row = if tile_count == 1 {
+                        None
+                    } else if removed_tile.row < t.row {
+                        t.row.map(|x| x - 1)
+                    } else {
+                        t.row
+                    };
                 }
             }
 
             if self.tiles.len() == 0 {
                 self.focused_window_id = None;
-            }
-            else if let Some(focused_window_id) = self.focused_window_id {
+            } else if let Some(focused_window_id) = self.focused_window_id {
                 if focused_window_id == removed_tile.window.id {
                     let next_column = removed_tile.column.map(|column| {
                         return if column > self.columns {
                             column - 1
                         } else {
                             column
-                        }
+                        };
                     });
 
-                    let next_row = removed_tile.row.map(|row| {
-                        return if row > self.rows {
-                            row - 1
-                        } else {
-                            row
-                        }
-                    });
+                    let next_row = removed_tile
+                        .row
+                        .map(|row| return if row > self.rows { row - 1 } else { row });
 
-                    let maybe_next_tile: Option<&Tile> = self.tiles
-                        .iter()
-                        .find(|tile| {
-                            return tile.column == next_column && tile.row == next_row;
-                        });
+                    let maybe_next_tile: Option<&Tile> = self.tiles.iter().find(|tile| {
+                        return tile.column == next_column && tile.row == next_row;
+                    });
 
                     if let Some(next_tile) = maybe_next_tile {
                         self.focused_window_id = Some(next_tile.window.id);
@@ -299,138 +367,166 @@ impl TileGrid {
 
         return maybe_removed_tile;
     }
-    pub fn split(&mut self, window: Window){
+    pub fn split(&mut self, window: Window) {
         if self.tiles.iter().any(|t| t.window.id == window.id) {
             return;
         }
 
         match self.get_focused_tile_mut() {
             Some(focused_tile) => {
-                let mut new_tile = Tile::new(window);
-
-                match focused_tile.split_direction {
+                let split_direction = focused_tile.split_direction;
+                let (column, row) = match focused_tile.split_direction {
                     SplitDirection::Horizontal => {
-                        new_tile.column = focused_tile.column;
-                        match focused_tile.row {
-                            Some(row) => new_tile.row = Some(row + 1),
-                            None => {
-                                focused_tile.row = Some(1);
-                                new_tile.row = Some(2);
-                            }
+                        if focused_tile.row == None {
+                            focused_tile.row = Some(1);
                         }
-                        self.rows = self.rows + 1;
-                    },
-                    SplitDirection::Vertical => {
-                        new_tile.row = focused_tile.row;
-                        match focused_tile.column {
-                            Some(column) => new_tile.column = Some(column + 1),
-                            None => {
-                                focused_tile.column = Some(1);
-                                new_tile.column = Some(2);
-                            }
-                        }
-                        self.columns = self.columns + 1;
-                    }
-                }
 
-                self.focused_window_id = Some(new_tile.window.id);
-                self.tiles.push(new_tile);
-            },
+                        let column = focused_tile.column;
+                        let row = focused_tile.row.map(|x| x + 1).or(Some(2));
+
+                        // We can assume that row is Some because, there is no case where it is currently None
+                        if row.unwrap() <= self.rows {
+                            self.tiles
+                                .iter_mut()
+                                .filter(|t| t.column == column && t.row >= row)
+                                .for_each(|t| {
+                                    t.row = t.row.map(|x| x + 1);
+                                });
+                        }
+                        if row > Some(self.rows) {
+                            self.rows += 1;
+                        }
+
+                        (column, row)
+                    }
+                    SplitDirection::Vertical => {
+                        if focused_tile.column == None {
+                            focused_tile.column = Some(1);
+                        }
+                        let row = focused_tile.row;
+                        let column = focused_tile.column.map(|x| x + 1).or(Some(2));
+
+                        // We can assume that column is Some because, there is no case where it is currently None
+                        if column.unwrap() <= self.columns {
+                            self.tiles
+                                .iter_mut()
+                                .filter(|t| t.row == row && t.column >= column)
+                                .for_each(|t| {
+                                    t.column = t.column.map(|x| x + 1);
+                                });
+                        }
+
+                        if column > Some(self.columns) {
+                            self.columns += 1;
+                        }
+
+                        (column, row)
+                    }
+                };
+
+                self.focused_window_id = Some(window.id);
+                self.tiles.push(Tile {
+                    row,
+                    column,
+                    split_direction,
+                    window,
+                    ..Tile::default()
+                });
+            }
             None => {
                 self.rows = 1;
                 self.columns = 1;
                 self.focused_window_id = Some(window.id);
-                self.tiles.push(Tile::new(window));
-            } 
+                self.tiles.push(Tile {
+                    window,
+                    ..Tile::default()
+                });
+            }
         }
     }
-    fn draw_tile_with_title_bar(&self, tile: &Tile) {
+    /// Calculates all the data required for drawing the tile
+    /// # return
+    /// (x, y, width, height)
+    fn calculate_tile_data(&self, tile: &Tile) -> (i32, i32, i32, i32) {
         let column_width = self.width / self.columns;
         let row_height = self.height / self.rows;
 
-        let column_delta = match tile.column {
-            Some(column) => if column > 1 {
-                15
-            } else {
-                0
-            },
-            None => 0
-        };
-
-        let row_delta = match tile.row {
-            Some(row) => if row > 1 {
-                10
-            } else {
-                0
-            },
-            None => 0
-        };
-
-        let x = match tile.column {
-            Some(column) => column_width * (column - 1) - 8 - column_delta,
-            None => -8
-        };
-
-        let y = match tile.row {
-            Some(row) => row_height * (row - 1) - row_delta - 1,
-            None => -1
-        };
-
-        let height = match tile.row {
-            Some(_row) => row_height + row_delta,
-            None => self.height
-        };
-
-        let width = match tile.column {
-            Some(_column) => column_width + column_delta,
-            None => self.width
-        };
-
-        unsafe {
-            //TODO: handle error
-            SetWindowPos(tile.window.id as HWND, std::ptr::null_mut(), x, y + *app_bar::HEIGHT.lock().unwrap(), width, height, 0);
-        }
-    }
-
-    fn draw_tile(&self, tile: &Tile){
-        let column_width = self.width / self.columns;
-        let row_height = self.height / self.rows;
-
+        // These deltas are mainly required for resizing/moving windows with a native titlebar
+        // I don't know why, but the coordinates are different when a window has a native titlebar :shrug:
+        let mut column_delta = 0;
+        let mut row_delta = 0;
         let mut x = 0;
-        
+        let mut y = 0;
+        let mut height = self.height;
+        let mut width = self.width;
+
         if let Some(column) = tile.column {
-            x = column_width * (column - 1);
-        };
+            if !CONFIG.remove_title_bar && column > 1 {
+                column_delta = 15;
+            }
 
-        let y = match tile.row {
-            Some(row) => row_height * (row - 1),
-            None => 0
-        };
+            width = column_width + column_delta;
+            x = column_width * (column - 1) - column_delta;
 
-        let height = match tile.row {
-            Some(_row) => row_height,
-            None => self.height
-        };  
+            width -= CONFIG.padding / self.columns;
 
-        let mut width = match tile.column {
-            Some(_column) => column_width,
-            None => self.width
-        };
-        
-        if let Some(rule) = &tile.window.rule {
-            if rule.has_custom_titlebar {
-                x = x + rule.x;
-                width = width + rule.width;
+            if column > 1 {
+                x += CONFIG.padding / self.columns;
             }
         }
 
+        if let Some(row) = tile.row {
+            if !CONFIG.remove_title_bar && row > 1 {
+                row_delta = 10;
+            }
+
+            height = row_height + row_delta;
+            y = row_height * (row - 1) - row_delta;
+
+            height -= CONFIG.padding / self.rows;
+
+            if row > 1 {
+                y += CONFIG.padding / self.rows;
+            }
+        }
+
+        if !CONFIG.remove_title_bar {
+            x -= 8;
+            y -= 1;
+        } else if let Some(rule) = &tile.window.rule {
+            if rule.has_custom_titlebar {
+                x += rule.x;
+                width += rule.width;
+            }
+        }
+
+        x += CONFIG.margin;
+        y += CONFIG.margin;
+        y += *app_bar::HEIGHT.lock().unwrap();
+
+        (x, y, width, height)
+    }
+
+    fn draw_tile(&self, tile: &Tile) {
+        let (x, y, width, height) = self.calculate_tile_data(tile);
+
         unsafe {
             //TODO: handle error
-            SetWindowPos(tile.window.id as HWND, std::ptr::null_mut(), x, y + *app_bar::HEIGHT.lock().unwrap(), width, height, 0);
+            SetWindowPos(
+                tile.window.id as HWND,
+                std::ptr::null_mut(),
+                x,
+                y,
+                width,
+                height,
+                0,
+            );
         }
     }
 
-    pub fn print_grid(&self) -> () {
+    fn print_grid(&self) {
+        debug!("Printing grid");
+
         if self.rows == 0 || self.columns == 0 {
             print!("\nEmpty\n\n");
             return;
@@ -438,25 +534,29 @@ impl TileGrid {
 
         let mut rows = [[std::ptr::null(); 10]; 10];
 
+        //TODO: Add checks for safety
+        //      Example:
+        //          Invalid row or column on tile
+        //      Without any checks we might get a STATUS_ACCESS_VIOLATION error from windows, which can't be handled by us.
+
         for tile in &self.tiles {
             match tile.row {
                 Some(row) => match tile.column {
                     Some(column) => rows[(row - 1) as usize][(column - 1) as usize] = &tile.window,
-                    None => for i in 0..self.columns {
-                        rows[(row - 1) as usize][i as usize] = &tile.window;
+                    None => {
+                        for i in 0..self.columns {
+                            rows[(row - 1) as usize][i as usize] = &tile.window;
+                        }
                     }
                 },
                 None => match tile.column {
-                    Some(column) => for i in 0..self.rows {
-                        rows[i as usize][(column - 1) as usize] = &tile.window;
+                    Some(column) => {
+                        for i in 0..self.rows {
+                            rows[i as usize][(column - 1) as usize] = &tile.window;
+                        }
                     }
-                    None => rows[0][0] = &tile.window
-                }
-            }
-            if CONFIG.remove_title_bar {
-                self.draw_tile(tile);
-            } else {
-                self.draw_tile_with_title_bar(tile);
+                    None => rows[0][0] = &tile.window,
+                },
             }
         }
 
@@ -470,7 +570,7 @@ impl TileGrid {
                     if let Some(id) = self.focused_window_id {
                         match window.id == id {
                             true => print!("* {}({}) *|", window.title, window.id),
-                            false => print!(" {}({}) |", window.title, window.id)
+                            false => print!(" {}({}) |", window.title, window.id),
                         }
                     }
                 }
@@ -479,5 +579,17 @@ impl TileGrid {
         }
 
         print!("\n");
+    }
+
+    pub fn draw_grid(&self) {
+        debug!("Drawing grid");
+
+        for tile in &self.tiles {
+            debug!("row: {:?} column: {:?}", tile.row, tile.column);
+
+            self.draw_tile(tile);
+        }
+
+        // self.print_grid();
     }
 }

@@ -59,6 +59,8 @@ impl Default for Rule {
 pub struct Config {
     pub app_bar_bg: i32,
     pub app_bar_workspace_bg: i32,
+    pub margin: i32,
+    pub padding: i32,
     pub remove_title_bar: bool,
     pub remove_task_bar: bool,
     pub display_app_bar: bool,
@@ -71,6 +73,8 @@ impl Config {
         Self {
             app_bar_bg: 0x0027242c,
             app_bar_workspace_bg: 0x00161616,
+            margin: 0,
+            padding: 0,
             remove_title_bar: false,
             remove_task_bar: false,
             display_app_bar: false,
@@ -120,6 +124,8 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
 
             if_hex!(config, config_key, value, app_bar_bg);
             if_hex!(config, config_key, value, app_bar_workspace_bg);
+            if_i32!(config, config_key, value, margin);
+            if_i32!(config, config_key, value, padding);
             if_bool!(config, config_key, value, remove_title_bar);
             if_bool!(config, config_key, value, remove_task_bar);
             if_bool!(config, config_key, value, display_app_bar);

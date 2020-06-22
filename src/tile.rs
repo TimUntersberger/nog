@@ -9,13 +9,13 @@ pub struct Tile {
     pub window: Window
 }
 
-impl Tile {
-    pub fn new(window: Window) -> Self {
+impl Default for Tile {
+    fn default() -> Self {
         Self {
             column: None,
             row: None,
             split_direction: SplitDirection::Vertical,
-            window: window
+            window: Window::default()
         }
     }
 }

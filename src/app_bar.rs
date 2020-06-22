@@ -45,6 +45,8 @@ lazy_static! {
     pub static ref WINDOW: Mutex<i32> = Mutex::new(0);
 }
 
+pub const APP_BAR_HEIGHT: i32 = 20;
+
 unsafe extern "system" fn window_cb(
     hwnd: HWND,
     msg: UINT,
@@ -53,10 +55,10 @@ unsafe extern "system" fn window_cb(
 ) -> LRESULT {
     let window = *WINDOW.lock().unwrap();
     if msg == WM_ERASEBKGND {
-        println!("received erase");
+        debug!("received erase");
     }
     else if msg == WM_PAINT && window != 0 {
-        println!("received paint");
+        debug!("received paint");
         let mut paint = PAINTSTRUCT::default();
 
         GetClientRect(window as HWND, &mut paint.rcPaint);
@@ -71,7 +73,7 @@ unsafe extern "system" fn window_cb(
 pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
     let name = "wwm_app_bar";
     let mut height_guard = HEIGHT.lock().unwrap();
-    *height_guard = 20;
+    *height_guard = APP_BAR_HEIGHT;
 
     unsafe {
         let instance = util::winapi_nullable_to_result(

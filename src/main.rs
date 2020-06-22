@@ -44,8 +44,8 @@ lazy_static! {
                 .map(|i| {
                     let mut grid = TileGrid::new(i);
 
-                    grid.height = DISPLAY.lock().unwrap().height;
-                    grid.width = DISPLAY.lock().unwrap().width;
+                    grid.height = DISPLAY.lock().unwrap().height - CONFIG.margin * 2;
+                    grid.width = DISPLAY.lock().unwrap().width - CONFIG.margin * 2;
 
                     grid
                 })
@@ -97,7 +97,7 @@ fn draw_workspaces() {
         });
 }
 
-pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError>  {
+pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError> {
     let mut grids = GRIDS.lock().unwrap();
     let mut gid = WORKSPACE_ID.lock().unwrap();
 
@@ -127,17 +127,7 @@ pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError>  {
     Ok(())
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init();
-    
-
-    ctrlc::set_handler(|| {
-        if let Err(e) = on_quit() {
-            error!("Something happend when cleaning up. {}", e);
-        }
-    })
-    .unwrap();
-
+fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing config");
     lazy_static::initialize(&CONFIG);
 
@@ -197,7 +187,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         tile.window.send_close();
                         let id = tile.window.id; //need this variable because of borrow checker
                         grid.close_tile_by_window_id(id);
-                        grid.print_grid();
+                        grid.draw_grid();
                     }
 
                     Ok(())
@@ -209,7 +199,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 modifier,
                 Box::new(move || {
                     info!("Received hotkey of type ChangeWorkspace");
-                    
+
                     change_workspace(*id)?;
 
                     Ok(())
@@ -248,7 +238,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         tile.window.title, tile.window.id
                                     );
                                     grid.close_tile_by_window_id(tile.window.id);
-                                    grid.print_grid();
+                                    grid.draw_grid();
                                 } else {
                                     //the else block below has to have the same code
                                     //TODO: refactor to combine both of these else blocks
@@ -294,7 +284,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .unwrap();
 
                     grid.focus(*direction)?;
-                    grid.print_grid();
+                    grid.draw_grid();
 
                     Ok(())
                 }),
@@ -313,7 +303,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .unwrap();
 
                     grid.swap(*direction)?;
-                    grid.print_grid();
+                    grid.draw_grid();
 
                     Ok(())
                 }),
@@ -347,7 +337,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ),
         };
 
-        info!("Registering Keybinding({}+{}, {}) {}", format!("{:?}", modifier).replace(" | ", "+"),*key, *key_type, *key as i32);
+        info!(
+            "Registering Keybinding({}+{}, {}) {}",
+            format!("{:?}", modifier).replace(" | ", "+"),
+            *key,
+            *key_type,
+            *key as i32
+        );
         hot_key_manager.register_hot_key(*key, *modifier, callback, i as i32)?;
     }
 
@@ -358,4 +354,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     hot_key_manager.start()?;
 
     Ok(())
+}
+
+fn main() {
+    env_logger::init();
+
+    //Handle unexpected panics
+    std::panic::catch_unwind(|| {
+        ctrlc::set_handler(|| {
+            if let Err(e) = on_quit() {
+                error!("Something happend when cleaning up. {}", e);
+            }
+        })
+        .unwrap();
+
+        run().unwrap();
+    })
+    .map_err(|e| {
+        error!("An unexpected error occured {:?}", e);
+        if let Err(e) = on_quit() {
+            error!("Something happend when cleaning up. {}", e);
+        }
+    })
+    .unwrap();
 }

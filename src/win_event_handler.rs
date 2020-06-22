@@ -6,7 +6,7 @@ use crate::CONFIG;
 use crate::change_workspace;
 use crate::GRIDS;
 use crate::WORKSPACE_ID;
-use log::debug;
+use log::{debug, error};
 use num_traits::FromPrimitive;
 use winapi::shared::minwindef::DWORD;
 use winapi::shared::ntdef::LONG;
@@ -116,7 +116,7 @@ fn handle_event_object_show(
 
         grid.split(window);
 
-        grid.print_grid();
+        grid.draw_grid();
     }
 
     Ok(())
@@ -128,8 +128,9 @@ fn handle_event_object_destroy(window_handle: HWND) -> Result<(), util::WinApiRe
         .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
         .unwrap();
 
-    grid.close_tile_by_window_id(window_handle as i32);
-    grid.print_grid();
+    if grid.close_tile_by_window_id(window_handle as i32).is_some() {
+        grid.draw_grid();
+    }
 
     Ok(())
 }
@@ -147,6 +148,7 @@ fn handle_event_system_foreground(window_handle: HWND) -> Result<(), util::WinAp
         }
 
         if let Some(_) = grid.get_tile_by_id(window_handle as i32) {
+            grid.focus_stack.clear();
             grid.focused_window_id = Some(window_handle as i32);
         }
     }
@@ -202,7 +204,7 @@ unsafe extern "system" fn handler(
         };
 
         if let Err(error) = res {
-            println!("{}", error);
+            error!("{}", error);
         }
     }
 }

@@ -25,7 +25,7 @@ impl Display {
         }
 
         if CONFIG.display_app_bar {
-            self.height = self.height - *app_bar::HEIGHT.lock().unwrap();
+            self.height = self.height - app_bar::APP_BAR_HEIGHT;
         }
 
         if !CONFIG.remove_title_bar {
@@ -43,7 +43,7 @@ impl Display {
         }
 
         if taskbar_is_visible && !CONFIG.remove_task_bar {
-            self.height = self.height - *task_bar::HEIGHT.lock().unwrap();
+            self.height -= *task_bar::HEIGHT.lock().unwrap();
         }
 
         debug!("Initialized Display(width: {}, height: {})", self.width, self.height);
