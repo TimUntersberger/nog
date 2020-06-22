@@ -11,6 +11,7 @@ Terminal: Windows Terminal | Colourscheme: Nord
 ## Table Of Contents
 
   * [Config](#config)
+     * [Gap](#gap)
      * [Colors](#colors)
      * [Toggles](#toggles)
      * [Rules](#rules)
@@ -34,6 +35,14 @@ Terminal: Windows Terminal | Colourscheme: Nord
 ## Config
 
 The config lives in `C:\Users\<User>\AppData\Roaming\wwm\config.yaml`
+
+### Gap
+
+**[INFO]: There currently exists a problem with the padding. Sometimes the inner gap may vary slightly, because of rounding issues. I currently have no idea how to fix this**
+
+The `margin` setting defines the size of the gap around the grid
+
+The `padding` setting defines the size of the gap inside the grid
 
 ### Colors
 
