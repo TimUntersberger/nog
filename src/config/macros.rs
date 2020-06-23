@@ -1,15 +1,3 @@
-macro_rules! if_hex {
-    ($config:ident, $target:ident, $value:ident, $key:ident) => {
-        if ($target == stringify!($key)) {
-            $config.$key = i32::from_str_radix(
-                $value
-                    .as_str()
-                    .ok_or(format!("{} has to be a string", stringify!($key)))?,
-                16,
-            )?;
-        }
-    };
-}
 macro_rules! if_str {
     ($config:ident, $target:ident, $value:ident, $key:ident) => {
         if ($target == stringify!($key)) {
@@ -18,6 +6,15 @@ macro_rules! if_str {
                 .ok_or(format!("{} has to be a string", stringify!($key)))?
                 .to_string();
         }
+    };
+}
+macro_rules! convert_color_format {
+    ($ident:expr) => {
+        $ident = RGB(
+            GetBValue($ident as u32),
+            GetGValue($ident as u32),
+            GetRValue($ident as u32),
+        ) as i32;
     };
 }
 macro_rules! if_regex {

@@ -31,6 +31,12 @@ Terminal: Windows Terminal | Colourscheme: Nord
   * [Development](#development)
      * [Create installer](#create-installer)
      * [Create TOC](#create-toc)
+
+## Info
+
+WWM does currently not handle windows that only hide when "closing" them.
+
+An example is powershell. When you type exit inside the console it doesn't close the window so I don't know how to detect that.
      
 ## Config
 

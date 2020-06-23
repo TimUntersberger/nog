@@ -89,23 +89,28 @@ pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError> {
     let mut grids = GRIDS.lock().unwrap();
     let mut gid = WORKSPACE_ID.lock().unwrap();
 
-    if *gid == id {
+    let old_id = *gid;
+    *gid = id;
+
+    let mut grid = grids.iter_mut().find(|g| g.id == *gid).unwrap();
+    grid.visible = true;
+
+    if old_id == id {
         debug!("Workspace is already selected");
         return Ok(());
     }
 
-    let old_id = *gid;
-
-    *gid = id;
-
     debug!("Showing the next workspace");
-    grids.iter_mut().find(|g| g.id == *gid).unwrap().show();
+    grid.visible = true;
+    grid.show();
 
     //without this delay there is a slight flickering of the background
     std::thread::sleep(std::time::Duration::from_millis(5));
 
     debug!("Hiding the current workspace");
-    grids.iter_mut().find(|g| g.id == old_id).unwrap().hide();
+    let mut grid = grids.iter_mut().find(|g| g.id == old_id).unwrap();
+    grid.visible = false;
+    grid.hide();
 
     drop(grids);
     drop(gid);
@@ -117,7 +122,6 @@ pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError> {
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let receiver = CHANNEL.receiver.clone();
-    let sender = CHANNEL.sender.clone();
 
     info!("Initializing config");
     lazy_static::initialize(&CONFIG);
@@ -143,6 +147,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Initializing workspaces");
     lazy_static::initialize(&WORKSPACES);
+
+    change_workspace(1);
 
     info!("Registering windows event handler");
     win_event_handler::register()?;

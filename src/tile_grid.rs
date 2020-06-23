@@ -505,6 +505,7 @@ impl TileGrid {
     fn draw_tile(&self, tile: &Tile) {
         let (x, y, width, height) = self.calculate_tile_data(tile);
 
+
         unsafe {
             //TODO: handle error
             SetWindowPos(
@@ -580,7 +581,7 @@ impl TileGrid {
         debug!("Drawing grid");
 
         for tile in &self.tiles {
-            debug!("row: {:?} column: {:?}", tile.row, tile.column);
+            debug!("Tile(id: {}, title: '{}', row: {:?} column: {:?})", tile.window.id, tile.window.title, tile.row, tile.column);
 
             self.draw_tile(tile);
         }

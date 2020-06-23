@@ -11,11 +11,17 @@ use winapi::shared::windef::HWND;
 use log::debug;
 
 pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::error::Error>> {
-    // gets the GWL_STYLE of the window. GWL_STYLE returns a bitmask that can be used to find out attributes about a window
     //TODO: fix problem with powershell and native wsl
+
+    let title = util::get_title_of_window(hwnd);
+
+    if title.is_err() {
+        return Ok(());
+    }
+
     let mut window = Window {
         id: hwnd as i32,
-        title: util::get_title_of_window(hwnd)?,
+        title: title.unwrap(),
         ..Window::default()
     };
     window.original_style = window.get_style().unwrap_or(GwlStyle::default());

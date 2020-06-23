@@ -30,7 +30,7 @@ pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
         let focused_tile = tuple.1;
         let focused_tile_id = focused_tile.window.id;
 
-        if grid_id == gid { // only continue if the tuple is currently visible
+        if grid_id == gid { // only continue if the grid is currently visible
             debug!(
                 "Reseting window '{}' | {}",
                 focused_tile.window.title, focused_tile.window.id

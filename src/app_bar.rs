@@ -239,6 +239,11 @@ pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
             .clone()
             .send(Event::RedrawAppBar(RedrawAppBarReason::Workspace));
 
+        CHANNEL
+            .sender
+            .clone()
+            .send(Event::RedrawAppBar(RedrawAppBarReason::Time));
+
         let mut msg: MSG = MSG::default();
         while GetMessageW(&mut msg, 0 as HWND, 0, 0) != 0 {
             TranslateMessage(&msg);

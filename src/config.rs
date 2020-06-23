@@ -1,13 +1,11 @@
-use crate::hot_key_manager::{
-    key::Key, 
-    modifier::Modifier, 
-    Direction, 
-    Keybinding, 
-    KeybindingType
-};
+use crate::hot_key_manager::{key::Key, modifier::Modifier, Direction, Keybinding, KeybindingType};
 use crate::tile_grid::SplitDirection;
 use regex::Regex;
 use std::io::{Error, ErrorKind};
+use winapi::um::wingdi::GetBValue;
+use winapi::um::wingdi::GetGValue;
+use winapi::um::wingdi::GetRValue;
+use winapi::um::wingdi::RGB;
 
 #[macro_use]
 mod macros;
@@ -56,10 +54,10 @@ impl Config {
     pub fn new() -> Self {
         Self {
             app_bar_height: 20,
-            app_bar_bg: 0x0027242c,
+            app_bar_bg: 0x2c2427,
             app_bar_font: String::from("Consolas"),
             app_bar_font_size: 18,
-            app_bar_workspace_bg: 0x00161616,
+            app_bar_workspace_bg: 0x161616,
             margin: 0,
             padding: 0,
             remove_title_bar: false,
@@ -110,8 +108,8 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
             let config_key = key.as_str().ok_or("Invalid config key")?;
 
             if_str!(config, config_key, value, app_bar_font);
-            if_hex!(config, config_key, value, app_bar_bg);
-            if_hex!(config, config_key, value, app_bar_workspace_bg);
+            if_i32!(config, config_key, value, app_bar_bg);
+            if_i32!(config, config_key, value, app_bar_workspace_bg);
             if_i32!(config, config_key, value, app_bar_font_size);
             if_i32!(config, config_key, value, app_bar_height);
             if_i32!(config, config_key, value, margin);
@@ -213,6 +211,9 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                 }
             }
         }
+        //Convert normal hexadecimal color format to winapi hexadecimal color format
+        convert_color_format!(config.app_bar_bg);
+        convert_color_format!(config.app_bar_workspace_bg);
     }
     Ok(config)
 }
