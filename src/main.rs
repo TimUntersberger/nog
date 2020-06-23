@@ -12,6 +12,7 @@ use std::sync::Mutex;
 
 mod app_bar;
 mod config;
+mod tray;
 mod display;
 mod event;
 mod event_handler;
@@ -136,6 +137,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         info!("Creating appbar");
         app_bar::create(&*DISPLAY.lock().unwrap())?;
     }
+
+    info!("Creating tray icon");
+    tray::create()?;
 
     info!("Initializing workspaces");
     lazy_static::initialize(&WORKSPACES);
