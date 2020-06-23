@@ -54,6 +54,10 @@ The `app_bar_bg` setting defines the background color of the appbar
 
 The `app_bar_workspace_bg` setting defines the background color of a workspace in the background
 
+The `app_bar_font` setting defines the font for the appbar widgets.
+
+The `app_bar_font_size` setting defines the font size for the appbar widgets.
+
 ### Toggles
 
 The `display_app_bar` setting creates a window at the top of the display that shows all currently used workspaces.
