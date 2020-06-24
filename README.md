@@ -54,15 +54,15 @@ The `padding` setting defines the size of the gap inside the grid
 
 The `app_bar_height` setting defines the height of the app bar
 
-A color has to be a valid hex value (e.g 0x0027242c)
+The `app_bar_font` setting defines the font for the appbar widgets.
+
+The `app_bar_font_size` setting defines the font size for the appbar widgets.
+
+A color has to be a valid hex value (e.g 0x27242c)
 
 The `app_bar_bg` setting defines the background color of the appbar
 
 The `app_bar_workspace_bg` setting defines the background color of a workspace in the background
-
-The `app_bar_font` setting defines the font for the appbar widgets.
-
-The `app_bar_font_size` setting defines the font size for the appbar widgets.
 
 ### Toggles
 
