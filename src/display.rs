@@ -1,6 +1,5 @@
 use crate::CONFIG;
 use crate::task_bar;
-use crate::app_bar;
 
 use winapi::um::winuser::GetSystemMetrics;
 use winapi::um::winuser::SM_CYSCREEN;

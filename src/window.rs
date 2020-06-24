@@ -144,14 +144,13 @@ impl Window {
                 let caption_height = GetSystemMetrics(SM_CYCAPTION);
                 top += caption_height;
             } else {
-                //border style adjustments
                 top -= border_height * 2;
                 bottom -= border_height / 2;
 
-                // top += 1;
-                // left += 1;
-                // right -= 1;
-                // bottom += 1;
+                left += 1;
+                right -= 1;
+                top += 1;
+                bottom += 1;
             }
 
             if CONFIG.display_app_bar {
@@ -166,12 +165,10 @@ impl Window {
                 // I don't see any other window that behaves like these two pieces of shit
 
                 if rule.firefox {
-                    // firefox custom titlebar
                     left -= (border_width as f32 * 1.5) as i32;
                     right += (border_width as f32 * 1.5) as i32;
                     bottom += (border_height as f32 * 1.5) as i32;
                 } else if rule.chromium {
-                    // chrome custom titlebar
                     left -= border_width * 2;
                     right += border_width * 2;
                     bottom += border_height * 2;
@@ -262,6 +259,11 @@ impl Window {
     pub fn update_style(&self) {
         unsafe {
             SetWindowLongA(self.id as HWND, GWL_STYLE, self.style.bits());
+        }
+    }
+    pub fn update_exstyle(&self) {
+        unsafe {
+            SetWindowLongA(self.id as HWND, GWL_EXSTYLE, self.exstyle.bits());
         }
     }
 }

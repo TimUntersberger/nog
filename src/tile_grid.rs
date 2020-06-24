@@ -1,5 +1,5 @@
+use winapi::um::winuser::SWP_NOSENDCHANGING;
 use winapi::shared::windef::RECT;
-use crate::app_bar;
 use crate::hot_key_manager::Direction;
 use crate::tile::Tile;
 use crate::util;
@@ -492,7 +492,7 @@ impl TileGrid {
                 rect.top,
                 rect.right - rect.left,
                 rect.bottom - rect.top,
-                0,
+                SWP_NOSENDCHANGING,
             );
         }
     }

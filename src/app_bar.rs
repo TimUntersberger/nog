@@ -21,10 +21,8 @@ use winapi::shared::windef::HWND;
 use winapi::shared::windef::RECT;
 use winapi::shared::windef::SIZE;
 use winapi::shared::windowsx::GET_X_LPARAM;
-use winapi::shared::windowsx::GET_Y_LPARAM;
 use winapi::um::wingdi::CreateFontIndirectA;
 use winapi::um::wingdi::CreateSolidBrush;
-use winapi::um::wingdi::GetObjectA;
 use winapi::um::wingdi::GetTextExtentPoint32A;
 use winapi::um::wingdi::SelectObject;
 use winapi::um::wingdi::SetBkColor;
@@ -59,7 +57,6 @@ use winapi::um::winuser::WM_CREATE;
 use winapi::um::winuser::WM_LBUTTONDOWN;
 use winapi::um::winuser::WM_PAINT;
 use winapi::um::winuser::WM_SETCURSOR;
-use winapi::um::winuser::WM_SETFONT;
 use winapi::um::winuser::WNDCLASSA;
 
 use std::ffi::CString;

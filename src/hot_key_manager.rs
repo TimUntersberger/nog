@@ -12,7 +12,7 @@ use winapi::um::winuser::RegisterHotKey;
 use winapi::um::winuser::TranslateMessage;
 use winapi::um::winuser::MSG;
 use winapi::um::winuser::WM_HOTKEY;
-use log::{debug, info};
+use log::{info};
 
 use strum_macros::EnumString;
 use num_traits::FromPrimitive;

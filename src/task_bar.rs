@@ -10,8 +10,6 @@ use log::{debug};
 use std::sync::Mutex;
 use lazy_static::lazy_static;
 
-use crate::util;
-
 lazy_static! {
     pub static ref X: Mutex<i32> = Mutex::new(0);
     pub static ref Y: Mutex<i32> = Mutex::new(0);
