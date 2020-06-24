@@ -40,7 +40,9 @@ An example is powershell. When you type exit inside the console it doesn't close
      
 ## Config
 
-The config lives in `C:\Users\<User>\AppData\Roaming\wwm\config.yaml`
+The config lives in `C:\Users\<User>\AppData\Roaming\wwm\config.yaml`.
+
+If you want to see my own config or just want to know what a config looks like: [my config](#example-config).
 
 ### Gap
 
@@ -76,25 +78,11 @@ The `remove_task_bar` setting hides the taskbar on launch and shows it again whe
 
 **[WARNING]: Rules are still WIP so the name of a setting can change at any time**
 
-Because Windows can sometimes have some really annoying applications that introduce various edge cases I decided to support rules.
+Because Windows can sometimes have some really annoying applications that introduce various edge cases I decided to implement a way to configure specific windows.
 
 A rule basically just changes the way a window gets managed by wwm.
 
-wwm knows whether to apply the rule based on a regex that has to be provided.
-
-Example
-```yaml
-pattern: ^.*- Mozilla Firefox$
-has_custom_titlebar: true
-x: -6
-width: 12
-```
-
-This example rule tells wwm that firefox will have a custom titlebar. Some applications like firefox and chrome don't use the native titlebar to minimize wasted space.  
-
-The problem is that sometimes the application then behaves weirdly when trying to move/resize it, that's why I also defined an x and width value. These just manipulate where the window gets placed and its size.
-
-Right below the values settings can you find some rules that I found while developing the application that were helpful.
+WWM knows whether to apply the rule based on a regex that has to be provided.
 
 #### Settings
 
@@ -105,7 +93,7 @@ Right below the values settings can you find some rules that I found while devel
 
 <details>
   <summary>has_custom_titlebar</summary></br>
-  A boolean that tells wwm how to remove the "titlebar"
+  A boolean that tells wwm whether the window need special handling
 </br></br></details>
 
 <details>
@@ -120,37 +108,98 @@ Right below the values settings can you find some rules that I found while devel
 </br></br></details>
 
 <details>
-  <summary>x</summary></br>
-  An integer that gets added to the calculated x position of the window
+  <summary>firefox</summary></br>
+  A boolean that tells wwm whether the matched window is based on firefox </br>
+  Firefox doesn't follow the windows 10 standard and kind of does it's own thing. (I know it is stupid)
+  WWM will do some specific things for firefox when this is enabled.
+  Firefox is one of two programs that I found while developing WWM, where the UI just did whatever it wanted.
 </br></br></details>
 
 <details>
-  <summary>width</summary></br>
-  An integer that gets added to the calculated width of the window
+  <summary>chromium</summary></br>
+  A boolean that tells wwm whether the matched window is based on chromium </br>
+  The same thing as with firefox.
 </br></br></details>
 
 #### Examples
 
 Firefox
 ```yaml
-pattern: ^.*- Mozilla Firefox$
+pattern: ^.*- Mozilla Firefox|Mozilla Firefox$
 has_custom_titlebar: true
-x: -6
-width: 12
+firefox: true
 ```
 
-Chrome
+Google Chrome
 ```yaml
 pattern: ^.*- Google Chrome$
 has_custom_titlebar: true
-x: -8
-width: 16
+chromium: true
 ```
 
+Microsoft Edge (Chromium version)
+```yaml
+pattern: ^.*- Microsoft Edge$
+has_custom_titlebar: true
+chromium: true
+```
 
 ### Keybindings
 
 Each keybinding has to have a type, key and maybe additional settings which can be looked up for each type specifically.
+
+Keybindings can have the following keys:
+
+* Enter
+* Plus
+* Minus
+* A
+* B
+* C
+* D
+* E
+* F
+* G
+* H
+* I
+* J
+* K
+* L
+* M
+* N
+* O
+* P
+* Q
+* R
+* S
+* T
+* U
+* V
+* W
+* X
+* Y
+* Z
+* Left
+* Up
+* Right 
+* Down
+* 0
+* 1
+* 2
+* 3
+* 4
+* 5
+* 6
+* 7
+* 8
+* 9
+
+Keybindings can have the following modifiers:
+
+* Alt
+* Control
+* Shift
+* Win
 
 Keybindings can have the following types:
 
