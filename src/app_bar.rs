@@ -1,8 +1,4 @@
-use winapi::um::winuser::WM_SETFONT;
-use winapi::um::winuser::WM_CREATE;
-use winapi::um::wingdi::SelectObject;
-use winapi::um::wingdi::GetObjectA;
-use winapi::shared::windef::HDC;
+use crate::change_workspace;
 use crate::display::Display;
 use crate::event::Event;
 use crate::tile_grid::TileGrid;
@@ -10,6 +6,7 @@ use crate::CHANNEL;
 use crate::DISPLAY;
 use crate::GRIDS;
 use crate::WORKSPACE_ID;
+use crate::WORK_MODE;
 use lazy_static::lazy_static;
 use log::{debug, info};
 use std::sync::Mutex;
@@ -19,12 +16,17 @@ use winapi::shared::minwindef::LRESULT;
 use winapi::shared::minwindef::UINT;
 use winapi::shared::minwindef::WPARAM;
 use winapi::shared::windef::HBRUSH;
+use winapi::shared::windef::HDC;
 use winapi::shared::windef::HWND;
 use winapi::shared::windef::RECT;
 use winapi::shared::windef::SIZE;
+use winapi::shared::windowsx::GET_X_LPARAM;
+use winapi::shared::windowsx::GET_Y_LPARAM;
 use winapi::um::wingdi::CreateFontIndirectA;
 use winapi::um::wingdi::CreateSolidBrush;
+use winapi::um::wingdi::GetObjectA;
 use winapi::um::wingdi::GetTextExtentPoint32A;
+use winapi::um::wingdi::SelectObject;
 use winapi::um::wingdi::SetBkColor;
 use winapi::um::wingdi::SetBkMode;
 use winapi::um::wingdi::SetTextColor;
@@ -51,9 +53,13 @@ use winapi::um::winuser::DT_VCENTER;
 use winapi::um::winuser::IDC_ARROW;
 use winapi::um::winuser::MSG;
 use winapi::um::winuser::PAINTSTRUCT;
+use winapi::um::winuser::SW_HIDE;
 use winapi::um::winuser::SW_SHOW;
+use winapi::um::winuser::WM_CREATE;
+use winapi::um::winuser::WM_LBUTTONDOWN;
 use winapi::um::winuser::WM_PAINT;
 use winapi::um::winuser::WM_SETCURSOR;
+use winapi::um::winuser::WM_SETFONT;
 use winapi::um::winuser::WNDCLASSA;
 
 use std::ffi::CString;
@@ -68,7 +74,7 @@ lazy_static! {
     pub static ref REDRAW_REASON: Mutex<RedrawAppBarReason> = Mutex::new(RedrawAppBarReason::Time);
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum RedrawAppBarReason {
     Time,
     Workspace,
@@ -80,50 +86,44 @@ unsafe extern "system" fn window_cb(
     w_param: WPARAM,
     l_param: LPARAM,
 ) -> LRESULT {
-    let window = *WINDOW.lock().unwrap();
-
     if msg == WM_SETCURSOR {
         SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8)); // Force a normal cursor. This probably shouldn't be done this way but whatever
-    }
-    else if msg == WM_CREATE {
-        debug!("loading font");
+    } else if msg == WM_LBUTTONDOWN {
+        info!("Received mouse click");
+        let x = GET_X_LPARAM(l_param);
+        let id = x / CONFIG.app_bar_height + 1;
+
+        if id <= 10 {
+            change_workspace(id);
+        }
+    } else if msg == WM_CREATE {
+        info!("loading font");
         load_font();
-    } else if window != 0 {
+    } else if !hwnd.is_null() {
         if msg == WM_PAINT {
+            info!("Received paint");
             let reason = *REDRAW_REASON.lock().unwrap();
+            debug!("Reason for paint was {:?}", reason);
             let mut paint = PAINTSTRUCT::default();
 
-            GetClientRect(window as HWND, &mut paint.rcPaint);
+            GetClientRect(hwnd, &mut paint.rcPaint);
 
-            BeginPaint(window as HWND, &mut paint);
+            BeginPaint(hwnd, &mut paint);
 
             match reason {
                 RedrawAppBarReason::Time => {
-                    draw_datetime();
+                    draw_datetime(hwnd);
                 }
                 RedrawAppBarReason::Workspace => {
-                    let id = *WORKSPACE_ID.lock().unwrap();
-
-                    let grids = GRIDS.lock().unwrap();
-
-                    let workspaces: Vec<&TileGrid> = grids
-                        .iter()
-                        .filter(|g| g.tiles.len() > 0 || g.id == id)
-                        .collect();
-
-                    //erase last workspace
-                    erase_workspace((workspaces.len()) as i32);
-                    for (i, workspace) in workspaces.iter().enumerate() {
-                        draw_workspace(i as i32, workspace.id, workspace.id == id);
-                    }
+                    draw_workspaces(hwnd);
                 }
             }
 
-            EndPaint(window as HWND, &paint);
+            EndPaint(hwnd, &paint);
         }
     }
 
-    return DefWindowProcA(hwnd, msg, w_param, l_param);
+    DefWindowProcA(hwnd, msg, w_param, l_param)
 }
 
 pub fn redraw(reason: RedrawAppBarReason) {
@@ -141,17 +141,35 @@ pub fn redraw(reason: RedrawAppBarReason) {
     }
 }
 
-fn erase_workspace(idx: i32) {
+fn draw_workspaces(hwnd: HWND) {
+    let id = *WORKSPACE_ID.lock().unwrap();
+
+    let grids = GRIDS.lock().unwrap();
+
+    let workspaces: Vec<&TileGrid> = grids
+        .iter()
+        .filter(|g| !g.tiles.is_empty() || g.id == id)
+        .collect();
+
+    //erase last workspace
+    debug!("Erasing {}", workspaces.len());
+    erase_workspace((workspaces.len()) as i32);
+    for (i, workspace) in workspaces.iter().enumerate() {
+        draw_workspace(i as i32, workspace.id, workspace.id == id);
+    }
+}
+
+fn erase_workspace(id: i32) {
     unsafe {
         let mut rect = RECT::default();
         let hwnd = *WINDOW.lock().unwrap() as HWND;
         let hdc = GetDC(hwnd);
         GetClientRect(hwnd, &mut rect);
 
-        rect.left += CONFIG.app_bar_height * idx;
+        rect.left += CONFIG.app_bar_height * id;
         rect.right = rect.left + CONFIG.app_bar_height;
 
-        FillRect(hdc, &mut rect, CreateSolidBrush(CONFIG.app_bar_bg as u32));
+        FillRect(hdc, &rect, CreateSolidBrush(CONFIG.app_bar_bg as u32));
     }
 }
 
@@ -166,14 +184,19 @@ pub fn load_font() {
         let mut logfont = LOGFONTA::default();
         let mut font_name: [i8; 32] = [0; 32];
 
-        for (i, byte) in CString::new(CONFIG.app_bar_font.as_str()).unwrap().as_bytes().iter().enumerate() {
+        for (i, byte) in CString::new(CONFIG.app_bar_font.as_str())
+            .unwrap()
+            .as_bytes()
+            .iter()
+            .enumerate()
+        {
             font_name[i] = *byte as i8;
         }
 
         logfont.lfHeight = CONFIG.app_bar_font_size;
         logfont.lfFaceName = font_name;
 
-        let font = CreateFontIndirectA(&mut logfont) as i32;
+        let font = CreateFontIndirectA(&logfont) as i32;
 
         debug!("Using font {}", font);
 
@@ -232,7 +255,9 @@ pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
 
         *WINDOW.lock().unwrap() = window_handle as i32;
 
-        ShowWindow(window_handle, SW_SHOW);
+        if *WORK_MODE.lock().unwrap() {
+            ShowWindow(window_handle, SW_SHOW);
+        }
 
         CHANNEL
             .sender
@@ -254,21 +279,38 @@ pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
     Ok(())
 }
 
-pub fn draw_datetime() -> Result<(), util::WinApiResultError> {
-    let window = *WINDOW.lock().unwrap() as HWND;
-    if window != std::ptr::null_mut() {
+pub fn hide() {
+    unsafe {
+        let hwnd = *WINDOW.lock().unwrap(); // Need to eager evaluate else there is a deadlock
+        ShowWindow(hwnd as HWND, SW_HIDE);
+    }
+}
+
+pub fn show() {
+    let hwnd = *WINDOW.lock().unwrap() as HWND; // Need to eager evaluate else there is a deadlock
+
+    unsafe {
+        ShowWindow(hwnd, SW_SHOW);
+    }
+
+    draw_workspaces(hwnd);
+    draw_datetime(hwnd);
+}
+
+pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
+    if !hwnd.is_null() {
         let mut rect = RECT::default();
 
         unsafe {
             debug!("Getting the rect for the appbar");
-            util::winapi_nullable_to_result(GetClientRect(window, &mut rect))?;
+            util::winapi_nullable_to_result(GetClientRect(hwnd, &mut rect))?;
             let text = format!("{}", chrono::Local::now().format("%T"));
             let text_len = text.len() as i32;
             let c_text = CString::new(text).unwrap();
             let display = DISPLAY.lock().unwrap();
 
             debug!("Getting the device context");
-            let hdc = util::winapi_ptr_to_result(GetDC(window))?;
+            let hdc = util::winapi_ptr_to_result(GetDC(hwnd))?;
 
             set_font(hdc);
 
@@ -330,7 +372,7 @@ pub fn draw_datetime() -> Result<(), util::WinApiResultError> {
 
 pub fn draw_workspace(idx: i32, id: i32, focused: bool) -> Result<(), util::WinApiResultError> {
     let window = *WINDOW.lock().unwrap() as HWND;
-    if window != std::ptr::null_mut() {
+    if !window.is_null() {
         let mut rect = RECT::default();
         let height = *HEIGHT.lock().unwrap();
 
@@ -338,7 +380,7 @@ pub fn draw_workspace(idx: i32, id: i32, focused: bool) -> Result<(), util::WinA
             debug!("Getting the rect for the appbar");
             util::winapi_nullable_to_result(GetClientRect(window, &mut rect))?;
 
-            rect.left = rect.left + height * idx;
+            rect.left += height * idx;
             rect.right = rect.left + height;
 
             debug!("Getting the device context");
@@ -360,7 +402,7 @@ pub fn draw_workspace(idx: i32, id: i32, focused: bool) -> Result<(), util::WinA
             };
 
             debug!("Drawing background");
-            FillRect(hdc, &mut rect, CreateSolidBrush(bg_color as u32));
+            FillRect(hdc, &rect, CreateSolidBrush(bg_color as u32));
 
             let id_str = id.to_string();
             let len = id_str.len() as i32;

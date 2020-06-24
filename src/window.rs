@@ -102,14 +102,14 @@ impl Window {
     pub fn get_style(&self) -> Result<GwlStyle, util::WinApiResultError> {
         unsafe {
             let bits = util::winapi_nullable_to_result(GetWindowLongA(self.id as HWND, GWL_STYLE))?;
-            return Ok(GwlStyle::from_bits_unchecked(bits as u32 as i32));
+            Ok(GwlStyle::from_bits_unchecked(bits as u32 as i32))
         }
     }
     pub fn get_ex_style(&self) -> Result<GwlExStyle, util::WinApiResultError> {
         unsafe {
             let bits =
                 util::winapi_nullable_to_result(GetWindowLongA(self.id as HWND, GWL_EXSTYLE))?;
-            return Ok(GwlExStyle::from_bits_unchecked(bits as u32 as i32));
+            Ok(GwlExStyle::from_bits_unchecked(bits as u32 as i32))
         }
     }
     pub fn get_rect(&self) -> Result<RECT, util::WinApiResultError> {
@@ -121,12 +121,12 @@ impl Window {
     }
     pub fn show(&self) -> util::WinApiResult<BOOL> {
         unsafe {
-            return util::winapi_err_to_result(ShowWindow(self.id as HWND, SW_SHOW));
+            util::winapi_err_to_result(ShowWindow(self.id as HWND, SW_SHOW))
         }
     }
     pub fn hide(&self) -> util::WinApiResult<BOOL> {
         unsafe {
-            return util::winapi_err_to_result(ShowWindow(self.id as HWND, SW_HIDE));
+            util::winapi_err_to_result(ShowWindow(self.id as HWND, SW_HIDE))
         }
     }
     pub fn calculate_window_rect(&self, x: i32, y: i32, width: i32, height: i32) -> RECT {

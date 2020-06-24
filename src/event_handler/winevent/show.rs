@@ -26,9 +26,9 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
         title: title.unwrap(),
         ..Window::default()
     };
-    window.style = window.get_style().unwrap_or(GwlStyle::default());
-    window.original_style = window.style.clone();
-    window.exstyle = window.get_ex_style().unwrap_or(GwlExStyle::default());
+    window.style = window.get_style().unwrap_or_default();
+    window.original_style = window.style;
+    window.exstyle = window.get_ex_style().unwrap_or_default();
     let parent = window.get_parent_window();
 
     let correct_style = ignore_window_style

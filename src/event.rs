@@ -5,6 +5,7 @@ use crossbeam_channel::unbounded;
 use crossbeam_channel::Sender;
 use crossbeam_channel::Receiver;
 
+#[derive(Debug)]
 pub enum Event {
     Keybinding(Keybinding),
     WinEvent(WinEvent),

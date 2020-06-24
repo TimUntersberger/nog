@@ -199,7 +199,6 @@ Keybindings can have the following modifiers:
 * Alt
 * Control
 * Shift
-* Win
 
 Keybindings can have the following types:
 

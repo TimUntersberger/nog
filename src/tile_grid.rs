@@ -9,7 +9,7 @@ use log::debug;
 use winapi::shared::windef::HWND;
 use winapi::um::winuser::SetWindowPos;
 
-#[derive(Clone, EnumString, Copy, Debug)]
+#[derive(Clone, EnumString, Copy, Debug, PartialEq)]
 pub enum SplitDirection {
     Horizontal,
     Vertical,
@@ -65,20 +65,21 @@ impl TileGrid {
         self.tiles
             .iter()
             .find(|tile| tile.window.id == id)
+            .clone()
             .map(|t| t.clone())
     }
     pub fn get_tile_by_id_mut(&mut self, id: i32) -> Option<&mut Tile> {
         self.tiles.iter_mut().find(|tile| tile.window.id == id)
     }
     pub fn get_focused_tile(&self) -> Option<&Tile> {
-        return self
+        self
             .focused_window_id
-            .and_then(|id| self.tiles.iter().find(|tile| tile.window.id == id));
+            .and_then(|id| self.tiles.iter().find(|tile| tile.window.id == id))
     }
     pub fn get_focused_tile_mut(&mut self) -> Option<&mut Tile> {
-        return self
+        self
             .focused_window_id
-            .and_then(move |id| self.tiles.iter_mut().find(|tile| tile.window.id == id));
+            .and_then(move |id| self.tiles.iter_mut().find(|tile| tile.window.id == id))
     }
     pub fn set_focused_split_direction(&mut self, direction: SplitDirection) {
         if let Some(focused_tile) = self.get_focused_tile_mut() {
@@ -215,7 +216,7 @@ impl TileGrid {
             }
         }
 
-        return Ok(None);
+        Ok(None)
     }
     pub fn focus(&mut self, direction: Direction) -> Result<(), util::WinApiResultError> {
         if let Some(tile) = self.check_focus_stack(direction)? {
@@ -272,7 +273,7 @@ impl TileGrid {
             if is_empty_row {
                 debug!("row is now empty");
 
-                self.rows = self.rows - 1;
+                self.rows -= 1;
                 if self.rows == 1 {
                     self.tiles
                         .iter_mut()
@@ -298,7 +299,7 @@ impl TileGrid {
             if is_empty_column {
                 debug!("column is now empty");
 
-                self.columns = self.columns - 1;
+                self.columns -= 1;
 
                 if self.columns == 1 {
                     self.tiles
@@ -334,21 +335,21 @@ impl TileGrid {
                 }
             }
 
-            if self.tiles.len() == 0 {
+            if self.tiles.is_empty() {
                 self.focused_window_id = None;
             } else if let Some(focused_window_id) = self.focused_window_id {
                 if focused_window_id == removed_tile.window.id {
                     let next_column = removed_tile.column.map(|column| {
-                        return if column > self.columns {
+                        if column > self.columns {
                             column - 1
                         } else {
                             column
-                        };
+                        }
                     });
 
                     let next_row = removed_tile
                         .row
-                        .map(|row| return if row > self.rows { row - 1 } else { row });
+                        .map(|row| if row > self.rows { row - 1 } else { row });
 
                     let maybe_next_tile: Option<&Tile> = self.tiles.iter().find(|tile| {
                         return tile.column == next_column && tile.row == next_row;
@@ -361,7 +362,7 @@ impl TileGrid {
             }
         }
 
-        return maybe_removed_tile;
+        maybe_removed_tile
     }
     pub fn split(&mut self, window: Window) {
         if self.tiles.iter().any(|t| t.window.id == window.id) {
@@ -425,8 +426,7 @@ impl TileGrid {
                     row,
                     column,
                     split_direction,
-                    window,
-                    ..Tile::default()
+                    window
                 });
             }
             None => {

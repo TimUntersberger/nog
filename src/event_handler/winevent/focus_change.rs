@@ -14,7 +14,7 @@ pub fn handle(hwnd: HWND) -> Result<(), Box<dyn std::error::Error>> {
             return Ok(());
         }
 
-        if let Some(_) = grid.get_tile_by_id(hwnd as i32) {
+        if grid.get_tile_by_id(hwnd as i32).is_some() {
             grid.focus_stack.clear();
             grid.focused_window_id = Some(hwnd as i32);
         }

@@ -32,12 +32,13 @@ pub enum Direction {
     Down
 }
 
-#[derive(Display, Debug, Clone)]
+#[derive(Display, Debug, Clone, PartialEq)]
 pub enum KeybindingType {
     CloseTile,
     Quit,
     ChangeWorkspace(i32),
     ToggleFloatingMode,
+    ToggleWorkMode,
     Shell(Command),
     Focus(Direction),
     Swap(Direction),

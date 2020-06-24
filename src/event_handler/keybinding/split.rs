@@ -8,7 +8,7 @@ pub fn handle(direction: SplitDirection) -> Result<(), Box<dyn std::error::Error
         .iter_mut()
         .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
         .unwrap()
-        .set_focused_split_direction(direction.clone());
+        .set_focused_split_direction(direction);
 
     Ok(())
 }

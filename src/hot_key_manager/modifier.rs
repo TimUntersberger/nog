@@ -7,6 +7,5 @@ bitflags!{
         const ALT = 0x0001;
         const CONTROL = 0x0002;
         const SHIFT = 0x0004;
-        const WIN = 0x0008;
     }
 }

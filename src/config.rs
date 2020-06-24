@@ -20,7 +20,7 @@ pub struct Rule {
     pub chromium: bool,
     pub firefox: bool,
     pub remove_frame: bool,
-    pub workspace: i32
+    pub workspace: i32,
 }
 
 impl Default for Rule {
@@ -32,7 +32,7 @@ impl Default for Rule {
             remove_frame: true,
             chromium: false,
             firefox: false,
-            workspace: -1
+            workspace: -1,
         }
     }
 }
@@ -43,6 +43,7 @@ pub struct Config {
     pub app_bar_font: String,
     pub app_bar_font_size: i32,
     pub app_bar_workspace_bg: i32,
+    pub work_mode: bool,
     pub margin: i32,
     pub padding: i32,
     pub remove_title_bar: bool,
@@ -63,6 +64,7 @@ impl Config {
             margin: 0,
             padding: 0,
             remove_title_bar: false,
+            work_mode: true,
             remove_task_bar: false,
             display_app_bar: false,
             keybindings: Vec::new(),
@@ -97,10 +99,11 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
     let file_content = std::fs::read_to_string(path)?;
 
     let vec_yaml = yaml_rust::YamlLoader::load_from_str(&file_content)?;
-    let mut yaml = &yaml_rust::Yaml::Null;
-    if !vec_yaml.is_empty() {
-        yaml = &vec_yaml[0];
-    }
+    let yaml = if !vec_yaml.is_empty() {
+        &vec_yaml[0]
+    } else {
+        &yaml_rust::Yaml::Null
+    };
 
     let mut config = Config::new();
 
@@ -116,6 +119,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
             if_i32!(config, config_key, value, app_bar_height);
             if_i32!(config, config_key, value, margin);
             if_i32!(config, config_key, value, padding);
+            if_bool!(config, config_key, value, work_mode);
             if_bool!(config, config_key, value, remove_title_bar);
             if_bool!(config, config_key, value, remove_task_bar);
             if_bool!(config, config_key, value, display_app_bar);
@@ -151,7 +155,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                 for binding in bindings {
                     let typ_str = ensure_str!("keybinding", binding, type);
                     let key_combo = ensure_str!("keybinding", binding, key);
-                    let key_combo_parts = key_combo.split("+").collect::<Vec<&str>>();
+                    let key_combo_parts = key_combo.split('+').collect::<Vec<&str>>();
                     let modifier_count = key_combo_parts.len() - 1;
 
                     let modifier = key_combo_parts
@@ -161,7 +165,6 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                             "Alt" => Modifier::ALT,
                             "Control" => Modifier::CONTROL,
                             "Shift" => Modifier::SHIFT,
-                            "Win" => Modifier::WIN,
                             _ => Modifier::default(),
                         })
                         .fold(Modifier::default(), |mut sum, crr| {
@@ -189,6 +192,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                                 id
                             )),
                             "ToggleFloatingMode" => KeybindingType::ToggleFloatingMode,
+                            "ToggleWorkMode" => KeybindingType::ToggleWorkMode,
                             "Focus" => KeybindingType::Focus(Direction::from_str(ensure_str!(
                                 "keybinding of type shell",
                                 binding,

@@ -19,7 +19,7 @@ pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
         .iter_mut()
         .filter(|g| g.visible) // only care about the workspaces that are used
         .map(|g| {
-            (g.get_focused_tile().clone(), g.id)
+            (g.get_focused_tile(), g.id)
         }) // (maybe_focused_tile, grid_id)
         .filter(|t| t.0.is_some()) // check whether it is safe to unwrap
         .map(|t| (t.1, t.0.unwrap())) // unwrap focused_tile -> (grid_id, focused_tile)

@@ -34,15 +34,16 @@ use tile_grid::TileGrid;
 use workspace::Workspace;
 
 lazy_static! {
+    pub static ref WORK_MODE: Mutex<bool> = Mutex::new(CONFIG.work_mode);
     pub static ref CONFIG: Config = config::load().unwrap();
     pub static ref DISPLAY: Mutex<Display> = {
         let mut display = Display::default();
         display.init();
-        return Mutex::new(display);
+        Mutex::new(display)
     };
     pub static ref CHANNEL: EventChannel = EventChannel::default();
     pub static ref GRIDS: Mutex<Vec<TileGrid>> = {
-        return Mutex::new(
+        Mutex::new(
             (1..11)
                 .map(|i| {
                     let mut grid = TileGrid::new(i);
@@ -53,19 +54,19 @@ lazy_static! {
                     grid
                 })
                 .collect::<Vec<TileGrid>>(),
-        );
+        )
     };
     pub static ref WORKSPACES: Mutex<Vec<Workspace>> = {
-        return Mutex::new(
+        Mutex::new(
             (1..11)
-                .map(|i| Workspace::new(i))
+                .map(Workspace::new)
                 .collect::<Vec<Workspace>>(),
-        );
+        )
     };
     pub static ref WORKSPACE_ID: Mutex<i32> = Mutex::new(1);
 }
 
-fn on_quit() -> Result<(), util::WinApiResultError> {
+fn unmanage_everything() -> Result<(), util::WinApiResultError> {
     let mut grids = GRIDS.lock().unwrap();
 
     for grid in grids.iter_mut() {
@@ -75,6 +76,12 @@ fn on_quit() -> Result<(), util::WinApiResultError> {
             tile.window.reset_pos()?;
         }
     }
+
+    Ok(())
+}
+
+fn on_quit() -> Result<(), util::WinApiResultError> {
+    unmanage_everything()?;
 
     if CONFIG.remove_task_bar {
         task_bar::show();
@@ -126,20 +133,22 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing config");
     lazy_static::initialize(&CONFIG);
 
-    info!("Initializing taskbar");
-    task_bar::init();
-
-    if CONFIG.remove_task_bar {
-        info!("Hiding taskbar");
-        task_bar::hide();
-    }
-
     info!("Initializing display");
     lazy_static::initialize(&DISPLAY);
+
+    info!("Initializing taskbar");
+    task_bar::init();
 
     if CONFIG.display_app_bar {
         info!("Creating appbar");
         app_bar::create(&*DISPLAY.lock().unwrap())?;
+    }
+
+    if CONFIG.work_mode {
+        if CONFIG.remove_task_bar {
+            info!("Hiding taskbar");
+            task_bar::hide();
+        }
     }
 
     info!("Creating tray icon");
@@ -158,8 +167,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     loop {
         select! {
-            recv(receiver) -> msg => {
-                match msg.unwrap() {
+            recv(receiver) -> maybe_msg => {
+                let msg = maybe_msg.unwrap();
+                //println!("{:?}", msg);
+                match msg {
                     Event::Keybinding(kb) => event_handler::keybinding::handle(kb)?,
                     Event::RedrawAppBar(reason) => app_bar::redraw(reason),
                     Event::WinEvent(ev) => event_handler::winevent::handle(ev)?,

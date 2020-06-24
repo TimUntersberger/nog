@@ -35,7 +35,7 @@ pub fn winapi_err_to_result<T>(input: T) -> WinApiResult<T> where T: PartialEq<i
 }
 
 pub fn winapi_ptr_to_result<T>(input: *mut T) -> WinApiResult<*mut T> {
-    if input != std::ptr::null_mut() {
+    if !input.is_null() {
         Ok(input)
     } else {
         Err(WinApiResultError::Null)

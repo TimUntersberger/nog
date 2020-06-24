@@ -2,6 +2,7 @@ mod destroy;
 mod show;
 mod focus_change;
 
+use crate::WORK_MODE;
 use winapi::shared::windef::HWND;
 use crate::util;
 use crate::win_event_handler::WinEvent;
@@ -22,11 +23,13 @@ pub fn handle(ev: WinEvent) -> Result<(), Box<dyn std::error::Error>> {
         ev.hwnd as i32
     );
 
-    match ev.typ {
-        WinEventType::Destroy => destroy::handle(ev.hwnd as HWND)?,
-        WinEventType::Show(ignore) => show::handle(ev.hwnd as HWND, ignore)?,
-        WinEventType::FocusChange => focus_change::handle(ev.hwnd as HWND)?
-    };
+    if *WORK_MODE.lock().unwrap() {
+        match ev.typ {
+            WinEventType::Destroy => destroy::handle(ev.hwnd as HWND)?,
+            WinEventType::Show(ignore) => show::handle(ev.hwnd as HWND, ignore)?,
+            WinEventType::FocusChange => focus_change::handle(ev.hwnd as HWND)?
+        };
+    }
 
     Ok(())
 }
