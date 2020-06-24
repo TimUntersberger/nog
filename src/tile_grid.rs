@@ -1,3 +1,4 @@
+use winapi::shared::windef::RECT;
 use crate::app_bar;
 use crate::hot_key_manager::Direction;
 use crate::tile::Tile;
@@ -440,28 +441,19 @@ impl TileGrid {
         }
     }
     /// Calculates all the data required for drawing the tile
-    /// # return
-    /// (x, y, width, height)
-    fn calculate_tile_data(&self, tile: &Tile) -> (i32, i32, i32, i32) {
+    fn calculate_tile_data(&self, tile: &Tile) -> RECT {
+        //let rule = tile.window.rule.clone().unwrap_or_default();
         let column_width = self.width / self.columns;
         let row_height = self.height / self.rows;
 
-        // These deltas are mainly required for resizing/moving windows with a native titlebar
-        // I don't know why, but the coordinates are different when a window has a native titlebar :shrug:
-        let mut column_delta = 0;
-        let mut row_delta = 0;
         let mut x = 0;
         let mut y = 0;
         let mut height = self.height;
         let mut width = self.width;
 
         if let Some(column) = tile.column {
-            if !CONFIG.remove_title_bar && column > 1 {
-                column_delta = 15;
-            }
-
-            width = column_width + column_delta;
-            x = column_width * (column - 1) - column_delta;
+            width = column_width;
+            x += column_width * (column - 1);
 
             width -= CONFIG.padding / self.columns;
 
@@ -471,12 +463,8 @@ impl TileGrid {
         }
 
         if let Some(row) = tile.row {
-            if !CONFIG.remove_title_bar && row > 1 {
-                row_delta = 10;
-            }
-
-            height = row_height + row_delta;
-            y = row_height * (row - 1) - row_delta;
+            height = row_height;
+            y = row_height * (row - 1);
 
             height -= CONFIG.padding / self.rows;
 
@@ -485,36 +473,25 @@ impl TileGrid {
             }
         }
 
-        if !CONFIG.remove_title_bar {
-            x -= 8;
-            y -= 1;
-        } else if let Some(rule) = &tile.window.rule {
-            if rule.has_custom_titlebar {
-                x += rule.x;
-                width += rule.width;
-            }
-        }
-
         x += CONFIG.margin;
         y += CONFIG.margin;
-        y += *app_bar::HEIGHT.lock().unwrap();
 
-        (x, y, width, height)
+
+        tile.window.calculate_window_rect(x, y, width, height)
     }
 
     fn draw_tile(&self, tile: &Tile) {
-        let (x, y, width, height) = self.calculate_tile_data(tile);
-
+        let rect = self.calculate_tile_data(tile);
 
         unsafe {
             //TODO: handle error
             SetWindowPos(
                 tile.window.id as HWND,
                 std::ptr::null_mut(),
-                x,
-                y,
-                width,
-                height,
+                rect.left,
+                rect.top,
+                rect.right - rect.left,
+                rect.bottom - rect.top,
                 0,
             );
         }

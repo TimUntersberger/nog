@@ -17,9 +17,10 @@ pub struct Rule {
     pub pattern: Regex,
     pub has_custom_titlebar: bool,
     pub manage: bool,
-    pub workspace: i32,
-    pub x: i32,
-    pub width: i32,
+    pub chromium: bool,
+    pub firefox: bool,
+    pub remove_frame: bool,
+    pub workspace: i32
 }
 
 impl Default for Rule {
@@ -28,9 +29,10 @@ impl Default for Rule {
             pattern: Regex::new("").unwrap(),
             has_custom_titlebar: false,
             manage: true,
-            workspace: -1,
-            x: 0,
-            width: 0,
+            remove_frame: true,
+            chromium: false,
+            firefox: false,
+            workspace: -1
         }
     }
 }
@@ -131,10 +133,11 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
 
                             if_regex!(rule, hash_key, value, pattern);
                             if_bool!(rule, hash_key, value, has_custom_titlebar);
+                            if_bool!(rule, hash_key, value, remove_frame);
                             if_bool!(rule, hash_key, value, manage);
+                            if_bool!(rule, hash_key, value, chromium);
+                            if_bool!(rule, hash_key, value, firefox);
                             if_i32!(rule, hash_key, value, workspace);
-                            if_i32!(rule, hash_key, value, x);
-                            if_i32!(rule, hash_key, value, width);
                         }
 
                         config.rules.push(rule);

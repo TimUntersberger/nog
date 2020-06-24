@@ -8,9 +8,6 @@ use winapi::um::winuser::SM_CXSCREEN;
 
 use log::{debug};
 
-// height of the "display"
-// this is not the height of the real display
-// it is the real display minus the appbar height
 #[derive(Default)]
 pub struct Display {
     pub height: i32,
@@ -23,15 +20,6 @@ impl Display {
             self.height = GetSystemMetrics(SM_CYSCREEN);
             self.width = GetSystemMetrics(SM_CXSCREEN);
         }
-
-        if CONFIG.display_app_bar {
-            self.height = self.height - CONFIG.app_bar_height;
-        }
-
-        if !CONFIG.remove_title_bar {
-            self.height = self.height + 9;
-            self.width = self.width + 15;
-        } 
 
         // +2 because the taskbar is apparently still on the screen when hidden haha
         let taskbar_is_visible = *task_bar::Y.lock().unwrap() + 2 < self.height;

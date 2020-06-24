@@ -1,3 +1,5 @@
+use winapi::um::winuser::GWL_STYLE;
+use winapi::um::winuser::SetWindowLongA;
 use crate::window::Window;
 use crate::WORKSPACE_ID;
 use crate::GRIDS;
@@ -24,15 +26,14 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
         title: title.unwrap(),
         ..Window::default()
     };
-    window.original_style = window.get_style().unwrap_or(GwlStyle::default());
-
-    let exstyle = window.get_ex_style().unwrap_or(GwlExStyle::default());
+    window.style = window.get_style().unwrap_or(GwlStyle::default());
+    window.original_style = window.style.clone();
+    window.exstyle = window.get_ex_style().unwrap_or(GwlExStyle::default());
     let parent = window.get_parent_window();
-
 
     let correct_style = ignore_window_style
         || (window.original_style.contains(GwlStyle::CAPTION)
-            && !exstyle.contains(GwlExStyle::DLGMODALFRAME));
+            && !window.exstyle.contains(GwlExStyle::DLGMODALFRAME));
 
     for rule in &CONFIG.rules {
         if rule.pattern.is_match(&window.title) {
@@ -55,7 +56,12 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
         }
 
         if CONFIG.remove_title_bar {
-            window.remove_title_bar()?;
+            if !rule.chromium && !rule.firefox {
+                window.style.remove(GwlStyle::CAPTION);
+                window.style.remove(GwlStyle::THICKFRAME);
+            }
+            window.style.insert(GwlStyle::BORDER);
+            window.update_style();
         }
 
         let mut grids = GRIDS.lock().unwrap();
