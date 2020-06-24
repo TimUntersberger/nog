@@ -39,7 +39,7 @@ pub enum KeybindingType {
     ChangeWorkspace(i32),
     ToggleFloatingMode,
     ToggleWorkMode,
-    Shell(Command),
+    Launch(Command),
     Focus(Direction),
     Swap(Direction),
     Split(SplitDirection),

@@ -44,6 +44,7 @@ pub struct Config {
     pub app_bar_font_size: i32,
     pub app_bar_workspace_bg: i32,
     pub work_mode: bool,
+    pub launch_on_startup: bool,
     pub margin: i32,
     pub padding: i32,
     pub remove_title_bar: bool,
@@ -61,6 +62,7 @@ impl Config {
             app_bar_font: String::from("Consolas"),
             app_bar_font_size: 18,
             app_bar_workspace_bg: 0x161616,
+            launch_on_startup: false,
             margin: 0,
             padding: 0,
             remove_title_bar: false,
@@ -119,6 +121,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
             if_i32!(config, config_key, value, app_bar_height);
             if_i32!(config, config_key, value, margin);
             if_i32!(config, config_key, value, padding);
+            if_bool!(config, config_key, value, launch_on_startup);
             if_bool!(config, config_key, value, work_mode);
             if_bool!(config, config_key, value, remove_title_bar);
             if_bool!(config, config_key, value, remove_task_bar);
@@ -181,30 +184,30 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
 
                     let typ =
                         match typ_str {
-                            "Shell" => KeybindingType::Shell(
-                                ensure_str!("keybinding of type shell", binding, cmd).to_string(),
+                            "Launch" => KeybindingType::Launch(
+                                ensure_str!("keybinding of type Launch", binding, cmd).to_string(),
                             ),
                             "CloseTile" => KeybindingType::CloseTile,
                             "Quit" => KeybindingType::Quit,
                             "ChangeWorkspace" => KeybindingType::ChangeWorkspace(ensure_i32!(
-                                "keybinding of type shell",
+                                "keybinding of type ChangeWorkspace",
                                 binding,
                                 id
                             )),
                             "ToggleFloatingMode" => KeybindingType::ToggleFloatingMode,
                             "ToggleWorkMode" => KeybindingType::ToggleWorkMode,
                             "Focus" => KeybindingType::Focus(Direction::from_str(ensure_str!(
-                                "keybinding of type shell",
+                                "keybinding of type Focus",
                                 binding,
                                 direction
                             ))?),
                             "Swap" => KeybindingType::Swap(Direction::from_str(ensure_str!(
-                                "keybinding of type shell",
+                                "keybinding of type Swap",
                                 binding,
                                 direction
                             ))?),
                             "Split" => KeybindingType::Split(SplitDirection::from_str(
-                                ensure_str!("keybinding of type shell", binding, direction),
+                                ensure_str!("keybinding of type Split", binding, direction),
                             )?),
                             x => {
                                 return Err(Box::new(Error::new(

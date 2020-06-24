@@ -420,9 +420,3 @@ cargo build --release
 cargo wix init --force
 cargo wix --bin-path "C:\Program Files (x86)\WiX Toolset v3.11\bin" --no-build
 ```
-
-### Create TOC
-
-```
-gh-md-toc ./README.md
-```

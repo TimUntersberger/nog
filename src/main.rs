@@ -1,4 +1,4 @@
-//#![windows_subsystem = "windows"]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 #[macro_use]
 extern crate num_derive;
@@ -16,6 +16,7 @@ mod tray;
 mod display;
 mod event;
 mod event_handler;
+mod startup;
 mod hot_key_manager;
 mod task_bar;
 mod tile;
@@ -132,6 +133,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Initializing config");
     lazy_static::initialize(&CONFIG);
+
+    startup::set_launch_on_startup(CONFIG.launch_on_startup)?;
 
     info!("Initializing display");
     lazy_static::initialize(&DISPLAY);
