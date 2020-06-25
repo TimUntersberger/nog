@@ -369,68 +369,105 @@ A Split keybinding takes a direction, the new SplitDirection of the currently fo
 
 ### Example Config
 ```yaml
+app_bar_font: Cascadia Mono
+app_bar_font_size: 17
+app_bar_bg: 0x3b4252
+
+work_mode: false
+launch_on_startup: true
 display_app_bar: true
 remove_title_bar: true
 remove_task_bar: true
 
 rules:
-  - pattern: ^.*- Mozilla Firefox$
+  - pattern: ^File Explorer$
+    manage: false
+  - pattern: ^.*- Mozilla Firefox|Mozilla Firefox$
+    workspace: 2
     has_custom_titlebar: true
-    x: -6
-    width: 12
+    firefox: true
   - pattern: ^.*- Google Chrome$
     has_custom_titlebar: true
-    x: -8
-    width: 16
+    chromium: true
+  - pattern: ^(.*- (Visual Studio Code|Discord)|Spotify Premium|Discord)$
+    has_custom_titlebar: true
 
 keybindings:
-  - type: Shell
-    key: Control+Alt+Enter
-    cmd: wt
-  - type: Shell
-    key: Control+Alt+B
-    cmd: start firefox
+  - type: Launch
+    key: Alt+Enter
+    cmd: wt.exe
+  - type: Launch
+    key: Alt+B
+    cmd: C:\\Program Files\\Mozilla Firefox\\firefox.exe
 
   - type: CloseTile
-    key: Control+Alt+Q
+    key: Alt+Q
 
   - type: Quit
-    key: Control+Alt+X
+    key: Alt+X
 
   - type: Focus
-    key: Control+Alt+H
+    key: Alt+H
     direction: Left
   - type: Focus
-    key: Control+Alt+J
+    key: Alt+J
     direction: Down
   - type: Focus
-    key: Control+Alt+K
+    key: Alt+K
     direction: Up
   - type: Focus
-    key: Control+Alt+L
+    key: Alt+L
+    direction: Right
+
+  - type: Swap
+    key: Alt+Control+H
+    direction: Left
+  - type: Swap
+    key: Alt+Control+J
+    direction: Down
+  - type: Swap
+    key: Alt+Control+K
+    direction: Up
+  - type: Swap
+    key: Alt+Control+L
     direction: Right
 
   - type: Split
-    key: Control+Alt+Plus
+    key: Alt+Plus
     direction: Vertical
   - type: Split
-    key: Control+Alt+Minus
+    key: Alt+Minus
     direction: Horizontal
 
   - type: ToggleFloatingMode
-    key: Control+Alt+F
+    key: Alt+F
+  - type: ToggleWorkMode
+    key: Alt+Control+W
+
+  - type: MoveToWorkspace
+    key: Alt+Control+1
+    id: 1
+  - type: MoveToWorkspace
+    key: Alt+Control+2
+    id: 2
+  - type: MoveToWorkspace
+    key: Alt+Control+3
+    id: 3
+  - type: MoveToWorkspace
+    key: Alt+Control+4
+    id: 4
 
   - type: ChangeWorkspace
-    key: Control+Alt+1
+    key: Alt+1
     id: 1
   - type: ChangeWorkspace
-    key: Control+Alt+2
+    key: Alt+2
     id: 2
   - type: ChangeWorkspace
-    key: Control+Alt+3
+    key: Alt+3
     id: 3
   - type: ChangeWorkspace
-    key: Control+Alt+4
+    key: Alt+4
     id: 4
 ```
 
