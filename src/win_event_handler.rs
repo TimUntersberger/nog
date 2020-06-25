@@ -1,24 +1,33 @@
-use crate::CHANNEL;
-use winapi::um::winuser::MSG;
-use winapi::um::winuser::DispatchMessageW;
-use winapi::um::winuser::TranslateMessage;
-use winapi::um::winuser::GetMessageW;
 use crate::util;
 use crate::Event;
+use crate::CHANNEL;
+use lazy_static::lazy_static;
+use log::debug;
+use std::sync::Mutex;
 use winapi::shared::minwindef::DWORD;
 use winapi::shared::ntdef::LONG;
 use winapi::shared::windef::HWINEVENTHOOK;
 use winapi::shared::windef::HWND;
+use winapi::um::winuser::DispatchMessageW;
+use winapi::um::winuser::GetMessageW;
+use winapi::um::winuser::PeekMessageW;
 use winapi::um::winuser::SetWinEventHook;
+use winapi::um::winuser::TranslateMessage;
 use winapi::um::winuser::UnhookWinEvent;
 use winapi::um::winuser::EVENT_MAX;
 use winapi::um::winuser::EVENT_MIN;
 use winapi::um::winuser::EVENT_OBJECT_DESTROY;
 use winapi::um::winuser::EVENT_OBJECT_SHOW;
 use winapi::um::winuser::EVENT_SYSTEM_FOREGROUND;
+use winapi::um::winuser::MSG;
 use winapi::um::winuser::OBJID_WINDOW;
+use winapi::um::winuser::PM_REMOVE;
 
 static mut HOOK: Option<HWINEVENTHOOK> = None;
+
+lazy_static! {
+    static ref UNREGISTER: Mutex<bool> = Mutex::new(false);
+}
 
 #[derive(Clone, Copy, Debug)]
 pub enum WinEventType {
@@ -28,7 +37,7 @@ pub enum WinEventType {
 }
 
 impl WinEventType {
-    fn from_u32(v: u32) -> Option<Self> { 
+    fn from_u32(v: u32) -> Option<Self> {
         if v == EVENT_OBJECT_DESTROY {
             Some(Self::Destroy)
         } else if v == EVENT_OBJECT_SHOW {
@@ -44,7 +53,7 @@ impl WinEventType {
 #[derive(Clone, Copy, Debug)]
 pub struct WinEvent {
     pub typ: WinEventType,
-    pub hwnd: i32
+    pub hwnd: i32,
 }
 
 unsafe extern "system" fn handler(
@@ -62,37 +71,45 @@ unsafe extern "system" fn handler(
 
     let win_event_type = match WinEventType::from_u32(event_code) {
         Some(event) => event,
-        None => return
+        None => return,
     };
-    
     let event = Event::WinEvent(WinEvent {
         typ: win_event_type,
-        hwnd: window_handle as i32
+        hwnd: window_handle as i32,
     });
 
     CHANNEL.sender.clone().send(event).unwrap();
 }
 
 pub fn register() -> Result<(), util::WinApiResultError> {
-    std::thread::spawn(|| {
-        unsafe {
-            let mut msg: MSG = MSG::default();
+    std::thread::spawn(|| unsafe {
+        let mut msg: MSG = MSG::default();
 
-            let hook = util::winapi_ptr_to_result(SetWinEventHook(
-                EVENT_MIN,
-                EVENT_MAX,
-                std::ptr::null_mut(),
-                Some(handler),
-                0,
-                0,
-                0,
-            )).unwrap();
+        debug!("Registering win event hook");
 
-            HOOK = Some(hook);
+        let hook = util::winapi_ptr_to_result(SetWinEventHook(
+            EVENT_MIN,
+            EVENT_MAX,
+            std::ptr::null_mut(),
+            Some(handler),
+            0,
+            0,
+            0,
+        ))
+        .unwrap();
 
-            while GetMessageW(&mut msg, 0 as HWND, 0, 0) != 0 {
+        HOOK = Some(hook);
+        
+        loop {
+            while PeekMessageW(&mut msg, 0 as HWND, 0, 0, PM_REMOVE) > 0 {
                 TranslateMessage(&msg);
                 DispatchMessageW(&msg);
+            }
+            
+            if *UNREGISTER.lock().unwrap() {
+                debug!("Win event hook unregistered");
+                *UNREGISTER.lock().unwrap() = false;
+                break;
             }
         }
     });
@@ -101,11 +118,9 @@ pub fn register() -> Result<(), util::WinApiResultError> {
 }
 
 pub fn unregister() -> Result<(), util::WinApiResultError> {
-    unsafe {
-        if HOOK.is_some() {
-            util::winapi_err_to_result(UnhookWinEvent(HOOK.unwrap()))?;
-        }
-    }
+    debug!("Unregistering win event hook");
+
+    *UNREGISTER.lock().unwrap() = true;
 
     Ok(())
 }

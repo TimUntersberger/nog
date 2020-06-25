@@ -228,7 +228,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                             }
                         };
 
-                    config.keybindings.push(Keybinding { key, modifier, typ });
+                    config.keybindings.push(Keybinding { key, modifier, typ, registered: false });
                 }
             }
         }

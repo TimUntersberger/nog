@@ -148,23 +148,23 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         app_bar::create(&*DISPLAY.lock().unwrap())?;
     }
 
-    if CONFIG.work_mode {
-        if CONFIG.remove_task_bar {
-            info!("Hiding taskbar");
-            task_bar::hide();
-        }
-    }
-
     info!("Creating tray icon");
     tray::create()?;
 
     info!("Initializing workspaces");
     lazy_static::initialize(&WORKSPACES);
 
-    change_workspace(1);
+    if CONFIG.work_mode {
+        if CONFIG.remove_task_bar {
+            info!("Hiding taskbar");
+            task_bar::hide();
+        }
 
-    info!("Registering windows event handler");
-    win_event_handler::register()?;
+        info!("Registering windows event handler");
+        win_event_handler::register()?;
+    }
+
+    change_workspace(1);
 
     info!("Starting hot key manager");
     hot_key_manager::register()?;
