@@ -1,7 +1,8 @@
 use crate::hot_key_manager::{key::Key, modifier::Modifier, Direction, Keybinding, KeybindingType};
 use crate::tile_grid::SplitDirection;
+use log::debug;
 use regex::Regex;
-use std::io::{Error, ErrorKind};
+use std::io::{Error, ErrorKind, Write};
 use winapi::um::wingdi::GetBValue;
 use winapi::um::wingdi::GetGValue;
 use winapi::um::wingdi::GetRValue;
@@ -84,13 +85,18 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
     pathbuf.push("wwm");
 
     if !pathbuf.exists() {
+        debug!("wwm folder doesn't exist yet. Creating the folder");
         std::fs::create_dir(pathbuf.clone())?;
     }
 
     pathbuf.push("config.yaml");
 
     if !pathbuf.exists() {
-        std::fs::File::create(pathbuf.clone())?;
+        debug!("config file doesn't exist yet. Creating the file");
+        if let Ok(mut file) = std::fs::File::create(pathbuf.clone()) {
+            debug!("Initializing config with default values");
+            file.write(include_bytes!("../default_config.yaml"))?;
+        }
     }
 
     let path = match pathbuf.to_str() {

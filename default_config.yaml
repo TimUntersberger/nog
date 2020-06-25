@@ -1,0 +1,86 @@
+display_app_bar: true
+remove_title_bar: true
+remove_task_bar: true
+
+rules:
+  - pattern: ^File Explorer$
+    manage: false
+  - pattern: ^.*- Mozilla Firefox|Mozilla Firefox$
+    has_custom_titlebar: true
+    firefox: true
+  - pattern: ^.*- Google Chrome$
+    has_custom_titlebar: true
+    chromium: true
+  - pattern: ^(.*- (Visual Studio Code|Discord)|Spotify Premium|Discord)$
+    has_custom_titlebar: true
+
+keybindings:
+  - type: CloseTile
+    key: Alt+Q
+
+  - type: Quit
+    key: Alt+X
+
+  - type: Focus
+    key: Alt+H
+    direction: Left
+  - type: Focus
+    key: Alt+J
+    direction: Down
+  - type: Focus
+    key: Alt+K
+    direction: Up
+  - type: Focus
+    key: Alt+L
+    direction: Right
+
+  - type: Swap
+    key: Alt+Control+H
+    direction: Left
+  - type: Swap
+    key: Alt+Control+J
+    direction: Down
+  - type: Swap
+    key: Alt+Control+K
+    direction: Up
+  - type: Swap
+    key: Alt+Control+L
+    direction: Right
+
+  - type: Split
+    key: Alt+Plus
+    direction: Vertical
+  - type: Split
+    key: Alt+Minus
+    direction: Horizontal
+
+  - type: ToggleFloatingMode
+    key: Alt+F
+  - type: ToggleWorkMode
+    key: Alt+Control+W
+
+  - type: MoveToWorkspace
+    key: Alt+Control+1
+    id: 1
+  - type: MoveToWorkspace
+    key: Alt+Control+2
+    id: 2
+  - type: MoveToWorkspace
+    key: Alt+Control+3
+    id: 3
+  - type: MoveToWorkspace
+    key: Alt+Control+4
+    id: 4
+
+  - type: ChangeWorkspace
+    key: Alt+1
+    id: 1
+  - type: ChangeWorkspace
+    key: Alt+2
+    id: 2
+  - type: ChangeWorkspace
+    key: Alt+3
+    id: 3
+  - type: ChangeWorkspace
+    key: Alt+4
+    id: 4
