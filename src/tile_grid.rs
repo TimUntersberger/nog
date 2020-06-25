@@ -313,7 +313,7 @@ impl TileGrid {
                         .iter_mut()
                         .filter(|t| t.column > removed_tile.column)
                         .for_each(|t| {
-                            t.column.map(|x| x - 1);
+                            t.column = t.column.map(|x| x - 1);
                         })
                 }
             } else {
@@ -352,7 +352,7 @@ impl TileGrid {
                         .map(|row| if row > self.rows { row - 1 } else { row });
 
                     let maybe_next_tile: Option<&Tile> = self.tiles.iter().find(|tile| {
-                        return tile.column == next_column && tile.row == next_row;
+                        return (tile.column == None || tile.column == next_column) && (tile.row == None || tile.row == next_row);
                     });
 
                     if let Some(next_tile) = maybe_next_tile {
@@ -442,7 +442,6 @@ impl TileGrid {
     }
     /// Calculates all the data required for drawing the tile
     fn calculate_tile_data(&self, tile: &Tile) -> RECT {
-        //let rule = tile.window.rule.clone().unwrap_or_default();
         let column_width = self.width / self.columns;
         let row_height = self.height / self.rows;
 
@@ -466,8 +465,8 @@ impl TileGrid {
             y = row_height * (row - 1);
 
             if row > 1 {
-                height -= CONFIG.padding;
-                y += CONFIG.padding;
+                height += CONFIG.padding;
+                y -= CONFIG.padding;
             }
         }
 
