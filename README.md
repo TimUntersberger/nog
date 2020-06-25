@@ -204,14 +204,16 @@ Keybindings can have the following modifiers:
 
 Keybindings can have the following types:
 
-* Launch
-* CloseTile
-* Quit
-* Focus
-* Split
-* ToggleFloatingMode
-* ChangeWorkspace
-* MoveToWorkspace
+* [Launch](#launch)
+* [CloseTile](#closetile)
+* [Quit](#quit)
+* [Focus](#focus)
+* [Split](#split)
+* [Swap](#swap)
+* [ToggleFloatingMode](#togglefloatingmode)
+* [ToggleWorkMode](#toggleworkmode)
+* [ChangeWorkspace](#changeworkspace)
+* [MoveToWorkspace](#movetoworkspace)
 
 #### ChangeWorkspace
 
@@ -305,6 +307,16 @@ key: Control+Alt+F
 ```
 
 A ToggleFloatingMode keybinding either manages the currently focused window if it is not already managed or unmanages it.
+
+#### ToggleWorkMode
+
+example
+```yaml
+type: ToggleWorkMode
+key: Control+Alt+W
+```
+
+A ToggleWorkMode keybinding can be seen as "starting" and "stopping" wwm. Wwm is not really stopped it just makes wwm take the least amout of resources while still listening only ToggleWorkMode keybindings.
 
 #### Focus
 
