@@ -1,4 +1,3 @@
-use winapi::um::winuser::WM_CLOSE;
 use crate::change_workspace;
 use crate::display::Display;
 use crate::event::Event;
@@ -7,7 +6,6 @@ use crate::CHANNEL;
 use crate::DISPLAY;
 use crate::GRIDS;
 use crate::WORKSPACE_ID;
-use crate::WORK_MODE;
 use lazy_static::lazy_static;
 use log::{debug, info};
 use std::sync::Mutex;
@@ -54,6 +52,7 @@ use winapi::um::winuser::MSG;
 use winapi::um::winuser::PAINTSTRUCT;
 use winapi::um::winuser::SW_HIDE;
 use winapi::um::winuser::SW_SHOW;
+use winapi::um::winuser::WM_CLOSE;
 use winapi::um::winuser::WM_CREATE;
 use winapi::um::winuser::WM_LBUTTONDOWN;
 use winapi::um::winuser::WM_PAINT;
@@ -84,7 +83,9 @@ unsafe extern "system" fn window_cb(
     w_param: WPARAM,
     l_param: LPARAM,
 ) -> LRESULT {
-    if msg == WM_SETCURSOR {
+    if msg == WM_CLOSE {
+        *WINDOW.lock().unwrap() = 0;
+    } else if msg == WM_SETCURSOR {
         SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8)); // Force a normal cursor. This probably shouldn't be done this way but whatever
     } else if msg == WM_LBUTTONDOWN {
         info!("Received mouse click");
@@ -92,7 +93,17 @@ unsafe extern "system" fn window_cb(
         let id = x / CONFIG.app_bar_height + 1;
 
         if id <= 10 {
-            change_workspace(id);
+            let mut grids = GRIDS.lock().unwrap();
+            let grid = grids
+                .iter_mut()
+                .find(|g| g.id == id)
+                .unwrap();
+
+            if !grid.tiles.is_empty() || grid.visible {
+                drop(grid);
+                drop(grids);
+                change_workspace(id);
+            }
         }
     } else if msg == WM_CREATE {
         info!("loading font");
@@ -214,6 +225,9 @@ pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
 
     std::thread::spawn(|| loop {
         std::thread::sleep(std::time::Duration::from_millis(950));
+        if *WINDOW.lock().unwrap() == 0 {
+            break;
+        }
         CHANNEL
             .sender
             .clone()
@@ -257,7 +271,7 @@ pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
         show();
 
         let mut msg: MSG = MSG::default();
-        while GetMessageW(&mut msg, 0 as HWND, 0, 0) != 0 {
+        while GetMessageW(&mut msg, window_handle, 0, 0) > 0 {
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }

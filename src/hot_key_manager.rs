@@ -159,6 +159,8 @@ pub fn register() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                 }
+
+                std::thread::sleep(std::time::Duration::from_millis(50));
             }
         }
     });

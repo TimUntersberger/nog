@@ -99,7 +99,7 @@ pub fn register() -> Result<(), util::WinApiResultError> {
         .unwrap();
 
         HOOK = Some(hook);
-        
+
         loop {
             while PeekMessageW(&mut msg, 0 as HWND, 0, 0, PM_REMOVE) > 0 {
                 TranslateMessage(&msg);
@@ -111,6 +111,8 @@ pub fn register() -> Result<(), util::WinApiResultError> {
                 *UNREGISTER.lock().unwrap() = false;
                 break;
             }
+
+            std::thread::sleep(std::time::Duration::from_millis(50));
         }
     });
 
