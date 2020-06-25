@@ -455,10 +455,9 @@ impl TileGrid {
             width = column_width;
             x += column_width * (column - 1);
 
-            width -= CONFIG.padding / self.columns;
-
             if column > 1 {
-                x += CONFIG.padding / self.columns;
+                width -= CONFIG.padding;
+                x += CONFIG.padding;
             }
         }
 
@@ -466,15 +465,16 @@ impl TileGrid {
             height = row_height;
             y = row_height * (row - 1);
 
-            height -= CONFIG.padding / self.rows;
-
             if row > 1 {
-                y += CONFIG.padding / self.rows;
+                height -= CONFIG.padding;
+                y += CONFIG.padding;
             }
         }
 
         x += CONFIG.margin;
+        x += CONFIG.padding;
         y += CONFIG.margin;
+        y += CONFIG.padding;
 
 
         tile.window.calculate_window_rect(x, y, width, height)
