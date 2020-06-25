@@ -143,11 +143,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing taskbar");
     task_bar::init();
 
-    if CONFIG.display_app_bar {
-        info!("Creating appbar");
-        app_bar::create(&*DISPLAY.lock().unwrap())?;
-    }
-
     info!("Creating tray icon");
     tray::create()?;
 
@@ -158,6 +153,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         if CONFIG.remove_task_bar {
             info!("Hiding taskbar");
             task_bar::hide();
+        }
+
+        if CONFIG.display_app_bar {
+            app_bar::create(&*DISPLAY.lock().unwrap())?;
         }
 
         info!("Registering windows event handler");

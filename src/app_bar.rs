@@ -1,3 +1,4 @@
+use winapi::um::winuser::WM_CLOSE;
 use crate::change_workspace;
 use crate::display::Display;
 use crate::event::Event;
@@ -202,6 +203,7 @@ pub fn load_font() {
 }
 
 pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
+    info!("Creating appbar");
     let name = "wwm_app_bar";
     let mut height_guard = HEIGHT.lock().unwrap();
 
@@ -252,19 +254,7 @@ pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
 
         *WINDOW.lock().unwrap() = window_handle as i32;
 
-        if *WORK_MODE.lock().unwrap() {
-            ShowWindow(window_handle, SW_SHOW);
-        }
-
-        CHANNEL
-            .sender
-            .clone()
-            .send(Event::RedrawAppBar(RedrawAppBarReason::Workspace));
-
-        CHANNEL
-            .sender
-            .clone()
-            .send(Event::RedrawAppBar(RedrawAppBarReason::Time));
+        show();
 
         let mut msg: MSG = MSG::default();
         while GetMessageW(&mut msg, 0 as HWND, 0, 0) != 0 {
@@ -274,6 +264,14 @@ pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
     });
 
     Ok(())
+}
+
+pub fn close() {
+    unsafe {
+        info!("Closing appbar");
+        let hwnd = *WINDOW.lock().unwrap();
+        SendMessageA(hwnd as HWND, WM_CLOSE, 0, 0);
+    }
 }
 
 pub fn hide() {

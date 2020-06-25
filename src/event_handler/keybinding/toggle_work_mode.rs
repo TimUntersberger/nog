@@ -1,3 +1,4 @@
+use crate::DISPLAY;
 use crate::CONFIG;
 use crate::WORK_MODE;
 use crate::app_bar;
@@ -16,7 +17,7 @@ pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
         hot_key_manager::disable();
 
         if CONFIG.display_app_bar {
-            app_bar::hide();
+            app_bar::close();
         }
         if CONFIG.remove_task_bar {
             task_bar::show();
@@ -28,7 +29,7 @@ pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
         hot_key_manager::enable();
 
         if CONFIG.display_app_bar {
-            app_bar::show();
+            app_bar::create(&*DISPLAY.lock().unwrap());
         }
         if CONFIG.remove_task_bar {
             task_bar::hide();
