@@ -42,6 +42,7 @@ pub enum KeybindingType {
     Launch(Command),
     Focus(Direction),
     Swap(Direction),
+    MoveToWorkspace(i32),
     Split(SplitDirection),
 }
 

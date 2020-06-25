@@ -194,6 +194,11 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                                 binding,
                                 id
                             )),
+                            "MoveToWorkspace" => KeybindingType::MoveToWorkspace(ensure_i32!(
+                                "keybinding of type MoveToWorkspace",
+                                binding,
+                                id
+                            )),
                             "ToggleFloatingMode" => KeybindingType::ToggleFloatingMode,
                             "ToggleWorkMode" => KeybindingType::ToggleWorkMode,
                             "Focus" => KeybindingType::Focus(Direction::from_str(ensure_str!(

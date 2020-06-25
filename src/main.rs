@@ -110,6 +110,7 @@ pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError> {
 
     debug!("Showing the next workspace");
     grid.visible = true;
+    grid.draw_grid();
     grid.show();
 
     //without this delay there is a slight flickering of the background

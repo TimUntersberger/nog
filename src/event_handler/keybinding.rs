@@ -5,11 +5,15 @@ mod swap;
 mod toggle_floating_mode;
 mod toggle_work_mode;
 
+use crate::WORKSPACE_ID;
+use crate::GRIDS;
 use crate::change_workspace;
 use crate::event::Event;
 use crate::hot_key_manager::Keybinding;
 use crate::hot_key_manager::KeybindingType;
 use crate::CHANNEL;
+use crate::win_event_handler::WinEvent;
+use crate::win_event_handler::WinEventType;
 use crate::WORK_MODE;
 use winapi::um::processthreadsapi::CreateProcessA;
 use winapi::um::processthreadsapi::PROCESS_INFORMATION;
@@ -51,6 +55,25 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             KeybindingType::CloseTile => close_tile::handle()?,
+            KeybindingType::MoveToWorkspace(id) => {
+                let mut grids = GRIDS.lock().unwrap();
+                let grid = grids
+                    .iter_mut()
+                    .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
+                    .unwrap();
+
+                if let Some(window_id) = grid.focused_window_id {
+                    if let Some(tile) = grid.close_tile_by_window_id(window_id) {
+                        let grid = grids
+                            .iter_mut()
+                            .find(|g| g.id == id)
+                            .unwrap();
+                        grid.split(tile.window);
+                        drop(grids);
+                        change_workspace(id)?;
+                    }
+                }
+            },
             KeybindingType::ChangeWorkspace(id) => change_workspace(id)?,
             KeybindingType::ToggleFloatingMode => toggle_floating_mode::handle()?,
             KeybindingType::ToggleWorkMode => toggle_work_mode::handle()?,
