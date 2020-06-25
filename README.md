@@ -46,11 +46,9 @@ If you want to see my own config or just want to know what a config looks like: 
 
 ### Gap
 
-**[INFO]: There currently exists a problem with the padding. Sometimes the inner gap may vary slightly, because of rounding issues. I currently have no idea how to fix this**
+WWM supports two different types of gaps, the outer and the inner gap.
 
-The `margin` setting defines the size of the gap around the grid
-
-The `padding` setting defines the size of the gap inside the grid
+The inner gap gets defined by the `padding` setting and the outer gap is the sum of the `margin` and `padding` setting.
 
 ### bar
 
@@ -67,6 +65,10 @@ The `app_bar_bg` setting defines the background color of the appbar
 The `app_bar_workspace_bg` setting defines the background color of a workspace in the background
 
 ### Toggles
+
+The `launch_on_startup` tells wwm whether to start automatically on startup.
+
+The `work_mode` setting tells wwm whether to start in work mode.
 
 The `display_app_bar` setting creates a window at the top of the display that shows all currently used workspaces.
 
@@ -202,20 +204,21 @@ Keybindings can have the following modifiers:
 
 Keybindings can have the following types:
 
-* Shell
+* Launch
 * CloseTile
 * Quit
 * Focus
 * Split
 * ToggleFloatingMode
 * ChangeWorkspace
+* MoveToWorkspace
 
 #### ChangeWorkspace
 
 example
 ```yaml
 type: ChangeWorkspace
-key: Control+Alt+1
+key: Alt+1
 id: 1
 ```
 
@@ -235,16 +238,43 @@ A ChangeWorkspace keybinding takes an id, which is the id of the workspace to ch
 
 Workspaces have an upper limit of 10, so if you define a keybinding of type ChangeWorkspace that goes above 10 or below 1 the program *currently* just crashes.
 
-#### Shell
+#### MoveToWorkspace
+
+example
+```yaml
+type: MoveToWorkspace
+key: Control+Alt+1
+id: 1
+```
+
+values
+* 1
+* 2
+* 3
+* 4
+* 5
+* 6
+* 7
+* 8
+* 9
+* 10
+
+A MoveToWorkspace keybinding takes an id, which is the id of the workspace to move the focused tile to.
+
+Workspaces have an upper limit of 10, so if you define a keybinding of type ChangeWorkspace that goes above 10 or below 1 the program *currently* just crashes.
+
+#### Launch
 
 example
 ```yaml
 type: Shell
 key: Control+Alt+Enter
-cmd: start firefox
+cmd: wt.exe
 ```
 
-A Shell keybinding takes a cmd, which has to be a valid cmd statement. So if it is possible to execute the statement in the cmd terminal then it is also possible to run it using the Shell keybindng.
+A Launch keybinding takes a cmd, which has to be a valid path to an exe file.
+
+If the exe can be found in the path, then the name is enough (e.g. `wt.exe`).
 
 #### CloseTile
 
