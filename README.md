@@ -208,6 +208,8 @@ Keybindings can have the following modifiers:
 * Control
 * Shift
 
+Note: The windows modifier is reserved for windows itself so we can't use it in custom keybindings.
+
 Keybindings can have the following types:
 
 * [Launch](#launch)
