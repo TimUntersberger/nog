@@ -1,12 +1,14 @@
 
 # wwm
-Windows window manager
+Windows window manager is a tiling window manager for Windows 10 (like i3 for linux)
 
 ![Preview](/screen-5.png?raw=true "Preview")
 
 Terminal: Windows Terminal | Colourscheme: Nord
 
-[Demo](https://giant.gfycat.com/ThriftyMassiveJabiru.webm)
+[Demo](https://gfycat.com/glisteningbrighthound)
+
+[Demo with GUI](https://gfycat.com/differentadorablekiskadee)
 
 ## Table Of Contents
 
@@ -207,6 +209,8 @@ Keybindings can have the following modifiers:
 * Alt
 * Control
 * Shift
+
+Note: The windows modifier is reserved for windows itself so we can't use it in custom keybindings.
 
 Keybindings can have the following types:
 
