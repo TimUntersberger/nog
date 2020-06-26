@@ -10,6 +10,8 @@ Terminal: Windows Terminal | Colourscheme: Nord
 
 ## Table Of Contents
 
+  * [Motivation](#motivation)
+  * [Info](#info)
   * [Config](#config)
      * [Gap](#gap)
      * [Bar](#bar)
@@ -31,6 +33,10 @@ Terminal: Windows Terminal | Colourscheme: Nord
   * [Development](#development)
      * [Create installer](#create-installer)
      * [Create TOC](#create-toc)
+     
+## Motivation
+
+In the beginning i always had a Virtual Machine with i3 for my development purposes. Because I am lazy I always dreaded having to start a Virtual Machine just for developing something and evolved my setup into running i3 in WSL and showing it on Windows using an X-Server. This didn't really feel right, so after some time I just decided to live without a TWM on Windows. After seeing FancyZones of Microsoft I saw the potential for a native TWM on Windows 10, but sadly FancyZones is not the Window Manager I want nore want to deal with. That's why decided to create my own TWM and here we are. 
 
 ## Info
 
