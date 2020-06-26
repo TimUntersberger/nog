@@ -6,7 +6,7 @@ Windows window manager
 
 Terminal: Windows Terminal | Colourscheme: Nord
 
-[Demo](https://giant.gfycat.com/glisteningbrighthound.webm)
+[Demo](https://gfycat.com/glisteningbrighthound)
 
 ## Table Of Contents
 
