@@ -7,6 +7,7 @@ Windows window manager is a tiling window manager for Windows 10 (like i3 for li
 Terminal: Windows Terminal | Colourscheme: Nord
 
 [Demo](https://gfycat.com/glisteningbrighthound)
+
 [Demo with GUI](https://gfycat.com/differentadorablekiskadee)
 
 ## Table Of Contents
