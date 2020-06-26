@@ -1,12 +1,13 @@
 
 # wwm
-Windows window manager
+Windows window manager is a tiling window manager for Windows 10 (like i3 for linux)
 
 ![Preview](/screen-1.png?raw=true "Preview")
 
 Terminal: Windows Terminal | Colourscheme: Nord
 
 [Demo](https://gfycat.com/glisteningbrighthound)
+[Demo with GUI](https://gfycat.com/differentadorablekiskadee)
 
 ## Table Of Contents
 
