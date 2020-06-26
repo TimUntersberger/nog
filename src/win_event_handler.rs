@@ -1,3 +1,4 @@
+use winapi::um::winuser::EVENT_OBJECT_HIDE;
 use crate::util;
 use crate::Event;
 use crate::CHANNEL;
@@ -32,6 +33,7 @@ lazy_static! {
 #[derive(Clone, Copy, Debug)]
 pub enum WinEventType {
     Destroy,
+    Hide,
     Show(bool),
     FocusChange,
 }
@@ -44,6 +46,8 @@ impl WinEventType {
             Some(Self::Show(false))
         } else if v == EVENT_SYSTEM_FOREGROUND {
             Some(Self::FocusChange)
+        } else if v == EVENT_OBJECT_HIDE {
+            Some(Self::Hide)
         } else {
             None
         }

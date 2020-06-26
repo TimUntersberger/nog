@@ -155,6 +155,7 @@ impl Window {
 
             if CONFIG.display_app_bar {
                 top += CONFIG.app_bar_height;
+                bottom += CONFIG.app_bar_height;
             }
 
             if rule.firefox
@@ -189,10 +190,10 @@ impl Window {
             bottom,
         };
 
-        // println!(
-        //     "before left: {}, top: {}, right: {}, bottom: {}",
-        //     rect.left, rect.top, rect.right, rect.bottom
-        // );
+        println!(
+            "before left: {}, top: {}, right: {}, bottom: {}",
+            rect.left, rect.top, rect.right, rect.bottom
+        );
 
         unsafe {
             AdjustWindowRectEx(

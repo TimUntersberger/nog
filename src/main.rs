@@ -48,9 +48,13 @@ lazy_static! {
             (1..11)
                 .map(|i| {
                     let mut grid = TileGrid::new(i);
-
+                    
                     grid.height = DISPLAY.lock().unwrap().height - CONFIG.margin * 2 - CONFIG.padding * 2;
                     grid.width = DISPLAY.lock().unwrap().width - CONFIG.margin * 2 - CONFIG.padding * 2;
+
+                    if CONFIG.display_app_bar {
+                        grid.height -= CONFIG.app_bar_height;
+                    }
 
                     grid
                 })

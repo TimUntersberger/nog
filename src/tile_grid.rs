@@ -465,8 +465,8 @@ impl TileGrid {
             y = row_height * (row - 1);
 
             if row > 1 {
-                height += CONFIG.padding;
-                y -= CONFIG.padding;
+                // height -= CONFIG.padding;
+                y += CONFIG.padding;
             }
         }
 
