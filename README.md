@@ -2,7 +2,7 @@
 # wwm
 Windows window manager
 
-![Preview](/screen-1.png?raw=true "Preview")
+![Preview](/screen-5.png?raw=true "Preview")
 
 Terminal: Windows Terminal | Colourscheme: Nord
 
