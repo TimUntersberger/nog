@@ -5,17 +5,17 @@ extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
 
-use crossbeam_channel::select;
-use lazy_static::lazy_static;
-use log::{debug, error, info};
-use std::sync::Mutex;
-use winapi::shared::windef::HWND;
 use app_bar::RedrawAppBarReason;
 use config::Config;
+use crossbeam_channel::select;
 use display::Display;
 use event::Event;
 use event::EventChannel;
+use lazy_static::lazy_static;
+use log::{debug, error, info};
+use std::sync::Mutex;
 use tile_grid::TileGrid;
+use winapi::shared::windef::HWND;
 use workspace::Workspace;
 
 mod app_bar;

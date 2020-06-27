@@ -1,5 +1,11 @@
 use crate::config::Rule;
+use crate::util;
 use crate::CONFIG;
+use gwl_ex_style::GwlExStyle;
+use gwl_style::GwlStyle;
+use winapi::shared::minwindef::BOOL;
+use winapi::shared::windef::HWND;
+use winapi::shared::windef::RECT;
 use winapi::um::winuser::AdjustWindowRectEx;
 use winapi::um::winuser::GetForegroundWindow;
 use winapi::um::winuser::GetParent;
@@ -24,12 +30,6 @@ use winapi::um::winuser::SWP_NOSIZE;
 use winapi::um::winuser::SW_HIDE;
 use winapi::um::winuser::SW_SHOW;
 use winapi::um::winuser::WM_CLOSE;
-use winapi::shared::minwindef::BOOL;
-use winapi::shared::windef::HWND;
-use winapi::shared::windef::RECT;
-use crate::util;
-use gwl_ex_style::GwlExStyle;
-use gwl_style::GwlStyle;
 
 pub mod gwl_ex_style;
 pub mod gwl_style;

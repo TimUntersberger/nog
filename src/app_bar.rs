@@ -2,12 +2,15 @@ use crate::change_workspace;
 use crate::display::Display;
 use crate::event::Event;
 use crate::tile_grid::TileGrid;
+use crate::util;
 use crate::CHANNEL;
+use crate::CONFIG;
 use crate::DISPLAY;
 use crate::GRIDS;
 use crate::WORKSPACE_ID;
 use lazy_static::lazy_static;
 use log::{debug, info};
+use std::ffi::CString;
 use std::sync::Mutex;
 use winapi::shared::minwindef::HINSTANCE;
 use winapi::shared::minwindef::LPARAM;
@@ -58,9 +61,6 @@ use winapi::um::winuser::WM_LBUTTONDOWN;
 use winapi::um::winuser::WM_PAINT;
 use winapi::um::winuser::WM_SETCURSOR;
 use winapi::um::winuser::WNDCLASSA;
-use std::ffi::CString;
-use crate::util;
-use crate::CONFIG;
 
 lazy_static! {
     pub static ref HEIGHT: Mutex<i32> = Mutex::new(0);

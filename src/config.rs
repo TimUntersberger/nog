@@ -3,11 +3,11 @@ use crate::tile_grid::SplitDirection;
 use log::debug;
 use regex::Regex;
 use std::io::{Error, ErrorKind, Write};
+use std::str::FromStr;
 use winapi::um::wingdi::GetBValue;
 use winapi::um::wingdi::GetGValue;
 use winapi::um::wingdi::GetRValue;
 use winapi::um::wingdi::RGB;
-use std::str::FromStr;
 
 #[macro_use]
 mod macros;

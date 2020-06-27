@@ -1,9 +1,9 @@
 use crate::task_bar;
 use crate::CONFIG;
+use log::debug;
 use winapi::um::winuser::GetSystemMetrics;
 use winapi::um::winuser::SM_CXSCREEN;
 use winapi::um::winuser::SM_CYSCREEN;
-use log::debug;
 
 #[derive(Default)]
 pub struct Display {
