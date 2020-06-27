@@ -38,28 +38,27 @@ macro_rules! if_bool {
     };
 }
 
-#[allow(dead_code)]
-macro_rules! if_specific_rule {
-    ($config:ident, $target:ident, $value:ident, $key:ident) => {
-        if $target == stringify!($key) {
-            let mut specific_rule = SpecificRule::default();
-
-            let hash = $value.as_hash().ok_or(format!("{} has to be a hash", stringify!($key)))?;
-
-            for entry in hash.iter() {
-                let (key, value) = entry;
-                let hash_key = key.as_str().ok_or("Invalid config key")?;
-
-                if_i32!(specific_rule, hash_key, value, x);
-                if_i32!(specific_rule, hash_key, value, y);
-                if_i32!(specific_rule, hash_key, value, width);
-                if_i32!(specific_rule, hash_key, value, height);
-            }
-
-            $config.$key = specific_rule;
-        }
-    };
-}
+// macro_rules! if_specific_rule {
+//     ($config:ident, $target:ident, $value:ident, $key:ident) => {
+//         if $target == stringify!($key) {
+//             let mut specific_rule = SpecificRule::default();
+//
+//             let hash = $value.as_hash().ok_or(format!("{} has to be a hash", stringify!($key)))?;
+//
+//             for entry in hash.iter() {
+//                 let (key, value) = entry;
+//                 let hash_key = key.as_str().ok_or("Invalid config key")?;
+//
+//                 if_i32!(specific_rule, hash_key, value, x);
+//                 if_i32!(specific_rule, hash_key, value, y);
+//                 if_i32!(specific_rule, hash_key, value, width);
+//                 if_i32!(specific_rule, hash_key, value, height);
+//             }
+//
+//             $config.$key = specific_rule;
+//         }
+//     };
+// }
 
 macro_rules! if_i32 {
     ($config:ident, $target:ident, $value:ident, $key:ident) => {
