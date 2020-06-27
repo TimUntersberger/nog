@@ -71,6 +71,21 @@ lazy_static! {
     pub static ref WORKSPACE_ID: Mutex<i32> = Mutex::new(1);
 }
 
+#[cfg(debug_assertions)]
+lazy_static! {
+    pub static ref LOG_FILE: String = String::from("output.log");
+}
+
+#[cfg(not(debug_assertions))]
+lazy_static! {
+    pub static ref LOG_FILE: String = {
+        let mut path = dirs::config_dir().unwrap();
+        path.push("wwm");
+        path.push("output.log");
+        path.into_os_string().into_string().unwrap()
+    };
+}
+
 fn unmanage_everything() -> Result<(), util::WinApiResultError> {
     let mut grids = GRIDS.lock().unwrap();
 
@@ -194,7 +209,22 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn main() {
-    env_logger::init();
+    fern::Dispatch::new()
+        .format(move |out, message, record| {
+            out.finish(format_args!(
+                "[{} {:5} {}] {}",
+                chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                record.level(),
+                record.target(),
+                message
+            ))
+        })
+        .level(log::LevelFilter::Debug)
+        .chain(std::io::stdout())
+        .chain(fern::log_file(LOG_FILE.as_str()).unwrap())
+        .apply()
+        .unwrap();
+
     ctrlc::set_handler(|| {
         if let Err(e) = on_quit() {
             error!("Something happend when cleaning up. {}", e);
