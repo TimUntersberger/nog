@@ -66,7 +66,7 @@ impl TileGrid {
             .iter()
             .find(|tile| tile.window.id == id)
             .clone()
-            .map(|t| t.clone())
+            .cloned()
     }
     pub fn get_tile_by_id_mut(&mut self, id: i32) -> Option<&mut Tile> {
         self.tiles.iter_mut().find(|tile| tile.window.id == id)
@@ -144,7 +144,7 @@ impl TileGrid {
                         // && (tile.column == Some(1) || tile.column == None)
                     }
                 })
-                .map(|t| t.clone())
+                .cloned()
         })
     }
     fn set_location(&mut self, id: i32, row: Option<i32>, col: Option<i32>) {
