@@ -13,6 +13,7 @@ use std::sync::Mutex;
 
 mod app_bar;
 mod config;
+mod update;
 mod tray;
 mod display;
 mod event;
@@ -237,6 +238,8 @@ fn main() {
         .chain(fern::log_file(LOG_FILE.as_str()).unwrap())
         .apply()
         .unwrap();
+
+    update::update().unwrap();
 
     ctrlc::set_handler(|| {
         if let Err(e) = on_quit() {

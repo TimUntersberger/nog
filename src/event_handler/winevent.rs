@@ -28,7 +28,7 @@ pub fn handle(ev: WinEvent) -> Result<(), Box<dyn std::error::Error>> {
             WinEventType::Destroy => destroy::handle(ev.hwnd as HWND)?,
             WinEventType::Show(ignore) => show::handle(ev.hwnd as HWND, ignore)?,
             WinEventType::FocusChange => focus_change::handle(ev.hwnd as HWND)?,
-            WinEventType::Hide => { println!("Hiding {}", ev.hwnd);}
+            WinEventType::Hide => {}
         };
     }
 
