@@ -15,7 +15,6 @@ use num_traits::FromPrimitive;
 use strum_macros::EnumString;
 use winapi::shared::windef::HWND;
 use winapi::um::winuser::DispatchMessageW;
-use winapi::um::winuser::GetMessageW;
 use winapi::um::winuser::PeekMessageW;
 use winapi::um::winuser::RegisterHotKey;
 use winapi::um::winuser::TranslateMessage;
@@ -69,6 +68,9 @@ pub fn disable(){
 }
 
 pub fn register() -> Result<(), Box<dyn std::error::Error>> {
+    if CONFIG.work_mode {
+        enable();
+    }
     std::thread::spawn(|| {
         let mut keybindings = CONFIG.keybindings.clone();
         let mut msg: MSG = MSG::default();
