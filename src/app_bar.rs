@@ -2,12 +2,15 @@ use crate::change_workspace;
 use crate::display::Display;
 use crate::event::Event;
 use crate::tile_grid::TileGrid;
+use crate::util;
 use crate::CHANNEL;
+use crate::CONFIG;
 use crate::DISPLAY;
 use crate::GRIDS;
 use crate::WORKSPACE_ID;
 use lazy_static::lazy_static;
 use log::{debug, info};
+use std::ffi::CString;
 use std::sync::Mutex;
 use winapi::shared::minwindef::HINSTANCE;
 use winapi::shared::minwindef::LPARAM;
@@ -59,11 +62,6 @@ use winapi::um::winuser::WM_PAINT;
 use winapi::um::winuser::WM_SETCURSOR;
 use winapi::um::winuser::WNDCLASSA;
 
-use std::ffi::CString;
-
-use crate::util;
-use crate::CONFIG;
-
 lazy_static! {
     pub static ref HEIGHT: Mutex<i32> = Mutex::new(0);
     pub static ref WINDOW: Mutex<i32> = Mutex::new(0);
@@ -86,7 +84,8 @@ unsafe extern "system" fn window_cb(
     if msg == WM_CLOSE {
         *WINDOW.lock().unwrap() = 0;
     } else if msg == WM_SETCURSOR {
-        SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8)); // Force a normal cursor. This probably shouldn't be done this way but whatever
+        // Force a normal cursor. This probably shouldn't be done this way but whatever
+        SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8));
     } else if msg == WM_LBUTTONDOWN {
         info!("Received mouse click");
         let x = GET_X_LPARAM(l_param);
@@ -94,42 +93,37 @@ unsafe extern "system" fn window_cb(
 
         if id <= 10 {
             let mut grids = GRIDS.lock().unwrap();
-            let grid = grids
-                .iter_mut()
-                .find(|g| g.id == id)
-                .unwrap();
+            let grid = grids.iter_mut().find(|g| g.id == id).unwrap();
 
             if !grid.tiles.is_empty() || grid.visible {
                 drop(grid);
                 drop(grids);
-                change_workspace(id);
+                change_workspace(id).expect("Failed to change workspace");
             }
         }
     } else if msg == WM_CREATE {
         info!("loading font");
         load_font();
-    } else if !hwnd.is_null() {
-        if msg == WM_PAINT {
-            info!("Received paint");
-            let reason = *REDRAW_REASON.lock().unwrap();
-            debug!("Reason for paint was {:?}", reason);
-            let mut paint = PAINTSTRUCT::default();
+    } else if !hwnd.is_null() && msg == WM_PAINT {
+        info!("Received paint");
+        let reason = *REDRAW_REASON.lock().unwrap();
+        debug!("Reason for paint was {:?}", reason);
+        let mut paint = PAINTSTRUCT::default();
 
-            GetClientRect(hwnd, &mut paint.rcPaint);
+        GetClientRect(hwnd, &mut paint.rcPaint);
 
-            BeginPaint(hwnd, &mut paint);
+        BeginPaint(hwnd, &mut paint);
 
-            match reason {
-                RedrawAppBarReason::Time => {
-                    draw_datetime(hwnd);
-                }
-                RedrawAppBarReason::Workspace => {
-                    draw_workspaces(hwnd);
-                }
+        match reason {
+            RedrawAppBarReason::Time => {
+                draw_datetime(hwnd).expect("Failed to draw datetime");
             }
-
-            EndPaint(hwnd, &paint);
+            RedrawAppBarReason::Workspace => {
+                draw_workspaces(hwnd);
+            }
         }
+
+        EndPaint(hwnd, &paint);
     }
 
     DefWindowProcA(hwnd, msg, w_param, l_param)
@@ -150,7 +144,7 @@ pub fn redraw(reason: RedrawAppBarReason) {
     }
 }
 
-fn draw_workspaces(hwnd: HWND) {
+fn draw_workspaces(_hwnd: HWND) {
     let id = *WORKSPACE_ID.lock().unwrap();
 
     let grids = GRIDS.lock().unwrap();
@@ -164,7 +158,8 @@ fn draw_workspaces(hwnd: HWND) {
     debug!("Erasing {}", workspaces.len());
     erase_workspace((workspaces.len()) as i32);
     for (i, workspace) in workspaces.iter().enumerate() {
-        draw_workspace(i as i32, workspace.id, workspace.id == id);
+        draw_workspace(i as i32, workspace.id, workspace.id == id)
+            .expect("Failed to draw workspace");
     }
 }
 
@@ -231,7 +226,8 @@ pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
         CHANNEL
             .sender
             .clone()
-            .send(Event::RedrawAppBar(RedrawAppBarReason::Time));
+            .send(Event::RedrawAppBar(RedrawAppBarReason::Time))
+            .expect("Failed to send redraw-app-bar event");
     });
 
     std::thread::spawn(move || unsafe {
@@ -288,6 +284,7 @@ pub fn close() {
     }
 }
 
+#[allow(dead_code)]
 pub fn hide() {
     unsafe {
         let hwnd = *WINDOW.lock().unwrap(); // Need to eager evaluate else there is a deadlock
@@ -303,7 +300,7 @@ pub fn show() {
     }
 
     draw_workspaces(hwnd);
-    draw_datetime(hwnd);
+    draw_datetime(hwnd).expect("Failed to draw datetime");
 }
 
 pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {

@@ -5,11 +5,18 @@ extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
 
+use app_bar::RedrawAppBarReason;
+use config::Config;
 use crossbeam_channel::select;
+use display::Display;
+use event::Event;
+use event::EventChannel;
 use lazy_static::lazy_static;
 use log::{debug, error, info};
 use std::sync::Mutex;
+use tile_grid::TileGrid;
 use winapi::shared::windef::HWND;
+use workspace::Workspace;
 
 mod app_bar;
 mod config;
@@ -28,14 +35,6 @@ mod util;
 mod win_event_handler;
 mod window;
 mod workspace;
-
-use app_bar::RedrawAppBarReason;
-use config::Config;
-use display::Display;
-use event::Event;
-use event::EventChannel;
-use tile_grid::TileGrid;
-use workspace::Workspace;
 
 lazy_static! {
     pub static ref WORK_MODE: Mutex<bool> = Mutex::new(CONFIG.work_mode);
@@ -56,6 +55,7 @@ lazy_static! {
                         DISPLAY.lock().unwrap().height - CONFIG.margin * 2 - CONFIG.padding * 2;
                     grid.width =
                         DISPLAY.lock().unwrap().width - CONFIG.margin * 2 - CONFIG.padding * 2;
+
                     if CONFIG.display_app_bar {
                         grid.height -= CONFIG.app_bar_height;
                     }
@@ -130,7 +130,8 @@ pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError> {
     CHANNEL
         .sender
         .clone()
-        .send(Event::RedrawAppBar(RedrawAppBarReason::Workspace));
+        .send(Event::RedrawAppBar(RedrawAppBarReason::Workspace))
+        .expect("Failed to send redraw-app-bar event");
 
     Ok(())
 }
@@ -169,7 +170,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         win_event_handler::register()?;
     }
 
-    change_workspace(1);
+    change_workspace(1).expect("Failed to change workspace to ID@1");
 
     info!("Starting hot key manager");
     hot_key_manager::register()?;

@@ -3,6 +3,7 @@ use crate::tile_grid::SplitDirection;
 use log::debug;
 use regex::Regex;
 use std::io::{Error, ErrorKind, Write};
+use std::str::FromStr;
 use winapi::um::wingdi::GetBValue;
 use winapi::um::wingdi::GetGValue;
 use winapi::um::wingdi::GetRValue;
@@ -10,8 +11,6 @@ use winapi::um::wingdi::RGB;
 
 #[macro_use]
 mod macros;
-
-use std::str::FromStr;
 
 #[derive(Debug, Clone)]
 pub struct Rule {
@@ -55,8 +54,8 @@ pub struct Config {
     pub rules: Vec<Rule>,
 }
 
-impl Config {
-    pub fn new() -> Self {
+impl Default for Config {
+    fn default() -> Self {
         Self {
             app_bar_height: 20,
             app_bar_bg: 0x2c2427,
@@ -73,6 +72,13 @@ impl Config {
             keybindings: Vec::new(),
             rules: Vec::new(),
         }
+    }
+}
+
+impl Config {
+    /// Creates a new default config.
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 
@@ -95,7 +101,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
         debug!("config file doesn't exist yet. Creating the file");
         if let Ok(mut file) = std::fs::File::create(pathbuf.clone()) {
             debug!("Initializing config with default values");
-            file.write(include_bytes!("../default_config.yaml"))?;
+            file.write_all(include_bytes!("../default_config.yaml"))?;
         }
     }
 
@@ -228,7 +234,12 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                             }
                         };
 
-                    config.keybindings.push(Keybinding { key, modifier, typ, registered: false });
+                    config.keybindings.push(Keybinding {
+                        key,
+                        modifier,
+                        typ,
+                        registered: false,
+                    });
                 }
             }
         }

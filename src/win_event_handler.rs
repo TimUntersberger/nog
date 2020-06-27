@@ -1,4 +1,3 @@
-use winapi::um::winuser::EVENT_OBJECT_HIDE;
 use crate::util;
 use crate::Event;
 use crate::CHANNEL;
@@ -10,14 +9,13 @@ use winapi::shared::ntdef::LONG;
 use winapi::shared::windef::HWINEVENTHOOK;
 use winapi::shared::windef::HWND;
 use winapi::um::winuser::DispatchMessageW;
-use winapi::um::winuser::GetMessageW;
 use winapi::um::winuser::PeekMessageW;
 use winapi::um::winuser::SetWinEventHook;
 use winapi::um::winuser::TranslateMessage;
-use winapi::um::winuser::UnhookWinEvent;
 use winapi::um::winuser::EVENT_MAX;
 use winapi::um::winuser::EVENT_MIN;
 use winapi::um::winuser::EVENT_OBJECT_DESTROY;
+use winapi::um::winuser::EVENT_OBJECT_HIDE;
 use winapi::um::winuser::EVENT_OBJECT_SHOW;
 use winapi::um::winuser::EVENT_SYSTEM_FOREGROUND;
 use winapi::um::winuser::MSG;
@@ -77,7 +75,6 @@ unsafe extern "system" fn handler(
         Some(event) => event,
         None => return,
     };
-
     let event = Event::WinEvent(WinEvent {
         typ: win_event_type,
         hwnd: window_handle as i32,
@@ -110,7 +107,7 @@ pub fn register() -> Result<(), util::WinApiResultError> {
                 TranslateMessage(&msg);
                 DispatchMessageW(&msg);
             }
-            
+
             if *UNREGISTER.lock().unwrap() {
                 debug!("Win event hook unregistered");
                 *UNREGISTER.lock().unwrap() = false;
