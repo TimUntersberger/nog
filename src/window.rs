@@ -2,7 +2,7 @@ pub mod gwl_ex_style;
 pub mod gwl_style;
 
 use crate::config::Rule;
-use crate::task_bar;
+
 use crate::CONFIG;
 use winapi::um::winuser::AdjustWindowRectEx;
 use winapi::um::winuser::GetForegroundWindow;
@@ -20,13 +20,13 @@ use winapi::um::winuser::GWL_STYLE;
 use winapi::um::winuser::HWND_NOTOPMOST;
 use winapi::um::winuser::HWND_TOP;
 use winapi::um::winuser::HWND_TOPMOST;
-use winapi::um::winuser::SM_CXBORDER;
+
 use winapi::um::winuser::SM_CXFRAME;
-use winapi::um::winuser::SM_CXFULLSCREEN;
-use winapi::um::winuser::SM_CYBORDER;
+
+
 use winapi::um::winuser::SM_CYCAPTION;
 use winapi::um::winuser::SM_CYFRAME;
-use winapi::um::winuser::SM_CYFULLSCREEN;
+
 use winapi::um::winuser::SWP_NOMOVE;
 use winapi::um::winuser::SWP_NOSIZE;
 use winapi::um::winuser::SW_HIDE;

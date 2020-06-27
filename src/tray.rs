@@ -80,12 +80,10 @@ unsafe extern "system" fn window_cb(
                 }
             }
         }
-    } else if msg == WM_APP {
-        if l_param as u32 == WM_RBUTTONUP {
+    } else if msg == WM_APP && l_param as u32 == WM_RBUTTONUP {
             SetForegroundWindow(hwnd);
             show_popup_menu(hwnd);
             PostMessageW(hwnd, WM_APP + 1, 0, 0);
-        }
     }
 
     DefWindowProcW(hwnd, msg, w_param, l_param)

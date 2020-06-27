@@ -108,8 +108,7 @@ unsafe extern "system" fn window_cb(
     } else if msg == WM_CREATE {
         info!("loading font");
         load_font();
-    } else if !hwnd.is_null() {
-        if msg == WM_PAINT {
+    } else if !hwnd.is_null() && msg == WM_PAINT {
             info!("Received paint");
             let reason = *REDRAW_REASON.lock().unwrap();
             debug!("Reason for paint was {:?}", reason);
@@ -129,7 +128,6 @@ unsafe extern "system" fn window_cb(
             }
 
             EndPaint(hwnd, &paint);
-        }
     }
 
     DefWindowProcA(hwnd, msg, w_param, l_param)
@@ -150,7 +148,7 @@ pub fn redraw(reason: RedrawAppBarReason) {
     }
 }
 
-fn draw_workspaces(hwnd: HWND) {
+fn draw_workspaces(_hwnd: HWND) {
     let id = *WORKSPACE_ID.lock().unwrap();
 
     let grids = GRIDS.lock().unwrap();
@@ -288,6 +286,7 @@ pub fn close() {
     }
 }
 
+#[allow(dead_code)]
 pub fn hide() {
     unsafe {
         let hwnd = *WINDOW.lock().unwrap(); // Need to eager evaluate else there is a deadlock

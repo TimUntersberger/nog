@@ -7,7 +7,7 @@ use crate::win_event_handler;
 use crate::hot_key_manager;
 use crate::unmanage_everything;
 
-use log::debug;
+
 
 pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
     let work_mode = *WORK_MODE.lock().unwrap();

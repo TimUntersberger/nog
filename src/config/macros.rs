@@ -38,6 +38,7 @@ macro_rules! if_bool {
     };
 }
 
+#[allow(dead_code)]
 macro_rules! if_specific_rule {
     ($config:ident, $target:ident, $value:ident, $key:ident) => {
         if $target == stringify!($key) {

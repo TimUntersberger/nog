@@ -352,7 +352,7 @@ impl TileGrid {
                         .map(|row| if row > self.rows { row - 1 } else { row });
 
                     let maybe_next_tile: Option<&Tile> = self.tiles.iter().find(|tile| {
-                        return (tile.column == None || tile.column == next_column) && (tile.row == None || tile.row == next_row);
+                        (tile.column == None || tile.column == next_column) && (tile.row == None || tile.row == next_row)
                     });
 
                     if let Some(next_tile) = maybe_next_tile {
@@ -532,7 +532,7 @@ impl TileGrid {
             }
         }
 
-        print!("\n");
+        println!();
 
         for row in 0..self.rows {
             print!("|");
@@ -547,10 +547,10 @@ impl TileGrid {
                     }
                 }
             }
-            print!("\n");
+            println!();
         }
 
-        print!("\n");
+        println!();
     }
 
     pub fn draw_grid(&self) {

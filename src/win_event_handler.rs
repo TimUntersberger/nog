@@ -10,11 +10,11 @@ use winapi::shared::ntdef::LONG;
 use winapi::shared::windef::HWINEVENTHOOK;
 use winapi::shared::windef::HWND;
 use winapi::um::winuser::DispatchMessageW;
-use winapi::um::winuser::GetMessageW;
+
 use winapi::um::winuser::PeekMessageW;
 use winapi::um::winuser::SetWinEventHook;
 use winapi::um::winuser::TranslateMessage;
-use winapi::um::winuser::UnhookWinEvent;
+
 use winapi::um::winuser::EVENT_MAX;
 use winapi::um::winuser::EVENT_MIN;
 use winapi::um::winuser::EVENT_OBJECT_DESTROY;

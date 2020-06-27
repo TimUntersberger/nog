@@ -12,22 +12,22 @@ use crate::event::Event;
 use crate::hot_key_manager::Keybinding;
 use crate::hot_key_manager::KeybindingType;
 use crate::CHANNEL;
-use crate::win_event_handler::WinEvent;
-use crate::win_event_handler::WinEventType;
+
+
 use crate::WORK_MODE;
 use winapi::um::processthreadsapi::CreateProcessA;
 use winapi::um::processthreadsapi::PROCESS_INFORMATION;
 use winapi::um::processthreadsapi::STARTUPINFOA;
 
 use log::{error, info};
-use std::process::Command;
+
 
 pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
     info!("Received keybinding of type {:?}", kb.typ);
     let sender = CHANNEL.sender.clone();
     if *WORK_MODE.lock().unwrap() {
         match kb.typ {
-            KeybindingType::Launch(mut cmd) => {
+            KeybindingType::Launch(cmd) => {
                 let mut si = STARTUPINFOA::default();
                 let mut pi = PROCESS_INFORMATION::default();
                 let mut cmd_bytes: Vec<u8> = cmd.bytes().chain(std::iter::once(0)).collect();
