@@ -5,6 +5,7 @@ extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
 
+use winapi::shared::windef::HWND;
 use crossbeam_channel::select;
 use lazy_static::lazy_static;
 use log::{debug, error, info};
@@ -33,6 +34,12 @@ use event::Event;
 use event::EventChannel;
 use tile_grid::TileGrid;
 use workspace::Workspace;
+
+pub fn to_widestring(string: &str) -> Vec<u16> {
+    string.encode_utf16()
+        .chain(std::iter::once(0))
+        .collect::<Vec<_>>()
+}
 
 lazy_static! {
     pub static ref WORK_MODE: Mutex<bool> = Mutex::new(CONFIG.work_mode);
@@ -197,6 +204,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     Event::RedrawAppBar(reason) => app_bar::redraw(reason),
                     Event::WinEvent(ev) => event_handler::winevent::handle(ev)?,
                     Event::Exit => {
+                        tray::remove_icon(*tray::WINDOW.lock().unwrap() as HWND);
                         on_quit()?;
                         break;
                     }
