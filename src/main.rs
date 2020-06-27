@@ -35,12 +35,6 @@ use event::EventChannel;
 use tile_grid::TileGrid;
 use workspace::Workspace;
 
-pub fn to_widestring(string: &str) -> Vec<u16> {
-    string.encode_utf16()
-        .chain(std::iter::once(0))
-        .collect::<Vec<_>>()
-}
-
 lazy_static! {
     pub static ref WORK_MODE: Mutex<bool> = Mutex::new(CONFIG.work_mode);
     pub static ref CONFIG: Config = config::load().unwrap();
@@ -207,6 +201,17 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         tray::remove_icon(*tray::WINDOW.lock().unwrap() as HWND);
                         on_quit()?;
                         break;
+                    },
+                    Event::ReloadConfig => {
+                        //lock Config
+                        //parse Config
+                        //if config is valid
+                            //set config
+                            //handle display_app_bar
+                            //handle remove_task_bar
+                            //handle remove_title_bar
+                            //disable hot_key_manager with work_mode bindings
+                            //enable hot_key_manager with work_mode bindings
                     }
                 }
             }

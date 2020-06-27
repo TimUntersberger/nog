@@ -1,5 +1,4 @@
 use crate::event::Event;
-use crate::to_widestring;
 use crate::util;
 use crate::CHANNEL;
 use crate::CONFIG;
@@ -93,7 +92,7 @@ unsafe extern "system" fn window_cb(
 }
 
 pub fn create() -> Result<(), util::WinApiResultError> {
-    let name = to_widestring("WWM Tray");
+    let name = util::to_widestring("WWM Tray");
 
     std::thread::spawn(move || unsafe {
         let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
@@ -182,7 +181,7 @@ pub fn remove_icon(hwnd: HWND) {
 unsafe fn show_popup_menu(hwnd: HWND) {
     let menu = CreatePopupMenu();
 
-    let mut exit = to_widestring("Exit");
+    let mut exit = util::to_widestring("Exit");
 
     InsertMenuW(
         menu,

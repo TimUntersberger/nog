@@ -10,6 +10,7 @@ pub enum Event {
     Keybinding(Keybinding),
     WinEvent(WinEvent),
     RedrawAppBar(RedrawAppBarReason),
+    ReloadConfig,
     Exit
 }
 

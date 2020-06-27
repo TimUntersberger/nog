@@ -49,3 +49,9 @@ pub fn winapi_nullable_to_result<T>(input: T) -> WinApiResult<T> where T: Partia
         Err(WinApiResultError::Null)
     }
 }
+
+pub fn to_widestring(string: &str) -> Vec<u16> {
+    string.encode_utf16()
+        .chain(std::iter::once(0))
+        .collect::<Vec<_>>()
+}
