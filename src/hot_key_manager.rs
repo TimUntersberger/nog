@@ -115,7 +115,7 @@ pub fn register() -> Result<(), Box<dyn std::error::Error>> {
                         if let Some(key) = Key::from_isize(msg.lParam >> 16) {
                             for kb in &keybindings {
                                 if kb.key == key && kb.modifier == modifier {
-                                    CHANNEL.sender.clone().send(Event::Keybinding(kb.clone()));
+                                    CHANNEL.sender.clone().send(Event::Keybinding(kb.clone())).expect("Failed to send key event");
                                 }
                             }
                         }

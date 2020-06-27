@@ -71,7 +71,7 @@ unsafe extern "system" fn window_cb(
     if msg == WM_CREATE {
         add_icon(hwnd);
     } else if msg == WM_CLOSE {
-        CHANNEL.sender.clone().send(Event::Exit);
+        CHANNEL.sender.clone().send(Event::Exit).expect("Failed to send exit event");
     } else if msg == WM_COMMAND {
         if let Some(id) = PopupId::from_u16(LOWORD(w_param as u32)) {
             match id {

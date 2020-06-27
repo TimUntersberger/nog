@@ -145,7 +145,7 @@ pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError> {
     drop(grids);
     drop(gid);
 
-    CHANNEL.sender.clone().send(Event::RedrawAppBar(RedrawAppBarReason::Workspace));
+    CHANNEL.sender.clone().send(Event::RedrawAppBar(RedrawAppBarReason::Workspace)).expect("Failed to send redraw-app-bar event");
 
     Ok(())
 }
@@ -184,7 +184,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         win_event_handler::register()?;
     }
 
-    change_workspace(1);
+    change_workspace(1).expect("Failed to change workspace to ID@1");
 
     info!("Starting hot key manager");
     hot_key_manager::register()?;

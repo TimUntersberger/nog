@@ -102,7 +102,7 @@ unsafe extern "system" fn window_cb(
             if !grid.tiles.is_empty() || grid.visible {
                 drop(grid);
                 drop(grids);
-                change_workspace(id);
+                change_workspace(id).expect("Failed to change workspace");
             }
         }
     } else if msg == WM_CREATE {
@@ -120,7 +120,7 @@ unsafe extern "system" fn window_cb(
 
             match reason {
                 RedrawAppBarReason::Time => {
-                    draw_datetime(hwnd);
+                    draw_datetime(hwnd).expect("Failed to draw datetime");
                 }
                 RedrawAppBarReason::Workspace => {
                     draw_workspaces(hwnd);
@@ -162,7 +162,7 @@ fn draw_workspaces(_hwnd: HWND) {
     debug!("Erasing {}", workspaces.len());
     erase_workspace((workspaces.len()) as i32);
     for (i, workspace) in workspaces.iter().enumerate() {
-        draw_workspace(i as i32, workspace.id, workspace.id == id);
+        draw_workspace(i as i32, workspace.id, workspace.id == id).expect("Failed to draw workspace");
     }
 }
 
@@ -229,7 +229,7 @@ pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
         CHANNEL
             .sender
             .clone()
-            .send(Event::RedrawAppBar(RedrawAppBarReason::Time));
+            .send(Event::RedrawAppBar(RedrawAppBarReason::Time)).expect("Failed to send redraw-app-bar event");
     });
 
     std::thread::spawn(move || unsafe {
@@ -302,7 +302,7 @@ pub fn show() {
     }
 
     draw_workspaces(hwnd);
-    draw_datetime(hwnd);
+    draw_datetime(hwnd).expect("Failed to draw datetime");
 }
 
 pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {

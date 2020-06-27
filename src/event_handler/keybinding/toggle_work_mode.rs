@@ -29,7 +29,7 @@ pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
         hot_key_manager::enable();
 
         if CONFIG.display_app_bar {
-            app_bar::create(&*DISPLAY.lock().unwrap());
+            app_bar::create(&*DISPLAY.lock().unwrap()).expect("Failed to create app bar");
         }
         if CONFIG.remove_task_bar {
             task_bar::hide();

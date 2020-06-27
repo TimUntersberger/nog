@@ -46,18 +46,18 @@ impl TileGrid {
     }
     pub fn hide(&mut self) {
         for tile in &self.tiles {
-            tile.window.hide();
+            tile.window.hide().expect("Failed to hide window");
         }
         self.visible = false;
     }
     pub fn show(&mut self) {
         for tile in &self.tiles {
-            tile.window.show();
-            tile.window.to_foreground(true);
-            tile.window.remove_topmost();
+            tile.window.show().expect("Failed to show window");
+            tile.window.to_foreground(true).expect("Failed to move window to foreground");
+            tile.window.remove_topmost().expect("Failed to remove top-most window");
         }
         if let Some(tile) = self.get_focused_tile() {
-            tile.window.focus();
+            tile.window.focus().expect("Failed to focus window");
         }
         self.visible = true;
     }
