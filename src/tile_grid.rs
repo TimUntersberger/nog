@@ -174,8 +174,7 @@ impl TileGrid {
             return Ok(());
         }
         let maybe_next_id = self.get_next_tile_id(direction);
-        if maybe_next_id.is_some() {
-            let next_id = maybe_next_id.unwrap();
+        if let Some(next_id) = maybe_next_id {
             //if we get a next tile we can assume that a tile is focused
             let focused_id = self.focused_window_id.unwrap();
             self.swap_tiles(next_id, focused_id);
@@ -201,9 +200,8 @@ impl TileGrid {
             if counters {
                 let maybe_tile = self.get_tile_by_id(prev.1);
 
-                if maybe_tile.is_some() {
+                if let Some(tile) = maybe_tile {
                     debug!("The direction counters the previous one. Reverting the previous one.");
-                    let tile = maybe_tile.unwrap();
                     return Ok(Some(tile));
                 }
             }
@@ -227,9 +225,7 @@ impl TileGrid {
 
         let maybe_next_tile = self.get_next_tile(direction);
 
-        if maybe_next_tile.is_some() {
-            let next_tile = maybe_next_tile.unwrap();
-
+        if let Some(next_tile) = maybe_next_tile {
             self.focus_stack
                 .push((direction, self.focused_window_id.unwrap()));
 
