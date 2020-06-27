@@ -11,9 +11,9 @@ use crate::win_event_handler::WinEventType;
 use log::debug;
 
 pub fn handle(ev: WinEvent) -> Result<(), Box<dyn std::error::Error>> {
-    let title = match util::get_title_of_window(ev.hwnd as HWND) { // We only care about the windows that have a title
+    let title = match util::get_title_of_window(ev.hwnd as HWND) {
         Ok(title) => title,
-        Err(_) => return Ok(())
+        Err(_) => String::from("UNKNOWN") // this just means that we can't fetch the titlte
     };
 
     debug!(

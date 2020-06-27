@@ -77,6 +77,7 @@ unsafe extern "system" fn handler(
         Some(event) => event,
         None => return,
     };
+
     let event = Event::WinEvent(WinEvent {
         typ: win_event_type,
         hwnd: window_handle as i32,

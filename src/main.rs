@@ -234,8 +234,10 @@ fn main() {
             ))
         })
         .level(log::LevelFilter::Debug)
-        .chain(std::io::stdout())
+        .level_for("hyper", log::LevelFilter::Info)
+        //.level_for("wwm::app_bar", log::LevelFilter::Error)
         .chain(fern::log_file(LOG_FILE.as_str()).unwrap())
+        .chain(std::io::stdout())
         .apply()
         .unwrap();
 
