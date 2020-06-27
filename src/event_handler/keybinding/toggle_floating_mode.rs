@@ -5,7 +5,6 @@ use crate::window::Window;
 use crate::CHANNEL;
 use crate::GRIDS;
 use crate::WORKSPACE_ID;
-
 use log::debug;
 
 pub fn handle() -> Result<(), Box<dyn std::error::Error>> {

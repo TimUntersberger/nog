@@ -6,7 +6,6 @@ use crate::window::Window;
 use crate::CONFIG;
 use crate::GRIDS;
 use crate::WORKSPACE_ID;
-
 use log::debug;
 use winapi::shared::windef::HWND;
 

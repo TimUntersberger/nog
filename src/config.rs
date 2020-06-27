@@ -7,11 +7,10 @@ use winapi::um::wingdi::GetBValue;
 use winapi::um::wingdi::GetGValue;
 use winapi::um::wingdi::GetRValue;
 use winapi::um::wingdi::RGB;
+use std::str::FromStr;
 
 #[macro_use]
 mod macros;
-
-use std::str::FromStr;
 
 #[derive(Debug, Clone)]
 pub struct Rule {

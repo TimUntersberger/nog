@@ -1,14 +1,13 @@
-mod destroy;
-mod focus_change;
-mod show;
-
 use crate::util;
 use crate::win_event_handler::WinEvent;
 use crate::win_event_handler::WinEventType;
 use crate::WORK_MODE;
 use winapi::shared::windef::HWND;
-
 use log::debug;
+
+mod destroy;
+mod focus_change;
+mod show;
 
 pub fn handle(ev: WinEvent) -> Result<(), Box<dyn std::error::Error>> {
     let title = match util::get_title_of_window(ev.hwnd as HWND) {

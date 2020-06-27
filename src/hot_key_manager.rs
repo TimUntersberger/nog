@@ -1,6 +1,3 @@
-pub mod key;
-pub mod modifier;
-
 use crate::event::Event;
 use crate::tile_grid::SplitDirection;
 use crate::util;
@@ -22,6 +19,9 @@ use winapi::um::winuser::UnregisterHotKey;
 use winapi::um::winuser::MSG;
 use winapi::um::winuser::PM_REMOVE;
 use winapi::um::winuser::WM_HOTKEY;
+
+pub mod key;
+pub mod modifier;
 
 pub type Command = String;
 

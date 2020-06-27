@@ -10,6 +10,13 @@ use lazy_static::lazy_static;
 use log::{debug, error, info};
 use std::sync::Mutex;
 use winapi::shared::windef::HWND;
+use app_bar::RedrawAppBarReason;
+use config::Config;
+use display::Display;
+use event::Event;
+use event::EventChannel;
+use tile_grid::TileGrid;
+use workspace::Workspace;
 
 mod app_bar;
 mod config;
@@ -27,14 +34,6 @@ mod util;
 mod win_event_handler;
 mod window;
 mod workspace;
-
-use app_bar::RedrawAppBarReason;
-use config::Config;
-use display::Display;
-use event::Event;
-use event::EventChannel;
-use tile_grid::TileGrid;
-use workspace::Workspace;
 
 lazy_static! {
     pub static ref WORK_MODE: Mutex<bool> = Mutex::new(CONFIG.work_mode);

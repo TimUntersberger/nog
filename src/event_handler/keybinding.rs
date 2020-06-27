@@ -1,10 +1,3 @@
-mod close_tile;
-mod focus;
-mod split;
-mod swap;
-mod toggle_floating_mode;
-mod toggle_work_mode;
-
 use crate::change_workspace;
 use crate::event::Event;
 use crate::hot_key_manager::Keybinding;
@@ -12,13 +5,18 @@ use crate::hot_key_manager::KeybindingType;
 use crate::CHANNEL;
 use crate::GRIDS;
 use crate::WORKSPACE_ID;
-
 use crate::WORK_MODE;
 use winapi::um::processthreadsapi::CreateProcessA;
 use winapi::um::processthreadsapi::PROCESS_INFORMATION;
 use winapi::um::processthreadsapi::STARTUPINFOA;
-
 use log::{error, info};
+
+mod close_tile;
+mod focus;
+mod split;
+mod swap;
+mod toggle_floating_mode;
+mod toggle_work_mode;
 
 pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
     info!("Received keybinding of type {:?}", kb.typ);

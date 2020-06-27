@@ -58,9 +58,7 @@ use winapi::um::winuser::WM_LBUTTONDOWN;
 use winapi::um::winuser::WM_PAINT;
 use winapi::um::winuser::WM_SETCURSOR;
 use winapi::um::winuser::WNDCLASSA;
-
 use std::ffi::CString;
-
 use crate::util;
 use crate::CONFIG;
 
