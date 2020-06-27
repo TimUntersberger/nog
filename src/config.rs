@@ -102,7 +102,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
         debug!("config file doesn't exist yet. Creating the file");
         if let Ok(mut file) = std::fs::File::create(pathbuf.clone()) {
             debug!("Initializing config with default values");
-            file.write(include_bytes!("../default_config.yaml"))?;
+            file.write_all(include_bytes!("../default_config.yaml"))?;
         }
     }
 
