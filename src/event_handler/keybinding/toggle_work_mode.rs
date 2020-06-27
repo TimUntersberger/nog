@@ -1,13 +1,11 @@
-use crate::DISPLAY;
-use crate::CONFIG;
-use crate::WORK_MODE;
 use crate::app_bar;
-use crate::task_bar;
-use crate::win_event_handler;
 use crate::hot_key_manager;
+use crate::task_bar;
 use crate::unmanage_everything;
-
-use log::debug;
+use crate::win_event_handler;
+use crate::CONFIG;
+use crate::DISPLAY;
+use crate::WORK_MODE;
 
 pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
     let work_mode = *WORK_MODE.lock().unwrap();
@@ -29,7 +27,7 @@ pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
         hot_key_manager::enable();
 
         if CONFIG.display_app_bar {
-            app_bar::create(&*DISPLAY.lock().unwrap());
+            app_bar::create(&*DISPLAY.lock().unwrap()).expect("Failed to create app bar");
         }
         if CONFIG.remove_task_bar {
             task_bar::hide();

@@ -1,16 +1,14 @@
-use crate::CONFIG;
 use crate::task_bar;
-
+use crate::CONFIG;
+use log::debug;
 use winapi::um::winuser::GetSystemMetrics;
-use winapi::um::winuser::SM_CYSCREEN;
 use winapi::um::winuser::SM_CXSCREEN;
-
-use log::{debug};
+use winapi::um::winuser::SM_CYSCREEN;
 
 #[derive(Default)]
 pub struct Display {
     pub height: i32,
-    pub width: i32
+    pub width: i32,
 }
 
 impl Display {
@@ -33,6 +31,9 @@ impl Display {
             self.height -= *task_bar::HEIGHT.lock().unwrap();
         }
 
-        debug!("Initialized Display(width: {}, height: {})", self.width, self.height);
+        debug!(
+            "Initialized Display(width: {}, height: {})",
+            self.width, self.height
+        );
     }
 }

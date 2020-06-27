@@ -1,7 +1,3 @@
-pub mod key;
-pub mod modifier;
-
-use std::sync::Mutex;
 use crate::event::Event;
 use crate::tile_grid::SplitDirection;
 use crate::util;
@@ -12,6 +8,7 @@ use lazy_static::lazy_static;
 use log::info;
 use modifier::Modifier;
 use num_traits::FromPrimitive;
+use std::sync::Mutex;
 use strum_macros::EnumString;
 use winapi::shared::windef::HWND;
 use winapi::um::winuser::DispatchMessageW;
@@ -22,6 +19,9 @@ use winapi::um::winuser::UnregisterHotKey;
 use winapi::um::winuser::MSG;
 use winapi::um::winuser::PM_REMOVE;
 use winapi::um::winuser::WM_HOTKEY;
+
+pub mod key;
+pub mod modifier;
 
 pub type Command = String;
 
@@ -59,11 +59,11 @@ lazy_static! {
     static ref WORK_MODE: Mutex<bool> = Mutex::new(false);
 }
 
-pub fn enable(){
+pub fn enable() {
     *WORK_MODE.lock().unwrap() = true;
 }
 
-pub fn disable(){
+pub fn disable() {
     *WORK_MODE.lock().unwrap() = false;
 }
 
@@ -115,7 +115,11 @@ pub fn register() -> Result<(), Box<dyn std::error::Error>> {
                         if let Some(key) = Key::from_isize(msg.lParam >> 16) {
                             for kb in &keybindings {
                                 if kb.key == key && kb.modifier == modifier {
-                                    CHANNEL.sender.clone().send(Event::Keybinding(kb.clone()));
+                                    CHANNEL
+                                        .sender
+                                        .clone()
+                                        .send(Event::Keybinding(kb.clone()))
+                                        .expect("Failed to send key event");
                                 }
                             }
                         }

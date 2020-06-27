@@ -1,16 +1,13 @@
-use winapi::um::winuser::GWL_STYLE;
-use winapi::um::winuser::SetWindowLongA;
-use crate::window::Window;
-use crate::WORKSPACE_ID;
-use crate::GRIDS;
-use crate::CONFIG;
-use crate::util;
 use crate::change_workspace;
-use crate::window::gwl_style::GwlStyle;
+use crate::util;
 use crate::window::gwl_ex_style::GwlExStyle;
-
-use winapi::shared::windef::HWND;
+use crate::window::gwl_style::GwlStyle;
+use crate::window::Window;
+use crate::CONFIG;
+use crate::GRIDS;
+use crate::WORKSPACE_ID;
 use log::debug;
+use winapi::shared::windef::HWND;
 
 pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::error::Error>> {
     //TODO: fix problem with powershell and native wsl
@@ -43,7 +40,8 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
         }
     }
 
-    let should_manage = window.rule.clone().unwrap_or_default().manage && parent.is_err() && correct_style;
+    let should_manage =
+        window.rule.clone().unwrap_or_default().manage && parent.is_err() && correct_style;
 
     if should_manage {
         debug!("Managing window");
@@ -65,10 +63,7 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
         }
 
         let mut grids = GRIDS.lock().unwrap();
-        let grid = grids
-            .iter_mut()
-            .find(|g| g.id == workspace_id)
-            .unwrap();
+        let grid = grids.iter_mut().find(|g| g.id == workspace_id).unwrap();
 
         window.original_rect = window.get_rect()?;
 
@@ -77,5 +72,5 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
         grid.draw_grid();
     }
 
-    Ok(()) 
+    Ok(())
 }

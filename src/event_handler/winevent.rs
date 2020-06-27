@@ -1,27 +1,22 @@
-mod destroy;
-mod show;
-mod focus_change;
-
-use crate::WORK_MODE;
-use winapi::shared::windef::HWND;
 use crate::util;
 use crate::win_event_handler::WinEvent;
 use crate::win_event_handler::WinEventType;
-
+use crate::WORK_MODE;
 use log::debug;
+use winapi::shared::windef::HWND;
+
+mod destroy;
+mod focus_change;
+mod show;
 
 pub fn handle(ev: WinEvent) -> Result<(), Box<dyn std::error::Error>> {
     let title = match util::get_title_of_window(ev.hwnd as HWND) {
+        // We only care about the windows that have a title
         Ok(title) => title,
-        Err(_) => String::from("UNKNOWN") // this just means that we can't fetch the titlte
+        Err(_) => return Ok(()),
     };
 
-    debug!(
-        "{:?}: '{}' | {}",
-        ev.typ,
-        title,
-        ev.hwnd as i32
-    );
+    debug!("{:?}: '{}' | {}", ev.typ, title, ev.hwnd as i32);
 
     if *WORK_MODE.lock().unwrap() {
         match ev.typ {

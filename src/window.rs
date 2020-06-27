@@ -1,9 +1,11 @@
-pub mod gwl_ex_style;
-pub mod gwl_style;
-
 use crate::config::Rule;
-use crate::task_bar;
+use crate::util;
 use crate::CONFIG;
+use gwl_ex_style::GwlExStyle;
+use gwl_style::GwlStyle;
+use winapi::shared::minwindef::BOOL;
+use winapi::shared::windef::HWND;
+use winapi::shared::windef::RECT;
 use winapi::um::winuser::AdjustWindowRectEx;
 use winapi::um::winuser::GetForegroundWindow;
 use winapi::um::winuser::GetParent;
@@ -20,26 +22,17 @@ use winapi::um::winuser::GWL_STYLE;
 use winapi::um::winuser::HWND_NOTOPMOST;
 use winapi::um::winuser::HWND_TOP;
 use winapi::um::winuser::HWND_TOPMOST;
-use winapi::um::winuser::SM_CXBORDER;
 use winapi::um::winuser::SM_CXFRAME;
-use winapi::um::winuser::SM_CXFULLSCREEN;
-use winapi::um::winuser::SM_CYBORDER;
 use winapi::um::winuser::SM_CYCAPTION;
 use winapi::um::winuser::SM_CYFRAME;
-use winapi::um::winuser::SM_CYFULLSCREEN;
 use winapi::um::winuser::SWP_NOMOVE;
 use winapi::um::winuser::SWP_NOSIZE;
 use winapi::um::winuser::SW_HIDE;
 use winapi::um::winuser::SW_SHOW;
 use winapi::um::winuser::WM_CLOSE;
 
-use winapi::shared::minwindef::BOOL;
-use winapi::shared::windef::HWND;
-use winapi::shared::windef::RECT;
-
-use crate::util;
-use gwl_ex_style::GwlExStyle;
-use gwl_style::GwlStyle;
+pub mod gwl_ex_style;
+pub mod gwl_style;
 
 #[derive(Clone)]
 pub struct Window {
@@ -120,14 +113,10 @@ impl Window {
         }
     }
     pub fn show(&self) -> util::WinApiResult<BOOL> {
-        unsafe {
-            util::winapi_err_to_result(ShowWindow(self.id as HWND, SW_SHOW))
-        }
+        unsafe { util::winapi_err_to_result(ShowWindow(self.id as HWND, SW_SHOW)) }
     }
     pub fn hide(&self) -> util::WinApiResult<BOOL> {
-        unsafe {
-            util::winapi_err_to_result(ShowWindow(self.id as HWND, SW_HIDE))
-        }
+        unsafe { util::winapi_err_to_result(ShowWindow(self.id as HWND, SW_HIDE)) }
     }
     pub fn calculate_window_rect(&self, x: i32, y: i32, width: i32, height: i32) -> RECT {
         let rule = self.rule.clone().unwrap_or_default();
