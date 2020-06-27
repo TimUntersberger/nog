@@ -86,7 +86,8 @@ unsafe extern "system" fn window_cb(
     if msg == WM_CLOSE {
         *WINDOW.lock().unwrap() = 0;
     } else if msg == WM_SETCURSOR {
-        SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8)); // Force a normal cursor. This probably shouldn't be done this way but whatever
+        // Force a normal cursor. This probably shouldn't be done this way but whatever
+        SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8));
     } else if msg == WM_LBUTTONDOWN {
         info!("Received mouse click");
         let x = GET_X_LPARAM(l_param);
