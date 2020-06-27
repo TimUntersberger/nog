@@ -1,3 +1,4 @@
+use bitflags::bitflags;
 use winapi::um::winuser::WS_EX_ACCEPTFILES;
 use winapi::um::winuser::WS_EX_APPWINDOW;
 use winapi::um::winuser::WS_EX_CLIENTEDGE;
@@ -25,7 +26,6 @@ use winapi::um::winuser::WS_EX_TOOLWINDOW;
 use winapi::um::winuser::WS_EX_TOPMOST;
 use winapi::um::winuser::WS_EX_TRANSPARENT;
 use winapi::um::winuser::WS_EX_WINDOWEDGE;
-use bitflags::bitflags;
 
 bitflags! {
     #[derive(Default)]

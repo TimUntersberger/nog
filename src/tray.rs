@@ -71,7 +71,11 @@ unsafe extern "system" fn window_cb(
     if msg == WM_CREATE {
         add_icon(hwnd);
     } else if msg == WM_CLOSE {
-        CHANNEL.sender.clone().send(Event::Exit).expect("Failed to send exit event");
+        CHANNEL
+            .sender
+            .clone()
+            .send(Event::Exit)
+            .expect("Failed to send exit event");
     } else if msg == WM_COMMAND {
         if let Some(id) = PopupId::from_u16(LOWORD(w_param as u32)) {
             match id {
@@ -81,9 +85,9 @@ unsafe extern "system" fn window_cb(
             }
         }
     } else if msg == WM_APP && l_param as u32 == WM_RBUTTONUP {
-            SetForegroundWindow(hwnd);
-            show_popup_menu(hwnd);
-            PostMessageW(hwnd, WM_APP + 1, 0, 0);
+        SetForegroundWindow(hwnd);
+        show_popup_menu(hwnd);
+        PostMessageW(hwnd, WM_APP + 1, 0, 0);
     }
 
     DefWindowProcW(hwnd, msg, w_param, l_param)

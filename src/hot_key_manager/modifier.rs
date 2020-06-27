@@ -1,6 +1,6 @@
 use bitflags::bitflags;
 
-bitflags!{
+bitflags! {
     #[derive(Default)]
     #[allow(dead_code)]
     pub struct Modifier: u32 {

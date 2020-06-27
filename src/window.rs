@@ -23,7 +23,6 @@ use winapi::um::winuser::HWND_TOPMOST;
 
 use winapi::um::winuser::SM_CXFRAME;
 
-
 use winapi::um::winuser::SM_CYCAPTION;
 use winapi::um::winuser::SM_CYFRAME;
 
@@ -120,14 +119,10 @@ impl Window {
         }
     }
     pub fn show(&self) -> util::WinApiResult<BOOL> {
-        unsafe {
-            util::winapi_err_to_result(ShowWindow(self.id as HWND, SW_SHOW))
-        }
+        unsafe { util::winapi_err_to_result(ShowWindow(self.id as HWND, SW_SHOW)) }
     }
     pub fn hide(&self) -> util::WinApiResult<BOOL> {
-        unsafe {
-            util::winapi_err_to_result(ShowWindow(self.id as HWND, SW_HIDE))
-        }
+        unsafe { util::winapi_err_to_result(ShowWindow(self.id as HWND, SW_HIDE)) }
     }
     pub fn calculate_window_rect(&self, x: i32, y: i32, width: i32, height: i32) -> RECT {
         let rule = self.rule.clone().unwrap_or_default();

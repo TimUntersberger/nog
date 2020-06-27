@@ -94,10 +94,7 @@ unsafe extern "system" fn window_cb(
 
         if id <= 10 {
             let mut grids = GRIDS.lock().unwrap();
-            let grid = grids
-                .iter_mut()
-                .find(|g| g.id == id)
-                .unwrap();
+            let grid = grids.iter_mut().find(|g| g.id == id).unwrap();
 
             if !grid.tiles.is_empty() || grid.visible {
                 drop(grid);
@@ -109,25 +106,25 @@ unsafe extern "system" fn window_cb(
         info!("loading font");
         load_font();
     } else if !hwnd.is_null() && msg == WM_PAINT {
-            info!("Received paint");
-            let reason = *REDRAW_REASON.lock().unwrap();
-            debug!("Reason for paint was {:?}", reason);
-            let mut paint = PAINTSTRUCT::default();
+        info!("Received paint");
+        let reason = *REDRAW_REASON.lock().unwrap();
+        debug!("Reason for paint was {:?}", reason);
+        let mut paint = PAINTSTRUCT::default();
 
-            GetClientRect(hwnd, &mut paint.rcPaint);
+        GetClientRect(hwnd, &mut paint.rcPaint);
 
-            BeginPaint(hwnd, &mut paint);
+        BeginPaint(hwnd, &mut paint);
 
-            match reason {
-                RedrawAppBarReason::Time => {
-                    draw_datetime(hwnd).expect("Failed to draw datetime");
-                }
-                RedrawAppBarReason::Workspace => {
-                    draw_workspaces(hwnd);
-                }
+        match reason {
+            RedrawAppBarReason::Time => {
+                draw_datetime(hwnd).expect("Failed to draw datetime");
             }
+            RedrawAppBarReason::Workspace => {
+                draw_workspaces(hwnd);
+            }
+        }
 
-            EndPaint(hwnd, &paint);
+        EndPaint(hwnd, &paint);
     }
 
     DefWindowProcA(hwnd, msg, w_param, l_param)
@@ -162,7 +159,8 @@ fn draw_workspaces(_hwnd: HWND) {
     debug!("Erasing {}", workspaces.len());
     erase_workspace((workspaces.len()) as i32);
     for (i, workspace) in workspaces.iter().enumerate() {
-        draw_workspace(i as i32, workspace.id, workspace.id == id).expect("Failed to draw workspace");
+        draw_workspace(i as i32, workspace.id, workspace.id == id)
+            .expect("Failed to draw workspace");
     }
 }
 
@@ -229,7 +227,8 @@ pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
         CHANNEL
             .sender
             .clone()
-            .send(Event::RedrawAppBar(RedrawAppBarReason::Time)).expect("Failed to send redraw-app-bar event");
+            .send(Event::RedrawAppBar(RedrawAppBarReason::Time))
+            .expect("Failed to send redraw-app-bar event");
     });
 
     std::thread::spawn(move || unsafe {

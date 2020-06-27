@@ -1,14 +1,14 @@
+use lazy_static::lazy_static;
+use log::debug;
+use std::ffi::CString;
+use std::sync::Mutex;
+use winapi::shared::windef::HWND;
+use winapi::shared::windef::RECT;
 use winapi::um::winuser::FindWindowA;
 use winapi::um::winuser::GetWindowRect;
+use winapi::um::winuser::ShowWindow;
 use winapi::um::winuser::SW_HIDE;
 use winapi::um::winuser::SW_SHOW;
-use winapi::um::winuser::ShowWindow;
-use winapi::shared::windef::RECT;
-use winapi::shared::windef::HWND;
-use std::ffi::CString;
-use log::{debug};
-use std::sync::Mutex;
-use lazy_static::lazy_static;
 
 lazy_static! {
     pub static ref X: Mutex<i32> = Mutex::new(0);
@@ -19,7 +19,7 @@ lazy_static! {
 }
 
 pub fn init() {
-    let mut rect = RECT::default(); 
+    let mut rect = RECT::default();
     let window_name = CString::new("Shell_TrayWnd").unwrap();
 
     let mut gwindow = WINDOW.lock().unwrap();
@@ -37,7 +37,10 @@ pub fn init() {
         *gheight = rect.bottom - rect.top;
         *gwidth = rect.right - rect.left;
 
-        debug!("Initialized Taskbar(x: {}, y: {}, width: {}, height: {})", *gx, *gy, *gwidth, *gheight);
+        debug!(
+            "Initialized Taskbar(x: {}, y: {}, width: {}, height: {})",
+            *gx, *gy, *gwidth, *gheight
+        );
     }
 }
 

@@ -1,5 +1,3 @@
-use winapi::um::winuser::SWP_NOSENDCHANGING;
-use winapi::shared::windef::RECT;
 use crate::hot_key_manager::Direction;
 use crate::tile::Tile;
 use crate::util;
@@ -7,7 +5,9 @@ use crate::window::Window;
 use crate::CONFIG;
 use log::debug;
 use winapi::shared::windef::HWND;
+use winapi::shared::windef::RECT;
 use winapi::um::winuser::SetWindowPos;
+use winapi::um::winuser::SWP_NOSENDCHANGING;
 
 #[derive(Clone, EnumString, Copy, Debug, PartialEq)]
 pub enum SplitDirection {
@@ -53,8 +53,12 @@ impl TileGrid {
     pub fn show(&mut self) {
         for tile in &self.tiles {
             tile.window.show().expect("Failed to show window");
-            tile.window.to_foreground(true).expect("Failed to move window to foreground");
-            tile.window.remove_topmost().expect("Failed to remove top-most window");
+            tile.window
+                .to_foreground(true)
+                .expect("Failed to move window to foreground");
+            tile.window
+                .remove_topmost()
+                .expect("Failed to remove top-most window");
         }
         if let Some(tile) = self.get_focused_tile() {
             tile.window.focus().expect("Failed to focus window");
@@ -72,13 +76,11 @@ impl TileGrid {
         self.tiles.iter_mut().find(|tile| tile.window.id == id)
     }
     pub fn get_focused_tile(&self) -> Option<&Tile> {
-        self
-            .focused_window_id
+        self.focused_window_id
             .and_then(|id| self.tiles.iter().find(|tile| tile.window.id == id))
     }
     pub fn get_focused_tile_mut(&mut self) -> Option<&mut Tile> {
-        self
-            .focused_window_id
+        self.focused_window_id
             .and_then(move |id| self.tiles.iter_mut().find(|tile| tile.window.id == id))
     }
     pub fn set_focused_split_direction(&mut self, direction: SplitDirection) {
@@ -96,13 +98,9 @@ impl TileGrid {
                 Direction::Right => {
                     focused_tile.column == Some(self.columns) || focused_tile.column == None
                 }
-                Direction::Left => {
-                    focused_tile.column == Some(1) || focused_tile.column == None
-                }
+                Direction::Left => focused_tile.column == Some(1) || focused_tile.column == None,
                 Direction::Up => focused_tile.row == Some(1) || focused_tile.row == None,
-                Direction::Down => {
-                    focused_tile.row == Some(self.rows) || focused_tile.row == None
-                }
+                Direction::Down => focused_tile.row == Some(self.rows) || focused_tile.row == None,
             };
 
             if !possible {
@@ -313,7 +311,8 @@ impl TileGrid {
                         })
                 }
             } else {
-                let mut tiles_in_column: Vec<&mut Tile> = self.tiles
+                let mut tiles_in_column: Vec<&mut Tile> = self
+                    .tiles
                     .iter_mut()
                     .filter(|t| t.column == removed_tile.column)
                     .collect();
@@ -343,12 +342,14 @@ impl TileGrid {
                         }
                     });
 
-                    let next_row = removed_tile
-                        .row
-                        .map(|row| if row > self.rows { row - 1 } else { row });
+                    let next_row =
+                        removed_tile
+                            .row
+                            .map(|row| if row > self.rows { row - 1 } else { row });
 
                     let maybe_next_tile: Option<&Tile> = self.tiles.iter().find(|tile| {
-                        (tile.column == None || tile.column == next_column) && (tile.row == None || tile.row == next_row)
+                        (tile.column == None || tile.column == next_column)
+                            && (tile.row == None || tile.row == next_row)
                     });
 
                     if let Some(next_tile) = maybe_next_tile {
@@ -422,7 +423,7 @@ impl TileGrid {
                     row,
                     column,
                     split_direction,
-                    window
+                    window,
                 });
             }
             None => {
@@ -470,7 +471,6 @@ impl TileGrid {
         x += CONFIG.padding;
         y += CONFIG.margin;
         y += CONFIG.padding;
-
 
         tile.window.calculate_window_rect(x, y, width, height)
     }
@@ -554,7 +554,10 @@ impl TileGrid {
         debug!("Drawing grid");
 
         for tile in &self.tiles {
-            debug!("Tile(id: {}, title: '{}', row: {:?} column: {:?})", tile.window.id, tile.window.title, tile.row, tile.column);
+            debug!(
+                "Tile(id: {}, title: '{}', row: {:?} column: {:?})",
+                tile.window.id, tile.window.title, tile.row, tile.column
+            );
 
             self.draw_tile(tile);
         }

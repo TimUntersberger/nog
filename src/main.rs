@@ -5,32 +5,32 @@ extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
 
-use winapi::shared::windef::HWND;
 use crossbeam_channel::select;
 use lazy_static::lazy_static;
 use log::{debug, error, info};
 use std::sync::Mutex;
+use winapi::shared::windef::HWND;
 
 mod app_bar;
 mod config;
-mod update;
-mod tray;
 mod display;
 mod event;
 mod event_handler;
-mod startup;
 mod hot_key_manager;
+mod startup;
 mod task_bar;
 mod tile;
 mod tile_grid;
+mod tray;
+mod update;
 mod util;
 mod win_event_handler;
 mod window;
 mod workspace;
 
+use app_bar::RedrawAppBarReason;
 use config::Config;
 use display::Display;
-use app_bar::RedrawAppBarReason;
 use event::Event;
 use event::EventChannel;
 use tile_grid::TileGrid;
@@ -50,9 +50,11 @@ lazy_static! {
             (1..11)
                 .map(|i| {
                     let mut grid = TileGrid::new(i);
-                    
-                    grid.height = DISPLAY.lock().unwrap().height - CONFIG.margin * 2 - CONFIG.padding * 2;
-                    grid.width = DISPLAY.lock().unwrap().width - CONFIG.margin * 2 - CONFIG.padding * 2;
+
+                    grid.height =
+                        DISPLAY.lock().unwrap().height - CONFIG.margin * 2 - CONFIG.padding * 2;
+                    grid.width =
+                        DISPLAY.lock().unwrap().width - CONFIG.margin * 2 - CONFIG.padding * 2;
 
                     if CONFIG.display_app_bar {
                         grid.height -= CONFIG.app_bar_height;
@@ -63,13 +65,8 @@ lazy_static! {
                 .collect::<Vec<TileGrid>>(),
         )
     };
-    pub static ref WORKSPACES: Mutex<Vec<Workspace>> = {
-        Mutex::new(
-            (1..11)
-                .map(Workspace::new)
-                .collect::<Vec<Workspace>>(),
-        )
-    };
+    pub static ref WORKSPACES: Mutex<Vec<Workspace>> =
+        { Mutex::new((1..11).map(Workspace::new).collect::<Vec<Workspace>>(),) };
     pub static ref WORKSPACE_ID: Mutex<i32> = Mutex::new(1);
 }
 
@@ -145,7 +142,11 @@ pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError> {
     drop(grids);
     drop(gid);
 
-    CHANNEL.sender.clone().send(Event::RedrawAppBar(RedrawAppBarReason::Workspace)).expect("Failed to send redraw-app-bar event");
+    CHANNEL
+        .sender
+        .clone()
+        .send(Event::RedrawAppBar(RedrawAppBarReason::Workspace))
+        .expect("Failed to send redraw-app-bar event");
 
     Ok(())
 }

@@ -1,4 +1,3 @@
-use winapi::um::winuser::EVENT_OBJECT_HIDE;
 use crate::util;
 use crate::Event;
 use crate::CHANNEL;
@@ -10,6 +9,7 @@ use winapi::shared::ntdef::LONG;
 use winapi::shared::windef::HWINEVENTHOOK;
 use winapi::shared::windef::HWND;
 use winapi::um::winuser::DispatchMessageW;
+use winapi::um::winuser::EVENT_OBJECT_HIDE;
 
 use winapi::um::winuser::PeekMessageW;
 use winapi::um::winuser::SetWinEventHook;
@@ -109,7 +109,7 @@ pub fn register() -> Result<(), util::WinApiResultError> {
                 TranslateMessage(&msg);
                 DispatchMessageW(&msg);
             }
-            
+
             if *UNREGISTER.lock().unwrap() {
                 debug!("Win event hook unregistered");
                 *UNREGISTER.lock().unwrap() = false;
