@@ -496,6 +496,7 @@ impl TileGrid {
         }
     }
 
+    #[allow(dead_code)]
     fn print_grid(&self) {
         debug!("Printing grid");
 
