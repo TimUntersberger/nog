@@ -55,8 +55,8 @@ pub struct Config {
     pub rules: Vec<Rule>,
 }
 
-impl Config {
-    pub fn new() -> Self {
+impl Default for Config {
+    fn default() -> Self {
         Self {
             app_bar_height: 20,
             app_bar_bg: 0x2c2427,
@@ -73,6 +73,13 @@ impl Config {
             keybindings: Vec::new(),
             rules: Vec::new(),
         }
+    }
+}
+
+impl Config {
+    /// Creates a new default config.
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 
