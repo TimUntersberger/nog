@@ -122,6 +122,8 @@ impl Window {
     }
     pub fn calculate_window_rect(&self, x: i32, y: i32, width: i32, height: i32) -> RECT {
         let rule = self.rule.clone().unwrap_or_default();
+        let config = CONFIG.lock().unwrap();
+
         let mut left = x;
         let mut right = x + width;
         let mut top = y;
@@ -131,7 +133,7 @@ impl Window {
             let border_width = GetSystemMetrics(SM_CXFRAME);
             let border_height = GetSystemMetrics(SM_CYFRAME);
 
-            if rule.chromium || rule.firefox || !CONFIG.remove_title_bar {
+            if rule.chromium || rule.firefox || !config.remove_title_bar {
                 let caption_height = GetSystemMetrics(SM_CYCAPTION);
                 top += caption_height;
             } else {
@@ -144,14 +146,14 @@ impl Window {
                 bottom += 1;
             }
 
-            if CONFIG.display_app_bar {
-                top += CONFIG.app_bar_height;
-                bottom += CONFIG.app_bar_height;
+            if config.display_app_bar {
+                top += config.app_bar_height;
+                bottom += config.app_bar_height;
             }
 
             if rule.firefox
                 || rule.chromium
-                || (!CONFIG.remove_title_bar && rule.has_custom_titlebar)
+                || (!config.remove_title_bar && rule.has_custom_titlebar)
             {
                 // looks like the frame around firefox is smaller than chrome's frame by about 2 pixels
                 // I don't see any other window that behaves like these two pieces of shit

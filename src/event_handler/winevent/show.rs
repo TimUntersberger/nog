@@ -32,7 +32,7 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
         || (window.original_style.contains(GwlStyle::CAPTION)
             && !window.exstyle.contains(GwlExStyle::DLGMODALFRAME));
 
-    for rule in &CONFIG.rules {
+    for rule in &CONFIG.lock().unwrap().rules {
         if rule.pattern.is_match(&window.title) {
             debug!("Rule({:?}) matched!", rule.pattern);
             window.rule = Some(rule.clone());
@@ -53,7 +53,7 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
             change_workspace(workspace_id)?;
         }
 
-        if CONFIG.remove_title_bar {
+        if CONFIG.lock().unwrap().remove_title_bar {
             if !rule.chromium && !rule.firefox {
                 window.style.remove(GwlStyle::CAPTION);
                 window.style.remove(GwlStyle::THICKFRAME);

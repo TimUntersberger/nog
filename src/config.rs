@@ -12,6 +12,8 @@ use winapi::um::wingdi::RGB;
 #[macro_use]
 mod macros;
 
+pub mod hot_reloading;
+
 #[derive(Debug, Clone)]
 pub struct Rule {
     pub pattern: Regex,

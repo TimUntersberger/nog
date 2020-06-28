@@ -57,22 +57,24 @@ pub struct Keybinding {
 
 lazy_static! {
     static ref WORK_MODE: Mutex<bool> = Mutex::new(false);
+    static ref COMPLETE: Mutex<bool> = Mutex::new(false);
 }
 
 pub fn enable() {
     *WORK_MODE.lock().unwrap() = true;
 }
 
-pub fn disable() {
+pub fn disable(complete: bool) {
     *WORK_MODE.lock().unwrap() = false;
+    *COMPLETE.lock().unwrap() = complete;
 }
 
 pub fn register() -> Result<(), Box<dyn std::error::Error>> {
-    if CONFIG.work_mode {
+    if CONFIG.lock().unwrap().work_mode {
         enable();
     }
     std::thread::spawn(|| {
-        let mut keybindings = CONFIG.keybindings.clone();
+        let mut keybindings = CONFIG.lock().unwrap().keybindings.clone();
         let mut msg: MSG = MSG::default();
 
         let work_mode = WORK_MODE.lock().unwrap();
@@ -128,7 +130,7 @@ pub fn register() -> Result<(), Box<dyn std::error::Error>> {
 
                 if !*WORK_MODE.lock().unwrap() {
                     for kb in &mut keybindings {
-                        if kb.registered && kb.typ != KeybindingType::ToggleWorkMode {
+                        if kb.registered && (*COMPLETE.lock().unwrap() || kb.typ != KeybindingType::ToggleWorkMode) {
                             let key = kb.key as u32;
                             let modifier = kb.modifier.bits();
                             let id = key + modifier;
@@ -143,6 +145,10 @@ pub fn register() -> Result<(), Box<dyn std::error::Error>> {
                             );
 
                             UnregisterHotKey(0 as HWND, id as i32);
+
+                            if *COMPLETE.lock().unwrap() {
+                                *COMPLETE.lock().unwrap() = false;
+                            }
                         }
                     }
                 } else {

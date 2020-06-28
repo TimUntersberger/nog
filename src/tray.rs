@@ -95,10 +95,12 @@ unsafe extern "system" fn window_cb(
 
 pub fn create() -> Result<(), util::WinApiResultError> {
     let name = util::to_widestring("WWM Tray");
+    let config = CONFIG.lock().unwrap();
+    let app_bar_bg = config.app_bar_bg;
 
     std::thread::spawn(move || unsafe {
         let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
-        let background_brush = CreateSolidBrush(CONFIG.app_bar_bg as u32);
+        let background_brush = CreateSolidBrush(app_bar_bg as u32);
 
         let class = WNDCLASSA {
             hInstance: instance as HINSTANCE,

@@ -16,7 +16,7 @@ mod focus;
 mod split;
 mod swap;
 mod toggle_floating_mode;
-mod toggle_work_mode;
+pub mod toggle_work_mode;
 
 pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
     info!("Received keybinding of type {:?}", kb.typ);

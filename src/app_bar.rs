@@ -89,7 +89,7 @@ unsafe extern "system" fn window_cb(
     } else if msg == WM_LBUTTONDOWN {
         info!("Received mouse click");
         let x = GET_X_LPARAM(l_param);
-        let id = x / CONFIG.app_bar_height + 1;
+        let id = x / CONFIG.lock().unwrap().app_bar_height + 1;
 
         if id <= 10 {
             let mut grids = GRIDS.lock().unwrap();
@@ -166,14 +166,16 @@ fn draw_workspaces(_hwnd: HWND) {
 fn erase_workspace(id: i32) {
     unsafe {
         let mut rect = RECT::default();
+        let app_bar_height = CONFIG.lock().unwrap().app_bar_height;
+        let app_bar_bg = CONFIG.lock().unwrap().app_bar_bg;
         let hwnd = *WINDOW.lock().unwrap() as HWND;
         let hdc = GetDC(hwnd);
         GetClientRect(hwnd, &mut rect);
 
-        rect.left += CONFIG.app_bar_height * id;
-        rect.right = rect.left + CONFIG.app_bar_height;
+        rect.left += app_bar_height * id;
+        rect.right = rect.left + app_bar_height;
 
-        FillRect(hdc, &rect, CreateSolidBrush(CONFIG.app_bar_bg as u32));
+        FillRect(hdc, &rect, CreateSolidBrush(app_bar_bg as u32));
     }
 }
 
@@ -187,8 +189,10 @@ pub fn load_font() {
     unsafe {
         let mut logfont = LOGFONTA::default();
         let mut font_name: [i8; 32] = [0; 32];
+        let app_bar_font = CONFIG.lock().unwrap().app_bar_font.clone();
+        let app_bar_font_size = CONFIG.lock().unwrap().app_bar_font_size;
 
-        for (i, byte) in CString::new(CONFIG.app_bar_font.as_str())
+        for (i, byte) in CString::new(app_bar_font.as_str())
             .unwrap()
             .as_bytes()
             .iter()
@@ -197,7 +201,7 @@ pub fn load_font() {
             font_name[i] = *byte as i8;
         }
 
-        logfont.lfHeight = CONFIG.app_bar_font_size;
+        logfont.lfHeight = app_bar_font_size;
         logfont.lfFaceName = font_name;
 
         let font = CreateFontIndirectA(&logfont) as i32;
@@ -213,7 +217,7 @@ pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
     let name = "wwm_app_bar";
     let mut height_guard = HEIGHT.lock().unwrap();
 
-    *height_guard = CONFIG.app_bar_height;
+    *height_guard = CONFIG.lock().unwrap().app_bar_height;
 
     let height = *height_guard;
     let display_width = display.width;
@@ -234,7 +238,7 @@ pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
         //TODO: Handle error
         let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
         //TODO: Handle error
-        let background_brush = CreateSolidBrush(CONFIG.app_bar_bg as u32);
+        let background_brush = CreateSolidBrush(CONFIG.lock().unwrap().app_bar_bg as u32);
 
         let class = WNDCLASSA {
             hInstance: instance as HINSTANCE,
@@ -337,7 +341,7 @@ pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
             SetTextColor(hdc, 0x00ffffff);
 
             debug!("Setting the background color");
-            SetBkColor(hdc, CONFIG.app_bar_bg as u32);
+            SetBkColor(hdc, CONFIG.lock().unwrap().app_bar_bg as u32);
 
             debug!("Writing the time");
             util::winapi_nullable_to_result(DrawTextA(
@@ -400,11 +404,11 @@ pub fn draw_workspace(idx: i32, id: i32, focused: bool) -> Result<(), util::WinA
             debug!("Setting the text color");
             //TODO: handle error
             let bg_color = if focused {
-                SetTextColor(hdc, CONFIG.app_bar_workspace_bg as u32);
+                SetTextColor(hdc, CONFIG.lock().unwrap().app_bar_workspace_bg as u32);
                 0x00ffffff
             } else {
                 SetTextColor(hdc, 0x00ffffff);
-                CONFIG.app_bar_workspace_bg
+                CONFIG.lock().unwrap().app_bar_workspace_bg
             };
 
             debug!("Drawing background");

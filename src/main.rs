@@ -5,6 +5,8 @@ extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
 
+use crate::event_handler::keybinding::toggle_work_mode::turn_work_mode_on;
+use crate::event_handler::keybinding::toggle_work_mode::turn_work_mode_off;
 use app_bar::RedrawAppBarReason;
 use config::Config;
 use crossbeam_channel::select;
@@ -37,8 +39,9 @@ mod window;
 mod workspace;
 
 lazy_static! {
-    pub static ref WORK_MODE: Mutex<bool> = Mutex::new(CONFIG.work_mode);
-    pub static ref CONFIG: Config = config::load().unwrap();
+    pub static ref WORK_MODE: Mutex<bool> = Mutex::new(CONFIG.lock().unwrap().work_mode);
+    pub static ref CONFIG: Mutex<Config> =
+        Mutex::new(config::load().expect("Failed to loading config"));
     pub static ref DISPLAY: Mutex<Display> = {
         let mut display = Display::default();
         display.init();
@@ -50,14 +53,15 @@ lazy_static! {
             (1..11)
                 .map(|i| {
                     let mut grid = TileGrid::new(i);
+                    let config = CONFIG.lock().unwrap();
 
                     grid.height =
-                        DISPLAY.lock().unwrap().height - CONFIG.margin * 2 - CONFIG.padding * 2;
+                        DISPLAY.lock().unwrap().height - config.margin * 2 - config.padding * 2;
                     grid.width =
-                        DISPLAY.lock().unwrap().width - CONFIG.margin * 2 - CONFIG.padding * 2;
+                        DISPLAY.lock().unwrap().width - config.margin * 2 - config.padding * 2;
 
-                    if CONFIG.display_app_bar {
-                        grid.height -= CONFIG.app_bar_height;
+                    if config.display_app_bar {
+                        grid.height -= config.app_bar_height;
                     }
 
                     grid
@@ -66,7 +70,7 @@ lazy_static! {
         )
     };
     pub static ref WORKSPACES: Mutex<Vec<Workspace>> =
-        { Mutex::new((1..11).map(Workspace::new).collect::<Vec<Workspace>>(),) };
+        Mutex::new((1..11).map(Workspace::new).collect::<Vec<Workspace>>(),);
     pub static ref WORKSPACE_ID: Mutex<i32> = Mutex::new(1);
 }
 
@@ -87,7 +91,9 @@ fn unmanage_everything() -> Result<(), util::WinApiResultError> {
 fn on_quit() -> Result<(), util::WinApiResultError> {
     unmanage_everything()?;
 
-    if CONFIG.remove_task_bar {
+    let config = CONFIG.lock().unwrap();
+
+    if config.remove_task_bar {
         task_bar::show();
     }
 
@@ -142,7 +148,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing config");
     lazy_static::initialize(&CONFIG);
 
-    startup::set_launch_on_startup(CONFIG.launch_on_startup)?;
+    info!("Starting hot reloading of config");
+    config::hot_reloading::start();
+
+    startup::set_launch_on_startup(CONFIG.lock().unwrap().launch_on_startup)?;
 
     info!("Initializing display");
     lazy_static::initialize(&DISPLAY);
@@ -156,13 +165,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing workspaces");
     lazy_static::initialize(&WORKSPACES);
 
-    if CONFIG.work_mode {
-        if CONFIG.remove_task_bar {
+    if CONFIG.lock().unwrap().work_mode {
+        if CONFIG.lock().unwrap().remove_task_bar {
             info!("Hiding taskbar");
             task_bar::hide();
         }
 
-        if CONFIG.display_app_bar {
+        if CONFIG.lock().unwrap().display_app_bar {
             app_bar::create(&*DISPLAY.lock().unwrap())?;
         }
 
@@ -190,15 +199,15 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         break;
                     },
                     Event::ReloadConfig => {
-                        //lock Config
-                        //parse Config
-                        //if config is valid
-                            //set config
-                            //handle display_app_bar
-                            //handle remove_task_bar
-                            //handle remove_title_bar
-                            //disable hot_key_manager with work_mode bindings
-                            //enable hot_key_manager with work_mode bindings
+                        let mut old_config = CONFIG.lock().unwrap();
+                        
+                        turn_work_mode_off(true, old_config.display_app_bar, old_config.remove_task_bar)?;
+
+                        let new_config = config::load().expect("Failed to load config");
+
+                        turn_work_mode_on(new_config.display_app_bar, new_config.remove_task_bar)?;
+
+                        *old_config = new_config;
                     }
                 }
             }

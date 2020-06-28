@@ -27,7 +27,7 @@ impl Display {
             debug!("Taskbar is not visible");
         }
 
-        if taskbar_is_visible && !CONFIG.remove_task_bar {
+        if taskbar_is_visible && !CONFIG.lock().unwrap().remove_task_bar {
             self.height -= *task_bar::HEIGHT.lock().unwrap();
         }
 

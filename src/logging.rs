@@ -34,7 +34,7 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
     {
         builder = builder
             .level_for("hyper", log::LevelFilter::Info)
-            .level_for("wwm::app_bar", log::LevelFilter::Error);
+            .level_for("wwm::app_bar", log::LevelFilter::Info);
     }
 
     builder.apply().unwrap();
