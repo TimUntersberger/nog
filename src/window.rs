@@ -115,8 +115,10 @@ impl Window {
     pub fn show(&self) -> util::WinApiResult<BOOL> {
         unsafe { util::winapi_err_to_result(ShowWindow(self.id as HWND, SW_SHOW)) }
     }
-    pub fn hide(&self) -> util::WinApiResult<BOOL> {
-        unsafe { util::winapi_err_to_result(ShowWindow(self.id as HWND, SW_HIDE)) }
+    pub fn hide(&self) {
+        unsafe {
+            ShowWindow(self.id as HWND, SW_HIDE);
+        }
     }
     pub fn calculate_window_rect(&self, x: i32, y: i32, width: i32, height: i32) -> RECT {
         let rule = self.rule.clone().unwrap_or_default();

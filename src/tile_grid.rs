@@ -46,7 +46,7 @@ impl TileGrid {
     }
     pub fn hide(&mut self) {
         for tile in &self.tiles {
-            tile.window.hide().expect("Failed to hide window");
+            tile.window.hide();
         }
         self.visible = false;
     }
