@@ -1,6 +1,6 @@
 [package]
 name = "wwm"
-version = "0.8.0"
+version = "0.9.3"
 log = "debug"
 description = "A tiling window manager for Windows 10"
 license = "MIT"
