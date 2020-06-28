@@ -114,7 +114,7 @@ pub fn register() -> Result<(), util::WinApiResultError> {
                 break;
             }
 
-            std::thread::sleep(std::time::Duration::from_millis(50));
+            std::thread::sleep(std::time::Duration::from_millis(5));
         }
     });
 

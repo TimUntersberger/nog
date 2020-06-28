@@ -39,6 +39,7 @@ impl Default for Rule {
     }
 }
 
+#[derive(Clone)]
 pub struct Config {
     pub app_bar_height: i32,
     pub app_bar_bg: i32,

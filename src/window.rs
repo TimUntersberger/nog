@@ -1,6 +1,7 @@
 use crate::config::Rule;
 use crate::util;
 use crate::CONFIG;
+use crate::task_bar;
 use gwl_ex_style::GwlExStyle;
 use gwl_style::GwlStyle;
 use winapi::shared::minwindef::BOOL;
@@ -60,14 +61,8 @@ impl Default for Window {
 }
 
 impl Window {
-    pub fn reset_style(&self) -> Result<(), util::WinApiResultError> {
-        unsafe {
-            util::winapi_nullable_to_result(SetWindowLongA(
-                self.id as HWND,
-                GWL_STYLE,
-                self.original_style.bits(),
-            ))?;
-        }
+    pub fn reset_style(&mut self) -> Result<(), util::WinApiResultError> {
+        self.style = self.original_style;
 
         Ok(())
     }
@@ -122,7 +117,11 @@ impl Window {
     }
     pub fn calculate_window_rect(&self, x: i32, y: i32, width: i32, height: i32) -> RECT {
         let rule = self.rule.clone().unwrap_or_default();
-        let config = CONFIG.lock().unwrap();
+        let (display_app_bar, remove_title_bar, app_bar_height, remove_task_bar) = {
+            let config = CONFIG.lock().unwrap();
+
+            (config.display_app_bar, config.remove_title_bar, config.app_bar_height, config.remove_task_bar)
+        };
 
         let mut left = x;
         let mut right = x + width;
@@ -133,7 +132,7 @@ impl Window {
             let border_width = GetSystemMetrics(SM_CXFRAME);
             let border_height = GetSystemMetrics(SM_CYFRAME);
 
-            if rule.chromium || rule.firefox || !config.remove_title_bar {
+            if rule.chromium || rule.firefox || !remove_title_bar {
                 let caption_height = GetSystemMetrics(SM_CYCAPTION);
                 top += caption_height;
             } else {
@@ -146,14 +145,18 @@ impl Window {
                 bottom += 1;
             }
 
-            if config.display_app_bar {
-                top += config.app_bar_height;
-                bottom += config.app_bar_height;
+            if !remove_task_bar {
+                bottom -= *task_bar::HEIGHT.lock().unwrap();
+            }
+
+            if display_app_bar {
+                top += app_bar_height;
+                bottom += app_bar_height;
             }
 
             if rule.firefox
                 || rule.chromium
-                || (!config.remove_title_bar && rule.has_custom_titlebar)
+                || (!remove_title_bar && rule.has_custom_titlebar)
             {
                 // looks like the frame around firefox is smaller than chrome's frame by about 2 pixels
                 // I don't see any other window that behaves like these two pieces of shit
@@ -259,5 +262,13 @@ impl Window {
         unsafe {
             SetWindowLongA(self.id as HWND, GWL_EXSTYLE, self.exstyle.bits());
         }
+    }
+    pub fn remove_title_bar(&mut self) {
+        let rule = self.rule.clone().unwrap_or_default();
+        if !rule.chromium && !rule.firefox {
+            self.style.remove(GwlStyle::CAPTION);
+            self.style.remove(GwlStyle::THICKFRAME);
+        }
+        self.style.insert(GwlStyle::BORDER);
     }
 }

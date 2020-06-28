@@ -439,7 +439,11 @@ impl TileGrid {
     }
     /// Calculates all the data required for drawing the tile
     fn calculate_tile_data(&self, tile: &Tile) -> RECT {
-        let config = CONFIG.lock().unwrap();
+        let (padding, margin) = {
+            let config = CONFIG.lock().unwrap();
+
+            (config.padding, config.margin)
+        };
         let column_width = self.width / self.columns;
         let row_height = self.height / self.rows;
 
@@ -453,8 +457,8 @@ impl TileGrid {
             x += column_width * (column - 1);
 
             if column > 1 {
-                width -= config.padding;
-                x += config.padding;
+                width -= padding;
+                x += padding;
             }
         }
 
@@ -464,14 +468,14 @@ impl TileGrid {
 
             if row > 1 {
                 // height -= CONFIG.padding;
-                y += config.padding;
+                y += padding;
             }
         }
 
-        x += config.margin;
-        x += config.padding;
-        y += config.margin;
-        y += config.padding;
+        x += margin;
+        x += padding;
+        y += margin;
+        y += padding;
 
         tile.window.calculate_window_rect(x, y, width, height)
     }

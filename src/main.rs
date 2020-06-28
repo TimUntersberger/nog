@@ -5,8 +5,6 @@ extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
 
-use crate::event_handler::keybinding::toggle_work_mode::turn_work_mode_on;
-use crate::event_handler::keybinding::toggle_work_mode::turn_work_mode_off;
 use app_bar::RedrawAppBarReason;
 use config::Config;
 use crossbeam_channel::select;
@@ -78,9 +76,10 @@ fn unmanage_everything() -> Result<(), util::WinApiResultError> {
     let mut grids = GRIDS.lock().unwrap();
 
     for grid in grids.iter_mut() {
-        for tile in grid.tiles.clone() {
+        for tile in &mut grid.tiles.clone() {
             grid.close_tile_by_window_id(tile.window.id);
             tile.window.reset_style()?;
+            tile.window.update_style();
             tile.window.reset_pos()?;
         }
     }
@@ -165,7 +164,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing workspaces");
     lazy_static::initialize(&WORKSPACES);
 
-    if CONFIG.lock().unwrap().work_mode {
+    if *WORK_MODE.lock().unwrap() {
         if CONFIG.lock().unwrap().remove_task_bar {
             info!("Hiding taskbar");
             task_bar::hide();
@@ -188,7 +187,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         select! {
             recv(receiver) -> maybe_msg => {
                 let msg = maybe_msg.unwrap();
-                //println!("{:?}", msg);
                 match msg {
                     Event::Keybinding(kb) => event_handler::keybinding::handle(kb)?,
                     Event::RedrawAppBar(reason) => app_bar::redraw(reason),
@@ -199,15 +197,73 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         break;
                     },
                     Event::ReloadConfig => {
-                        let mut old_config = CONFIG.lock().unwrap();
-                        
-                        turn_work_mode_off(true, old_config.display_app_bar, old_config.remove_task_bar)?;
+                        info!("Reloading Config");
 
+                        hot_key_manager::unregister();
+
+                        let config = CONFIG.lock().unwrap().clone();
                         let new_config = config::load().expect("Failed to load config");
+                        let work_mode = *WORK_MODE.lock().unwrap();
 
-                        turn_work_mode_on(new_config.display_app_bar, new_config.remove_task_bar)?;
+                        if work_mode {
+                            if config.display_app_bar && !new_config.display_app_bar {
+                                app_bar::close();
+                                let mut grids = GRIDS.lock().unwrap();
 
-                        *old_config = new_config;
+                                for grid in grids.iter_mut() {
+                                    grid.height += config.app_bar_height;
+                                }
+
+                            } else if !config.display_app_bar && new_config.display_app_bar {
+                                app_bar::create(&*DISPLAY.lock().unwrap())?;
+                                let mut grids = GRIDS.lock().unwrap();
+
+                                for grid in grids.iter_mut() {
+                                    grid.height -= new_config.app_bar_height;
+                                }
+                            }
+                            if config.remove_task_bar && !new_config.remove_task_bar {
+                                task_bar::show();
+                            } else if !config.remove_task_bar && new_config.remove_task_bar {
+                                task_bar::hide();
+                            }
+                        } 
+
+                        if config.remove_title_bar && !new_config.remove_title_bar {
+                            let mut grids = GRIDS.lock().unwrap();
+
+                            for grid in grids.iter_mut() {
+                                for tile in &mut grid.tiles {
+                                    tile.window.reset_style()?;
+                                    tile.window.update_style();
+                                }
+                            }
+                        } else if !config.remove_title_bar && new_config.remove_title_bar {
+                            let mut grids = GRIDS.lock().unwrap();
+
+                            for grid in grids.iter_mut() {
+                                for tile in &mut grid.tiles {
+                                    tile.window.remove_title_bar();
+                                    tile.window.update_style();
+                                }
+                            }
+                        }
+
+                        if config.launch_on_startup != new_config.launch_on_startup {
+                            startup::set_launch_on_startup(new_config.launch_on_startup)?;
+                        }
+
+                        *CONFIG.lock().unwrap() = new_config;
+                            
+                        hot_key_manager::register()?;
+
+                        let mut grids = GRIDS.lock().unwrap();
+                        let grid = grids
+                            .iter_mut()
+                            .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
+                            .unwrap();
+
+                        grid.draw_grid();
                     }
                 }
             }

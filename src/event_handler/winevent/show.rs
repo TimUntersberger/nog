@@ -10,8 +10,6 @@ use log::debug;
 use winapi::shared::windef::HWND;
 
 pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::error::Error>> {
-    //TODO: fix problem with powershell and native wsl
-
     let title = util::get_title_of_window(hwnd);
 
     if title.is_err() {
@@ -32,7 +30,7 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
         || (window.original_style.contains(GwlStyle::CAPTION)
             && !window.exstyle.contains(GwlExStyle::DLGMODALFRAME));
 
-    for rule in &CONFIG.lock().unwrap().rules {
+    for rule in CONFIG.lock().unwrap().rules.clone() {
         if rule.pattern.is_match(&window.title) {
             debug!("Rule({:?}) matched!", rule.pattern);
             window.rule = Some(rule.clone());
@@ -40,12 +38,11 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
         }
     }
 
-    let should_manage =
-        window.rule.clone().unwrap_or_default().manage && parent.is_err() && correct_style;
+    let rule = window.rule.clone().unwrap_or_default();
+    let should_manage = rule.manage && parent.is_err() && correct_style;
 
     if should_manage {
         debug!("Managing window");
-        let rule = window.rule.clone().unwrap_or_default();
         let mut workspace_id = *WORKSPACE_ID.lock().unwrap();
 
         if rule.workspace != -1 {
@@ -54,11 +51,7 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
         }
 
         if CONFIG.lock().unwrap().remove_title_bar {
-            if !rule.chromium && !rule.firefox {
-                window.style.remove(GwlStyle::CAPTION);
-                window.style.remove(GwlStyle::THICKFRAME);
-            }
-            window.style.insert(GwlStyle::BORDER);
+            window.remove_title_bar();
             window.update_style();
         }
 

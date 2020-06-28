@@ -3,9 +3,10 @@ use crate::tile_grid::SplitDirection;
 use crate::util;
 use crate::CHANNEL;
 use crate::CONFIG;
+use crate::WORK_MODE;
 use key::Key;
 use lazy_static::lazy_static;
-use log::info;
+use log::{debug, info};
 use modifier::Modifier;
 use num_traits::FromPrimitive;
 use std::sync::Mutex;
@@ -56,57 +57,88 @@ pub struct Keybinding {
 }
 
 lazy_static! {
-    static ref WORK_MODE: Mutex<bool> = Mutex::new(false);
-    static ref COMPLETE: Mutex<bool> = Mutex::new(false);
+    static ref UNREGISTER: Mutex<bool> = Mutex::new(false);
 }
 
-pub fn enable() {
-    *WORK_MODE.lock().unwrap() = true;
+fn unregister_keybindings<'a>(keybindings: impl Iterator<Item = &'a mut Keybinding>) {
+    for kb in keybindings {
+        if kb.registered {
+            let key = kb.key as u32;
+            let modifier = kb.modifier.bits();
+            let id = key + modifier;
+
+            kb.registered = false;
+
+            info!(
+                "Unregistering Keybinding({}+{}, {})",
+                format!("{:?}", kb.modifier).replace(" | ", "+"),
+                kb.key,
+                kb.typ
+            );
+
+            unsafe {
+                UnregisterHotKey(0 as HWND, id as i32);
+            }
+        }
+    }
 }
 
-pub fn disable(complete: bool) {
-    *WORK_MODE.lock().unwrap() = false;
-    *COMPLETE.lock().unwrap() = complete;
+fn register_keybindings<'a>(keybindings: impl Iterator<Item = &'a mut Keybinding>) {
+    for kb in keybindings {
+        if !kb.registered {
+            let key = kb.key as u32;
+            let modifier = kb.modifier.bits();
+            let id = key + modifier;
+
+            kb.registered = true;
+
+            info!(
+                "Registering Keybinding({}+{}, {})",
+                format!("{:?}", kb.modifier).replace(" | ", "+"),
+                kb.key,
+                kb.typ
+            );
+
+            unsafe {
+                util::winapi_nullable_to_result(RegisterHotKey(
+                    0 as HWND, id as i32, modifier, key,
+                ))
+                .expect("Failed to register keybinding");
+            }
+        }
+    }
 }
 
 pub fn register() -> Result<(), Box<dyn std::error::Error>> {
-    if CONFIG.lock().unwrap().work_mode {
-        enable();
-    }
     std::thread::spawn(|| {
         let mut keybindings = CONFIG.lock().unwrap().keybindings.clone();
         let mut msg: MSG = MSG::default();
 
-        let work_mode = WORK_MODE.lock().unwrap();
-
-        for kb in &mut keybindings {
-            if *work_mode || kb.typ == KeybindingType::ToggleWorkMode {
-                let key = kb.key as u32;
-                let modifier = kb.modifier.bits();
-                let id = key + modifier;
-
-                kb.registered = true;
-
-                info!(
-                    "Registering Keybinding({}+{}, {})",
-                    format!("{:?}", kb.modifier).replace(" | ", "+"),
-                    kb.key,
-                    kb.typ
-                );
-
-                unsafe {
-                    util::winapi_nullable_to_result(RegisterHotKey(
-                        0 as HWND, id as i32, modifier, key,
-                    ))
-                    .unwrap();
-                }
-            }
+        while *UNREGISTER.lock().unwrap() {
+            debug!("Waiting for other thread get cleaned up");
+            // as long as another thread gets unregistered we cant start a new one
+            std::thread::sleep(std::time::Duration::from_millis(10))
         }
 
-        drop(work_mode);
+        if *WORK_MODE.lock().unwrap() {
+            register_keybindings(keybindings.iter_mut());
+        } else {
+            register_keybindings(
+                keybindings
+                    .iter_mut()
+                    .filter(|kb| kb.typ == KeybindingType::ToggleWorkMode),
+            );
+        }
 
         unsafe {
             loop {
+                if *UNREGISTER.lock().unwrap() {
+                    debug!("Unregistering hot key manager");
+                    unregister_keybindings(keybindings.iter_mut());
+                    *UNREGISTER.lock().unwrap() = false;
+                    break;
+                }
+
                 while PeekMessageW(&mut msg, 0 as HWND, 0, 0, PM_REMOVE) > 0 {
                     TranslateMessage(&msg);
                     DispatchMessageW(&msg);
@@ -128,54 +160,25 @@ pub fn register() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
 
-                if !*WORK_MODE.lock().unwrap() {
-                    for kb in &mut keybindings {
-                        if kb.registered && (*COMPLETE.lock().unwrap() || kb.typ != KeybindingType::ToggleWorkMode) {
-                            let key = kb.key as u32;
-                            let modifier = kb.modifier.bits();
-                            let id = key + modifier;
-
-                            kb.registered = false;
-
-                            info!(
-                                "Unregistering Keybinding({}+{}, {})",
-                                format!("{:?}", kb.modifier).replace(" | ", "+"),
-                                kb.key,
-                                kb.typ
-                            );
-
-                            UnregisterHotKey(0 as HWND, id as i32);
-
-                            if *COMPLETE.lock().unwrap() {
-                                *COMPLETE.lock().unwrap() = false;
-                            }
-                        }
-                    }
+                let work_mode = *WORK_MODE.lock().unwrap();
+                if !work_mode {
+                    unregister_keybindings(
+                        keybindings
+                            .iter_mut()
+                            .filter(|kb| kb.typ != KeybindingType::ToggleWorkMode),
+                    );
                 } else {
-                    for kb in &mut keybindings {
-                        if !kb.registered {
-                            let key = kb.key as u32;
-                            let modifier = kb.modifier.bits();
-                            let id = key + modifier;
-
-                            kb.registered = true;
-
-                            info!(
-                                "Registering Keybinding({}+{}, {})",
-                                format!("{:?}", kb.modifier).replace(" | ", "+"),
-                                kb.key,
-                                kb.typ
-                            );
-
-                            RegisterHotKey(0 as HWND, id as i32, modifier, key);
-                        }
-                    }
+                    register_keybindings(keybindings.iter_mut());
                 }
 
-                std::thread::sleep(std::time::Duration::from_millis(50));
+                std::thread::sleep(std::time::Duration::from_millis(5));
             }
         }
     });
 
     Ok(())
+}
+
+pub fn unregister() {
+    *UNREGISTER.lock().unwrap() = true;
 }

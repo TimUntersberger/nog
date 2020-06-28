@@ -45,12 +45,14 @@ pub fn init() {
 }
 
 pub fn show() {
+    debug!("Showing taskbar");
     unsafe {
         ShowWindow(*WINDOW.lock().unwrap() as HWND, SW_SHOW);
     }
 }
 
 pub fn hide() {
+    debug!("Hiding taskbar");
     unsafe {
         ShowWindow(*WINDOW.lock().unwrap() as HWND, SW_HIDE);
     }

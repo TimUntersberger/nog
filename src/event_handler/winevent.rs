@@ -18,14 +18,12 @@ pub fn handle(ev: WinEvent) -> Result<(), Box<dyn std::error::Error>> {
 
     debug!("{:?}: '{}' | {}", ev.typ, title, ev.hwnd as i32);
 
-    if *WORK_MODE.lock().unwrap() {
-        match ev.typ {
-            WinEventType::Destroy => destroy::handle(ev.hwnd as HWND)?,
-            WinEventType::Show(ignore) => show::handle(ev.hwnd as HWND, ignore)?,
-            WinEventType::FocusChange => focus_change::handle(ev.hwnd as HWND)?,
-            WinEventType::Hide => {}
-        };
-    }
+    match ev.typ {
+        WinEventType::Destroy => destroy::handle(ev.hwnd as HWND)?,
+        WinEventType::Show(ignore) => show::handle(ev.hwnd as HWND, ignore)?,
+        WinEventType::FocusChange => focus_change::handle(ev.hwnd as HWND)?,
+        WinEventType::Hide => {}
+    };
 
     Ok(())
 }
