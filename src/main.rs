@@ -198,6 +198,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
                             } else if !config.display_app_bar && new_config.display_app_bar {
                                 app_bar::create()?;
+
                                 for d in DISPLAYS.lock().unwrap().iter_mut() {
                                     d.top += config.app_bar_height;
                                     d.bottom -= config.app_bar_height;

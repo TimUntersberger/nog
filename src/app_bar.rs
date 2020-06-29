@@ -106,9 +106,7 @@ unsafe extern "system" fn window_cb(
         info!("loading font");
         load_font();
     } else if !hwnd.is_null() && msg == WM_PAINT {
-        info!("Received paint");
         let reason = *REDRAW_REASON.lock().unwrap();
-        debug!("Reason for paint was {:?}", reason);
         let mut paint = PAINTSTRUCT::default();
 
         GetClientRect(hwnd, &mut paint.rcPaint);
@@ -242,7 +240,6 @@ pub fn create() -> Result<(), util::WinApiResultError> {
     });
 
     for display in DISPLAYS.lock().unwrap().clone() {
-        debug!("Creating appbar for display {}", display.hmonitor as i32);
         std::thread::spawn(move || unsafe {
             if WINDOWS
                 .lock()
@@ -250,10 +247,12 @@ pub fn create() -> Result<(), util::WinApiResultError> {
                 .contains_key(&(display.hmonitor as i32))
             {
                 error!(
-                    "Appbar for monitor {} already exists",
+                    "Appbar for monitor {} already exists. Aborting",
                     display.hmonitor as i32
                 );
             }
+
+            debug!("Creating appbar for display {}", display.hmonitor as i32);
 
             let display_width = display.width();
             //TODO: Handle error
@@ -311,14 +310,16 @@ pub fn close() {
     unsafe {
         info!("Closing appbar");
 
-        let hwnds: Vec<i32> = WINDOWS
+        let windows: Vec<(i32, i32)> = WINDOWS
             .lock()
             .unwrap()
             .iter()
-            .map(|(_, hwnd)| *hwnd)
+            .map(|(hmonitor, hwnd)| (*hmonitor, *hwnd))
             .collect();
-        for hwnd in hwnds {
+
+        for (hmonitor, hwnd) in windows {
             SendMessageA(hwnd as HWND, WM_CLOSE, 0, 0);
+            WINDOWS.lock().unwrap().remove(&hmonitor);
         }
     }
 }
@@ -359,14 +360,12 @@ pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
         let mut rect = RECT::default();
 
         unsafe {
-            debug!("Getting the rect for the appbar");
             util::winapi_nullable_to_result(GetClientRect(hwnd, &mut rect))?;
             let text = format!("{}", chrono::Local::now().format("%T"));
             let text_len = text.len() as i32;
             let c_text = CString::new(text).unwrap();
             let display = get_primary_display();
 
-            debug!("Getting the device context");
             let hdc = util::winapi_ptr_to_result(GetDC(hwnd))?;
 
             set_font(hdc);
@@ -383,14 +382,11 @@ pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
             rect.left = display.width() / 2 - (size.cx / 2) - 10;
             rect.right = display.width() / 2 + (size.cx / 2) + 10;
 
-            debug!("Setting the text color");
             //TODO: handle error
             SetTextColor(hdc, 0x00ffffff);
 
-            debug!("Setting the background color");
             SetBkColor(hdc, CONFIG.lock().unwrap().app_bar_bg as u32);
 
-            debug!("Writing the time");
             util::winapi_nullable_to_result(DrawTextA(
                 hdc,
                 c_text.as_ptr(),
@@ -413,7 +409,6 @@ pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
             rect.right = display.width() - 10;
             rect.left = rect.right - size.cx;
 
-            debug!("Writing the date");
             util::winapi_nullable_to_result(DrawTextA(
                 hdc,
                 c_text.as_ptr(),
@@ -438,21 +433,17 @@ pub fn draw_workspace(
         let height = *HEIGHT.lock().unwrap();
 
         unsafe {
-            debug!("Getting the rect for the appbar");
             util::winapi_nullable_to_result(GetClientRect(hwnd, &mut rect))?;
 
             rect.left += height * idx;
             rect.right = rect.left + height;
 
-            debug!("Getting the device context");
             let hdc = util::winapi_ptr_to_result(GetDC(hwnd))?;
 
             set_font(hdc);
 
-            debug!("Setting the background to transparent");
             SetBkMode(hdc, TRANSPARENT as i32);
 
-            debug!("Setting the text color");
             //TODO: handle error
             let bg_color = if focused {
                 SetTextColor(hdc, CONFIG.lock().unwrap().app_bar_workspace_bg as u32);
@@ -462,14 +453,12 @@ pub fn draw_workspace(
                 CONFIG.lock().unwrap().app_bar_workspace_bg
             };
 
-            debug!("Drawing background");
             FillRect(hdc, &rect, CreateSolidBrush(bg_color as u32));
 
             let id_str = id.to_string();
             let len = id_str.len() as i32;
             let id_cstr = CString::new(id_str).unwrap();
 
-            debug!("Writing the text");
             util::winapi_nullable_to_result(DrawTextA(
                 hdc,
                 id_cstr.as_ptr(),
