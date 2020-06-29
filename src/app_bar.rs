@@ -1,13 +1,13 @@
 use crate::change_workspace;
 use crate::display::get_primary_display;
 use crate::event::Event;
+use crate::is_visible_workspace;
 use crate::tile_grid::TileGrid;
 use crate::util;
 use crate::CHANNEL;
 use crate::CONFIG;
 use crate::DISPLAYS;
 use crate::GRIDS;
-use crate::{is_visible_workspace, WORKSPACE_ID};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
 use std::collections::HashMap;
@@ -65,6 +65,7 @@ use winapi::um::winuser::WNDCLASSA;
 
 lazy_static! {
     pub static ref HEIGHT: Mutex<i32> = Mutex::new(0);
+    //HMONITOR, HWND
     pub static ref WINDOWS: Mutex<HashMap<i32, i32>> = Mutex::new(HashMap::new());
     pub static ref FONT: Mutex<i32> = Mutex::new(0);
     pub static ref REDRAW_REASON: Mutex<RedrawAppBarReason> = Mutex::new(RedrawAppBarReason::Time);
@@ -153,13 +154,27 @@ fn draw_workspaces(hwnd: HWND) {
         .filter(|g| !g.tiles.is_empty() || is_visible_workspace(g.id))
         .collect();
 
+    let monitor = *WINDOWS
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|(_, v)| **v == hwnd as i32)
+        .map(|(m, _)| m)
+        .expect("Couldn't find monitor for appbar");
+
     //erase last workspace
     debug!("Erasing {}", workspaces.len());
 
     erase_workspace((workspaces.len()) as i32);
     for (i, workspace) in workspaces.iter().enumerate() {
-        draw_workspace(hwnd, i as i32, workspace.id, is_visible_workspace(workspace.id))
-            .expect("Failed to draw workspace");
+        draw_workspace(
+            hwnd,
+            i as i32,
+            workspace.id,
+            is_visible_workspace(workspace.id),
+            workspace.display.hmonitor == monitor,
+        )
+        .expect("Failed to draw workspace");
     }
 }
 
@@ -221,6 +236,8 @@ pub fn create() -> Result<(), util::WinApiResultError> {
 
     let mut height_guard = HEIGHT.lock().unwrap();
 
+    let app_bar_bg = CONFIG.lock().unwrap().app_bar_bg;
+
     *height_guard = CONFIG.lock().unwrap().app_bar_height;
 
     let height = *height_guard;
@@ -256,7 +273,7 @@ pub fn create() -> Result<(), util::WinApiResultError> {
             //TODO: Handle error
             let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
             //TODO: Handle error
-            let background_brush = CreateSolidBrush(CONFIG.lock().unwrap().app_bar_bg as u32);
+            let background_brush = CreateSolidBrush(app_bar_bg as u32);
 
             let class = WNDCLASSA {
                 hInstance: instance as HINSTANCE,
@@ -425,6 +442,7 @@ pub fn draw_workspace(
     idx: i32,
     id: i32,
     focused: bool,
+    same_monitor: bool,
 ) -> Result<(), util::WinApiResultError> {
     if !hwnd.is_null() {
         let mut rect = RECT::default();
@@ -441,17 +459,27 @@ pub fn draw_workspace(
             set_font(hdc);
 
             SetBkMode(hdc, TRANSPARENT as i32);
+            SetTextColor(hdc, 0x00ffffff);
 
-            //TODO: handle error
-            let bg_color = if focused {
-                SetTextColor(hdc, CONFIG.lock().unwrap().app_bar_workspace_bg as u32);
-                0x00ffffff
+            let app_bar_bg = CONFIG.lock().unwrap().app_bar_bg;
+
+            if focused {
+                if same_monitor {
+                    FillRect(
+                        hdc,
+                        &rect,
+                        CreateSolidBrush(util::scale_color(app_bar_bg, 2.0) as u32),
+                    );
+                } else {
+                    FillRect(
+                        hdc,
+                        &rect,
+                        CreateSolidBrush(util::scale_color(app_bar_bg, 1.3) as u32),
+                    );
+                }
             } else {
-                SetTextColor(hdc, 0x00ffffff);
-                CONFIG.lock().unwrap().app_bar_workspace_bg
-            };
-
-            FillRect(hdc, &rect, CreateSolidBrush(bg_color as u32));
+                FillRect(hdc, &rect, CreateSolidBrush(app_bar_bg as u32));
+            }
 
             let id_str = id.to_string();
             let len = id_str.len() as i32;

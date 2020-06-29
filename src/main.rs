@@ -277,6 +277,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn main() {
+    todo!();
+    /*
+        Only show the workspace on the appbar if it exists on the same display.
+        Show the darker color when the workspace exists but is not focused the lighter one if it is.
+            Focused means the workspace has mouse focus
+    */
     logging::setup().expect("Failed to setup logging");
 
     update::update().expect("Failed to update the program");

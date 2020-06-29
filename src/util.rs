@@ -1,3 +1,7 @@
+use winapi::um::wingdi::RGB;
+use winapi::um::wingdi::GetBValue;
+use winapi::um::wingdi::GetGValue;
+use winapi::um::wingdi::GetRValue;
 use core::fmt::Debug;
 use thiserror::Error;
 use winapi::shared::windef::HWND;
@@ -74,4 +78,16 @@ pub fn rect_to_string(rect: RECT) -> String {
         "RECT(left: {}, right: {}, top: {}, bottom: {})",
         rect.left, rect.right, rect.top, rect.bottom
     )
+}
+
+pub fn scale_color(color: i32, factor: f64) -> i32 {
+    let mut blue = GetBValue(color as u32);
+    let mut green = GetGValue(color as u32);
+    let mut red = GetRValue(color as u32);
+
+    blue = (blue as f64 * factor).round() as u8;
+    green = (green as f64 * factor).round() as u8;
+    red = (red as f64 * factor).round() as u8;
+
+    RGB(red, green, blue) as i32
 }
