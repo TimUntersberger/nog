@@ -7,7 +7,7 @@ use crate::CHANNEL;
 use crate::CONFIG;
 use crate::DISPLAYS;
 use crate::GRIDS;
-use crate::WORKSPACE_ID;
+use crate::{is_visible_workspace, WORKSPACE_ID};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
 use std::collections::HashMap;
@@ -96,7 +96,7 @@ unsafe extern "system" fn window_cb(
             let mut grids = GRIDS.lock().unwrap();
             let grid = grids.iter_mut().find(|g| g.id == id).unwrap();
 
-            if !grid.tiles.is_empty() || grid.visible {
+            if !grid.tiles.is_empty() || is_visible_workspace(id) {
                 drop(grid);
                 drop(grids);
                 change_workspace(id).expect("Failed to change workspace");
@@ -146,13 +146,11 @@ pub fn redraw(reason: RedrawAppBarReason) {
 }
 
 fn draw_workspaces(hwnd: HWND) {
-    let id = *WORKSPACE_ID.lock().unwrap();
-
     let grids = GRIDS.lock().unwrap();
 
     let workspaces: Vec<&TileGrid> = grids
         .iter()
-        .filter(|g| !g.tiles.is_empty() || g.id == id)
+        .filter(|g| !g.tiles.is_empty() || is_visible_workspace(g.id))
         .collect();
 
     //erase last workspace
@@ -160,7 +158,7 @@ fn draw_workspaces(hwnd: HWND) {
 
     erase_workspace((workspaces.len()) as i32);
     for (i, workspace) in workspaces.iter().enumerate() {
-        draw_workspace(hwnd, i as i32, workspace.id, workspace.id == id)
+        draw_workspace(hwnd, i as i32, workspace.id, is_visible_workspace(workspace.id))
             .expect("Failed to draw workspace");
     }
 }

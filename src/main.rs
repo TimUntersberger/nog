@@ -5,6 +5,8 @@ extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
 
+use std::collections::HashMap;
+use crate::display::get_display_by_idx;
 use crate::display::get_display_by_hmonitor;
 use crate::display::get_primary_display;
 use app_bar::RedrawAppBarReason;
@@ -48,6 +50,7 @@ lazy_static! {
         Mutex::new((1..11).map(TileGrid::new).collect::<Vec<TileGrid>>());
     pub static ref WORKSPACES: Mutex<Vec<Workspace>> =
         Mutex::new((1..11).map(Workspace::new).collect::<Vec<Workspace>>());
+    pub static ref VISIBLE_WORKSPACES: Mutex<HashMap<i32, i32>> = Mutex::new(HashMap::new());
     pub static ref WORKSPACE_ID: Mutex<i32> = Mutex::new(1);
 }
 
@@ -80,36 +83,46 @@ fn on_quit() -> Result<(), util::WinApiResultError> {
     std::process::exit(0);
 }
 
+pub fn is_visible_workspace(id: i32) -> bool {
+    VISIBLE_WORKSPACES.lock().unwrap().values().any(|v| *v == id)
+}
+
 pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError> {
     let mut grids = GRIDS.lock().unwrap();
-    let mut gid = WORKSPACE_ID.lock().unwrap();
 
-    let old_id = *gid;
-    *gid = id;
+    let workspace_settings = CONFIG.lock().unwrap().workspace_settings.clone();
 
-    let mut grid = grids.iter_mut().find(|g| g.id == *gid).unwrap();
-    grid.visible = true;
+    let (new_grid_idx, mut new_grid) = grids.iter_mut().enumerate().find(|(_, g)| g.id == id).map(|(i, g)| (i, g.clone())).unwrap();
 
-    if old_id == id {
-        debug!("Workspace is already selected");
-        return Ok(());
+    if let Some(setting) = workspace_settings.iter().find(|s| s.id == id) {
+        new_grid.display = get_display_by_idx(setting.monitor);
     }
 
-    debug!("Showing the next workspace");
-    grid.visible = true;
-    grid.draw_grid();
-    grid.show();
+    let mut visible_workspaces = VISIBLE_WORKSPACES.lock().unwrap();
+
+    debug!("Drawing the workspace");
+    new_grid.draw_grid();
+    new_grid.show();
 
     //without this delay there is a slight flickering of the background
-    std::thread::sleep(std::time::Duration::from_millis(5));
+    std::thread::sleep(std::time::Duration::from_millis(10));
+    
+    if let Some(id) = visible_workspaces.insert(new_grid.display.hmonitor, new_grid.id) {
+        if new_grid.id != id {
+            if let Some(grid) = grids.iter().find(|g| g.id == id) {
+                debug!("Hiding the current workspace");
+                grid.hide();
+            } else {
+                debug!("Workspace is already visible");
+            }
+        }
+    }
 
-    debug!("Hiding the current workspace");
-    let mut grid = grids.iter_mut().find(|g| g.id == old_id).unwrap();
-    grid.visible = false;
-    grid.hide();
+    debug!("Updating workspace id of monitor");
+    grids.remove(new_grid_idx);
+    grids.insert(new_grid_idx, new_grid);
 
-    drop(grids);
-    drop(gid);
+    *WORKSPACE_ID.lock().unwrap() = id;
 
     CHANNEL
         .sender
@@ -133,6 +146,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Initializing displays");
     display::init();
+
+    for display in DISPLAYS.lock().unwrap().iter() {
+        VISIBLE_WORKSPACES.lock().unwrap().insert(display.hmonitor, 0);
+    }
 
     info!("Initializing taskbar");
     task_bar::init();

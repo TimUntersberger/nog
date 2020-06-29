@@ -39,6 +39,21 @@ impl Default for Rule {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct WorkspaceSetting {
+    pub id: i32,
+    pub monitor: i32
+}
+
+impl Default for WorkspaceSetting {
+    fn default() -> Self {
+        Self {
+            id: -1,
+            monitor: -1
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Config {
     pub app_bar_height: i32,
@@ -47,12 +62,14 @@ pub struct Config {
     pub app_bar_font_size: i32,
     pub app_bar_workspace_bg: i32,
     pub work_mode: bool,
+    pub multi_monitor: bool,
     pub launch_on_startup: bool,
     pub margin: i32,
     pub padding: i32,
     pub remove_title_bar: bool,
     pub remove_task_bar: bool,
     pub display_app_bar: bool,
+    pub workspace_settings: Vec<WorkspaceSetting>,
     pub keybindings: Vec<Keybinding>,
     pub rules: Vec<Rule>,
 }
@@ -70,8 +87,10 @@ impl Default for Config {
             padding: 0,
             remove_title_bar: false,
             work_mode: true,
+            multi_monitor: false,
             remove_task_bar: false,
             display_app_bar: false,
+            workspace_settings: Vec::new(),
             keybindings: Vec::new(),
             rules: Vec::new(),
         }
@@ -138,9 +157,30 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
             if_i32!(config, config_key, value, padding);
             if_bool!(config, config_key, value, launch_on_startup);
             if_bool!(config, config_key, value, work_mode);
+            if_bool!(config, config_key, value, multi_monitor);
             if_bool!(config, config_key, value, remove_title_bar);
             if_bool!(config, config_key, value, remove_task_bar);
             if_bool!(config, config_key, value, display_app_bar);
+
+            if config_key == "workspaces" {
+                let workspaces = value.as_vec().ok_or("workspaces has to be an array")?;
+
+                for yaml_workspace in workspaces {
+                    if let yaml_rust::Yaml::Hash(hash) = yaml_workspace {
+                        let mut workspace = WorkspaceSetting::default();
+
+                        for entry in hash.iter() {
+                            let (key, value) = entry;
+                            let hash_key = key.as_str().ok_or("Invalid config key")?;
+
+                            if_i32!(workspace, hash_key, value, id);
+                            if_i32!(workspace, hash_key, value, monitor);
+                        }
+
+                        config.workspace_settings.push(workspace);
+                    }
+                }
+            }
 
             if config_key == "rules" {
                 let rules = value.as_vec().ok_or("rules has to be an array")?;

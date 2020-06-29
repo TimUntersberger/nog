@@ -50,7 +50,12 @@ impl Display {
 }
 
 unsafe extern "system" fn monitor_cb(hmonitor: HMONITOR, _: HDC, rect: LPRECT, _: LPARAM) -> BOOL {
-    DISPLAYS.lock().unwrap().push(Display::new(hmonitor, *rect));
+    let display = Display::new(hmonitor, *rect);
+
+    if CONFIG.lock().unwrap().multi_monitor || display.is_primary {
+        DISPLAYS.lock().unwrap().push(display);
+    }
+
     return 1;
 }
 
@@ -87,5 +92,20 @@ pub fn get_display_by_hmonitor(hmonitor: i32) -> Display {
         .expect(format!(
             "Couldn't find display with hmonitor of {}",
             hmonitor
+        ).as_str())
+}
+
+pub fn get_display_by_idx(idx: i32) -> Display {
+    let displays = DISPLAYS
+        .lock()
+        .unwrap();
+    
+    let x: usize = std::cmp::max(displays.len() - (idx as usize), 0);
+
+    *displays
+        .get(x)
+        .expect(format!(
+            "Couldn't get display at index {}",
+            x
         ).as_str())
 }

@@ -1,8 +1,8 @@
-use crate::util::rect_to_string;
 use crate::config::Rule;
-use crate::util;
-use crate::CONFIG;
 use crate::task_bar;
+use crate::util;
+use crate::util::rect_to_string;
+use crate::CONFIG;
 use gwl_ex_style::GwlExStyle;
 use gwl_style::GwlStyle;
 use winapi::shared::minwindef::BOOL;
@@ -108,8 +108,10 @@ impl Window {
             Ok(temp)
         }
     }
-    pub fn show(&self) -> util::WinApiResult<BOOL> {
-        unsafe { util::winapi_err_to_result(ShowWindow(self.id as HWND, SW_SHOW)) }
+    pub fn show(&self) {
+        unsafe {
+            ShowWindow(self.id as HWND, SW_SHOW);
+        }
     }
     pub fn hide(&self) {
         unsafe {
@@ -121,7 +123,12 @@ impl Window {
         let (display_app_bar, remove_title_bar, app_bar_height, remove_task_bar) = {
             let config = CONFIG.lock().unwrap();
 
-            (config.display_app_bar, config.remove_title_bar, config.app_bar_height, config.remove_task_bar)
+            (
+                config.display_app_bar,
+                config.remove_title_bar,
+                config.app_bar_height,
+                config.remove_task_bar,
+            )
         };
 
         let mut left = x;
@@ -155,10 +162,7 @@ impl Window {
                 bottom += app_bar_height;
             }
 
-            if rule.firefox
-                || rule.chromium
-                || (!remove_title_bar && rule.has_custom_titlebar)
-            {
+            if rule.firefox || rule.chromium || (!remove_title_bar && rule.has_custom_titlebar) {
                 // looks like the frame around firefox is smaller than chrome's frame by about 2 pixels
                 // I don't see any other window that behaves like these two pieces of shit
 

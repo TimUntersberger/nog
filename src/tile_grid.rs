@@ -23,7 +23,6 @@ pub enum SplitDirection {
 pub struct TileGrid {
     pub display: Display,
     pub id: i32,
-    pub visible: bool,
     pub focus_stack: Vec<(Direction, i32)>,
     pub tiles: Vec<Tile>,
     pub focused_window_id: Option<i32>,
@@ -37,7 +36,6 @@ impl TileGrid {
         Self {
             id,
             display: get_primary_display(),
-            visible: false,
             tiles: Vec::new(),
             focus_stack: Vec::with_capacity(5),
             focused_window_id: None,
@@ -46,15 +44,14 @@ impl TileGrid {
             columns: 0,
         }
     }
-    pub fn hide(&mut self) {
+    pub fn hide(&self) {
         for tile in &self.tiles {
             tile.window.hide();
         }
-        self.visible = false;
     }
-    pub fn show(&mut self) {
+    pub fn show(&self) {
         for tile in &self.tiles {
-            tile.window.show().expect("Failed to show window");
+            tile.window.show();
             tile.window
                 .to_foreground(true)
                 .expect("Failed to move window to foreground");
@@ -65,7 +62,6 @@ impl TileGrid {
         if let Some(tile) = self.get_focused_tile() {
             tile.window.focus().expect("Failed to focus window");
         }
-        self.visible = true;
     }
     pub fn get_tile_by_id(&self, id: i32) -> Option<Tile> {
         self.tiles
@@ -448,8 +444,8 @@ impl TileGrid {
         };
         let column_width = self.display.width() / self.columns;
         let mut row_height = self.display.height() / self.rows;
-        let mut x = 0;
-        let mut y = 0;
+        let mut x = self.display.left;
+        let mut y = self.display.top;
         let mut height = self.display.height();
         let mut width = self.display.width();
 
@@ -488,6 +484,8 @@ impl TileGrid {
 
     fn draw_tile(&self, tile: &Tile) {
         let rect = self.calculate_tile_data(tile);
+
+        println!("{:?}", self.display);
 
         unsafe {
             //TODO: handle error
