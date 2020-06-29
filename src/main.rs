@@ -5,6 +5,8 @@ extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
 
+use crate::display::get_display_by_hmonitor;
+use crate::display::get_primary_display;
 use app_bar::RedrawAppBarReason;
 use config::Config;
 use crossbeam_channel::select;
@@ -40,35 +42,12 @@ lazy_static! {
     pub static ref WORK_MODE: Mutex<bool> = Mutex::new(CONFIG.lock().unwrap().work_mode);
     pub static ref CONFIG: Mutex<Config> =
         Mutex::new(config::load().expect("Failed to loading config"));
-    pub static ref DISPLAY: Mutex<Display> = {
-        let mut display = Display::default();
-        display.init();
-        Mutex::new(display)
-    };
+    pub static ref DISPLAYS: Mutex<Vec<Display>> = Mutex::new(Vec::new());
     pub static ref CHANNEL: EventChannel = EventChannel::default();
-    pub static ref GRIDS: Mutex<Vec<TileGrid>> = {
-        Mutex::new(
-            (1..11)
-                .map(|i| {
-                    let mut grid = TileGrid::new(i);
-                    let config = CONFIG.lock().unwrap();
-
-                    grid.height =
-                        DISPLAY.lock().unwrap().height - config.margin * 2 - config.padding * 2;
-                    grid.width =
-                        DISPLAY.lock().unwrap().width - config.margin * 2 - config.padding * 2;
-
-                    if config.display_app_bar {
-                        grid.height -= config.app_bar_height;
-                    }
-
-                    grid
-                })
-                .collect::<Vec<TileGrid>>(),
-        )
-    };
+    pub static ref GRIDS: Mutex<Vec<TileGrid>> =
+        Mutex::new((1..11).map(TileGrid::new).collect::<Vec<TileGrid>>());
     pub static ref WORKSPACES: Mutex<Vec<Workspace>> =
-        Mutex::new((1..11).map(Workspace::new).collect::<Vec<Workspace>>(),);
+        Mutex::new((1..11).map(Workspace::new).collect::<Vec<Workspace>>());
     pub static ref WORKSPACE_ID: Mutex<i32> = Mutex::new(1);
 }
 
@@ -152,8 +131,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     startup::set_launch_on_startup(CONFIG.lock().unwrap().launch_on_startup)?;
 
-    info!("Initializing display");
-    lazy_static::initialize(&DISPLAY);
+    info!("Initializing displays");
+    display::init();
 
     info!("Initializing taskbar");
     task_bar::init();
@@ -171,7 +150,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         if CONFIG.lock().unwrap().display_app_bar {
-            app_bar::create(&*DISPLAY.lock().unwrap())?;
+            app_bar::create()?;
         }
 
         info!("Registering windows event handler");
@@ -207,19 +186,25 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
                         if work_mode {
                             if config.display_app_bar && !new_config.display_app_bar {
-                                app_bar::close();
-                                let mut grids = GRIDS.lock().unwrap();
+                                for d in DISPLAYS.lock().unwrap().iter_mut() {
+                                    app_bar::close();
+                                    d.top -= config.app_bar_height;
+                                    d.bottom += config.app_bar_height;
+                                }
 
-                                for grid in grids.iter_mut() {
-                                    grid.height += config.app_bar_height;
+                                for grid in GRIDS.lock().unwrap().iter_mut() {
+                                    grid.display = get_display_by_hmonitor(grid.display.hmonitor);
                                 }
 
                             } else if !config.display_app_bar && new_config.display_app_bar {
-                                app_bar::create(&*DISPLAY.lock().unwrap())?;
-                                let mut grids = GRIDS.lock().unwrap();
+                                app_bar::create()?;
+                                for d in DISPLAYS.lock().unwrap().iter_mut() {
+                                    d.top += config.app_bar_height;
+                                    d.bottom -= config.app_bar_height;
+                                }
 
-                                for grid in grids.iter_mut() {
-                                    grid.height -= new_config.app_bar_height;
+                                for grid in GRIDS.lock().unwrap().iter_mut() {
+                                    grid.display = get_display_by_hmonitor(grid.display.hmonitor);
                                 }
                             }
                             if config.remove_task_bar && !new_config.remove_task_bar {
@@ -227,7 +212,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                             } else if !config.remove_task_bar && new_config.remove_task_bar {
                                 task_bar::hide();
                             }
-                        } 
+                        }
 
                         if config.remove_title_bar && !new_config.remove_title_bar {
                             let mut grids = GRIDS.lock().unwrap();
@@ -254,7 +239,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         }
 
                         *CONFIG.lock().unwrap() = new_config;
-                            
                         hot_key_manager::register()?;
 
                         let mut grids = GRIDS.lock().unwrap();

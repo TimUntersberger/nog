@@ -1,15 +1,16 @@
 use crate::change_workspace;
-use crate::display::Display;
+use crate::display::get_primary_display;
 use crate::event::Event;
 use crate::tile_grid::TileGrid;
 use crate::util;
 use crate::CHANNEL;
 use crate::CONFIG;
-use crate::DISPLAY;
+use crate::DISPLAYS;
 use crate::GRIDS;
 use crate::WORKSPACE_ID;
 use lazy_static::lazy_static;
-use log::{debug, info};
+use log::{debug, error, info};
+use std::collections::HashMap;
 use std::ffi::CString;
 use std::sync::Mutex;
 use winapi::shared::minwindef::HINSTANCE;
@@ -64,7 +65,7 @@ use winapi::um::winuser::WNDCLASSA;
 
 lazy_static! {
     pub static ref HEIGHT: Mutex<i32> = Mutex::new(0);
-    pub static ref WINDOW: Mutex<i32> = Mutex::new(0);
+    pub static ref WINDOWS: Mutex<HashMap<i32, i32>> = Mutex::new(HashMap::new());
     pub static ref FONT: Mutex<i32> = Mutex::new(0);
     pub static ref REDRAW_REASON: Mutex<RedrawAppBarReason> = Mutex::new(RedrawAppBarReason::Time);
 }
@@ -82,7 +83,7 @@ unsafe extern "system" fn window_cb(
     l_param: LPARAM,
 ) -> LRESULT {
     if msg == WM_CLOSE {
-        *WINDOW.lock().unwrap() = 0;
+        WINDOWS.lock().unwrap().remove(&(hwnd as i32));
     } else if msg == WM_SETCURSOR {
         // Force a normal cursor. This probably shouldn't be done this way but whatever
         SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8));
@@ -131,20 +132,22 @@ unsafe extern "system" fn window_cb(
 
 pub fn redraw(reason: RedrawAppBarReason) {
     unsafe {
-        let hwnd = *WINDOW.lock().unwrap() as HWND;
-
-        if hwnd == 0 as HWND {
-            return;
-        }
-
         *REDRAW_REASON.lock().unwrap() = reason;
 
-        //TODO: handle error
-        SendMessageA(hwnd, WM_PAINT, 0, 0);
+        let hwnds: Vec<i32> = WINDOWS
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(_, hwnd)| *hwnd)
+            .collect();
+        for hwnd in hwnds {
+            //TODO: handle error
+            SendMessageA(hwnd as HWND, WM_PAINT, 0, 0);
+        }
     }
 }
 
-fn draw_workspaces(_hwnd: HWND) {
+fn draw_workspaces(hwnd: HWND) {
     let id = *WORKSPACE_ID.lock().unwrap();
 
     let grids = GRIDS.lock().unwrap();
@@ -156,9 +159,10 @@ fn draw_workspaces(_hwnd: HWND) {
 
     //erase last workspace
     debug!("Erasing {}", workspaces.len());
+
     erase_workspace((workspaces.len()) as i32);
     for (i, workspace) in workspaces.iter().enumerate() {
-        draw_workspace(i as i32, workspace.id, workspace.id == id)
+        draw_workspace(hwnd, i as i32, workspace.id, workspace.id == id)
             .expect("Failed to draw workspace");
     }
 }
@@ -168,14 +172,16 @@ fn erase_workspace(id: i32) {
         let mut rect = RECT::default();
         let app_bar_height = CONFIG.lock().unwrap().app_bar_height;
         let app_bar_bg = CONFIG.lock().unwrap().app_bar_bg;
-        let hwnd = *WINDOW.lock().unwrap() as HWND;
-        let hdc = GetDC(hwnd);
-        GetClientRect(hwnd, &mut rect);
 
-        rect.left += app_bar_height * id;
-        rect.right = rect.left + app_bar_height;
+        for (_, hwnd) in WINDOWS.lock().unwrap().iter() {
+            let hdc = GetDC(*hwnd as HWND);
+            GetClientRect(*hwnd as HWND, &mut rect);
 
-        FillRect(hdc, &rect, CreateSolidBrush(app_bar_bg as u32));
+            rect.left += app_bar_height * id;
+            rect.right = rect.left + app_bar_height;
+
+            FillRect(hdc, &rect, CreateSolidBrush(app_bar_bg as u32));
+        }
     }
 }
 
@@ -212,19 +218,20 @@ pub fn load_font() {
     }
 }
 
-pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
+pub fn create() -> Result<(), util::WinApiResultError> {
     info!("Creating appbar");
+
     let name = "wwm_app_bar";
+
     let mut height_guard = HEIGHT.lock().unwrap();
 
     *height_guard = CONFIG.lock().unwrap().app_bar_height;
 
     let height = *height_guard;
-    let display_width = display.width;
 
     std::thread::spawn(|| loop {
         std::thread::sleep(std::time::Duration::from_millis(950));
-        if *WINDOW.lock().unwrap() == 0 {
+        if WINDOWS.lock().unwrap().is_empty() {
             break;
         }
         CHANNEL
@@ -234,48 +241,68 @@ pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
             .expect("Failed to send redraw-app-bar event");
     });
 
-    std::thread::spawn(move || unsafe {
-        //TODO: Handle error
-        let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
-        //TODO: Handle error
-        let background_brush = CreateSolidBrush(CONFIG.lock().unwrap().app_bar_bg as u32);
+    for display in DISPLAYS.lock().unwrap().clone() {
+        debug!("Creating appbar for display {}", display.hmonitor as i32);
+        std::thread::spawn(move || unsafe {
+            if WINDOWS
+                .lock()
+                .unwrap()
+                .contains_key(&(display.hmonitor as i32))
+            {
+                error!(
+                    "Appbar for monitor {} already exists",
+                    display.hmonitor as i32
+                );
+            }
 
-        let class = WNDCLASSA {
-            hInstance: instance as HINSTANCE,
-            lpszClassName: name.as_ptr() as *const i8,
-            lpfnWndProc: Some(window_cb),
-            hbrBackground: background_brush as HBRUSH,
-            ..WNDCLASSA::default()
-        };
+            let display_width = display.width();
+            //TODO: Handle error
+            let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
+            //TODO: Handle error
+            let background_brush = CreateSolidBrush(CONFIG.lock().unwrap().app_bar_bg as u32);
 
-        RegisterClassA(&class);
+            let class = WNDCLASSA {
+                hInstance: instance as HINSTANCE,
+                lpszClassName: name.as_ptr() as *const i8,
+                lpfnWndProc: Some(window_cb),
+                hbrBackground: background_brush as HBRUSH,
+                ..WNDCLASSA::default()
+            };
 
-        //TODO: handle error
-        let window_handle = winapi::um::winuser::CreateWindowExA(
-            winapi::um::winuser::WS_EX_NOACTIVATE | winapi::um::winuser::WS_EX_TOPMOST,
-            name.as_ptr() as *const i8,
-            name.as_ptr() as *const i8,
-            winapi::um::winuser::WS_POPUPWINDOW & !winapi::um::winuser::WS_BORDER,
-            0,
-            0,
-            display_width,
-            height,
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            instance as HINSTANCE,
-            std::ptr::null_mut(),
-        );
+            RegisterClassA(&class);
 
-        *WINDOW.lock().unwrap() = window_handle as i32;
+            //TODO: handle error
+            let window_handle = winapi::um::winuser::CreateWindowExA(
+                winapi::um::winuser::WS_EX_NOACTIVATE | winapi::um::winuser::WS_EX_TOPMOST,
+                name.as_ptr() as *const i8,
+                name.as_ptr() as *const i8,
+                winapi::um::winuser::WS_POPUPWINDOW & !winapi::um::winuser::WS_BORDER,
+                display.left,
+                display.top,
+                display_width,
+                height,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                instance as HINSTANCE,
+                std::ptr::null_mut(),
+            );
 
-        show();
+            WINDOWS
+                .lock()
+                .unwrap()
+                .insert(display.hmonitor as i32, window_handle as i32);
 
-        let mut msg: MSG = MSG::default();
-        while GetMessageW(&mut msg, window_handle, 0, 0) > 0 {
-            TranslateMessage(&msg);
-            DispatchMessageW(&msg);
-        }
-    });
+            ShowWindow(window_handle, SW_SHOW);
+            draw_workspaces(window_handle);
+            draw_datetime(window_handle).expect("Failed to draw datetime");
+
+            let mut msg: MSG = MSG::default();
+            while GetMessageW(&mut msg, window_handle, 0, 0) > 0 {
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+        });
+    }
 
     Ok(())
 }
@@ -283,28 +310,48 @@ pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
 pub fn close() {
     unsafe {
         info!("Closing appbar");
-        let hwnd = *WINDOW.lock().unwrap();
-        SendMessageA(hwnd as HWND, WM_CLOSE, 0, 0);
+
+        let hwnds: Vec<i32> = WINDOWS
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(_, hwnd)| *hwnd)
+            .collect();
+        for hwnd in hwnds {
+            SendMessageA(hwnd as HWND, WM_CLOSE, 0, 0);
+        }
     }
 }
 
 #[allow(dead_code)]
 pub fn hide() {
     unsafe {
-        let hwnd = *WINDOW.lock().unwrap(); // Need to eager evaluate else there is a deadlock
-        ShowWindow(hwnd as HWND, SW_HIDE);
+        let hwnds: Vec<i32> = WINDOWS
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(_, hwnd)| *hwnd)
+            .collect();
+        for hwnd in hwnds {
+            ShowWindow(hwnd as HWND, SW_HIDE);
+        }
     }
 }
 
 pub fn show() {
-    let hwnd = *WINDOW.lock().unwrap() as HWND; // Need to eager evaluate else there is a deadlock
-
     unsafe {
-        ShowWindow(hwnd, SW_SHOW);
+        let hwnds: Vec<i32> = WINDOWS
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(_, hwnd)| *hwnd)
+            .collect();
+        for hwnd in hwnds {
+            ShowWindow(hwnd as HWND, SW_SHOW);
+            draw_workspaces(hwnd as HWND);
+            draw_datetime(hwnd as HWND).expect("Failed to draw datetime");
+        }
     }
-
-    draw_workspaces(hwnd);
-    draw_datetime(hwnd).expect("Failed to draw datetime");
 }
 
 pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
@@ -317,7 +364,7 @@ pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
             let text = format!("{}", chrono::Local::now().format("%T"));
             let text_len = text.len() as i32;
             let c_text = CString::new(text).unwrap();
-            let display = DISPLAY.lock().unwrap();
+            let display = get_primary_display();
 
             debug!("Getting the device context");
             let hdc = util::winapi_ptr_to_result(GetDC(hwnd))?;
@@ -333,8 +380,8 @@ pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
                 &mut size,
             ))?;
 
-            rect.left = display.width / 2 - (size.cx / 2) - 10;
-            rect.right = display.width / 2 + (size.cx / 2) + 10;
+            rect.left = display.width() / 2 - (size.cx / 2) - 10;
+            rect.right = display.width() / 2 + (size.cx / 2) + 10;
 
             debug!("Setting the text color");
             //TODO: handle error
@@ -363,7 +410,7 @@ pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
                 &mut size,
             ))?;
 
-            rect.right = display.width - 10;
+            rect.right = display.width() - 10;
             rect.left = rect.right - size.cx;
 
             debug!("Writing the date");
@@ -380,21 +427,25 @@ pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
     Ok(())
 }
 
-pub fn draw_workspace(idx: i32, id: i32, focused: bool) -> Result<(), util::WinApiResultError> {
-    let window = *WINDOW.lock().unwrap() as HWND;
-    if !window.is_null() {
+pub fn draw_workspace(
+    hwnd: HWND,
+    idx: i32,
+    id: i32,
+    focused: bool,
+) -> Result<(), util::WinApiResultError> {
+    if !hwnd.is_null() {
         let mut rect = RECT::default();
         let height = *HEIGHT.lock().unwrap();
 
         unsafe {
             debug!("Getting the rect for the appbar");
-            util::winapi_nullable_to_result(GetClientRect(window, &mut rect))?;
+            util::winapi_nullable_to_result(GetClientRect(hwnd, &mut rect))?;
 
             rect.left += height * idx;
             rect.right = rect.left + height;
 
             debug!("Getting the device context");
-            let hdc = util::winapi_ptr_to_result(GetDC(window))?;
+            let hdc = util::winapi_ptr_to_result(GetDC(hwnd))?;
 
             set_font(hdc);
 

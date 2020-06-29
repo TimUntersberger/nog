@@ -1,5 +1,7 @@
+use core::fmt::Debug;
 use thiserror::Error;
 use winapi::shared::windef::HWND;
+use winapi::shared::windef::RECT;
 use winapi::um::winuser::GetWindowTextA;
 
 pub fn get_title_of_window(window_handle: HWND) -> Result<String, WinApiResultError> {
@@ -65,4 +67,11 @@ pub fn to_widestring(string: &str) -> Vec<u16> {
         .encode_utf16()
         .chain(std::iter::once(0))
         .collect::<Vec<_>>()
+}
+
+pub fn rect_to_string(rect: RECT) -> String {
+    format!(
+        "RECT(left: {}, right: {}, top: {}, bottom: {})",
+        rect.left, rect.right, rect.top, rect.bottom
+    )
 }

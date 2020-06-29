@@ -1,3 +1,4 @@
+use crate::util::rect_to_string;
 use crate::config::Rule;
 use crate::util;
 use crate::CONFIG;
@@ -186,10 +187,7 @@ impl Window {
             bottom,
         };
 
-        // println!(
-        //     "before left: {}, top: {}, right: {}, bottom: {}",
-        //     rect.left, rect.top, rect.right, rect.bottom
-        // );
+        println!("before {}", rect_to_string(rect));
 
         unsafe {
             AdjustWindowRectEx(
@@ -200,10 +198,7 @@ impl Window {
             );
         }
 
-        // println!(
-        //     "after left: {}, top: {}, right: {}, bottom: {}",
-        //     rect.left, rect.top, rect.right, rect.bottom
-        // );
+        // println!("after {}", rect_to_string(rect));
 
         rect
     }

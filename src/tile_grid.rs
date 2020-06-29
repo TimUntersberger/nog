@@ -1,3 +1,6 @@
+use crate::display::get_primary_display;
+use crate::display::Display;
+use crate::DISPLAYS;
 use crate::hot_key_manager::Direction;
 use crate::tile::Tile;
 use crate::util;
@@ -17,6 +20,7 @@ pub enum SplitDirection {
 
 #[derive(Clone)]
 pub struct TileGrid {
+    pub display: Display,
     pub id: i32,
     pub visible: bool,
     pub focus_stack: Vec<(Direction, i32)>,
@@ -25,14 +29,13 @@ pub struct TileGrid {
     pub taskbar_window: i32,
     pub rows: i32,
     pub columns: i32,
-    pub height: i32,
-    pub width: i32,
 }
 
 impl TileGrid {
     pub fn new(id: i32) -> Self {
         Self {
             id,
+            display: get_primary_display(),
             visible: false,
             tiles: Vec::new(),
             focus_stack: Vec::with_capacity(5),
@@ -40,8 +43,6 @@ impl TileGrid {
             taskbar_window: 0,
             rows: 0,
             columns: 0,
-            height: 0,
-            width: 0,
         }
     }
     pub fn hide(&mut self) {
@@ -444,13 +445,13 @@ impl TileGrid {
 
             (config.padding, config.margin)
         };
-        let column_width = self.width / self.columns;
-        let row_height = self.height / self.rows;
+        let column_width = self.display.width() / self.columns;
+        let row_height = self.display.height() / self.rows;
 
         let mut x = 0;
         let mut y = 0;
-        let mut height = self.height;
-        let mut width = self.width;
+        let mut height = self.display.height();
+        let mut width = self.display.width();
 
         if let Some(column) = tile.column {
             width = column_width;
