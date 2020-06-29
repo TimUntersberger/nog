@@ -146,9 +146,9 @@ impl Window {
                 bottom += 1;
             }
 
-            if !remove_task_bar {
-                bottom -= *task_bar::HEIGHT.lock().unwrap();
-            }
+            // if !remove_task_bar {
+            //     bottom -= *task_bar::HEIGHT.lock().unwrap();
+            // }
 
             if display_app_bar {
                 top += app_bar_height;

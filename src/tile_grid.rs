@@ -2,6 +2,7 @@ use crate::display::get_primary_display;
 use crate::display::Display;
 use crate::DISPLAYS;
 use crate::hot_key_manager::Direction;
+use crate::task_bar;
 use crate::tile::Tile;
 use crate::util;
 use crate::window::Window;
@@ -440,18 +441,22 @@ impl TileGrid {
     }
     /// Calculates all the data required for drawing the tile
     fn calculate_tile_data(&self, tile: &Tile) -> RECT {
-        let (padding, margin) = {
+        let (padding, margin, remove_task_bar) = {
             let config = CONFIG.lock().unwrap();
 
-            (config.padding, config.margin)
+            (config.padding, config.margin, config.remove_task_bar)
         };
         let column_width = self.display.width() / self.columns;
-        let row_height = self.display.height() / self.rows;
-
+        let mut row_height = self.display.height() / self.rows;
         let mut x = 0;
         let mut y = 0;
         let mut height = self.display.height();
         let mut width = self.display.width();
+
+        if !remove_task_bar {
+            height -= *task_bar::HEIGHT.lock().unwrap();
+            row_height = (self.display.height() - *task_bar::HEIGHT.lock().unwrap()) / self.rows;
+        }
 
         if let Some(column) = tile.column {
             width = column_width;
