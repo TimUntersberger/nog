@@ -186,9 +186,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
                         if work_mode {
                             if config.display_app_bar && !new_config.display_app_bar {
+                                app_bar::close();
+
                                 for d in DISPLAYS.lock().unwrap().iter_mut() {
-                                    app_bar::close();
-                                    d.top -= config.app_bar_height;
                                     d.bottom += config.app_bar_height;
                                 }
 
@@ -200,9 +200,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                                 app_bar::create()?;
 
                                 for d in DISPLAYS.lock().unwrap().iter_mut() {
-                                    d.top += config.app_bar_height;
                                     d.bottom -= config.app_bar_height;
                                 }
+
+                                app_bar::show();
 
                                 for grid in GRIDS.lock().unwrap().iter_mut() {
                                     grid.display = get_display_by_hmonitor(grid.display.hmonitor);
