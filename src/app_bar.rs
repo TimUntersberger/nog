@@ -5,10 +5,10 @@ use crate::is_visible_workspace;
 use crate::tile_grid::TileGrid;
 use crate::util;
 use crate::CHANNEL;
-use crate::WORKSPACE_ID;
 use crate::CONFIG;
 use crate::DISPLAYS;
 use crate::GRIDS;
+use crate::WORKSPACE_ID;
 use lazy_static::lazy_static;
 use log::{debug, error, info};
 use std::collections::HashMap;
@@ -62,7 +62,7 @@ use winapi::um::winuser::WM_CREATE;
 use winapi::um::winuser::WM_LBUTTONDOWN;
 use winapi::um::winuser::WM_PAINT;
 use winapi::um::winuser::WM_SETCURSOR;
-use winapi::um::winuser::{WM_ERASEBKGND, WNDCLASSA};
+use winapi::um::winuser::{UnregisterClassA, WNDCLASSA};
 
 lazy_static! {
     pub static ref HEIGHT: Mutex<i32> = Mutex::new(0);
@@ -312,7 +312,7 @@ pub fn create() -> Result<(), util::WinApiResultError> {
                 .lock()
                 .unwrap()
                 .insert(display.hmonitor as i32, window_handle as i32);
-            
+
             draw_workspaces(window_handle);
             draw_datetime(window_handle).expect("Failed to draw datetime");
             ShowWindow(window_handle, SW_SHOW);
@@ -343,6 +343,14 @@ pub fn close() {
             SendMessageA(hwnd as HWND, WM_CLOSE, 0, 0);
             WINDOWS.lock().unwrap().remove(&hmonitor);
         }
+
+        debug!("Unregistering window class");
+        UnregisterClassA(
+            CString::new("wwm_app_bar")
+                .expect("Failed to transform string to cstring")
+                .as_ptr(),
+            winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut()),
+        );
     }
 }
 
@@ -405,7 +413,11 @@ pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
             rect.right = display.width() / 2 + (size.cx / 2) + 10;
 
             //TODO: handle error
-            SetTextColor(hdc, 0x00ffffff);
+            if CONFIG.lock().unwrap().light_theme {
+                SetTextColor(hdc, 0x00333333);
+            } else {
+                SetTextColor(hdc, 0x00ffffff);
+            }
 
             SetBkColor(hdc, CONFIG.lock().unwrap().app_bar_bg as u32);
 
@@ -464,24 +476,42 @@ pub fn draw_workspace(
 
             set_font(hdc);
 
-            SetBkMode(hdc, TRANSPARENT as i32);
-            SetTextColor(hdc, 0x00ffffff);
-
             let app_bar_bg = CONFIG.lock().unwrap().app_bar_bg;
 
-            if focused {
-                FillRect(
-                    hdc,
-                    &rect,
-                    CreateSolidBrush(util::scale_color(app_bar_bg, 2.0) as u32),
-                );
+            SetBkMode(hdc, TRANSPARENT as i32);
+
+            if CONFIG.lock().unwrap().light_theme {
+                SetTextColor(hdc, 0x00333333);
+
+                if focused {
+                    FillRect(
+                        hdc,
+                        &rect,
+                        CreateSolidBrush(util::scale_color(app_bar_bg, 0.75) as u32),
+                    );
+                } else {
+                    FillRect(
+                        hdc,
+                        &rect,
+                        CreateSolidBrush(util::scale_color(app_bar_bg, 0.9) as u32),
+                    );
+                }
             } else {
-                FillRect(
-                    hdc,
-                    &rect,
-                    CreateSolidBrush(util::scale_color(app_bar_bg, 1.5) as u32),
-                );
-                //FillRect(hdc, &rect, CreateSolidBrush(app_bar_bg as u32));
+                SetTextColor(hdc, 0x00ffffff);
+
+                if focused {
+                    FillRect(
+                        hdc,
+                        &rect,
+                        CreateSolidBrush(util::scale_color(app_bar_bg, 2.0) as u32),
+                    );
+                } else {
+                    FillRect(
+                        hdc,
+                        &rect,
+                        CreateSolidBrush(util::scale_color(app_bar_bg, 1.5) as u32),
+                    );
+                }
             }
 
             let id_str = id.to_string();

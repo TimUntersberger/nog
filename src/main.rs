@@ -5,9 +5,8 @@ extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
 
-use std::collections::HashMap;
-use crate::display::get_display_by_idx;
 use crate::display::get_display_by_hmonitor;
+use crate::display::get_display_by_idx;
 use crate::display::get_primary_display;
 use app_bar::RedrawAppBarReason;
 use config::Config;
@@ -17,6 +16,7 @@ use event::Event;
 use event::EventChannel;
 use lazy_static::lazy_static;
 use log::{debug, error, info};
+use std::collections::HashMap;
 use std::sync::Mutex;
 use tile_grid::TileGrid;
 use winapi::shared::windef::HWND;
@@ -84,7 +84,11 @@ fn on_quit() -> Result<(), util::WinApiResultError> {
 }
 
 pub fn is_visible_workspace(id: i32) -> bool {
-    VISIBLE_WORKSPACES.lock().unwrap().values().any(|v| *v == id)
+    VISIBLE_WORKSPACES
+        .lock()
+        .unwrap()
+        .values()
+        .any(|v| *v == id)
 }
 
 pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError> {
@@ -92,7 +96,12 @@ pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError> {
 
     let workspace_settings = CONFIG.lock().unwrap().workspace_settings.clone();
 
-    let (new_grid_idx, mut new_grid) = grids.iter_mut().enumerate().find(|(_, g)| g.id == id).map(|(i, g)| (i, g.clone())).unwrap();
+    let (new_grid_idx, mut new_grid) = grids
+        .iter_mut()
+        .enumerate()
+        .find(|(_, g)| g.id == id)
+        .map(|(i, g)| (i, g.clone()))
+        .unwrap();
 
     if let Some(setting) = workspace_settings.iter().find(|s| s.id == id) {
         new_grid.display = get_display_by_idx(setting.monitor);
@@ -106,7 +115,7 @@ pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError> {
 
     //without this delay there is a slight flickering of the background
     std::thread::sleep(std::time::Duration::from_millis(10));
-    
+
     if let Some(id) = visible_workspaces.insert(new_grid.display.hmonitor, new_grid.id) {
         if new_grid.id != id {
             if let Some(grid) = grids.iter().find(|g| g.id == id) {
@@ -145,7 +154,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     display::init();
 
     for display in DISPLAYS.lock().unwrap().iter() {
-        VISIBLE_WORKSPACES.lock().unwrap().insert(display.hmonitor, 0);
+        VISIBLE_WORKSPACES
+            .lock()
+            .unwrap()
+            .insert(display.hmonitor, 0);
     }
 
     change_workspace(1).expect("Failed to change workspace to ID@1");
@@ -202,9 +214,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         let config = CONFIG.lock().unwrap().clone();
                         let new_config = config::load().expect("Failed to load config");
                         let work_mode = *WORK_MODE.lock().unwrap();
+                        let mut draw_app_bar = false;
 
                         if work_mode {
-                            if config.display_app_bar && !new_config.display_app_bar {
+                            if config.display_app_bar && new_config.display_app_bar {
+                                if config.app_bar_bg != new_config.app_bar_bg
+                                || config.app_bar_font != new_config.app_bar_font
+                                || config.app_bar_font_size != new_config.app_bar_font_size
+                                || config.app_bar_height != new_config.app_bar_height
+                                || config.light_theme != new_config.light_theme {
+                                    app_bar::close();
+                                    draw_app_bar = true;
+                                }
+                            }
+                            else if config.display_app_bar && !new_config.display_app_bar {
                                 app_bar::close();
 
                                 for d in DISPLAYS.lock().unwrap().iter_mut() {
@@ -216,13 +239,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                                 }
 
                             } else if !config.display_app_bar && new_config.display_app_bar {
-                                app_bar::create()?;
+                                draw_app_bar = true;
 
                                 for d in DISPLAYS.lock().unwrap().iter_mut() {
                                     d.bottom -= config.app_bar_height;
                                 }
-
-                                app_bar::show();
 
                                 for grid in GRIDS.lock().unwrap().iter_mut() {
                                     grid.display = get_display_by_hmonitor(grid.display.hmonitor);
@@ -260,6 +281,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         }
 
                         *CONFIG.lock().unwrap() = new_config;
+
+                        if draw_app_bar {
+                            app_bar::create()?;
+                            app_bar::show();
+                        }
+
                         hot_key_manager::register()?;
 
                         let mut grids = GRIDS.lock().unwrap();

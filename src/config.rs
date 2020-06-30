@@ -61,6 +61,7 @@ pub struct Config {
     pub app_bar_font: String,
     pub app_bar_font_size: i32,
     pub work_mode: bool,
+    pub light_theme: bool,
     pub multi_monitor: bool,
     pub launch_on_startup: bool,
     pub margin: i32,
@@ -85,6 +86,7 @@ impl Default for Config {
             padding: 0,
             remove_title_bar: false,
             work_mode: true,
+            light_theme: false,
             multi_monitor: false,
             remove_task_bar: false,
             display_app_bar: false,
@@ -152,6 +154,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
             if_i32!(config, config_key, value, app_bar_height);
             if_i32!(config, config_key, value, margin);
             if_i32!(config, config_key, value, padding);
+            if_bool!(config, config_key, value, light_theme);
             if_bool!(config, config_key, value, launch_on_startup);
             if_bool!(config, config_key, value, work_mode);
             if_bool!(config, config_key, value, multi_monitor);
