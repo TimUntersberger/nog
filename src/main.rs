@@ -130,6 +130,8 @@ pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError> {
         .send(Event::RedrawAppBar(RedrawAppBarReason::Workspace))
         .expect("Failed to send redraw-app-bar event");
 
+    println!("{:?}", visible_workspaces);
+
     Ok(())
 }
 
@@ -139,17 +141,19 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing config");
     lazy_static::initialize(&CONFIG);
 
-    info!("Starting hot reloading of config");
-    config::hot_reloading::start();
-
-    startup::set_launch_on_startup(CONFIG.lock().unwrap().launch_on_startup)?;
-
     info!("Initializing displays");
     display::init();
 
     for display in DISPLAYS.lock().unwrap().iter() {
         VISIBLE_WORKSPACES.lock().unwrap().insert(display.hmonitor, 0);
     }
+
+    change_workspace(1).expect("Failed to change workspace to ID@1");
+
+    info!("Starting hot reloading of config");
+    config::hot_reloading::start();
+
+    startup::set_launch_on_startup(CONFIG.lock().unwrap().launch_on_startup)?;
 
     info!("Initializing taskbar");
     task_bar::init();
@@ -173,8 +177,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         info!("Registering windows event handler");
         win_event_handler::register()?;
     }
-
-    change_workspace(1).expect("Failed to change workspace to ID@1");
 
     info!("Starting hot key manager");
     hot_key_manager::register()?;
@@ -277,13 +279,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn main() {
-    todo!();
     /*
         Only show the workspace on the appbar if it exists on the same display.
         Show the darker color when the workspace exists but is not focused the lighter one if it is.
             Focused means the workspace has mouse focus
     */
     logging::setup().expect("Failed to setup logging");
+
+    info!("");
 
     update::update().expect("Failed to update the program");
 

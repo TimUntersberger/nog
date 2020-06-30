@@ -61,7 +61,7 @@ use winapi::um::winuser::WM_CREATE;
 use winapi::um::winuser::WM_LBUTTONDOWN;
 use winapi::um::winuser::WM_PAINT;
 use winapi::um::winuser::WM_SETCURSOR;
-use winapi::um::winuser::WNDCLASSA;
+use winapi::um::winuser::{WM_ERASEBKGND, WNDCLASSA};
 
 lazy_static! {
     pub static ref HEIGHT: Mutex<i32> = Mutex::new(0);
@@ -139,6 +139,7 @@ pub fn redraw(reason: RedrawAppBarReason) {
             .iter()
             .map(|(_, hwnd)| *hwnd)
             .collect();
+
         for hwnd in hwnds {
             //TODO: handle error
             SendMessageA(hwnd as HWND, WM_PAINT, 0, 0);
@@ -149,11 +150,6 @@ pub fn redraw(reason: RedrawAppBarReason) {
 fn draw_workspaces(hwnd: HWND) {
     let grids = GRIDS.lock().unwrap();
 
-    let workspaces: Vec<&TileGrid> = grids
-        .iter()
-        .filter(|g| !g.tiles.is_empty() || is_visible_workspace(g.id))
-        .collect();
-
     let monitor = *WINDOWS
         .lock()
         .unwrap()
@@ -162,17 +158,27 @@ fn draw_workspaces(hwnd: HWND) {
         .map(|(m, _)| m)
         .expect("Couldn't find monitor for appbar");
 
-    //erase last workspace
-    debug!("Erasing {}", workspaces.len());
+    debug!("On monitor {}", monitor as i32);
 
-    erase_workspace((workspaces.len()) as i32);
+    let workspaces: Vec<&TileGrid> = grids
+        .iter()
+        .filter(|g| {
+            (!g.tiles.is_empty() || is_visible_workspace(g.id)) && g.display.hmonitor == monitor
+        })
+        .collect();
+
+    if workspaces.len() != 0 {
+        //erase last workspace
+        debug!("Erasing {}", workspaces.len());
+        erase_workspace((workspaces.len()) as i32);
+    }
+
     for (i, workspace) in workspaces.iter().enumerate() {
         draw_workspace(
             hwnd,
             i as i32,
             workspace.id,
-            is_visible_workspace(workspace.id),
-            workspace.display.hmonitor == monitor,
+            false,
         )
         .expect("Failed to draw workspace");
     }
@@ -305,10 +311,10 @@ pub fn create() -> Result<(), util::WinApiResultError> {
                 .lock()
                 .unwrap()
                 .insert(display.hmonitor as i32, window_handle as i32);
-
-            ShowWindow(window_handle, SW_SHOW);
+            
             draw_workspaces(window_handle);
             draw_datetime(window_handle).expect("Failed to draw datetime");
+            ShowWindow(window_handle, SW_SHOW);
 
             let mut msg: MSG = MSG::default();
             while GetMessageW(&mut msg, window_handle, 0, 0) > 0 {
@@ -442,7 +448,6 @@ pub fn draw_workspace(
     idx: i32,
     id: i32,
     focused: bool,
-    same_monitor: bool,
 ) -> Result<(), util::WinApiResultError> {
     if !hwnd.is_null() {
         let mut rect = RECT::default();
@@ -464,21 +469,18 @@ pub fn draw_workspace(
             let app_bar_bg = CONFIG.lock().unwrap().app_bar_bg;
 
             if focused {
-                if same_monitor {
-                    FillRect(
-                        hdc,
-                        &rect,
-                        CreateSolidBrush(util::scale_color(app_bar_bg, 2.0) as u32),
-                    );
-                } else {
-                    FillRect(
-                        hdc,
-                        &rect,
-                        CreateSolidBrush(util::scale_color(app_bar_bg, 1.3) as u32),
-                    );
-                }
+                FillRect(
+                    hdc,
+                    &rect,
+                    CreateSolidBrush(util::scale_color(app_bar_bg, 2.0) as u32),
+                );
             } else {
-                FillRect(hdc, &rect, CreateSolidBrush(app_bar_bg as u32));
+                FillRect(
+                    hdc,
+                    &rect,
+                    CreateSolidBrush(util::scale_color(app_bar_bg, 1.5) as u32),
+                );
+                //FillRect(hdc, &rect, CreateSolidBrush(app_bar_bg as u32));
             }
 
             let id_str = id.to_string();
