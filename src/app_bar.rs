@@ -8,6 +8,7 @@ use crate::CHANNEL;
 use crate::CONFIG;
 use crate::DISPLAYS;
 use crate::GRIDS;
+use crate::VISIBLE_WORKSPACES;
 use crate::WORKSPACE_ID;
 use lazy_static::lazy_static;
 use log::{debug, error, info};
@@ -168,13 +169,12 @@ fn draw_workspaces(hwnd: HWND) {
         })
         .collect();
 
-    if workspaces.len() != 0 {
-        //erase last workspace
-        debug!("Erasing {}", workspaces.len());
-        erase_workspace((workspaces.len()) as i32);
-    }
+    //erase last workspace
+    debug!("Erasing {}", workspaces.len());
+    erase_workspace(hwnd, (workspaces.len()) as i32);
 
     for (i, workspace) in workspaces.iter().enumerate() {
+        debug!("Drawing {}", workspace.id);
         draw_workspace(
             hwnd,
             i as i32,
@@ -185,21 +185,19 @@ fn draw_workspaces(hwnd: HWND) {
     }
 }
 
-fn erase_workspace(id: i32) {
+fn erase_workspace(hwnd: HWND, id: i32) {
     unsafe {
         let mut rect = RECT::default();
         let app_bar_height = CONFIG.lock().unwrap().app_bar_height;
         let app_bar_bg = CONFIG.lock().unwrap().app_bar_bg;
 
-        for (_, hwnd) in WINDOWS.lock().unwrap().iter() {
-            let hdc = GetDC(*hwnd as HWND);
-            GetClientRect(*hwnd as HWND, &mut rect);
+        let hdc = GetDC(hwnd);
+        GetClientRect(hwnd, &mut rect);
 
-            rect.left += app_bar_height * id;
-            rect.right = rect.left + app_bar_height;
+        rect.left += app_bar_height * id;
+        rect.right = rect.left + app_bar_height;
 
-            FillRect(hdc, &rect, CreateSolidBrush(app_bar_bg as u32));
-        }
+        FillRect(hdc, &rect, CreateSolidBrush(app_bar_bg as u32));
     }
 }
 

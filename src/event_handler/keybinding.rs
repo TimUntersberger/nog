@@ -4,8 +4,9 @@ use crate::hot_key_manager::Keybinding;
 use crate::hot_key_manager::KeybindingType;
 use crate::CHANNEL;
 use crate::GRIDS;
+use crate::VISIBLE_WORKSPACES;
 use crate::WORKSPACE_ID;
-use crate::WORK_MODE;
+use crate::{display::get_display_by_idx, util, WORK_MODE};
 use log::{error, info};
 use winapi::um::processthreadsapi::CreateProcessA;
 use winapi::um::processthreadsapi::PROCESS_INFORMATION;
@@ -48,6 +49,27 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
                     );
                 }
             }
+        }
+        KeybindingType::MoveWorkspaceToMonitor(monitor) => {
+            let mut grids = GRIDS.lock().unwrap();
+            let mut grid = grids
+                .iter_mut()
+                .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
+                .unwrap();
+
+            let grid_id = grid.id;
+            let grid_old_monitor = grid.display.hmonitor;
+
+            grid.display = get_display_by_idx(monitor);
+
+            VISIBLE_WORKSPACES
+                .lock()
+                .unwrap()
+                .insert(grid_old_monitor, 0);
+
+            drop(grids);
+            change_workspace(grid_id)
+                .expect("Failed to change workspace after moving workspace to different monitor");
         }
         KeybindingType::CloseTile => close_tile::handle()?,
         KeybindingType::MoveToWorkspace(id) => {
