@@ -20,6 +20,7 @@ pub enum SplitDirection {
 pub struct TileGrid {
     pub id: i32,
     pub visible: bool,
+    pub fullscreen: bool,
     pub focus_stack: Vec<(Direction, i32)>,
     pub tiles: Vec<Tile>,
     pub focused_window_id: Option<i32>,
@@ -35,6 +36,7 @@ impl TileGrid {
         Self {
             id,
             visible: false,
+            fullscreen: false,
             tiles: Vec::new(),
             focus_stack: Vec::with_capacity(5),
             focused_window_id: None,
@@ -458,23 +460,25 @@ impl TileGrid {
             row_height = (self.height - *task_bar::HEIGHT.lock().unwrap()) / self.rows;
         }
 
-        if let Some(column) = tile.column {
-            width = column_width;
-            x += column_width * (column - 1);
+        if !self.fullscreen {
+            if let Some(column) = tile.column {
+                width = column_width;
+                x += column_width * (column - 1);
 
-            if column > 1 {
-                width -= padding;
-                x += padding;
+                if column > 1 {
+                    width -= padding;
+                    x += padding;
+                }
             }
-        }
 
-        if let Some(row) = tile.row {
-            height = row_height;
-            y = row_height * (row - 1);
+            if let Some(row) = tile.row {
+                height = row_height;
+                y = row_height * (row - 1);
 
-            if row > 1 {
-                // height -= CONFIG.padding;
-                y += padding;
+                if row > 1 {
+                    // height -= CONFIG.padding;
+                    y += padding;
+                }
             }
         }
 
@@ -563,6 +567,11 @@ impl TileGrid {
 
     pub fn draw_grid(&self) {
         debug!("Drawing grid");
+
+        if self.fullscreen {
+            self.draw_tile(self.get_focused_tile().expect("Couldn't get focused tile"));
+            return;
+        }
 
         for tile in &self.tiles {
             debug!(

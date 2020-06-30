@@ -215,6 +215,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                                 id
                             )),
                             "ToggleFloatingMode" => KeybindingType::ToggleFloatingMode,
+                            "ToggleFullscreen" => KeybindingType::ToggleFullscreen,
                             "ToggleWorkMode" => KeybindingType::ToggleWorkMode,
                             "Focus" => KeybindingType::Focus(Direction::from_str(ensure_str!(
                                 "keybinding of type Focus",
