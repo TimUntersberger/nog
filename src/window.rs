@@ -186,10 +186,10 @@ impl Window {
             bottom,
         };
 
-        println!(
-            "before left: {}, top: {}, right: {}, bottom: {}",
-            rect.left, rect.top, rect.right, rect.bottom
-        );
+        // println!(
+        //     "before left: {}, top: {}, right: {}, bottom: {}",
+        //     rect.left, rect.top, rect.right, rect.bottom
+        // );
 
         unsafe {
             AdjustWindowRectEx(
@@ -200,10 +200,10 @@ impl Window {
             );
         }
 
-        println!(
-            "after left: {}, top: {}, right: {}, bottom: {}",
-            rect.left, rect.top, rect.right, rect.bottom
-        );
+        // println!(
+        //     "after left: {}, top: {}, right: {}, bottom: {}",
+        //     rect.left, rect.top, rect.right, rect.bottom
+        // );
 
         rect
     }

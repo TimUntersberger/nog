@@ -1,6 +1,6 @@
 use crate::event::Event;
 use crate::CHANNEL;
-use log::debug;
+use log::{error, debug};
 use notify::watcher;
 use notify::DebouncedEvent;
 use notify::RecursiveMode;
@@ -32,7 +32,7 @@ pub fn start() {
                     }
                     _ => {}
                 },
-                Err(e) => println!("watch error: {:?}", e),
+                Err(e) => error!("watch error: {:?}", e),
             }
         }
     });
