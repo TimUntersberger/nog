@@ -5,6 +5,7 @@ use crate::is_visible_workspace;
 use crate::tile_grid::TileGrid;
 use crate::util;
 use crate::CHANNEL;
+use crate::WORKSPACE_ID;
 use crate::CONFIG;
 use crate::DISPLAYS;
 use crate::GRIDS;
@@ -178,7 +179,7 @@ fn draw_workspaces(hwnd: HWND) {
             hwnd,
             i as i32,
             workspace.id,
-            false,
+            *WORKSPACE_ID.lock().unwrap() == workspace.id,
         )
         .expect("Failed to draw workspace");
     }
