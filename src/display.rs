@@ -68,8 +68,6 @@ pub fn init() {
             0,
         );
     }
-
-    println!("{:?}", *DISPLAYS.lock().unwrap());
 }
 
 pub fn get_primary_display() -> Display {

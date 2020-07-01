@@ -488,8 +488,6 @@ impl TileGrid {
     fn draw_tile(&self, tile: &Tile) {
         let rect = self.calculate_tile_data(tile);
 
-        println!("{:?}", self.display);
-
         unsafe {
             //TODO: handle error
             SetWindowPos(

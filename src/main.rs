@@ -138,8 +138,6 @@ pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError> {
         .send(Event::RedrawAppBar(RedrawAppBarReason::Workspace))
         .expect("Failed to send redraw-app-bar event");
 
-    println!("{:?}", visible_workspaces);
-
     Ok(())
 }
 
@@ -190,7 +188,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     info!("Starting hot key manager");
-    hot_key_manager::register()?;
+    //hot_key_manager::register()?;
 
     loop {
         select! {

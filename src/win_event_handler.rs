@@ -1,3 +1,4 @@
+use crate::app_bar;
 use crate::util;
 use crate::Event;
 use crate::CHANNEL;
@@ -68,6 +69,15 @@ unsafe extern "system" fn handler(
     _: DWORD,
 ) {
     if object_type != OBJID_WINDOW {
+        return;
+    }
+
+    if app_bar::WINDOWS
+        .lock()
+        .unwrap()
+        .values()
+        .any(|v| *v == window_handle as i32)
+    {
         return;
     }
 
