@@ -41,6 +41,7 @@ pub enum KeybindingType {
     ChangeWorkspace(i32),
     ToggleFloatingMode,
     ToggleWorkMode,
+    MoveWorkspaceToMonitor(i32),
     ToggleFullscreen,
     Launch(Command),
     Focus(Direction),

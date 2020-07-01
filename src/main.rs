@@ -5,6 +5,8 @@ extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
 
+use crate::display::get_display_by_hmonitor;
+use crate::display::get_display_by_idx;
 use app_bar::RedrawAppBarReason;
 use config::Config;
 use crossbeam_channel::select;
@@ -13,6 +15,7 @@ use event::Event;
 use event::EventChannel;
 use lazy_static::lazy_static;
 use log::{debug, error, info};
+use std::collections::HashMap;
 use std::sync::Mutex;
 use tile_grid::TileGrid;
 use winapi::shared::windef::HWND;
@@ -40,35 +43,13 @@ lazy_static! {
     pub static ref WORK_MODE: Mutex<bool> = Mutex::new(CONFIG.lock().unwrap().work_mode);
     pub static ref CONFIG: Mutex<Config> =
         Mutex::new(config::load().expect("Failed to loading config"));
-    pub static ref DISPLAY: Mutex<Display> = {
-        let mut display = Display::default();
-        display.init();
-        Mutex::new(display)
-    };
+    pub static ref DISPLAYS: Mutex<Vec<Display>> = Mutex::new(Vec::new());
     pub static ref CHANNEL: EventChannel = EventChannel::default();
-    pub static ref GRIDS: Mutex<Vec<TileGrid>> = {
-        Mutex::new(
-            (1..11)
-                .map(|i| {
-                    let mut grid = TileGrid::new(i);
-                    let config = CONFIG.lock().unwrap();
-
-                    grid.height =
-                        DISPLAY.lock().unwrap().height - config.margin * 2 - config.padding * 2;
-                    grid.width =
-                        DISPLAY.lock().unwrap().width - config.margin * 2 - config.padding * 2;
-
-                    if config.display_app_bar {
-                        grid.height -= config.app_bar_height;
-                    }
-
-                    grid
-                })
-                .collect::<Vec<TileGrid>>(),
-        )
-    };
+    pub static ref GRIDS: Mutex<Vec<TileGrid>> =
+        Mutex::new((1..11).map(TileGrid::new).collect::<Vec<TileGrid>>());
     pub static ref WORKSPACES: Mutex<Vec<Workspace>> =
-        Mutex::new((1..11).map(Workspace::new).collect::<Vec<Workspace>>(),);
+        Mutex::new((1..11).map(Workspace::new).collect::<Vec<Workspace>>());
+    pub static ref VISIBLE_WORKSPACES: Mutex<HashMap<i32, i32>> = Mutex::new(HashMap::new());
     pub static ref WORKSPACE_ID: Mutex<i32> = Mutex::new(1);
 }
 
@@ -101,42 +82,63 @@ fn on_quit() -> Result<(), util::WinApiResultError> {
     std::process::exit(0);
 }
 
+pub fn is_visible_workspace(id: i32) -> bool {
+    VISIBLE_WORKSPACES
+        .lock()
+        .unwrap()
+        .values()
+        .any(|v| *v == id)
+}
+
 pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError> {
     let mut grids = GRIDS.lock().unwrap();
-    let mut gid = WORKSPACE_ID.lock().unwrap();
 
-    let old_id = *gid;
-    *gid = id;
+    let workspace_settings = CONFIG.lock().unwrap().workspace_settings.clone();
 
-    let mut grid = grids.iter_mut().find(|g| g.id == *gid).unwrap();
-    grid.visible = true;
+    let (new_grid_idx, mut new_grid) = grids
+        .iter_mut()
+        .enumerate()
+        .find(|(_, g)| g.id == id)
+        .map(|(i, g)| (i, g.clone()))
+        .unwrap();
 
-    if old_id == id {
-        debug!("Workspace is already selected");
-        return Ok(());
+    if let Some(setting) = workspace_settings.iter().find(|s| s.id == id) {
+        new_grid.display = get_display_by_idx(setting.monitor);
     }
 
-    debug!("Showing the next workspace");
-    grid.visible = true;
-    grid.draw_grid();
-    grid.show();
+    let mut visible_workspaces = VISIBLE_WORKSPACES.lock().unwrap();
+
+    debug!("Drawing the workspace");
+    new_grid.draw_grid();
+    new_grid.show();
 
     //without this delay there is a slight flickering of the background
-    std::thread::sleep(std::time::Duration::from_millis(5));
+    std::thread::sleep(std::time::Duration::from_millis(10));
 
-    debug!("Hiding the current workspace");
-    let mut grid = grids.iter_mut().find(|g| g.id == old_id).unwrap();
-    grid.visible = false;
-    grid.hide();
+    if let Some(id) = visible_workspaces.insert(new_grid.display.hmonitor, new_grid.id) {
+        if new_grid.id != id {
+            if let Some(grid) = grids.iter().find(|g| g.id == id) {
+                debug!("Hiding the current workspace");
+                grid.hide();
+            } else {
+                debug!("Workspace is already visible");
+            }
+        }
+    }
 
-    drop(grids);
-    drop(gid);
+    debug!("Updating workspace id of monitor");
+    grids.remove(new_grid_idx);
+    grids.insert(new_grid_idx, new_grid);
+
+    *WORKSPACE_ID.lock().unwrap() = id;
 
     CHANNEL
         .sender
         .clone()
         .send(Event::RedrawAppBar(RedrawAppBarReason::Workspace))
         .expect("Failed to send redraw-app-bar event");
+
+    println!("{:?}", visible_workspaces);
 
     Ok(())
 }
@@ -147,13 +149,22 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing config");
     lazy_static::initialize(&CONFIG);
 
+    info!("Initializing displays");
+    display::init();
+
+    for display in DISPLAYS.lock().unwrap().iter() {
+        VISIBLE_WORKSPACES
+            .lock()
+            .unwrap()
+            .insert(display.hmonitor, 0);
+    }
+
+    change_workspace(1).expect("Failed to change workspace to ID@1");
+
     info!("Starting hot reloading of config");
     config::hot_reloading::start();
 
     startup::set_launch_on_startup(CONFIG.lock().unwrap().launch_on_startup)?;
-
-    info!("Initializing display");
-    lazy_static::initialize(&DISPLAY);
 
     info!("Initializing taskbar");
     task_bar::init();
@@ -171,14 +182,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         if CONFIG.lock().unwrap().display_app_bar {
-            app_bar::create(&*DISPLAY.lock().unwrap())?;
+            app_bar::create()?;
         }
 
         info!("Registering windows event handler");
         win_event_handler::register()?;
     }
-
-    change_workspace(1).expect("Failed to change workspace to ID@1");
 
     info!("Starting hot key manager");
     hot_key_manager::register()?;
@@ -204,22 +213,39 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         let config = CONFIG.lock().unwrap().clone();
                         let new_config = config::load().expect("Failed to load config");
                         let work_mode = *WORK_MODE.lock().unwrap();
+                        let mut draw_app_bar = false;
 
                         if work_mode {
-                            if config.display_app_bar && !new_config.display_app_bar {
+                            if config.display_app_bar && new_config.display_app_bar {
+                                if config.app_bar_bg != new_config.app_bar_bg
+                                || config.app_bar_font != new_config.app_bar_font
+                                || config.app_bar_font_size != new_config.app_bar_font_size
+                                || config.app_bar_height != new_config.app_bar_height
+                                || config.light_theme != new_config.light_theme {
+                                    app_bar::close();
+                                    draw_app_bar = true;
+                                }
+                            }
+                            else if config.display_app_bar && !new_config.display_app_bar {
                                 app_bar::close();
-                                let mut grids = GRIDS.lock().unwrap();
 
-                                for grid in grids.iter_mut() {
-                                    grid.height += config.app_bar_height;
+                                for d in DISPLAYS.lock().unwrap().iter_mut() {
+                                    d.bottom += config.app_bar_height;
+                                }
+
+                                for grid in GRIDS.lock().unwrap().iter_mut() {
+                                    grid.display = get_display_by_hmonitor(grid.display.hmonitor);
                                 }
 
                             } else if !config.display_app_bar && new_config.display_app_bar {
-                                app_bar::create(&*DISPLAY.lock().unwrap())?;
-                                let mut grids = GRIDS.lock().unwrap();
+                                draw_app_bar = true;
 
-                                for grid in grids.iter_mut() {
-                                    grid.height -= new_config.app_bar_height;
+                                for d in DISPLAYS.lock().unwrap().iter_mut() {
+                                    d.bottom -= config.app_bar_height;
+                                }
+
+                                for grid in GRIDS.lock().unwrap().iter_mut() {
+                                    grid.display = get_display_by_hmonitor(grid.display.hmonitor);
                                 }
                             }
                             if config.remove_task_bar && !new_config.remove_task_bar {
@@ -227,7 +253,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                             } else if !config.remove_task_bar && new_config.remove_task_bar {
                                 task_bar::hide();
                             }
-                        } 
+                        }
 
                         if config.remove_title_bar && !new_config.remove_title_bar {
                             let mut grids = GRIDS.lock().unwrap();
@@ -254,7 +280,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         }
 
                         *CONFIG.lock().unwrap() = new_config;
-                            
+
+                        if draw_app_bar {
+                            app_bar::create()?;
+                            app_bar::show();
+                        }
+
                         hot_key_manager::register()?;
 
                         let mut grids = GRIDS.lock().unwrap();
@@ -274,7 +305,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn main() {
+    /*
+        Only show the workspace on the appbar if it exists on the same display.
+        Show the darker color when the workspace exists but is not focused the lighter one if it is.
+            Focused means the workspace has mouse focus
+    */
     logging::setup().expect("Failed to setup logging");
+
+    info!("");
 
     update::update().expect("Failed to update the program");
 

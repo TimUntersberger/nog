@@ -1,15 +1,17 @@
 use crate::change_workspace;
-use crate::display::Display;
+use crate::display::get_primary_display;
 use crate::event::Event;
+use crate::is_visible_workspace;
 use crate::tile_grid::TileGrid;
 use crate::util;
 use crate::CHANNEL;
 use crate::CONFIG;
-use crate::DISPLAY;
+use crate::DISPLAYS;
 use crate::GRIDS;
 use crate::WORKSPACE_ID;
 use lazy_static::lazy_static;
-use log::{debug, info};
+use log::{debug, error, info};
+use std::collections::HashMap;
 use std::ffi::CString;
 use std::sync::Mutex;
 use winapi::shared::minwindef::HINSTANCE;
@@ -60,11 +62,12 @@ use winapi::um::winuser::WM_CREATE;
 use winapi::um::winuser::WM_LBUTTONDOWN;
 use winapi::um::winuser::WM_PAINT;
 use winapi::um::winuser::WM_SETCURSOR;
-use winapi::um::winuser::WNDCLASSA;
+use winapi::um::winuser::{UnregisterClassA, WNDCLASSA};
 
 lazy_static! {
     pub static ref HEIGHT: Mutex<i32> = Mutex::new(0);
-    pub static ref WINDOW: Mutex<i32> = Mutex::new(0);
+    //HMONITOR, HWND
+    pub static ref WINDOWS: Mutex<HashMap<i32, i32>> = Mutex::new(HashMap::new());
     pub static ref FONT: Mutex<i32> = Mutex::new(0);
     pub static ref REDRAW_REASON: Mutex<RedrawAppBarReason> = Mutex::new(RedrawAppBarReason::Time);
 }
@@ -82,7 +85,7 @@ unsafe extern "system" fn window_cb(
     l_param: LPARAM,
 ) -> LRESULT {
     if msg == WM_CLOSE {
-        *WINDOW.lock().unwrap() = 0;
+        WINDOWS.lock().unwrap().remove(&(hwnd as i32));
     } else if msg == WM_SETCURSOR {
         // Force a normal cursor. This probably shouldn't be done this way but whatever
         SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8));
@@ -95,8 +98,7 @@ unsafe extern "system" fn window_cb(
             let mut grids = GRIDS.lock().unwrap();
             let grid = grids.iter_mut().find(|g| g.id == id).unwrap();
 
-            if !grid.tiles.is_empty() || grid.visible {
-                drop(grid);
+            if !grid.tiles.is_empty() || is_visible_workspace(id) {
                 drop(grids);
                 change_workspace(id).expect("Failed to change workspace");
             }
@@ -105,9 +107,7 @@ unsafe extern "system" fn window_cb(
         info!("loading font");
         load_font();
     } else if !hwnd.is_null() && msg == WM_PAINT {
-        info!("Received paint");
         let reason = *REDRAW_REASON.lock().unwrap();
-        debug!("Reason for paint was {:?}", reason);
         let mut paint = PAINTSTRUCT::default();
 
         GetClientRect(hwnd, &mut paint.rcPaint);
@@ -131,44 +131,64 @@ unsafe extern "system" fn window_cb(
 
 pub fn redraw(reason: RedrawAppBarReason) {
     unsafe {
-        let hwnd = *WINDOW.lock().unwrap() as HWND;
-
-        if hwnd == 0 as HWND {
-            return;
-        }
-
         *REDRAW_REASON.lock().unwrap() = reason;
 
-        //TODO: handle error
-        SendMessageA(hwnd, WM_PAINT, 0, 0);
+        let hwnds: Vec<i32> = WINDOWS
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(_, hwnd)| *hwnd)
+            .collect();
+
+        for hwnd in hwnds {
+            //TODO: handle error
+            SendMessageA(hwnd as HWND, WM_PAINT, 0, 0);
+        }
     }
 }
 
-fn draw_workspaces(_hwnd: HWND) {
-    let id = *WORKSPACE_ID.lock().unwrap();
-
+fn draw_workspaces(hwnd: HWND) {
     let grids = GRIDS.lock().unwrap();
+
+    let monitor = *WINDOWS
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|(_, v)| **v == hwnd as i32)
+        .map(|(m, _)| m)
+        .expect("Couldn't find monitor for appbar");
+
+    debug!("On monitor {}", monitor as i32);
 
     let workspaces: Vec<&TileGrid> = grids
         .iter()
-        .filter(|g| !g.tiles.is_empty() || g.id == id)
+        .filter(|g| {
+            (!g.tiles.is_empty() || is_visible_workspace(g.id)) && g.display.hmonitor == monitor
+        })
         .collect();
 
     //erase last workspace
     debug!("Erasing {}", workspaces.len());
-    erase_workspace((workspaces.len()) as i32);
+    erase_workspace(hwnd, (workspaces.len()) as i32);
+
     for (i, workspace) in workspaces.iter().enumerate() {
-        draw_workspace(i as i32, workspace.id, workspace.id == id)
-            .expect("Failed to draw workspace");
+        debug!("Drawing {}", workspace.id);
+        draw_workspace(
+            hwnd,
+            i as i32,
+            workspace.id,
+            *WORKSPACE_ID.lock().unwrap() == workspace.id,
+        )
+        .expect("Failed to draw workspace");
     }
 }
 
-fn erase_workspace(id: i32) {
+fn erase_workspace(hwnd: HWND, id: i32) {
     unsafe {
         let mut rect = RECT::default();
         let app_bar_height = CONFIG.lock().unwrap().app_bar_height;
         let app_bar_bg = CONFIG.lock().unwrap().app_bar_bg;
-        let hwnd = *WINDOW.lock().unwrap() as HWND;
+
         let hdc = GetDC(hwnd);
         GetClientRect(hwnd, &mut rect);
 
@@ -212,19 +232,22 @@ pub fn load_font() {
     }
 }
 
-pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
+pub fn create() -> Result<(), util::WinApiResultError> {
     info!("Creating appbar");
+
     let name = "wwm_app_bar";
+
     let mut height_guard = HEIGHT.lock().unwrap();
+
+    let app_bar_bg = CONFIG.lock().unwrap().app_bar_bg;
 
     *height_guard = CONFIG.lock().unwrap().app_bar_height;
 
     let height = *height_guard;
-    let display_width = display.width;
 
     std::thread::spawn(|| loop {
         std::thread::sleep(std::time::Duration::from_millis(950));
-        if *WINDOW.lock().unwrap() == 0 {
+        if WINDOWS.lock().unwrap().is_empty() {
             break;
         }
         CHANNEL
@@ -234,48 +257,69 @@ pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
             .expect("Failed to send redraw-app-bar event");
     });
 
-    std::thread::spawn(move || unsafe {
-        //TODO: Handle error
-        let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
-        //TODO: Handle error
-        let background_brush = CreateSolidBrush(CONFIG.lock().unwrap().app_bar_bg as u32);
+    for display in DISPLAYS.lock().unwrap().clone() {
+        std::thread::spawn(move || unsafe {
+            if WINDOWS
+                .lock()
+                .unwrap()
+                .contains_key(&(display.hmonitor as i32))
+            {
+                error!(
+                    "Appbar for monitor {} already exists. Aborting",
+                    display.hmonitor as i32
+                );
+            }
 
-        let class = WNDCLASSA {
-            hInstance: instance as HINSTANCE,
-            lpszClassName: name.as_ptr() as *const i8,
-            lpfnWndProc: Some(window_cb),
-            hbrBackground: background_brush as HBRUSH,
-            ..WNDCLASSA::default()
-        };
+            debug!("Creating appbar for display {}", display.hmonitor as i32);
 
-        RegisterClassA(&class);
+            let display_width = display.width();
+            //TODO: Handle error
+            let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
+            //TODO: Handle error
+            let background_brush = CreateSolidBrush(app_bar_bg as u32);
 
-        //TODO: handle error
-        let window_handle = winapi::um::winuser::CreateWindowExA(
-            winapi::um::winuser::WS_EX_NOACTIVATE | winapi::um::winuser::WS_EX_TOPMOST,
-            name.as_ptr() as *const i8,
-            name.as_ptr() as *const i8,
-            winapi::um::winuser::WS_POPUPWINDOW & !winapi::um::winuser::WS_BORDER,
-            0,
-            0,
-            display_width,
-            height,
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            instance as HINSTANCE,
-            std::ptr::null_mut(),
-        );
+            let class = WNDCLASSA {
+                hInstance: instance as HINSTANCE,
+                lpszClassName: name.as_ptr() as *const i8,
+                lpfnWndProc: Some(window_cb),
+                hbrBackground: background_brush as HBRUSH,
+                ..WNDCLASSA::default()
+            };
 
-        *WINDOW.lock().unwrap() = window_handle as i32;
+            RegisterClassA(&class);
 
-        show();
+            //TODO: handle error
+            let window_handle = winapi::um::winuser::CreateWindowExA(
+                winapi::um::winuser::WS_EX_NOACTIVATE | winapi::um::winuser::WS_EX_TOPMOST,
+                name.as_ptr() as *const i8,
+                name.as_ptr() as *const i8,
+                winapi::um::winuser::WS_POPUPWINDOW & !winapi::um::winuser::WS_BORDER,
+                display.left,
+                display.top,
+                display_width,
+                height,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                instance as HINSTANCE,
+                std::ptr::null_mut(),
+            );
 
-        let mut msg: MSG = MSG::default();
-        while GetMessageW(&mut msg, window_handle, 0, 0) > 0 {
-            TranslateMessage(&msg);
-            DispatchMessageW(&msg);
-        }
-    });
+            WINDOWS
+                .lock()
+                .unwrap()
+                .insert(display.hmonitor as i32, window_handle as i32);
+
+            draw_workspaces(window_handle);
+            draw_datetime(window_handle).expect("Failed to draw datetime");
+            ShowWindow(window_handle, SW_SHOW);
+
+            let mut msg: MSG = MSG::default();
+            while GetMessageW(&mut msg, window_handle, 0, 0) > 0 {
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+        });
+    }
 
     Ok(())
 }
@@ -283,28 +327,58 @@ pub fn create(display: &Display) -> Result<(), util::WinApiResultError> {
 pub fn close() {
     unsafe {
         info!("Closing appbar");
-        let hwnd = *WINDOW.lock().unwrap();
-        SendMessageA(hwnd as HWND, WM_CLOSE, 0, 0);
+
+        let windows: Vec<(i32, i32)> = WINDOWS
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(hmonitor, hwnd)| (*hmonitor, *hwnd))
+            .collect();
+
+        for (hmonitor, hwnd) in windows {
+            SendMessageA(hwnd as HWND, WM_CLOSE, 0, 0);
+            WINDOWS.lock().unwrap().remove(&hmonitor);
+        }
+        let name = CString::new("wwm_app_bar").expect("Failed to transform string to cstring");
+
+        debug!("Unregistering window class");
+
+        UnregisterClassA(
+            name.as_ptr(),
+            winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut()),
+        );
     }
 }
 
 #[allow(dead_code)]
 pub fn hide() {
     unsafe {
-        let hwnd = *WINDOW.lock().unwrap(); // Need to eager evaluate else there is a deadlock
-        ShowWindow(hwnd as HWND, SW_HIDE);
+        let hwnds: Vec<i32> = WINDOWS
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(_, hwnd)| *hwnd)
+            .collect();
+        for hwnd in hwnds {
+            ShowWindow(hwnd as HWND, SW_HIDE);
+        }
     }
 }
 
 pub fn show() {
-    let hwnd = *WINDOW.lock().unwrap() as HWND; // Need to eager evaluate else there is a deadlock
-
     unsafe {
-        ShowWindow(hwnd, SW_SHOW);
+        let hwnds: Vec<i32> = WINDOWS
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(_, hwnd)| *hwnd)
+            .collect();
+        for hwnd in hwnds {
+            ShowWindow(hwnd as HWND, SW_SHOW);
+            draw_workspaces(hwnd as HWND);
+            draw_datetime(hwnd as HWND).expect("Failed to draw datetime");
+        }
     }
-
-    draw_workspaces(hwnd);
-    draw_datetime(hwnd).expect("Failed to draw datetime");
 }
 
 pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
@@ -312,14 +386,12 @@ pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
         let mut rect = RECT::default();
 
         unsafe {
-            debug!("Getting the rect for the appbar");
             util::winapi_nullable_to_result(GetClientRect(hwnd, &mut rect))?;
             let text = format!("{}", chrono::Local::now().format("%T"));
             let text_len = text.len() as i32;
             let c_text = CString::new(text).unwrap();
-            let display = DISPLAY.lock().unwrap();
+            let display = get_primary_display();
 
-            debug!("Getting the device context");
             let hdc = util::winapi_ptr_to_result(GetDC(hwnd))?;
 
             set_font(hdc);
@@ -333,17 +405,18 @@ pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
                 &mut size,
             ))?;
 
-            rect.left = display.width / 2 - (size.cx / 2) - 10;
-            rect.right = display.width / 2 + (size.cx / 2) + 10;
+            rect.left = display.width() / 2 - (size.cx / 2) - 10;
+            rect.right = display.width() / 2 + (size.cx / 2) + 10;
 
-            debug!("Setting the text color");
             //TODO: handle error
-            SetTextColor(hdc, 0x00ffffff);
+            if CONFIG.lock().unwrap().light_theme {
+                SetTextColor(hdc, 0x00333333);
+            } else {
+                SetTextColor(hdc, 0x00ffffff);
+            }
 
-            debug!("Setting the background color");
             SetBkColor(hdc, CONFIG.lock().unwrap().app_bar_bg as u32);
 
-            debug!("Writing the time");
             util::winapi_nullable_to_result(DrawTextA(
                 hdc,
                 c_text.as_ptr(),
@@ -363,10 +436,9 @@ pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
                 &mut size,
             ))?;
 
-            rect.right = display.width - 10;
+            rect.right = display.width() - 10;
             rect.left = rect.right - size.cx;
 
-            debug!("Writing the date");
             util::winapi_nullable_to_result(DrawTextA(
                 hdc,
                 c_text.as_ptr(),
@@ -380,45 +452,68 @@ pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
     Ok(())
 }
 
-pub fn draw_workspace(idx: i32, id: i32, focused: bool) -> Result<(), util::WinApiResultError> {
-    let window = *WINDOW.lock().unwrap() as HWND;
-    if !window.is_null() {
+pub fn draw_workspace(
+    hwnd: HWND,
+    idx: i32,
+    id: i32,
+    focused: bool,
+) -> Result<(), util::WinApiResultError> {
+    if !hwnd.is_null() {
         let mut rect = RECT::default();
         let height = *HEIGHT.lock().unwrap();
 
         unsafe {
-            debug!("Getting the rect for the appbar");
-            util::winapi_nullable_to_result(GetClientRect(window, &mut rect))?;
+            util::winapi_nullable_to_result(GetClientRect(hwnd, &mut rect))?;
 
             rect.left += height * idx;
             rect.right = rect.left + height;
 
-            debug!("Getting the device context");
-            let hdc = util::winapi_ptr_to_result(GetDC(window))?;
+            let hdc = util::winapi_ptr_to_result(GetDC(hwnd))?;
 
             set_font(hdc);
 
-            debug!("Setting the background to transparent");
+            let app_bar_bg = CONFIG.lock().unwrap().app_bar_bg;
+
             SetBkMode(hdc, TRANSPARENT as i32);
 
-            debug!("Setting the text color");
-            //TODO: handle error
-            let bg_color = if focused {
-                SetTextColor(hdc, CONFIG.lock().unwrap().app_bar_workspace_bg as u32);
-                0x00ffffff
+            if CONFIG.lock().unwrap().light_theme {
+                SetTextColor(hdc, 0x00333333);
+
+                if focused {
+                    FillRect(
+                        hdc,
+                        &rect,
+                        CreateSolidBrush(util::scale_color(app_bar_bg, 0.75) as u32),
+                    );
+                } else {
+                    FillRect(
+                        hdc,
+                        &rect,
+                        CreateSolidBrush(util::scale_color(app_bar_bg, 0.9) as u32),
+                    );
+                }
             } else {
                 SetTextColor(hdc, 0x00ffffff);
-                CONFIG.lock().unwrap().app_bar_workspace_bg
-            };
 
-            debug!("Drawing background");
-            FillRect(hdc, &rect, CreateSolidBrush(bg_color as u32));
+                if focused {
+                    FillRect(
+                        hdc,
+                        &rect,
+                        CreateSolidBrush(util::scale_color(app_bar_bg, 2.0) as u32),
+                    );
+                } else {
+                    FillRect(
+                        hdc,
+                        &rect,
+                        CreateSolidBrush(util::scale_color(app_bar_bg, 1.5) as u32),
+                    );
+                }
+            }
 
             let id_str = id.to_string();
             let len = id_str.len() as i32;
             let id_cstr = CString::new(id_str).unwrap();
 
-            debug!("Writing the text");
             util::winapi_nullable_to_result(DrawTextA(
                 hdc,
                 id_cstr.as_ptr(),
