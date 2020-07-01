@@ -222,6 +222,7 @@ Keybindings can have the following types:
 * [Swap](#swap)
 * [ToggleFloatingMode](#togglefloatingmode)
 * [ToggleWorkMode](#toggleworkmode)
+* [ToggleFullscreen](#togglefullscreen)
 * [ChangeWorkspace](#changeworkspace)
 * [MoveToWorkspace](#movetoworkspace)
 
@@ -327,6 +328,17 @@ key: Control+Alt+W
 ```
 
 A ToggleWorkMode keybinding can be seen as "starting" and "stopping" wwm. Wwm is not really stopped it just makes wwm take the least amout of resources while still listening only ToggleWorkMode keybindings.
+
+#### ToggleFullscreen
+
+example
+```yaml
+type: ToggleWorkMode
+key: Control+Alt+F
+```
+
+A ToggleFullscreen keybinding enables/disables fullscreen mode of the current workspace. A workspace in fullscreen mode only shows the focused tile, but you are still able to change the focused tile via Focus/Swap keybindings.
+
 
 #### Focus
 
