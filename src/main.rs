@@ -188,7 +188,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     info!("Starting hot key manager");
-    //hot_key_manager::register()?;
+    hot_key_manager::register()?;
 
     loop {
         select! {
