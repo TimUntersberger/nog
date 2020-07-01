@@ -191,7 +191,7 @@ impl Window {
             bottom,
         };
 
-        println!("before {}", rect_to_string(rect));
+        //println!("before {}", rect_to_string(rect));
 
         unsafe {
             AdjustWindowRectEx(

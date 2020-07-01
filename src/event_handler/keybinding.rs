@@ -90,6 +90,17 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
         }
         KeybindingType::ChangeWorkspace(id) => change_workspace(id)?,
         KeybindingType::ToggleFloatingMode => toggle_floating_mode::handle()?,
+        KeybindingType::ToggleFullscreen => {
+            let mut grids = GRIDS.lock().unwrap();
+            let mut grid = grids
+                .iter_mut()
+                .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
+                .unwrap();
+
+            grid.fullscreen = !grid.fullscreen;
+
+            grid.draw_grid();
+        },
         KeybindingType::ToggleWorkMode => toggle_work_mode::handle()?,
         KeybindingType::Focus(direction) => focus::handle(direction)?,
         KeybindingType::Swap(direction) => swap::handle(direction)?,

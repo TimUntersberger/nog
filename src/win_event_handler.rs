@@ -28,7 +28,7 @@ lazy_static! {
     static ref UNREGISTER: Mutex<bool> = Mutex::new(false);
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum WinEventType {
     Destroy,
     Hide,
@@ -75,6 +75,7 @@ unsafe extern "system" fn handler(
         Some(event) => event,
         None => return,
     };
+
     let event = Event::WinEvent(WinEvent {
         typ: win_event_type,
         hwnd: window_handle as i32,
