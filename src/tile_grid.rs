@@ -1,12 +1,12 @@
 use crate::display::get_primary_display;
 use crate::display::Display;
-use crate::DISPLAYS;
 use crate::hot_key_manager::Direction;
 use crate::task_bar;
 use crate::tile::Tile;
 use crate::util;
 use crate::window::Window;
 use crate::CONFIG;
+use crate::DISPLAYS;
 use log::debug;
 use winapi::shared::windef::HWND;
 use winapi::shared::windef::RECT;

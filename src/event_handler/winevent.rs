@@ -22,12 +22,13 @@ pub fn handle(ev: WinEvent) -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    if title.is_none() && ev.typ != WinEventType::Show(false) && ev.typ != WinEventType::Show(true) {
+    if title.is_none() && ev.typ != WinEventType::Show(false) && ev.typ != WinEventType::Show(true)
+    {
         return Ok(());
     }
 
     if title.is_none() {
-        title =  util::get_title_of_window(ev.hwnd as HWND).ok();
+        title = util::get_title_of_window(ev.hwnd as HWND).ok();
     }
 
     if title.is_some() {

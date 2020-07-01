@@ -89,23 +89,15 @@ pub fn get_display_by_hmonitor(hmonitor: i32) -> Display {
         .unwrap()
         .iter()
         .find(|d| d.hmonitor == hmonitor)
-        .expect(format!(
-            "Couldn't find display with hmonitor of {}",
-            hmonitor
-        ).as_str())
+        .expect(format!("Couldn't find display with hmonitor of {}", hmonitor).as_str())
 }
 
 pub fn get_display_by_idx(idx: i32) -> Display {
-    let displays = DISPLAYS
-        .lock()
-        .unwrap();
-    
+    let displays = DISPLAYS.lock().unwrap();
+
     let x: usize = std::cmp::max(displays.len() - (idx as usize), 0);
 
     *displays
         .get(x)
-        .expect(format!(
-            "Couldn't get display at index {}",
-            x
-        ).as_str())
+        .expect(format!("Couldn't get display at index {}", x).as_str())
 }

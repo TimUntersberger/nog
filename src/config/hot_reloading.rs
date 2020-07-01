@@ -1,6 +1,6 @@
 use crate::event::Event;
 use crate::CHANNEL;
-use log::{error, debug};
+use log::{debug, error};
 use notify::watcher;
 use notify::DebouncedEvent;
 use notify::RecursiveMode;
@@ -28,7 +28,11 @@ pub fn start() {
                 Ok(ev) => match ev {
                     DebouncedEvent::Write(_) => {
                         debug!("detected config change");
-                        CHANNEL.sender.clone().send(Event::ReloadConfig).expect("Failed to send ReloadConfig event");
+                        CHANNEL
+                            .sender
+                            .clone()
+                            .send(Event::ReloadConfig)
+                            .expect("Failed to send ReloadConfig event");
                     }
                     _ => {}
                 },

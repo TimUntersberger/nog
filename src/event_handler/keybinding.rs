@@ -100,7 +100,7 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
             grid.fullscreen = !grid.fullscreen;
 
             grid.draw_grid();
-        },
+        }
         KeybindingType::ToggleWorkMode => toggle_work_mode::handle()?,
         KeybindingType::Focus(direction) => focus::handle(direction)?,
         KeybindingType::Swap(direction) => swap::handle(direction)?,

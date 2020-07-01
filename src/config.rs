@@ -42,14 +42,14 @@ impl Default for Rule {
 #[derive(Debug, Clone)]
 pub struct WorkspaceSetting {
     pub id: i32,
-    pub monitor: i32
+    pub monitor: i32,
 }
 
 impl Default for WorkspaceSetting {
     fn default() -> Self {
         Self {
             id: -1,
-            monitor: -1
+            monitor: -1,
         }
     }
 }
@@ -254,11 +254,13 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                                 binding,
                                 id
                             )),
-                            "MoveWorkspaceToMonitor" => KeybindingType::MoveWorkspaceToMonitor(ensure_i32!(
-                                "keybinding of type MoveWorkspaceToMonitor",
-                                binding,
-                                monitor
-                            )),
+                            "MoveWorkspaceToMonitor" => {
+                                KeybindingType::MoveWorkspaceToMonitor(ensure_i32!(
+                                    "keybinding of type MoveWorkspaceToMonitor",
+                                    binding,
+                                    monitor
+                                ))
+                            }
                             "ToggleFloatingMode" => KeybindingType::ToggleFloatingMode,
                             "ToggleFullscreen" => KeybindingType::ToggleFullscreen,
                             "ToggleWorkMode" => KeybindingType::ToggleWorkMode,
