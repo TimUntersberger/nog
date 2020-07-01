@@ -1,7 +1,5 @@
-use crate::task_bar;
 use crate::CONFIG;
 use crate::DISPLAYS;
-use log::debug;
 use winapi::shared::minwindef::BOOL;
 use winapi::shared::minwindef::LPARAM;
 use winapi::shared::windef::HDC;
@@ -39,7 +37,7 @@ impl Display {
         display.top = rect.top;
         display.bottom = rect.bottom;
 
-        display.is_primary = display.left == 0 && display.left == 0;
+        display.is_primary = display.left == 0 && display.top == 0;
 
         if config.display_app_bar {
             display.bottom -= config.app_bar_height;
@@ -56,7 +54,7 @@ unsafe extern "system" fn monitor_cb(hmonitor: HMONITOR, _: HDC, rect: LPRECT, _
         DISPLAYS.lock().unwrap().push(display);
     }
 
-    return 1;
+    1
 }
 
 pub fn init() {

@@ -1,4 +1,5 @@
 use crate::change_workspace;
+use crate::display::get_display_by_idx;
 use crate::event::Event;
 use crate::hot_key_manager::Keybinding;
 use crate::hot_key_manager::KeybindingType;
@@ -6,7 +7,6 @@ use crate::CHANNEL;
 use crate::GRIDS;
 use crate::VISIBLE_WORKSPACES;
 use crate::WORKSPACE_ID;
-use crate::{display::get_display_by_idx, util, WORK_MODE};
 use log::{error, info};
 use winapi::um::processthreadsapi::CreateProcessA;
 use winapi::um::processthreadsapi::PROCESS_INFORMATION;

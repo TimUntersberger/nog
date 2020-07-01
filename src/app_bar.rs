@@ -8,7 +8,6 @@ use crate::CHANNEL;
 use crate::CONFIG;
 use crate::DISPLAYS;
 use crate::GRIDS;
-use crate::VISIBLE_WORKSPACES;
 use crate::WORKSPACE_ID;
 use lazy_static::lazy_static;
 use log::{debug, error, info};
@@ -100,7 +99,6 @@ unsafe extern "system" fn window_cb(
             let grid = grids.iter_mut().find(|g| g.id == id).unwrap();
 
             if !grid.tiles.is_empty() || is_visible_workspace(id) {
-                drop(grid);
                 drop(grids);
                 change_workspace(id).expect("Failed to change workspace");
             }
@@ -341,12 +339,12 @@ pub fn close() {
             SendMessageA(hwnd as HWND, WM_CLOSE, 0, 0);
             WINDOWS.lock().unwrap().remove(&hmonitor);
         }
+        let name = CString::new("wwm_app_bar").expect("Failed to transform string to cstring");
 
         debug!("Unregistering window class");
+
         UnregisterClassA(
-            CString::new("wwm_app_bar")
-                .expect("Failed to transform string to cstring")
-                .as_ptr(),
+            name.as_ptr(),
             winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut()),
         );
     }

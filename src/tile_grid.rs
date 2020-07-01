@@ -6,7 +6,6 @@ use crate::tile::Tile;
 use crate::util;
 use crate::window::Window;
 use crate::CONFIG;
-use crate::DISPLAYS;
 use log::debug;
 use winapi::shared::windef::HWND;
 use winapi::shared::windef::RECT;

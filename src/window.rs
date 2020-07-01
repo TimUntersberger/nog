@@ -1,11 +1,9 @@
 use crate::config::Rule;
-use crate::task_bar;
 use crate::util;
 use crate::util::rect_to_string;
 use crate::CONFIG;
 use gwl_ex_style::GwlExStyle;
 use gwl_style::GwlStyle;
-use winapi::shared::minwindef::BOOL;
 use winapi::shared::windef::HWND;
 use winapi::shared::windef::RECT;
 use winapi::um::winuser::AdjustWindowRectEx;
@@ -120,14 +118,13 @@ impl Window {
     }
     pub fn calculate_window_rect(&self, x: i32, y: i32, width: i32, height: i32) -> RECT {
         let rule = self.rule.clone().unwrap_or_default();
-        let (display_app_bar, remove_title_bar, app_bar_height, remove_task_bar) = {
+        let (display_app_bar, remove_title_bar, app_bar_height) = {
             let config = CONFIG.lock().unwrap();
 
             (
                 config.display_app_bar,
                 config.remove_title_bar,
                 config.app_bar_height,
-                config.remove_task_bar,
             )
         };
 

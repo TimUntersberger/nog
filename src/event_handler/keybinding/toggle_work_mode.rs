@@ -1,5 +1,4 @@
 use crate::app_bar;
-use crate::display::get_primary_display;
 use crate::task_bar;
 use crate::unmanage_everything;
 use crate::win_event_handler;

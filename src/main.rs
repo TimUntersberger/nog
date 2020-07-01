@@ -7,7 +7,6 @@ extern crate strum_macros;
 
 use crate::display::get_display_by_hmonitor;
 use crate::display::get_display_by_idx;
-use crate::display::get_primary_display;
 use app_bar::RedrawAppBarReason;
 use config::Config;
 use crossbeam_channel::select;

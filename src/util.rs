@@ -1,4 +1,3 @@
-use crate::tile_grid::TileGrid;
 use core::fmt::Debug;
 use thiserror::Error;
 use winapi::shared::windef::HWND;
@@ -37,6 +36,7 @@ pub enum WinApiResultError {
     Null,
 }
 
+#[allow(dead_code)]
 pub fn winapi_err_to_result<T>(input: T) -> WinApiResult<T>
 where
     T: PartialEq<i32> + Into<i32>,
@@ -74,6 +74,7 @@ pub fn to_widestring(string: &str) -> Vec<u16> {
         .collect::<Vec<_>>()
 }
 
+#[allow(dead_code)]
 pub fn rect_to_string(rect: RECT) -> String {
     format!(
         "RECT(left: {}, right: {}, top: {}, bottom: {})",
