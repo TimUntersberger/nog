@@ -27,6 +27,7 @@ use winapi::shared::windef::SIZE;
 use winapi::shared::windowsx::GET_X_LPARAM;
 use winapi::um::wingdi::CreateFontIndirectA;
 use winapi::um::wingdi::CreateSolidBrush;
+use winapi::um::wingdi::DeleteObject;
 use winapi::um::wingdi::GetTextExtentPoint32A;
 use winapi::um::wingdi::SelectObject;
 use winapi::um::wingdi::SetBkColor;
@@ -116,7 +117,9 @@ unsafe extern "system" fn window_cb(
 
         match reason {
             RedrawAppBarReason::Time => {
-                draw_datetime(hwnd).expect("Failed to draw datetime");
+                if draw_datetime(hwnd).is_err() {
+                    error!("Failed to draw datetime");
+                }
             }
             RedrawAppBarReason::Workspace => {
                 draw_workspaces(hwnd);
@@ -188,6 +191,7 @@ fn erase_workspace(hwnd: HWND, id: i32) {
         let mut rect = RECT::default();
         let app_bar_height = CONFIG.lock().unwrap().app_bar_height;
         let app_bar_bg = CONFIG.lock().unwrap().app_bar_bg;
+        let brush = CreateSolidBrush(app_bar_bg as u32);
 
         let hdc = GetDC(hwnd);
         GetClientRect(hwnd, &mut rect);
@@ -195,7 +199,9 @@ fn erase_workspace(hwnd: HWND, id: i32) {
         rect.left += app_bar_height * id;
         rect.right = rect.left + app_bar_height;
 
-        FillRect(hdc, &rect, CreateSolidBrush(app_bar_bg as u32));
+        FillRect(hdc, &rect, brush);
+
+        DeleteObject(brush as *mut std::ffi::c_void);
     }
 }
 
@@ -479,35 +485,25 @@ pub fn draw_workspace(
             if CONFIG.lock().unwrap().light_theme {
                 SetTextColor(hdc, 0x00333333);
 
-                if focused {
-                    FillRect(
-                        hdc,
-                        &rect,
-                        CreateSolidBrush(util::scale_color(app_bar_bg, 0.75) as u32),
-                    );
+                let brush = if focused {
+                    CreateSolidBrush(util::scale_color(app_bar_bg, 0.75) as u32)
                 } else {
-                    FillRect(
-                        hdc,
-                        &rect,
-                        CreateSolidBrush(util::scale_color(app_bar_bg, 0.9) as u32),
-                    );
-                }
+                    CreateSolidBrush(util::scale_color(app_bar_bg, 0.9) as u32)
+                };
+
+                FillRect(hdc, &rect, brush);
+                DeleteObject(brush as *mut std::ffi::c_void);
             } else {
                 SetTextColor(hdc, 0x00ffffff);
 
-                if focused {
-                    FillRect(
-                        hdc,
-                        &rect,
-                        CreateSolidBrush(util::scale_color(app_bar_bg, 2.0) as u32),
-                    );
+                let brush = if focused {
+                    CreateSolidBrush(util::scale_color(app_bar_bg, 2.0) as u32)
                 } else {
-                    FillRect(
-                        hdc,
-                        &rect,
-                        CreateSolidBrush(util::scale_color(app_bar_bg, 1.5) as u32),
-                    );
-                }
+                    CreateSolidBrush(util::scale_color(app_bar_bg, 1.5) as u32)
+                };
+
+                FillRect(hdc, &rect, brush);
+                DeleteObject(brush as *mut std::ffi::c_void);
             }
 
             let id_str = id.to_string();
