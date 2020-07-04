@@ -13,7 +13,8 @@ edition = "2018"
 [dependencies]
 log = "0.4"
 notify = "4.0.15"
-fern = "0.5"
+# fern = "0.5"
+flexi_logger = "0.15"
 winapi = { version = "0.3", features = ["winuser", "errhandlingapi", "impl-default", "shellapi", "windowsx"] }
 chrono = "0.4"
 lazy_static = "1.4.0"

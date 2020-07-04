@@ -1,4 +1,7 @@
+use crate::display::get_primary_display;
+use crate::display::Display;
 use crate::hot_key_manager::Direction;
+use crate::task_bar;
 use crate::tile::Tile;
 use crate::util;
 use crate::window::Window;
@@ -17,42 +20,39 @@ pub enum SplitDirection {
 
 #[derive(Clone)]
 pub struct TileGrid {
+    pub display: Display,
     pub id: i32,
-    pub visible: bool,
+    pub fullscreen: bool,
     pub focus_stack: Vec<(Direction, i32)>,
     pub tiles: Vec<Tile>,
     pub focused_window_id: Option<i32>,
     pub taskbar_window: i32,
     pub rows: i32,
     pub columns: i32,
-    pub height: i32,
-    pub width: i32,
 }
 
 impl TileGrid {
     pub fn new(id: i32) -> Self {
         Self {
             id,
-            visible: false,
+            display: get_primary_display(),
+            fullscreen: false,
             tiles: Vec::new(),
             focus_stack: Vec::with_capacity(5),
             focused_window_id: None,
             taskbar_window: 0,
             rows: 0,
             columns: 0,
-            height: 0,
-            width: 0,
         }
     }
-    pub fn hide(&mut self) {
+    pub fn hide(&self) {
         for tile in &self.tiles {
             tile.window.hide();
         }
-        self.visible = false;
     }
-    pub fn show(&mut self) {
+    pub fn show(&self) {
         for tile in &self.tiles {
-            tile.window.show().expect("Failed to show window");
+            tile.window.show();
             tile.window
                 .to_foreground(true)
                 .expect("Failed to move window to foreground");
@@ -63,7 +63,6 @@ impl TileGrid {
         if let Some(tile) = self.get_focused_tile() {
             tile.window.focus().expect("Failed to focus window");
         }
-        self.visible = true;
     }
     pub fn get_tile_by_id(&self, id: i32) -> Option<Tile> {
         self.tiles
@@ -439,36 +438,42 @@ impl TileGrid {
     }
     /// Calculates all the data required for drawing the tile
     fn calculate_tile_data(&self, tile: &Tile) -> RECT {
-        let (padding, margin) = {
+        let (padding, margin, remove_task_bar) = {
             let config = CONFIG.lock().unwrap();
 
-            (config.padding, config.margin)
+            (config.padding, config.margin, config.remove_task_bar)
         };
-        let column_width = self.width / self.columns;
-        let row_height = self.height / self.rows;
+        let column_width = self.display.width() / self.columns;
+        let mut row_height = self.display.height() / self.rows;
+        let mut x = self.display.left;
+        let mut y = self.display.top;
+        let mut height = self.display.height();
+        let mut width = self.display.width();
 
-        let mut x = 0;
-        let mut y = 0;
-        let mut height = self.height;
-        let mut width = self.width;
-
-        if let Some(column) = tile.column {
-            width = column_width;
-            x += column_width * (column - 1);
-
-            if column > 1 {
-                width -= padding;
-                x += padding;
-            }
+        if !remove_task_bar {
+            height -= *task_bar::HEIGHT.lock().unwrap();
+            row_height = (self.display.height() - *task_bar::HEIGHT.lock().unwrap()) / self.rows;
         }
 
-        if let Some(row) = tile.row {
-            height = row_height;
-            y = row_height * (row - 1);
+        if !self.fullscreen {
+            if let Some(column) = tile.column {
+                width = column_width;
+                x += column_width * (column - 1);
 
-            if row > 1 {
-                // height -= CONFIG.padding;
-                y += padding;
+                if column > 1 {
+                    width -= padding;
+                    x += padding;
+                }
+            }
+
+            if let Some(row) = tile.row {
+                height = row_height;
+                y = row_height * (row - 1);
+
+                if row > 1 {
+                    // height -= CONFIG.padding;
+                    y += padding;
+                }
             }
         }
 
@@ -557,6 +562,11 @@ impl TileGrid {
 
     pub fn draw_grid(&self) {
         debug!("Drawing grid");
+
+        if self.fullscreen {
+            self.draw_tile(self.get_focused_tile().expect("Couldn't get focused tile"));
+            return;
+        }
 
         for tile in &self.tiles {
             debug!(

@@ -17,6 +17,7 @@ Terminal: Windows Terminal | Colourscheme: Nord
      * [Gap](#gap)
      * [Bar](#bar)
      * [Toggles](#toggles)
+     * [Workspaces](#workspaces)
      * [Rules](#rules)
         * [Settings](#settings)
         * [Examples](#examples)
@@ -63,19 +64,32 @@ A color has to be a valid hex value (e.g 0x27242c)
 
 The `app_bar_bg` setting defines the background color of the appbar
 
-The `app_bar_workspace_bg` setting defines the background color of a workspace in the background
-
 ### Toggles
 
 The `launch_on_startup` tells wwm whether to start automatically on startup.
 
 The `work_mode` setting tells wwm whether to start in work mode.
 
+The `light_theme` setting changes the way wwm generates the colors for the bar.
+
 The `display_app_bar` setting creates a window at the top of the display that shows all currently used workspaces.
 
 The `remove_title_bar` setting removes the windows styles responsible for giving a managed window the titlebar.
 
 The `remove_task_bar` setting hides the taskbar on launch and shows it again when closing the program.
+
+### Workspaces
+
+the workspaces setting has to be an array of objects. Each object must have an id and can have a monitor property. The id has to be between 1 and 10 (inclusive) and specifies which workspaces this applies to. The monitor property can be used to define the monitor on which the workspace initially lives.
+
+Example
+```yaml
+workspaces:
+  - id: 4
+    monitor: 1
+  - id: 5
+    monitor: 1
+```
 
 ### Rules
 
@@ -215,8 +229,10 @@ Keybindings can have the following types:
 * [Swap](#swap)
 * [ToggleFloatingMode](#togglefloatingmode)
 * [ToggleWorkMode](#toggleworkmode)
+* [ToggleFullscreen](#togglefullscreen)
 * [ChangeWorkspace](#changeworkspace)
 * [MoveToWorkspace](#movetoworkspace)
+* [MoveWorkspaceToMonitor](#moveworkspacetomonitor)
 
 #### ChangeWorkspace
 
@@ -267,6 +283,19 @@ values
 A MoveToWorkspace keybinding takes an id, which is the id of the workspace to move the focused tile to.
 
 Workspaces have an upper limit of 10, so if you define a keybinding of type ChangeWorkspace that goes above 10 or below 1 the program *currently* just crashes.
+
+#### MoveWorkspaceToMonitor
+
+example
+```yaml
+type: MoveWorkspaceToMonitor
+key: Control+Alt+1
+monitor: 1
+```
+
+The monitor property can be any valid number, but the range depends on the amount of monitors connected to the computer.
+
+A MoveWorkspaceToMonitor keybinding moves the current workspace to a different monitor
 
 #### Launch
 
@@ -321,6 +350,17 @@ key: Control+Alt+W
 
 A ToggleWorkMode keybinding can be seen as "starting" and "stopping" wwm. Wwm is not really stopped it just makes wwm take the least amout of resources while still listening only ToggleWorkMode keybindings.
 
+#### ToggleFullscreen
+
+example
+```yaml
+type: ToggleWorkMode
+key: Control+Alt+F
+```
+
+A ToggleFullscreen keybinding enables/disables fullscreen mode of the current workspace. A workspace in fullscreen mode only shows the focused tile, but you are still able to change the focused tile via Focus/Swap keybindings.
+
+
 #### Focus
 
 example
@@ -374,25 +414,37 @@ A Split keybinding takes a direction, the new SplitDirection of the currently fo
 ```yaml
 app_bar_font: Cascadia Mono
 app_bar_font_size: 17
-app_bar_bg: 0x3b4252
 
-work_mode: false
+work_mode: true
+multi_monitor: true
 launch_on_startup: true
 display_app_bar: true
-remove_title_bar: true
+remove_title_bar: false
 remove_task_bar: true
 
+workspaces:
+  - id: 4
+    monitor: 1
+  - id: 5
+    monitor: 1
+
 rules:
-  - pattern: ^File Explorer$
+  - pattern: ^(File Explorer|Task Manager)$
     manage: false
   - pattern: ^.*- Mozilla Firefox|Mozilla Firefox$
     workspace: 2
     has_custom_titlebar: true
     firefox: true
+  - pattern: ^.*- Discord|Discord$
+    workspace: 5
+    has_custom_titlebar: true
+  - pattern: ^Spotify Premium$
+    workspace: 4
+    has_custom_titlebar: true
   - pattern: ^.*- Google Chrome$
     has_custom_titlebar: true
     chromium: true
-  - pattern: ^(.*- (Visual Studio Code|Discord)|Spotify Premium|Discord)$
+  - pattern: ^.*- Visual Studio Code$
     has_custom_titlebar: true
 
 keybindings:
@@ -443,22 +495,31 @@ keybindings:
     direction: Horizontal
 
   - type: ToggleFloatingMode
+    key: Alt+Control+F
+  - type: ToggleFullscreen
     key: Alt+F
   - type: ToggleWorkMode
     key: Alt+Control+W
 
   - type: MoveToWorkspace
-    key: Alt+Control+1
+    key: Alt+Shift+1
     id: 1
   - type: MoveToWorkspace
-    key: Alt+Control+2
+    key: Alt+Shift+2
     id: 2
   - type: MoveToWorkspace
-    key: Alt+Control+3
+    key: Alt+Shift+3
     id: 3
   - type: MoveToWorkspace
-    key: Alt+Control+4
+    key: Alt+Shift+4
     id: 4
+
+  - type: MoveWorkspaceToMonitor
+    key: Alt+Control+1
+    monitor: 1
+  - type: MoveWorkspaceToMonitor
+    key: Alt+Control+2
+    monitor: 2
 
   - type: ChangeWorkspace
     key: Alt+1
@@ -472,6 +533,9 @@ keybindings:
   - type: ChangeWorkspace
     key: Alt+4
     id: 4
+  - type: ChangeWorkspace
+    key: Alt+5
+    id: 5
 ```
 
 ## Screenshots

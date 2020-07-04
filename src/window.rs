@@ -1,10 +1,9 @@
 use crate::config::Rule;
 use crate::util;
+use crate::util::rect_to_string;
 use crate::CONFIG;
-use crate::task_bar;
 use gwl_ex_style::GwlExStyle;
 use gwl_style::GwlStyle;
-use winapi::shared::minwindef::BOOL;
 use winapi::shared::windef::HWND;
 use winapi::shared::windef::RECT;
 use winapi::um::winuser::AdjustWindowRectEx;
@@ -107,8 +106,10 @@ impl Window {
             Ok(temp)
         }
     }
-    pub fn show(&self) -> util::WinApiResult<BOOL> {
-        unsafe { util::winapi_err_to_result(ShowWindow(self.id as HWND, SW_SHOW)) }
+    pub fn show(&self) {
+        unsafe {
+            ShowWindow(self.id as HWND, SW_SHOW);
+        }
     }
     pub fn hide(&self) {
         unsafe {
@@ -117,10 +118,14 @@ impl Window {
     }
     pub fn calculate_window_rect(&self, x: i32, y: i32, width: i32, height: i32) -> RECT {
         let rule = self.rule.clone().unwrap_or_default();
-        let (display_app_bar, remove_title_bar, app_bar_height, remove_task_bar) = {
+        let (display_app_bar, remove_title_bar, app_bar_height) = {
             let config = CONFIG.lock().unwrap();
 
-            (config.display_app_bar, config.remove_title_bar, config.app_bar_height, config.remove_task_bar)
+            (
+                config.display_app_bar,
+                config.remove_title_bar,
+                config.app_bar_height,
+            )
         };
 
         let mut left = x;
@@ -145,19 +150,16 @@ impl Window {
                 bottom += 1;
             }
 
-            if !remove_task_bar {
-                bottom -= *task_bar::HEIGHT.lock().unwrap();
-            }
+            // if !remove_task_bar {
+            //     bottom -= *task_bar::HEIGHT.lock().unwrap();
+            // }
 
             if display_app_bar {
                 top += app_bar_height;
                 bottom += app_bar_height;
             }
 
-            if rule.firefox
-                || rule.chromium
-                || (!remove_title_bar && rule.has_custom_titlebar)
-            {
+            if rule.firefox || rule.chromium || (!remove_title_bar && rule.has_custom_titlebar) {
                 // looks like the frame around firefox is smaller than chrome's frame by about 2 pixels
                 // I don't see any other window that behaves like these two pieces of shit
 
@@ -186,10 +188,7 @@ impl Window {
             bottom,
         };
 
-        // println!(
-        //     "before left: {}, top: {}, right: {}, bottom: {}",
-        //     rect.left, rect.top, rect.right, rect.bottom
-        // );
+        //println!("before {}", rect_to_string(rect));
 
         unsafe {
             AdjustWindowRectEx(
@@ -200,10 +199,7 @@ impl Window {
             );
         }
 
-        // println!(
-        //     "after left: {}, top: {}, right: {}, bottom: {}",
-        //     rect.left, rect.top, rect.right, rect.bottom
-        // );
+        // println!("after {}", rect_to_string(rect));
 
         rect
     }

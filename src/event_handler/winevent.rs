@@ -1,7 +1,7 @@
 use crate::util;
 use crate::win_event_handler::WinEvent;
 use crate::win_event_handler::WinEventType;
-use crate::WORK_MODE;
+use crate::GRIDS;
 use log::debug;
 use winapi::shared::windef::HWND;
 
@@ -10,13 +10,32 @@ mod focus_change;
 mod show;
 
 pub fn handle(ev: WinEvent) -> Result<(), Box<dyn std::error::Error>> {
-    let title = match util::get_title_of_window(ev.hwnd as HWND) {
-        // We only care about the windows that have a title
-        Ok(title) => title,
-        Err(_) => return Ok(()),
-    };
+    let grids = GRIDS.lock().unwrap();
+    let mut title: Option<String> = None;
 
-    debug!("{:?}: '{}' | {}", ev.typ, title, ev.hwnd as i32);
+    for grid in grids.iter() {
+        for tile in &grid.tiles {
+            if tile.window.id == ev.hwnd {
+                title = Some(tile.window.title.clone());
+                break;
+            }
+        }
+    }
+
+    if title.is_none() && ev.typ != WinEventType::Show(false) && ev.typ != WinEventType::Show(true)
+    {
+        return Ok(());
+    }
+
+    if title.is_none() {
+        title = util::get_title_of_window(ev.hwnd as HWND).ok();
+    }
+
+    if title.is_some() {
+        debug!("{:?}: '{}' | {}", ev.typ, title.unwrap(), ev.hwnd as i32);
+    }
+
+    drop(grids);
 
     match ev.typ {
         WinEventType::Destroy => destroy::handle(ev.hwnd as HWND)?,

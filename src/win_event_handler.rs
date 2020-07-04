@@ -1,3 +1,4 @@
+use crate::app_bar;
 use crate::util;
 use crate::Event;
 use crate::CHANNEL;
@@ -28,7 +29,7 @@ lazy_static! {
     static ref UNREGISTER: Mutex<bool> = Mutex::new(false);
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum WinEventType {
     Destroy,
     Hide,
@@ -71,10 +72,20 @@ unsafe extern "system" fn handler(
         return;
     }
 
+    if app_bar::WINDOWS
+        .lock()
+        .unwrap()
+        .values()
+        .any(|v| *v == window_handle as i32)
+    {
+        return;
+    }
+
     let win_event_type = match WinEventType::from_u32(event_code) {
         Some(event) => event,
         None => return,
     };
+
     let event = Event::WinEvent(WinEvent {
         typ: win_event_type,
         hwnd: window_handle as i32,

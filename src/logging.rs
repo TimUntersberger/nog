@@ -1,3 +1,4 @@
+use flexi_logger::{Cleanup, Criterion, Duplicate, Logger, Naming, opt_format, Age};
 use lazy_static::lazy_static;
 
 #[cfg(debug_assertions)]
@@ -16,28 +17,18 @@ lazy_static! {
 }
 
 pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
-    let mut builder = fern::Dispatch::new()
-        .format(move |out, message, record| {
-            out.finish(format_args!(
-                "[{} {:5} {}] {}",
-                chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
-                record.level(),
-                record.target(),
-                message
-            ))
-        })
-        .level(log::LevelFilter::Debug)
-        .chain(fern::log_file(LOG_FILE.as_str()).unwrap())
-        .chain(std::io::stdout());
-
-    #[cfg(debug_assertions)]
-    {
-        builder = builder
-            .level_for("hyper", log::LevelFilter::Info)
-            .level_for("wwm::app_bar", log::LevelFilter::Error);
-    }
-
-    builder.apply().unwrap();
+    Logger::with_env_or_str("debug,wwm::app_bar=error")
+        .log_to_file()
+        .duplicate_to_stderr(Duplicate::All)
+        .directory("./log")
+        .format(opt_format)
+        .rotate(
+            Criterion::Age(Age::Day),
+            Naming::Timestamps,
+            Cleanup::KeepLogFiles(6),
+        )
+        .start()
+        .expect("Failed to initialize logger");
 
     Ok(())
 }

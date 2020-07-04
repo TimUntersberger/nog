@@ -16,7 +16,6 @@ pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
     // May have a grid that has the window as tile
     let maybe_grid = grids
         .iter_mut()
-        .filter(|g| g.visible) // only care about the workspaces that are used
         .map(|g| (g.id, g.get_focused_tile_mut())) // (grid_id, maybe_focused_tile)
         .filter(|t| t.1.is_some()) // check whether it is safe to unwrap
         .map(|t| (t.0, t.1.unwrap())) // unwrap focused_tile -> (grid_id, focused_tile)
@@ -35,6 +34,7 @@ pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
             );
 
             focused_tile.window.reset_style()?;
+            focused_tile.window.update_style();
             focused_tile.window.reset_pos()?;
 
             debug!(

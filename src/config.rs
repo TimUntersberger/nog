@@ -39,20 +39,37 @@ impl Default for Rule {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct WorkspaceSetting {
+    pub id: i32,
+    pub monitor: i32,
+}
+
+impl Default for WorkspaceSetting {
+    fn default() -> Self {
+        Self {
+            id: -1,
+            monitor: -1,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Config {
     pub app_bar_height: i32,
     pub app_bar_bg: i32,
     pub app_bar_font: String,
     pub app_bar_font_size: i32,
-    pub app_bar_workspace_bg: i32,
     pub work_mode: bool,
+    pub light_theme: bool,
+    pub multi_monitor: bool,
     pub launch_on_startup: bool,
     pub margin: i32,
     pub padding: i32,
     pub remove_title_bar: bool,
     pub remove_task_bar: bool,
     pub display_app_bar: bool,
+    pub workspace_settings: Vec<WorkspaceSetting>,
     pub keybindings: Vec<Keybinding>,
     pub rules: Vec<Rule>,
 }
@@ -61,17 +78,19 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             app_bar_height: 20,
-            app_bar_bg: 0x2c2427,
+            app_bar_bg: 0x2e3440,
             app_bar_font: String::from("Consolas"),
             app_bar_font_size: 18,
-            app_bar_workspace_bg: 0x161616,
             launch_on_startup: false,
             margin: 0,
             padding: 0,
             remove_title_bar: false,
             work_mode: true,
+            light_theme: false,
+            multi_monitor: false,
             remove_task_bar: false,
             display_app_bar: false,
+            workspace_settings: Vec::new(),
             keybindings: Vec::new(),
             rules: Vec::new(),
         }
@@ -131,16 +150,37 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
 
             if_str!(config, config_key, value, app_bar_font);
             if_i32!(config, config_key, value, app_bar_bg);
-            if_i32!(config, config_key, value, app_bar_workspace_bg);
             if_i32!(config, config_key, value, app_bar_font_size);
             if_i32!(config, config_key, value, app_bar_height);
             if_i32!(config, config_key, value, margin);
             if_i32!(config, config_key, value, padding);
+            if_bool!(config, config_key, value, light_theme);
             if_bool!(config, config_key, value, launch_on_startup);
             if_bool!(config, config_key, value, work_mode);
+            if_bool!(config, config_key, value, multi_monitor);
             if_bool!(config, config_key, value, remove_title_bar);
             if_bool!(config, config_key, value, remove_task_bar);
             if_bool!(config, config_key, value, display_app_bar);
+
+            if config_key == "workspaces" {
+                let workspaces = value.as_vec().ok_or("workspaces has to be an array")?;
+
+                for yaml_workspace in workspaces {
+                    if let yaml_rust::Yaml::Hash(hash) = yaml_workspace {
+                        let mut workspace = WorkspaceSetting::default();
+
+                        for entry in hash.iter() {
+                            let (key, value) = entry;
+                            let hash_key = key.as_str().ok_or("Invalid config key")?;
+
+                            if_i32!(workspace, hash_key, value, id);
+                            if_i32!(workspace, hash_key, value, monitor);
+                        }
+
+                        config.workspace_settings.push(workspace);
+                    }
+                }
+            }
 
             if config_key == "rules" {
                 let rules = value.as_vec().ok_or("rules has to be an array")?;
@@ -214,7 +254,15 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                                 binding,
                                 id
                             )),
+                            "MoveWorkspaceToMonitor" => {
+                                KeybindingType::MoveWorkspaceToMonitor(ensure_i32!(
+                                    "keybinding of type MoveWorkspaceToMonitor",
+                                    binding,
+                                    monitor
+                                ))
+                            }
                             "ToggleFloatingMode" => KeybindingType::ToggleFloatingMode,
+                            "ToggleFullscreen" => KeybindingType::ToggleFullscreen,
                             "ToggleWorkMode" => KeybindingType::ToggleWorkMode,
                             "Focus" => KeybindingType::Focus(Direction::from_str(ensure_str!(
                                 "keybinding of type Focus",
@@ -248,7 +296,6 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
         }
         //Convert normal hexadecimal color format to winapi hexadecimal color format
         convert_color_format!(config.app_bar_bg);
-        convert_color_format!(config.app_bar_workspace_bg);
     }
     Ok(config)
 }
