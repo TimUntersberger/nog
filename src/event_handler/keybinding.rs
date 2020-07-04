@@ -104,6 +104,10 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
                 .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
                 .unwrap();
 
+            if grid.tiles.is_empty() {
+                return Ok(());
+            }
+
             grid.fullscreen = !grid.fullscreen;
 
             grid.draw_grid();
