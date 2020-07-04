@@ -2,4 +2,5 @@
 .idea
 *.iml
 .vscode
+log
 output.log
