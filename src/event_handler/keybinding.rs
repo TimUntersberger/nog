@@ -5,6 +5,7 @@ use crate::hot_key_manager::Keybinding;
 use crate::hot_key_manager::KeybindingType;
 use crate::CHANNEL;
 use crate::GRIDS;
+use crate::CONFIG;
 use crate::VISIBLE_WORKSPACES;
 use crate::WORKSPACE_ID;
 use log::{error, info};
@@ -20,6 +21,12 @@ mod toggle_floating_mode;
 pub mod toggle_work_mode;
 
 pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
+    if let KeybindingType::MoveWorkspaceToMonitor(_) = kb.typ {
+        if !CONFIG.lock().unwrap().multi_monitor {
+            return Ok(());
+        }
+    }
+
     info!("Received keybinding of type {:?}", kb.typ);
     let sender = CHANNEL.sender.clone();
     match kb.typ {

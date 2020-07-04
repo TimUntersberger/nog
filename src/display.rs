@@ -59,7 +59,6 @@ unsafe extern "system" fn monitor_cb(hmonitor: HMONITOR, _: HDC, rect: LPRECT, _
 
 pub fn init() {
     unsafe {
-        dbg!(GetSystemMetrics(SM_CMONITORS));
         //is synchronous so don't have to worry about race conditions
         EnumDisplayMonitors(
             std::ptr::null_mut(),
