@@ -60,6 +60,7 @@ lazy_static! {
 #[derive(FromPrimitive, Debug, Copy, Clone)]
 enum PopupId {
     Exit = 1000,
+    Reload = 1001,
 }
 
 unsafe extern "system" fn window_cb(
@@ -81,6 +82,9 @@ unsafe extern "system" fn window_cb(
             match id {
                 PopupId::Exit => {
                     PostMessageW(hwnd, WM_CLOSE, 0, 0);
+                },
+                PopupId::Reload => {
+                    CHANNEL.sender.clone().send(Event::ReloadConfig).expect("Failed to send event");
                 }
             }
         }
@@ -186,6 +190,7 @@ unsafe fn show_popup_menu(hwnd: HWND) {
     let menu = CreatePopupMenu();
 
     let mut exit = util::to_widestring("Exit");
+    let mut reload = util::to_widestring("Reload");
 
     InsertMenuW(
         menu,
@@ -193,6 +198,14 @@ unsafe fn show_popup_menu(hwnd: HWND) {
         MF_BYPOSITION | MF_STRING,
         PopupId::Exit as usize,
         exit.as_mut_ptr(),
+    );
+
+    InsertMenuW(
+        menu,
+        0,
+        MF_BYPOSITION | MF_STRING,
+        PopupId::Reload as usize,
+        reload.as_mut_ptr(),
     );
 
     SetMenuItemBitmaps(
