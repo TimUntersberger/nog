@@ -8,7 +8,10 @@ use winapi::um::winreg::RegDeleteKeyValueW;
 use winapi::um::winreg::RegSetValueExW;
 use winapi::um::winreg::HKEY_CURRENT_USER;
 
+#[allow(unreachable_code, unused_variables)]
 pub fn set_launch_on_startup(enabled: bool) -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(debug_assertions)] // don't override the startup exe when in debug mode
+    return Ok(());
     if let Some(mut target_path) = dirs::config_dir() {
         target_path.push("wwm");
         target_path.push("wwm.exe");

@@ -1,26 +1,27 @@
 use flexi_logger::{opt_format, Age, Cleanup, Criterion, Duplicate, Logger, Naming};
-use lazy_static::lazy_static;
+use std::path::PathBuf;
 
 #[cfg(debug_assertions)]
-lazy_static! {
-    pub static ref LOG_FILE: String = String::from("output.log");
-}
+static DEBUG: &'static str = "debug,wwm::app_bar=debug";
 
 #[cfg(not(debug_assertions))]
-lazy_static! {
-    pub static ref LOG_FILE: String = {
-        let mut path = dirs::config_dir().unwrap();
-        path.push("wwm");
-        path.push("output.log");
-        path.into_os_string().into_string().unwrap()
-    };
-}
+static DEBUG: &'static str = "debug";
 
 pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
-    Logger::with_env_or_str("debug,wwm::app_bar=error")
+    let mut path: PathBuf = ["./log"].iter().collect();
+
+    #[cfg(not(debug_assertions))]
+    {
+        path = dirs::config_dir().expect("Failed to get config directory");
+
+        path.push("wwm");
+        path.push("log");
+    }
+
+    Logger::with_env_or_str(DEBUG)
         .log_to_file()
         .duplicate_to_stderr(Duplicate::All)
-        .directory("./log")
+        .directory(path)
         .format(opt_format)
         .rotate(
             Criterion::Age(Age::Day),

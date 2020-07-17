@@ -39,7 +39,7 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
     for rule in CONFIG.lock().unwrap().rules.clone() {
         if rule.pattern.is_match(&window.title) {
             debug!("Rule({:?}) matched!", rule.pattern);
-            window.rule = Some(rule.clone());
+            window.rule = Some(rule);
             break;
         }
     }

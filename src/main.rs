@@ -111,9 +111,6 @@ pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError> {
     debug!("Showing the workspace");
     new_grid.show();
 
-    //without this delay there is a slight flickering of the background
-    std::thread::sleep(std::time::Duration::from_millis(10));
-
     if let Some(id) = visible_workspaces.insert(new_grid.display.hmonitor, new_grid.id) {
         if new_grid.id != id {
             if let Some(grid) = grids.iter().find(|g| g.id == id) {
@@ -131,6 +128,7 @@ pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError> {
 
     *WORKSPACE_ID.lock().unwrap() = id;
 
+    debug!("Sending redraw-app-bar event");
     CHANNEL
         .sender
         .clone()
@@ -302,28 +300,33 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn main() {
-    /*
-        Only show the workspace on the appbar if it exists on the same display.
-        Show the darker color when the workspace exists but is not focused the lighter one if it is.
-            Focused means the workspace has mouse focus
-    */
     logging::setup().expect("Failed to setup logging");
 
-    info!("");
+    let panic = std::panic::catch_unwind(|| {
+        info!("");
 
-    update::update().expect("Failed to update the program");
+        update::update().expect("Failed to update the program");
 
-    ctrlc::set_handler(|| {
-        if let Err(e) = on_quit() {
-            error!("Something happend when cleaning up. {}", e);
+        ctrlc::set_handler(|| {
+            if let Err(e) = on_quit() {
+                error!("Something happend when cleaning up. {}", e);
+            }
+        })
+        .unwrap();
+
+        if let Err(e) = run() {
+            error!("An error occured {:?}", e);
+            if let Err(e) = on_quit() {
+                error!("Something happend when cleaning up. {}", e);
+            }
         }
-    })
-    .unwrap();
+    });
 
-    if let Err(e) = run() {
-        error!("An error occured {:?}", e);
-        if let Err(e) = on_quit() {
-            error!("Something happend when cleaning up. {}", e);
+    if let Err(err) = panic {
+        if let Ok(msg) = err.downcast::<&'static str>() {
+            error!("PANIC: {}", msg);
+        } else {
+            error!("PANIC: unknown");
         }
     }
 }

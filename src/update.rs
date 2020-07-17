@@ -1,3 +1,3 @@
-pub fn update() -> Result<(), Box<dyn std::error::Error>> {
+pub fn update() -> Result<(), ()> {
     Ok(())
 }
