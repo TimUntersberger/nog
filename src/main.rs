@@ -42,7 +42,7 @@ mod workspace;
 lazy_static! {
     pub static ref WORK_MODE: Mutex<bool> = Mutex::new(CONFIG.lock().unwrap().work_mode);
     pub static ref CONFIG: Mutex<Config> =
-        Mutex::new(config::load().expect("Failed to loading config"));
+        Mutex::new(config::load().expect("Failed to load config"));
     pub static ref DISPLAYS: Mutex<Vec<Display>> = Mutex::new(Vec::new());
     pub static ref CHANNEL: EventChannel = EventChannel::default();
     pub static ref GRIDS: Mutex<Vec<TileGrid>> =
@@ -59,9 +59,7 @@ fn unmanage_everything() -> Result<(), util::WinApiResultError> {
     for grid in grids.iter_mut() {
         for tile in &mut grid.tiles.clone() {
             grid.close_tile_by_window_id(tile.window.id);
-            tile.window.reset_style()?;
-            tile.window.update_style();
-            tile.window.reset_pos()?;
+            tile.window.reset()?;
         }
     }
 
@@ -110,6 +108,7 @@ pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError> {
 
     debug!("Drawing the workspace");
     new_grid.draw_grid();
+    debug!("Showing the workspace");
     new_grid.show();
 
     //without this delay there is a slight flickering of the background

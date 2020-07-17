@@ -1,6 +1,5 @@
 use crate::config::Rule;
 use crate::util;
-use crate::util::rect_to_string;
 use crate::CONFIG;
 use gwl_ex_style::GwlExStyle;
 use gwl_style::GwlStyle;
@@ -29,7 +28,7 @@ use winapi::um::winuser::SWP_NOMOVE;
 use winapi::um::winuser::SWP_NOSIZE;
 use winapi::um::winuser::SW_HIDE;
 use winapi::um::winuser::SW_SHOW;
-use winapi::um::winuser::WM_CLOSE;
+use winapi::um::winuser::{SC_MAXIMIZE, SC_RESTORE, WM_CLOSE, WM_SYSCOMMAND};
 
 pub mod gwl_ex_style;
 pub mod gwl_style;
@@ -38,6 +37,7 @@ pub mod gwl_style;
 pub struct Window {
     pub id: i32,
     pub title: String,
+    pub maximized: bool,
     pub rule: Option<Rule>,
     pub style: GwlStyle,
     pub exstyle: GwlExStyle,
@@ -50,6 +50,7 @@ impl Default for Window {
         Self {
             id: 0,
             title: String::from(""),
+            maximized: false,
             rule: None,
             style: GwlStyle::default(),
             exstyle: GwlExStyle::default(),
@@ -62,6 +63,17 @@ impl Default for Window {
 impl Window {
     pub fn reset_style(&mut self) -> Result<(), util::WinApiResultError> {
         self.style = self.original_style;
+
+        Ok(())
+    }
+    pub fn reset(&mut self) -> Result<(), util::WinApiResultError> {
+        self.reset_style()?;
+        self.update_style();
+        self.reset_pos()?;
+
+        if self.maximized {
+            self.send_maximize();
+        }
 
         Ok(())
     }
@@ -160,9 +172,6 @@ impl Window {
             }
 
             if rule.firefox || rule.chromium || (!remove_title_bar && rule.has_custom_titlebar) {
-                // looks like the frame around firefox is smaller than chrome's frame by about 2 pixels
-                // I don't see any other window that behaves like these two pieces of shit
-
                 if rule.firefox {
                     left -= (border_width as f32 * 1.5) as i32;
                     right += (border_width as f32 * 1.5) as i32;
@@ -266,5 +275,17 @@ impl Window {
             self.style.remove(GwlStyle::THICKFRAME);
         }
         self.style.insert(GwlStyle::BORDER);
+    }
+
+    pub fn send_maximize(&self) {
+        unsafe {
+            SendMessageA(self.id as HWND, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
+        }
+    }
+
+    pub fn send_restore(&self) {
+        unsafe {
+            SendMessageA(self.id as HWND, WM_SYSCOMMAND, SC_RESTORE, 0);
+        }
     }
 }

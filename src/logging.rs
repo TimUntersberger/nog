@@ -1,4 +1,4 @@
-use flexi_logger::{Cleanup, Criterion, Duplicate, Logger, Naming, opt_format, Age};
+use flexi_logger::{opt_format, Age, Cleanup, Criterion, Duplicate, Logger, Naming};
 use lazy_static::lazy_static;
 
 #[cfg(debug_assertions)]
