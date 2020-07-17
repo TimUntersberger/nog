@@ -46,6 +46,7 @@ use winapi::um::winuser::GetDC;
 use winapi::um::winuser::GetMessageW;
 use winapi::um::winuser::LoadCursorA;
 use winapi::um::winuser::RegisterClassA;
+use winapi::um::winuser::ReleaseDC;
 use winapi::um::winuser::SendMessageA;
 use winapi::um::winuser::SetCursor;
 use winapi::um::winuser::ShowWindow;
@@ -108,6 +109,7 @@ unsafe extern "system" fn window_cb(
         info!("loading font");
         load_font();
     } else if !hwnd.is_null() && msg == WM_PAINT {
+        let now = std::time::SystemTime::now();
         let reason = *REDRAW_REASON.lock().unwrap();
         let mut paint = PAINTSTRUCT::default();
 
@@ -122,7 +124,12 @@ unsafe extern "system" fn window_cb(
                 }
             }
             RedrawAppBarReason::Workspace => {
+                debug!("Received redraw-app-bar event");
                 draw_workspaces(hwnd);
+                debug!(
+                    "Painting workspaces took {}ms",
+                    now.elapsed().expect("Failed to get systemtime").as_millis()
+                )
             }
         }
 
@@ -212,6 +219,9 @@ pub fn set_font(dc: HDC) {
 }
 
 pub fn load_font() {
+    if *FONT.lock().unwrap() != 0 {
+        return;
+    }
     unsafe {
         let mut logfont = LOGFONTA::default();
         let mut font_name: [i8; 32] = [0; 32];
@@ -256,6 +266,7 @@ pub fn create() -> Result<(), util::WinApiResultError> {
         if WINDOWS.lock().unwrap().is_empty() {
             break;
         }
+
         CHANNEL
             .sender
             .clone()
@@ -353,6 +364,8 @@ pub fn close() {
             name.as_ptr(),
             winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut()),
         );
+
+        *FONT.lock().unwrap() = 0;
     }
 }
 
@@ -452,6 +465,8 @@ pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
                 &mut rect,
                 DT_CENTER | DT_VCENTER | DT_SINGLELINE,
             ))?;
+
+            ReleaseDC(hwnd, hdc);
         }
     }
 
@@ -517,6 +532,8 @@ pub fn draw_workspace(
                 &mut rect,
                 DT_CENTER | DT_VCENTER | DT_SINGLELINE,
             ))?;
+
+            ReleaseDC(hwnd, hdc);
         }
     }
 
