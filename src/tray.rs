@@ -82,6 +82,9 @@ unsafe extern "system" fn window_cb(
             match id {
                 PopupId::Exit => {
                     PostMessageW(hwnd, WM_CLOSE, 0, 0);
+                },
+                PopupId::Reload => {
+                    CHANNEL.sender.clone().send(Event::ReloadConfig).expect("Failed to send event");
                 }
                 PopupId::Reload => {
                     CHANNEL

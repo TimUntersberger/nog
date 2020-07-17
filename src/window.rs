@@ -1,5 +1,6 @@
 use crate::config::Rule;
 use crate::util;
+use crate::util::rect_to_string;
 use crate::CONFIG;
 use gwl_ex_style::GwlExStyle;
 use gwl_style::GwlStyle;
