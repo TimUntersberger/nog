@@ -86,6 +86,13 @@ unsafe extern "system" fn window_cb(
                 PopupId::Reload => {
                     CHANNEL.sender.clone().send(Event::ReloadConfig).expect("Failed to send event");
                 }
+                PopupId::Reload => {
+                    CHANNEL
+                        .sender
+                        .clone()
+                        .send(Event::ReloadConfig)
+                        .expect("Failed to send event");
+                }
             }
         }
     } else if msg == WM_APP && l_param as u32 == WM_RBUTTONUP {

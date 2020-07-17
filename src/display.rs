@@ -7,8 +7,6 @@ use winapi::shared::windef::HMONITOR;
 use winapi::shared::windef::LPRECT;
 use winapi::shared::windef::RECT;
 use winapi::um::winuser::EnumDisplayMonitors;
-use winapi::um::winuser::GetSystemMetrics;
-use winapi::um::winuser::SM_CMONITORS;
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Display {

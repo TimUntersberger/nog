@@ -21,9 +21,15 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
         title: title.unwrap(),
         ..Window::default()
     };
-    window.style = window.get_style().unwrap_or_default();
-    window.original_style = window.style;
+    window.original_style = window.get_style().unwrap_or_default();
+    if window.original_style.contains(GwlStyle::MAXIMIZE) {
+        window.send_restore();
+        window.maximized = true;
+        window.original_style.remove(GwlStyle::MAXIMIZE);
+    }
+    window.style = window.original_style;
     window.exstyle = window.get_ex_style().unwrap_or_default();
+
     let parent = window.get_parent_window();
 
     let correct_style = ignore_window_style

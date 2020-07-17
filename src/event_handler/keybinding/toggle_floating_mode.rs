@@ -33,9 +33,7 @@ pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
                 focused_tile.window.title, focused_tile.window.id
             );
 
-            focused_tile.window.reset_style()?;
-            focused_tile.window.update_style();
-            focused_tile.window.reset_pos()?;
+            focused_tile.window.reset()?;
 
             debug!(
                 "Unmanaging window '{}' | {}",
