@@ -108,7 +108,7 @@ unsafe extern "system" fn window_cb(
     } else if msg == WM_CREATE {
         info!("loading font");
         load_font();
-    } else if !hwnd.is_null() && msg == WM_PAINT {
+    } else if msg == WM_PAINT {
         let now = std::time::SystemTime::now();
         let reason = *REDRAW_REASON.lock().unwrap();
         let mut paint = PAINTSTRUCT::default();
@@ -134,7 +134,7 @@ unsafe extern "system" fn window_cb(
         }
 
         EndPaint(hwnd, &paint);
-    }
+    } 
 
     DefWindowProcA(hwnd, msg, w_param, l_param)
 }
@@ -178,11 +178,9 @@ fn draw_workspaces(hwnd: HWND) {
         .collect();
 
     //erase last workspace
-    debug!("Erasing {}", workspaces.len());
     erase_workspace(hwnd, (workspaces.len()) as i32);
 
     for (i, workspace) in workspaces.iter().enumerate() {
-        debug!("Drawing {}", workspace.id);
         draw_workspace(
             hwnd,
             i as i32,
@@ -326,9 +324,9 @@ pub fn create() -> Result<(), util::WinApiResultError> {
                 .unwrap()
                 .insert(display.hmonitor as i32, window_handle as i32);
 
+            ShowWindow(window_handle, SW_SHOW);
             draw_workspaces(window_handle);
             draw_datetime(window_handle).expect("Failed to draw datetime");
-            ShowWindow(window_handle, SW_SHOW);
 
             let mut msg: MSG = MSG::default();
             while GetMessageW(&mut msg, window_handle, 0, 0) > 0 {
@@ -485,7 +483,6 @@ pub fn draw_workspace(
 
         unsafe {
             util::winapi_nullable_to_result(GetClientRect(hwnd, &mut rect))?;
-
             rect.left += height * idx;
             rect.right = rect.left + height;
 

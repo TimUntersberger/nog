@@ -586,6 +586,6 @@ impl TileGrid {
             self.draw_tile(tile);
         }
 
-        self.print_grid();
+        // self.print_grid();
     }
 }
