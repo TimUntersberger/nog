@@ -1,5 +1,6 @@
 use crate::tile_grid::SplitDirection;
 use crate::window::Window;
+use std::fmt::Debug;
 
 #[derive(Clone)]
 pub struct Tile {
@@ -17,5 +18,14 @@ impl Default for Tile {
             split_direction: SplitDirection::Vertical,
             window: Window::default(),
         }
+    }
+}
+
+impl Debug for Tile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!(
+            "Tile(id: {}, title: '{}', row: {:?} column: {:?})",
+            self.window.id, self.window.title, self.row, self.column
+        ))
     }
 }
