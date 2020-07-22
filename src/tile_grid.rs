@@ -377,6 +377,10 @@ impl TileGrid {
                         let column = focused_tile.column;
                         let row = focused_tile.row.map(|x| x + 1).or(Some(2));
 
+                        // This is not 0 when the new row is not the last one
+                        // It basically is the count of rows in this row that come after the location where this new tile gets placed
+                        let mut row_count = 0;
+
                         // We can assume that row is Some because, there is no case where it is currently None
                         if row.unwrap() <= self.rows {
                             self.tiles
@@ -384,9 +388,10 @@ impl TileGrid {
                                 .filter(|t| t.column == column && t.row >= row)
                                 .for_each(|t| {
                                     t.row = t.row.map(|x| x + 1);
+                                    row_count += 1;
                                 });
                         }
-                        if row > Some(self.rows) {
+                        if row.map(|x| x + row_count) > Some(self.rows) {
                             self.rows += 1;
                         }
 
@@ -399,6 +404,10 @@ impl TileGrid {
                         let row = focused_tile.row;
                         let column = focused_tile.column.map(|x| x + 1).or(Some(2));
 
+                        // This is not 0 when the new column is not the last one
+                        // It basically is the count of columns in this row that come after the location where this new tile gets placed
+                        let mut column_count = 0;
+
                         // We can assume that column is Some because, there is no case where it is currently None
                         if column.unwrap() <= self.columns {
                             self.tiles
@@ -406,12 +415,15 @@ impl TileGrid {
                                 .filter(|t| t.row == row && t.column >= column)
                                 .for_each(|t| {
                                     t.column = t.column.map(|x| x + 1);
+                                    column_count += 1;
                                 });
                         }
 
-                        if column > Some(self.columns) {
+                        if column.map(|x| x + column_count) > Some(self.columns) {
                             self.columns += 1;
                         }
+
+                        dbg!(self.columns);
 
                         (column, row)
                     }
@@ -569,14 +581,11 @@ impl TileGrid {
         }
 
         for tile in &self.tiles {
-            debug!(
-                "Tile(id: {}, title: '{}', row: {:?} column: {:?})",
-                tile.window.id, tile.window.title, tile.row, tile.column
-            );
+            debug!("{:?}", tile);
 
             self.draw_tile(tile);
         }
 
-        // self.print_grid();
+        self.print_grid();
     }
 }
