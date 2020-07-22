@@ -130,13 +130,14 @@ impl Window {
     }
     pub fn calculate_window_rect(&self, x: i32, y: i32, width: i32, height: i32) -> RECT {
         let rule = self.rule.clone().unwrap_or_default();
-        let (display_app_bar, remove_title_bar, app_bar_height) = {
+        let (display_app_bar, remove_title_bar, app_bar_height, use_border) = {
             let config = CONFIG.lock().unwrap();
 
             (
                 config.display_app_bar,
                 config.remove_title_bar,
                 config.app_bar_height,
+                config.use_border
             )
         };
 
@@ -154,17 +155,15 @@ impl Window {
                 top += caption_height;
             } else {
                 top -= border_height * 2;
-                bottom -= border_height / 2;
 
-                left += 1;
-                right -= 1;
-                top += 1;
-                bottom += 1;
+
+                if use_border {
+                    left += 1;
+                    right -= 1;
+                    top += 1;
+                    bottom += 1;
+                }
             }
-
-            // if !remove_task_bar {
-            //     bottom -= *task_bar::HEIGHT.lock().unwrap();
-            // }
 
             if display_app_bar {
                 top += app_bar_height;
@@ -177,6 +176,7 @@ impl Window {
                     right += (border_width as f32 * 1.5) as i32;
                     bottom += (border_height as f32 * 1.5) as i32;
                 } else if rule.chromium {
+                    top -= border_height / 2;
                     left -= border_width * 2;
                     right += border_width * 2;
                     bottom += border_height * 2;
@@ -274,7 +274,9 @@ impl Window {
             self.style.remove(GwlStyle::CAPTION);
             self.style.remove(GwlStyle::THICKFRAME);
         }
-        self.style.insert(GwlStyle::BORDER);
+        if CONFIG.lock().unwrap().use_border {
+            self.style.insert(GwlStyle::BORDER);
+        }
     }
 
     pub fn send_maximize(&self) {

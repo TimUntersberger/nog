@@ -59,6 +59,7 @@ pub struct Config {
     pub app_bar_height: i32,
     pub app_bar_bg: i32,
     pub app_bar_font: String,
+    pub use_border: bool,
     pub app_bar_font_size: i32,
     pub work_mode: bool,
     pub light_theme: bool,
@@ -82,6 +83,7 @@ impl Default for Config {
             app_bar_font: String::from("Consolas"),
             app_bar_font_size: 18,
             launch_on_startup: false,
+            use_border: false,
             margin: 0,
             padding: 0,
             remove_title_bar: false,
@@ -154,6 +156,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
             if_i32!(config, config_key, value, app_bar_height);
             if_i32!(config, config_key, value, margin);
             if_i32!(config, config_key, value, padding);
+            if_bool!(config, config_key, value, use_border);
             if_bool!(config, config_key, value, light_theme);
             if_bool!(config, config_key, value, launch_on_startup);
             if_bool!(config, config_key, value, work_mode);
