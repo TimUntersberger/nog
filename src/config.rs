@@ -1,6 +1,6 @@
 use crate::hot_key_manager::{key::Key, modifier::Modifier, Direction, Keybinding, KeybindingType};
 use crate::tile_grid::SplitDirection;
-use log::debug;
+use log::{ debug, error };
 use regex::Regex;
 use std::io::{Error, ErrorKind, Write};
 use std::str::FromStr;
@@ -103,6 +103,37 @@ impl Config {
     /// Creates a new default config.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn increment_field(self: &mut Self, field: &str, value: i32) {
+        self.alter_numerical_field(field, value);
+    }
+
+    pub fn decrement_field(self: &mut Self, field: &str, value: i32) {
+        self.alter_numerical_field(field, -value);
+    }
+
+    fn alter_numerical_field(self: &mut Self, field: &str, value: i32) {
+        match field {
+            "app_bar_height" => self.app_bar_height += value,
+            "app_bar_bg" => self.app_bar_bg += value,
+            "app_bar_font_size" => self.app_bar_font_size += value,
+            "margin" => self.margin += value,
+            "padding" => self.padding += value,
+            _ => error!("Attempt to alter unknown field: {} by {}", field, value)
+        }
+    }
+
+    pub fn toggle_field(self: &mut Self, field: &str) {
+        match field {
+            "use_border" => self.use_border = !self.use_border,
+            "light_theme" => self.light_theme = !self.light_theme,
+            "launch_on_startup" => self.launch_on_startup = !self.launch_on_startup,
+            "remove_title_bar" => self.remove_title_bar = !self.remove_title_bar,
+            "remove_task_bar" => self.remove_task_bar = !self.remove_task_bar,
+            "display_app_bar" => self.display_app_bar = !self.display_app_bar,
+            _ => error!("Attempt to toggle unknown field: {}", field)
+        }
     }
 }
 
@@ -267,6 +298,18 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                             "ToggleFloatingMode" => KeybindingType::ToggleFloatingMode,
                             "ToggleFullscreen" => KeybindingType::ToggleFullscreen,
                             "ToggleWorkMode" => KeybindingType::ToggleWorkMode,
+
+                            "IncrementConfig" => KeybindingType::IncrementConfig(
+                                ensure_str!("keybinding of type IncrementConfig", binding, field).to_string(),
+                                ensure_i32!("keybinding of type IncrementConfig", binding, value)
+                            ),
+                            "DecrementConfig" => KeybindingType::DecrementConfig(
+                                ensure_str!("keybinding of type DecrementConfig", binding, field).to_string(),
+                                ensure_i32!("keybinding of type DecrementConfig", binding, value)
+                            ),
+                            "ToggleConfig" => KeybindingType::ToggleConfig(
+                                ensure_str!("keybinding of type ToggleConfig", binding, field).to_string(),
+                            ),
                             "Focus" => KeybindingType::Focus(Direction::from_str(ensure_str!(
                                 "keybinding of type Focus",
                                 binding,
