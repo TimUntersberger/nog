@@ -8,6 +8,7 @@ use crate::CONFIG;
 use crate::GRIDS;
 use crate::VISIBLE_WORKSPACES;
 use crate::WORKSPACE_ID;
+use crate::update_config;
 use log::{error, info};
 use winapi::um::processthreadsapi::CreateProcessA;
 use winapi::um::processthreadsapi::PROCESS_INFORMATION;
@@ -113,6 +114,21 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
             grid.draw_grid();
         }
         KeybindingType::ToggleWorkMode => toggle_work_mode::handle()?,
+        KeybindingType::IncrementConfig(field, value) => {
+            let mut current_config = CONFIG.lock().unwrap().clone();
+            current_config.increment_field(&field, value);
+            update_config(current_config)?;
+        },
+        KeybindingType::DecrementConfig(field, value) => {
+            let mut current_config = CONFIG.lock().unwrap().clone();
+            current_config.decrement_field(&field, value);
+            update_config(current_config)?;
+        },
+        KeybindingType::ToggleConfig(field) => {
+            let mut current_config = CONFIG.lock().unwrap().clone();
+            current_config.toggle_field(&field);
+            update_config(current_config)?;
+        },
         KeybindingType::Focus(direction) => focus::handle(direction)?,
         KeybindingType::Swap(direction) => swap::handle(direction)?,
         KeybindingType::Quit => sender.send(Event::Exit)?,
