@@ -137,7 +137,7 @@ impl Window {
                 config.display_app_bar,
                 config.remove_title_bar,
                 config.app_bar_height,
-                config.use_border
+                config.use_border,
             )
         };
 
@@ -155,7 +155,6 @@ impl Window {
                 top += caption_height;
             } else {
                 top -= border_height * 2;
-
 
                 if use_border {
                     left += 1;

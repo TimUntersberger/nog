@@ -1,5 +1,5 @@
 use crate::change_workspace;
-use crate::display::get_primary_display;
+use crate::display::get_display_by_hmonitor;
 use crate::event::Event;
 use crate::is_visible_workspace;
 use crate::tile_grid::TileGrid;
@@ -134,7 +134,7 @@ unsafe extern "system" fn window_cb(
         }
 
         EndPaint(hwnd, &paint);
-    } 
+    }
 
     DefWindowProcA(hwnd, msg, w_param, l_param)
 }
@@ -407,7 +407,15 @@ pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
             let text = format!("{}", chrono::Local::now().format("%T"));
             let text_len = text.len() as i32;
             let c_text = CString::new(text).unwrap();
-            let display = get_primary_display();
+            let hmonitor = WINDOWS
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|(_, v)| **v == hwnd as i32)
+                .map(|(k, _)| *k)
+                .expect("Failed to get current monitor");
+
+            let display = get_display_by_hmonitor(hmonitor);
 
             let hdc = util::winapi_ptr_to_result(GetDC(hwnd))?;
 
