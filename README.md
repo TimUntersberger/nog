@@ -30,6 +30,9 @@ Terminal: Windows Terminal | Colourscheme: Nord
         * [Focus](#focus)
         * [Swap](#swap)
         * [Split](#split)
+        * [IncrementConfig](#incrementConfig)
+        * [DecrementConfig](#decrementConfig)
+        * [ToggleConfig](#toggleConfig)
      * [Example Config](#example-config)
   * [Screenshots](#screenshots)
   * [Development](#development)
@@ -233,6 +236,9 @@ Keybindings can have the following types:
 * [ChangeWorkspace](#changeworkspace)
 * [MoveToWorkspace](#movetoworkspace)
 * [MoveWorkspaceToMonitor](#moveworkspacetomonitor)
+* [IncrementConfig](#incrementConfig)
+* [DecrementConfig](#decrementConfig)
+* [ToggleConfig](#toggleConfig)
 
 #### ChangeWorkspace
 
@@ -410,6 +416,42 @@ values
 
 A Split keybinding takes a direction, the new SplitDirection of the currently focused window. The SplitDirection specifies how a new window gets placed in the grid.
 
+#### IncrementConfig
+
+example
+```yaml
+type: IncrementConfig
+key: Alt+O
+field: app_bar_height
+value: 5
+```
+
+A IncrementConfig keybinding can be used to bind a keybinding to increment a config value by a specific amount. Only works on config values that are numeric. Examples include app_bar_height, app_bar_bg, app_bar_font_size, margin, padding.
+
+#### DecrementConfig
+
+example
+```yaml
+type: DecrementConfig
+key: Alt+Shift+O
+field: app_bar_height
+value: 5
+```
+
+A DecrementConfig keybinding can be used to bind a keybinding to decrement a config value by a specific amount. Only works on config values that are numeric. Examples include app_bar_height, app_bar_bg, app_bar_font_size, margin, padding.
+
+#### ToggleConfig
+
+example
+```yaml
+type: ToggleConfig
+key: Alt+I
+field: display_app_bar
+```
+
+A ToggleConfig keybinding can be used to bind a keybinding to toggle a config value. Only works on config values that are boolean. Examples include use_border, light_theme, remove_title_bar, remove_task_bar, display_app_bar.
+
+
 ### Example Config
 ```yaml
 app_bar_font: Cascadia Mono
@@ -500,6 +542,22 @@ keybindings:
     key: Alt+F
   - type: ToggleWorkMode
     key: Alt+Control+W
+
+  - type: ToggleConfig
+    key: Alt+I
+    field: display_app_bar
+  - type: ToggleConfig
+    key: Alt+Shift+I
+    field: remove_task_bar
+
+  - type: IncrementConfig
+    key: Alt+O
+    field: app_bar_height
+    value: 5
+  - type: DecrementConfig
+    key: Alt+Shift+O
+    field: app_bar_height
+    value: 5
 
   - type: MoveToWorkspace
     key: Alt+Shift+1
