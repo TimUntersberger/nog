@@ -21,6 +21,8 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     - name: Build
       run: cargo build --release
+    - name: Add Icon
+      run: ./rcedit ./target/release/wwm.exe --set-icon ./logo.ico
     - name: Create Release
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
