@@ -1,49 +1,55 @@
-use crate::DISPLAYS;
+use crate::{util, CONFIG};
 use lazy_static::lazy_static;
 use log::debug;
 use std::collections::HashMap;
-use std::ffi::CString;
+use winapi::um::winuser::EnumWindows;
 use std::sync::Mutex;
 use winapi::shared::windef::HWND;
-use winapi::shared::windef::RECT;
-use winapi::um::winuser::FindWindowA;
+use winapi::shared::{minwindef::{BOOL, LPARAM}, windef::RECT};
 use winapi::um::winuser::GetWindowRect;
 use winapi::um::winuser::ShowWindow;
 use winapi::um::winuser::SW_HIDE;
-use winapi::um::winuser::SW_SHOW;
+use winapi::um::winuser::{MonitorFromWindow, SW_SHOW, MONITOR_DEFAULTTONULL};
 
 lazy_static! {
+    // hmonitor, hwnd
     pub static ref WINDOWS: Mutex<HashMap<i32, i32>> = Mutex::new(HashMap::new());
     pub static ref HEIGHT: Mutex<i32> = Mutex::new(0);
 }
 
-pub fn init() {
-    for (i, display) in DISPLAYS.lock().unwrap().iter().enumerate() {
+unsafe extern "system" fn enum_windows_cb(hwnd: HWND, _: LPARAM) -> BOOL {
+    let class_name = util::get_class_name_of_window(hwnd).expect("Failed to get class name");
+    let is_task_bar = regex::Regex::new("^Shell_(Secondary)?TrayWnd$").expect("Failed to build regex").is_match(&class_name);
+
+    if is_task_bar {
+        let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONULL);
         let mut rect = RECT::default();
-        let window_name = if i == 0 {
-            CString::new("Shell_TrayWnd").unwrap()
-        } else {
-            CString::new("Shell_SecondaryTrayWnd").unwrap()
-        };
 
-        let window_handle = unsafe { FindWindowA(window_name.as_ptr(), std::ptr::null()) };
-        unsafe {
-            GetWindowRect(window_handle, &mut rect);
-        }
+        GetWindowRect(hwnd, &mut rect);
 
-        if i == 0 {
-            *HEIGHT.lock().unwrap() = rect.bottom - rect.top;
-        }
+        *HEIGHT.lock().unwrap() = rect.bottom - rect.top;
 
         WINDOWS
             .lock()
             .unwrap()
-            .insert(display.hmonitor as i32, window_handle as i32);
+            .insert(monitor as i32, hwnd as i32);
 
         debug!(
             "Initialized Taskbar(hwnd: {}, hmonitor: {})",
-            window_handle as i32, display.hmonitor as i32
+            hwnd as i32, monitor as i32
         );
+
+        if !CONFIG.lock().unwrap().multi_monitor {
+            return 0
+        }
+    }
+
+    1
+}
+
+pub fn init() {
+    unsafe {
+        EnumWindows(Some(enum_windows_cb), 0);
     }
 }
 
