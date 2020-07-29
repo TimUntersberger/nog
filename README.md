@@ -59,6 +59,10 @@ The inner gap gets defined by the `padding` setting and the outer gap is the sum
 
 The `app_bar_height` setting defines the height of the app bar
 
+The `app_bar_date_pattern` setting defines the [chrono](https://docs.rs/chrono/0.4.13/chrono/format/strftime/index.html#specifiers) pattern used by the appbar for the date.
+
+The `app_bar_time_pattern` setting defines the [chrono](https://docs.rs/chrono/0.4.13/chrono/format/strftime/index.html#specifiers) pattern used by the appbar for the time.
+
 The `app_bar_font` setting defines the font for the appbar widgets.
 
 The `app_bar_font_size` setting defines the font size for the appbar widgets.
@@ -224,21 +228,41 @@ Note: The windows modifier is reserved for windows itself so we can't use it in 
 
 Keybindings can have the following types:
 
-* [Launch](#launch)
-* [CloseTile](#closetile)
-* [Quit](#quit)
-* [Focus](#focus)
-* [Split](#split)
-* [Swap](#swap)
-* [ToggleFloatingMode](#togglefloatingmode)
-* [ToggleWorkMode](#toggleworkmode)
-* [ToggleFullscreen](#togglefullscreen)
-* [ChangeWorkspace](#changeworkspace)
-* [MoveToWorkspace](#movetoworkspace)
-* [MoveWorkspaceToMonitor](#moveworkspacetomonitor)
-* [IncrementConfig](#incrementConfig)
-* [DecrementConfig](#decrementConfig)
-* [ToggleConfig](#toggleConfig)
+- [wwm](#wwm)
+  - [Table Of Contents](#table-of-contents)
+  - [Motivation](#motivation)
+  - [Config](#config)
+    - [Gap](#gap)
+    - [bar](#bar)
+    - [Toggles](#toggles)
+    - [Workspaces](#workspaces)
+    - [Rules](#rules)
+      - [Settings](#settings)
+      - [Examples](#examples)
+    - [Keybindings](#keybindings)
+      - [ChangeWorkspace](#changeworkspace)
+      - [MoveToWorkspace](#movetoworkspace)
+      - [MoveWorkspaceToMonitor](#moveworkspacetomonitor)
+      - [Launch](#launch)
+      - [CloseTile](#closetile)
+      - [Quit](#quit)
+      - [ToggleFloatingMode](#togglefloatingmode)
+      - [ToggleWorkMode](#toggleworkmode)
+      - [ToggleFullscreen](#togglefullscreen)
+      - [Focus](#focus)
+      - [Swap](#swap)
+      - [Split](#split)
+      - [IncrementConfig](#incrementconfig)
+      - [DecrementConfig](#decrementconfig)
+      - [ToggleConfig](#toggleconfig)
+    - [Example Config](#example-config)
+  - [Screenshots](#screenshots)
+    - [default](#default)
+    - [display_app_bar](#display_app_bar)
+    - [display_app_bar + remove_title_bar](#display_app_bar--remove_title_bar)
+    - [display_app_bar + remove_title_bar + remove_task_bar](#display_app_bar--remove_title_bar--remove_task_bar)
+  - [Development](#development)
+    - [Create installer](#create-installer)
 
 #### ChangeWorkspace
 

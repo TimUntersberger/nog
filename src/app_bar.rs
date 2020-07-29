@@ -404,7 +404,7 @@ pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
 
         unsafe {
             util::winapi_nullable_to_result(GetClientRect(hwnd, &mut rect))?;
-            let text = format!("{}", chrono::Local::now().format("%T"));
+            let text = format!("{}", chrono::Local::now().format(&CONFIG.lock().unwrap().app_bar_time_pattern));
             let text_len = text.len() as i32;
             let c_text = CString::new(text).unwrap();
             let hmonitor = WINDOWS
@@ -450,7 +450,7 @@ pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
                 DT_CENTER | DT_VCENTER | DT_SINGLELINE,
             ))?;
 
-            let text = format!("{}", chrono::Local::now().format("%e %b %Y"));
+            let text = format!("{}", chrono::Local::now().format(&CONFIG.lock().unwrap().app_bar_date_pattern));
             let text_len = text.len() as i32;
             let c_text = CString::new(text).unwrap();
 

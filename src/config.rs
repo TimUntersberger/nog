@@ -59,6 +59,8 @@ pub struct Config {
     pub app_bar_height: i32,
     pub app_bar_bg: i32,
     pub app_bar_font: String,
+    pub app_bar_date_pattern: String,
+    pub app_bar_time_pattern: String,
     pub use_border: bool,
     pub app_bar_font_size: i32,
     pub work_mode: bool,
@@ -82,6 +84,8 @@ impl Default for Config {
             app_bar_bg: 0x2e3440,
             app_bar_font: String::from("Consolas"),
             app_bar_font_size: 18,
+            app_bar_date_pattern: String::from("%e %b %Y"),
+            app_bar_time_pattern: String::from("%T"),
             launch_on_startup: false,
             use_border: false,
             margin: 0,
@@ -182,6 +186,8 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
             let config_key = key.as_str().ok_or("Invalid config key")?;
 
             if_str!(config, config_key, value, app_bar_font);
+            if_str!(config, config_key, value, app_bar_date_pattern);
+            if_str!(config, config_key, value, app_bar_time_pattern);
             if_i32!(config, config_key, value, app_bar_bg);
             if_i32!(config, config_key, value, app_bar_font_size);
             if_i32!(config, config_key, value, app_bar_height);
