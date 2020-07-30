@@ -59,9 +59,9 @@ The inner gap gets defined by the `padding` setting and the outer gap is the sum
 
 The `app_bar_height` setting defines the height of the app bar
 
-The `app_bar_date_pattern` setting defines the [chrono](https://docs.rs/chrono/0.4.13/chrono/format/strftime/index.html#specifiers) pattern used by the appbar for the date.
+The `app_bar_date_pattern` setting defines the [chrono](https://docs.rs/chrono/0.4.13/chrono/format/strftime/index.html#specifiers) pattern used by the appbar for the date (NOTE: the pattern has to be inclosed in quotation marks).
 
-The `app_bar_time_pattern` setting defines the [chrono](https://docs.rs/chrono/0.4.13/chrono/format/strftime/index.html#specifiers) pattern used by the appbar for the time.
+The `app_bar_time_pattern` setting defines the [chrono](https://docs.rs/chrono/0.4.13/chrono/format/strftime/index.html#specifiers) pattern used by the appbar for the time (NOTE: the pattern has to be inclosed in quotation marks).
 
 The `app_bar_font` setting defines the font for the appbar widgets.
 
