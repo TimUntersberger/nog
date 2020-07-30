@@ -64,7 +64,7 @@ use winapi::um::winuser::WM_CREATE;
 use winapi::um::winuser::WM_LBUTTONDOWN;
 use winapi::um::winuser::WM_PAINT;
 use winapi::um::winuser::WM_SETCURSOR;
-use winapi::um::winuser::{UnregisterClassA, WNDCLASSA};
+use winapi::um::winuser::{UnregisterClassA, WNDCLASSA, WM_DEVICECHANGE};
 
 lazy_static! {
     pub static ref HEIGHT: Mutex<i32> = Mutex::new(0);
@@ -91,6 +91,8 @@ unsafe extern "system" fn window_cb(
     } else if msg == WM_SETCURSOR {
         // Force a normal cursor. This probably shouldn't be done this way but whatever
         SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8));
+    } else if msg == WM_DEVICECHANGE {
+        println!("Device change!");
     } else if msg == WM_LBUTTONDOWN {
         info!("Received mouse click");
         let x = GET_X_LPARAM(l_param);
