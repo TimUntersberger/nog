@@ -63,6 +63,8 @@ pub struct Config {
     pub app_bar_time_pattern: String,
     pub use_border: bool,
     pub app_bar_font_size: i32,
+    pub min_width: i32,
+    pub min_height: i32,
     pub work_mode: bool,
     pub light_theme: bool,
     pub multi_monitor: bool,
@@ -87,6 +89,8 @@ impl Default for Config {
             app_bar_date_pattern: String::from("%e %b %Y"),
             app_bar_time_pattern: String::from("%T"),
             launch_on_startup: false,
+            min_height: 0,
+            min_width: 0,
             use_border: false,
             margin: 0,
             padding: 0,
@@ -191,6 +195,8 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
             if_i32!(config, config_key, value, app_bar_bg);
             if_i32!(config, config_key, value, app_bar_font_size);
             if_i32!(config, config_key, value, app_bar_height);
+            if_i32!(config, config_key, value, min_width);
+            if_i32!(config, config_key, value, min_height);
             if_i32!(config, config_key, value, margin);
             if_i32!(config, config_key, value, padding);
             if_bool!(config, config_key, value, use_border);

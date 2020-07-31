@@ -49,6 +49,14 @@ The config lives in `C:\Users\<User>\AppData\Roaming\wwm\config.yaml`.
 
 If you want to see my own config or just want to know what a config looks like: [my config](#example-config).
 
+### General
+
+You can specifiy the minimum width/height required for wwm to automatically manage a window. This can be useful when you want to avoid managing small popups that have a dynamic title.
+
+The `min_width` setting defines the minimum width.
+
+The `min_height` setting defines the minimum height.
+
 ### Gap
 
 WWM supports two different types of gaps, the outer and the inner gap.
@@ -232,6 +240,7 @@ Keybindings can have the following types:
   - [Table Of Contents](#table-of-contents)
   - [Motivation](#motivation)
   - [Config](#config)
+    - [General](#general)
     - [Gap](#gap)
     - [bar](#bar)
     - [Toggles](#toggles)
@@ -480,6 +489,9 @@ A ToggleConfig keybinding can be used to bind a keybinding to toggle a config va
 ```yaml
 app_bar_font: Cascadia Mono
 app_bar_font_size: 17
+
+min_width: 200
+min_height: 200
 
 work_mode: true
 multi_monitor: true

@@ -28,7 +28,7 @@ use winapi::um::winuser::SWP_NOMOVE;
 use winapi::um::winuser::SWP_NOSIZE;
 use winapi::um::winuser::SW_HIDE;
 use winapi::um::winuser::SW_SHOW;
-use winapi::um::winuser::{SC_MAXIMIZE, SC_RESTORE, WM_CLOSE, WM_SYSCOMMAND};
+use winapi::um::winuser::{SC_MAXIMIZE, SC_RESTORE, WM_CLOSE, WM_SYSCOMMAND, GetClientRect};
 
 pub mod gwl_ex_style;
 pub mod gwl_style;
@@ -91,6 +91,13 @@ impl Window {
         }
 
         Ok(())
+    }
+    pub fn get_client_rect(&self) -> RECT {
+        let mut rect: RECT = RECT::default();
+        unsafe {
+            GetClientRect(self.id as HWND, &mut rect);
+        }
+        rect
     }
     pub fn get_foreground_window() -> Result<HWND, util::WinApiResultError> {
         unsafe { util::winapi_ptr_to_result(GetForegroundWindow()) }

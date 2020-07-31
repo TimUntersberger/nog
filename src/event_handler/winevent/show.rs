@@ -11,6 +11,8 @@ use winapi::shared::windef::HWND;
 
 pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::error::Error>> {
     let title = util::get_title_of_window(hwnd);
+    let min_width = CONFIG.lock().unwrap().min_width;
+    let min_height = CONFIG.lock().unwrap().min_height;
 
     if title.is_err() {
         return Ok(());
@@ -21,6 +23,13 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
         title: title.unwrap(),
         ..Window::default()
     };
+
+    let rect = window.get_client_rect();
+
+    if !ignore_window_style && (rect.right - rect.left < min_width || rect.bottom - rect.top < min_height) {
+        return Ok(());
+    }
+
     window.original_style = window.get_style().unwrap_or_default();
     if window.original_style.contains(GwlStyle::MAXIMIZE) {
         window.send_restore();
