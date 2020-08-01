@@ -7,6 +7,7 @@ use winapi::shared::windef::HMONITOR;
 use winapi::shared::windef::LPRECT;
 use winapi::shared::windef::RECT;
 use winapi::um::winuser::EnumDisplayMonitors;
+use std::cmp::Ordering;
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Display {
@@ -65,6 +66,18 @@ pub fn init() {
             0,
         );
     }
+
+    let mut displays = DISPLAYS.lock().unwrap();
+
+    displays.sort_by(|x, y| {
+        let ordering = y.left.cmp(&x.left);
+
+        if ordering == Ordering::Equal {
+            return y.top.cmp(&x.top);
+        }
+
+        ordering
+    });
 }
 
 pub fn get_primary_display() -> Display {
