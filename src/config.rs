@@ -310,7 +310,6 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                             "ToggleFloatingMode" => KeybindingType::ToggleFloatingMode,
                             "ToggleFullscreen" => KeybindingType::ToggleFullscreen,
                             "ToggleWorkMode" => KeybindingType::ToggleWorkMode,
-
                             "IncrementConfig" => KeybindingType::IncrementConfig(
                                 ensure_str!("keybinding of type IncrementConfig", binding, field).to_string(),
                                 ensure_i32!("keybinding of type IncrementConfig", binding, value)
@@ -327,6 +326,11 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                                 binding,
                                 direction
                             ))?),
+                            "Resize" => KeybindingType::Resize(Direction::from_str(ensure_str!(
+                                "keybinding of type Resize",
+                                binding,
+                                direction
+                            ))?, ensure_i32!("keybinding of type Resize", binding, amount)),
                             "Swap" => KeybindingType::Swap(Direction::from_str(ensure_str!(
                                 "keybinding of type Swap",
                                 binding,

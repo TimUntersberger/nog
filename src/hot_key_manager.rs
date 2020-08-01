@@ -48,6 +48,7 @@ pub enum KeybindingType {
     ToggleFullscreen,
     Launch(Command),
     Focus(Direction),
+    Resize(Direction, i32),
     Swap(Direction),
     MoveToWorkspace(i32),
     Split(SplitDirection),

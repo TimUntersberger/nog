@@ -272,6 +272,8 @@ impl TileGrid {
                         .iter_mut()
                         .filter(|t| t.row > removed_tile.row)
                         .for_each(|t| {
+                            t.top = 0;
+                            t.bottom = 0;
                             t.row = None;
                         });
                 } else {
@@ -299,6 +301,8 @@ impl TileGrid {
                         .iter_mut()
                         .filter(|t| t.column != removed_tile.column)
                         .for_each(|t| {
+                            t.left = 0;
+                            t.right = 0;
                             t.column = None;
                         })
                 } else {
@@ -435,6 +439,7 @@ impl TileGrid {
                     column,
                     split_direction,
                     window,
+                    ..Tile::default()
                 });
             }
             None => {
@@ -447,6 +452,10 @@ impl TileGrid {
                 });
             }
         }
+    }
+    /// Converts the percentage to the real pixel value of the current display
+    fn percentage_to_real(&self, p: i32) -> i32 {
+        self.display.height() / 100 * p
     }
     /// Calculates all the data required for drawing the tile
     fn calculate_tile_data(&self, tile: &Tile) -> RECT {
@@ -487,12 +496,59 @@ impl TileGrid {
                     y += padding;
                 }
             }
+
+            let mut percent_right = 0;
+            let mut percent_left = 0;
+            let mut percent_top = 0;
+            let mut percent_bottom = 0;
+
+            for t in &self.tiles {
+                if t.row == tile.row {
+                    if t.column > tile.column {
+                        percent_right += t.left;
+                    } else if t.column < tile.column {
+                        percent_left += t.right;
+                    }
+                } else if t.column == tile.column {
+                    if t.row > tile.row {
+                        percent_bottom += t.top;
+                    } else if t.row < tile.row {
+                        percent_top += t.bottom;
+                    }
+                }
+            }
+
+            width -= self.percentage_to_real(percent_left - percent_right);
+            x += self.percentage_to_real(percent_left);
+            height -= self.percentage_to_real(percent_bottom - percent_top);
+            y += self.percentage_to_real(percent_top);
+            
+            x -= self.percentage_to_real(tile.left);
+            y -= self.percentage_to_real(tile.top);
+            width += self.percentage_to_real(tile.right + tile.left);
+            height += self.percentage_to_real(tile.bottom + tile.top);
         }
 
         x += margin;
         x += padding;
         y += margin;
         y += padding;
+
+        if x < 0 {
+            x = 0;
+        }
+
+        if y < 0 {
+            y = 0;
+        }
+
+        if x + width > self.display.width() {
+            width = self.display.width() - x;
+        }
+
+        if y + height > self.display.height() {
+            height = self.display.height() - y;
+        }
 
         tile.window.calculate_window_rect(x, y, width, height)
     }
