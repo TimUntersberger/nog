@@ -340,6 +340,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                                 ensure_str!("keybinding of type Split", binding, direction),
                             )?),
                             x => {
+                                error!("unknown type {}", x);
                                 return Err(Box::new(Error::new(
                                     ErrorKind::InvalidInput,
                                     "unknown type ".to_string() + x,
