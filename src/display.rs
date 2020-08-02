@@ -6,12 +6,13 @@ use winapi::shared::windef::HDC;
 use winapi::shared::windef::HMONITOR;
 use winapi::shared::windef::LPRECT;
 use winapi::shared::windef::RECT;
-use winapi::um::winuser::EnumDisplayMonitors;
+use winapi::um::{shellscalingapi::{MDT_RAW_DPI, GetDpiForMonitor}, winuser::EnumDisplayMonitors};
 use std::cmp::Ordering;
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Display {
     pub hmonitor: i32,
+    pub dpi: u32,
     pub is_primary: bool,
     pub left: i32,
     pub right: i32,
@@ -29,7 +30,13 @@ impl Display {
     pub fn new(hmonitor: HMONITOR, rect: RECT) -> Self {
         let mut display = Display::default();
         let config = CONFIG.lock().unwrap();
+        let mut dpi_x: u32 = 0;
+        let mut dpi_y: u32 = 0;
 
+        unsafe {
+            GetDpiForMonitor(hmonitor, MDT_RAW_DPI, &mut dpi_x, &mut dpi_y);
+        }
+        display.dpi = dpi_x;
         display.hmonitor = hmonitor as i32;
         display.left = rect.left;
         display.right = rect.right;

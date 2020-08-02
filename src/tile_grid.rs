@@ -494,7 +494,7 @@ impl TileGrid {
         y += margin;
         y += padding;
 
-        tile.window.calculate_window_rect(x, y, width, height)
+        tile.window.calculate_window_rect(&self.display, x, y, width, height)
     }
 
     fn draw_tile(&self, tile: &Tile) {

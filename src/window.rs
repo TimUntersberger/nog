@@ -1,6 +1,6 @@
 use crate::config::Rule;
 use crate::util;
-use crate::CONFIG;
+use crate::{display::Display, CONFIG};
 use gwl_ex_style::GwlExStyle;
 use gwl_style::GwlStyle;
 use winapi::shared::windef::HWND;
@@ -28,7 +28,7 @@ use winapi::um::winuser::SWP_NOMOVE;
 use winapi::um::winuser::SWP_NOSIZE;
 use winapi::um::winuser::SW_HIDE;
 use winapi::um::winuser::SW_SHOW;
-use winapi::um::winuser::{SC_MAXIMIZE, SC_RESTORE, WM_CLOSE, WM_SYSCOMMAND, GetClientRect};
+use winapi::um::winuser::{SC_MAXIMIZE, SC_RESTORE, WM_CLOSE, WM_SYSCOMMAND, GetClientRect, GetSystemMetricsForDpi};
 
 pub mod gwl_ex_style;
 pub mod gwl_style;
@@ -135,7 +135,7 @@ impl Window {
             ShowWindow(self.id as HWND, SW_HIDE);
         }
     }
-    pub fn calculate_window_rect(&self, x: i32, y: i32, width: i32, height: i32) -> RECT {
+    pub fn calculate_window_rect(&self, display: &Display, x: i32, y: i32, width: i32, height: i32) -> RECT {
         let rule = self.rule.clone().unwrap_or_default();
         let (display_app_bar, remove_title_bar, app_bar_height, use_border) = {
             let config = CONFIG.lock().unwrap();
@@ -154,11 +154,11 @@ impl Window {
         let mut bottom = y + height;
 
         unsafe {
-            let border_width = GetSystemMetrics(SM_CXFRAME);
-            let border_height = GetSystemMetrics(SM_CYFRAME);
+            let border_width = GetSystemMetricsForDpi(SM_CXFRAME, display.dpi);
+            let border_height = GetSystemMetricsForDpi(SM_CYFRAME, display.dpi);
 
             if rule.chromium || rule.firefox || !remove_title_bar {
-                let caption_height = GetSystemMetrics(SM_CYCAPTION);
+                let caption_height = GetSystemMetricsForDpi(SM_CYCAPTION, display.dpi);
                 top += caption_height;
             } else {
                 top -= border_height * 2;
