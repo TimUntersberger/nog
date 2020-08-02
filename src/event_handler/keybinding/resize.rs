@@ -10,16 +10,22 @@ pub fn handle(direction: Direction, amount: i32) -> Result<(), Box<dyn std::erro
         .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
         .unwrap();
 
-    let tile = grid.get_focused_tile_mut().expect("Failed to get focused tile");
+    let tile = grid.get_focused_tile().expect("Failed to get focused tile");
+    let column = tile.column.clone();
+    let row = tile.row.clone();
+    drop(tile);
 
-    match direction {
-        Direction::Left => if tile.column != None { tile.left += amount },
-        Direction::Right => if tile.column != None { tile.right += amount },
-        Direction::Up => if tile.row != None { tile.top += amount },
-        Direction::Down => if tile.row != None { tile.bottom += amount }
+    if direction == Direction::Left || direction == Direction::Right {
+        if let Some(value) = column {
+            grid.resize_column(value, direction, amount);
+        }
+    } else {
+        if let Some(value) = row {
+            grid.resize_row(value, direction, amount);
+        }
     }
 
-    info!("Resizing tile in the direction {:?} by {}", direction, amount);
+    info!("Resizing in the direction {:?} by {}", direction, amount);
 
     grid.draw_grid();
 
