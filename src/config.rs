@@ -283,73 +283,72 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                         .and_then(|x| Key::from_str(x).ok())
                         .ok_or("Invalid key")?;
 
-                    let typ =
+                    let maybe_typ =
                         match typ_str {
-                            "Launch" => KeybindingType::Launch(
+                            "Launch" => Some(KeybindingType::Launch(
                                 ensure_str!("keybinding of type Launch", binding, cmd).to_string(),
-                            ),
-                            "CloseTile" => KeybindingType::CloseTile,
-                            "Quit" => KeybindingType::Quit,
-                            "ChangeWorkspace" => KeybindingType::ChangeWorkspace(ensure_i32!(
+                            )),
+                            "CloseTile" => Some(KeybindingType::CloseTile),
+                            "Quit" => Some(KeybindingType::Quit),
+                            "ChangeWorkspace" => Some(KeybindingType::ChangeWorkspace(ensure_i32!(
                                 "keybinding of type ChangeWorkspace",
                                 binding,
                                 id
-                            )),
-                            "MoveToWorkspace" => KeybindingType::MoveToWorkspace(ensure_i32!(
+                            ))),
+                            "MoveToWorkspace" => Some(KeybindingType::MoveToWorkspace(ensure_i32!(
                                 "keybinding of type MoveToWorkspace",
                                 binding,
                                 id
-                            )),
+                            ))),
                             "MoveWorkspaceToMonitor" => {
-                                KeybindingType::MoveWorkspaceToMonitor(ensure_i32!(
+                                Some(KeybindingType::MoveWorkspaceToMonitor(ensure_i32!(
                                     "keybinding of type MoveWorkspaceToMonitor",
                                     binding,
                                     monitor
-                                ))
+                                )))
                             }
-                            "ToggleFloatingMode" => KeybindingType::ToggleFloatingMode,
-                            "ToggleFullscreen" => KeybindingType::ToggleFullscreen,
-                            "ToggleWorkMode" => KeybindingType::ToggleWorkMode,
+                            "ToggleFloatingMode" => Some(KeybindingType::ToggleFloatingMode),
+                            "ToggleFullscreen" => Some(KeybindingType::ToggleFullscreen),
+                            "ToggleWorkMode" => Some(KeybindingType::ToggleWorkMode),
 
-                            "IncrementConfig" => KeybindingType::IncrementConfig(
+                            "IncrementConfig" => Some(KeybindingType::IncrementConfig(
                                 ensure_str!("keybinding of type IncrementConfig", binding, field).to_string(),
                                 ensure_i32!("keybinding of type IncrementConfig", binding, value)
-                            ),
-                            "DecrementConfig" => KeybindingType::DecrementConfig(
+                            )),
+                            "DecrementConfig" => Some(KeybindingType::DecrementConfig(
                                 ensure_str!("keybinding of type DecrementConfig", binding, field).to_string(),
                                 ensure_i32!("keybinding of type DecrementConfig", binding, value)
-                            ),
-                            "ToggleConfig" => KeybindingType::ToggleConfig(
+                            )),
+                            "ToggleConfig" => Some(KeybindingType::ToggleConfig(
                                 ensure_str!("keybinding of type ToggleConfig", binding, field).to_string(),
-                            ),
-                            "Focus" => KeybindingType::Focus(Direction::from_str(ensure_str!(
+                            )),
+                            "Focus" => Some(KeybindingType::Focus(Direction::from_str(ensure_str!(
                                 "keybinding of type Focus",
                                 binding,
                                 direction
-                            ))?),
-                            "Swap" => KeybindingType::Swap(Direction::from_str(ensure_str!(
+                            ))?)),
+                            "Swap" => Some(KeybindingType::Swap(Direction::from_str(ensure_str!(
                                 "keybinding of type Swap",
                                 binding,
                                 direction
-                            ))?),
-                            "Split" => KeybindingType::Split(SplitDirection::from_str(
+                            ))?)),
+                            "Split" => Some(KeybindingType::Split(SplitDirection::from_str(
                                 ensure_str!("keybinding of type Split", binding, direction),
-                            )?),
+                            )?)),
                             x => {
-                                error!("unknown type {}", x);
-                                return Err(Box::new(Error::new(
-                                    ErrorKind::InvalidInput,
-                                    "unknown type ".to_string() + x,
-                                )))
+                                error!("unknown keybinding type {}", x);
+                                None
                             }
                         };
-
-                    config.keybindings.push(Keybinding {
-                        key,
-                        modifier,
-                        typ,
-                        registered: false,
-                    });
+                        
+                    if let Some(typ) = maybe_typ {
+                        config.keybindings.push(Keybinding {
+                            key,
+                            modifier,
+                            typ,
+                            registered: false,
+                        });
+                    }
                 }
             }
         }
