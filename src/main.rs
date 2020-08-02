@@ -22,6 +22,7 @@ use winapi::shared::windef::HWND;
 use workspace::Workspace;
 
 mod app_bar;
+mod keybindings;
 mod config;
 mod display;
 mod event;
@@ -223,15 +224,15 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
     if work_mode {
         if config.display_app_bar && new_config.display_app_bar {
             if config.app_bar_bg != new_config.app_bar_bg
-            || config.app_bar_font != new_config.app_bar_font
-            || config.app_bar_font_size != new_config.app_bar_font_size
-            || config.app_bar_height != new_config.app_bar_height
-            || config.light_theme != new_config.light_theme {
+                || config.app_bar_font != new_config.app_bar_font
+                || config.app_bar_font_size != new_config.app_bar_font_size
+                || config.app_bar_height != new_config.app_bar_height
+                || config.light_theme != new_config.light_theme
+            {
                 app_bar::close();
                 draw_app_bar = true;
             }
-        }
-        else if config.display_app_bar && !new_config.display_app_bar {
+        } else if config.display_app_bar && !new_config.display_app_bar {
             app_bar::close();
 
             for d in DISPLAYS.lock().unwrap().iter_mut() {
@@ -241,7 +242,6 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
             for grid in GRIDS.lock().unwrap().iter_mut() {
                 grid.display = get_display_by_hmonitor(grid.display.hmonitor);
             }
-
         } else if !config.display_app_bar && new_config.display_app_bar {
             draw_app_bar = true;
 
@@ -305,6 +305,13 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
 }
 
 fn main() {
+    keybindings::listen();
+    loop {
+
+    }
+}
+
+fn _main() {
     logging::setup().expect("Failed to setup logging");
 
     let panic = std::panic::catch_unwind(|| {
