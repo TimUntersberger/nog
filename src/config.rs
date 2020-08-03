@@ -1,6 +1,6 @@
 use crate::{
     direction::Direction,
-    keybindings::{key_press::KeyPress, keybinding::Keybinding, keybinding_type::KeybindingType},
+    keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
     split_direction::SplitDirection,
 };
 use log::{debug, error};
@@ -261,7 +261,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
 
                 for binding in bindings {
                     let typ_str = ensure_str!("keybinding", binding, type);
-                    let key_press = KeyPress::from_str(ensure_str!("keybinding", binding, key))?;
+                    let key_press = Keybinding::from_str(ensure_str!("keybinding", binding, key))?;
 
                     let maybe_typ =
                         match typ_str {

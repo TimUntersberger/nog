@@ -8,7 +8,7 @@ use crate::CHANNEL;
 use crate::CONFIG;
 use crate::DISPLAYS;
 use crate::GRIDS;
-use crate::WORKSPACE_ID;
+use crate::{message_loop, WORKSPACE_ID};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
 use std::collections::HashMap;
@@ -37,25 +37,21 @@ use winapi::um::wingdi::LOGFONTA;
 use winapi::um::wingdi::TRANSPARENT;
 use winapi::um::winuser::BeginPaint;
 use winapi::um::winuser::DefWindowProcA;
-use winapi::um::winuser::DispatchMessageW;
 use winapi::um::winuser::DrawTextA;
 use winapi::um::winuser::EndPaint;
 use winapi::um::winuser::FillRect;
 use winapi::um::winuser::GetClientRect;
 use winapi::um::winuser::GetDC;
-use winapi::um::winuser::GetMessageW;
 use winapi::um::winuser::LoadCursorA;
 use winapi::um::winuser::RegisterClassA;
 use winapi::um::winuser::ReleaseDC;
 use winapi::um::winuser::SendMessageA;
 use winapi::um::winuser::SetCursor;
 use winapi::um::winuser::ShowWindow;
-use winapi::um::winuser::TranslateMessage;
 use winapi::um::winuser::DT_CENTER;
 use winapi::um::winuser::DT_SINGLELINE;
 use winapi::um::winuser::DT_VCENTER;
 use winapi::um::winuser::IDC_ARROW;
-use winapi::um::winuser::MSG;
 use winapi::um::winuser::PAINTSTRUCT;
 use winapi::um::winuser::SW_HIDE;
 use winapi::um::winuser::SW_SHOW;
@@ -330,11 +326,7 @@ pub fn create() -> Result<(), util::WinApiResultError> {
             draw_workspaces(window_handle);
             draw_datetime(window_handle).expect("Failed to draw datetime");
 
-            let mut msg: MSG = MSG::default();
-            while GetMessageW(&mut msg, window_handle, 0, 0) > 0 {
-                TranslateMessage(&msg);
-                DispatchMessageW(&msg);
-            }
+            message_loop::start(|_| { true });
         });
     }
 

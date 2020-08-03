@@ -23,6 +23,7 @@ use workspace::Workspace;
 
 mod app_bar;
 mod keybindings;
+mod message_loop;
 mod direction;
 mod split_direction;
 mod config;
@@ -292,7 +293,7 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
         app_bar::show();
     }
 
-    keybindings::register();
+    keybindings::register()?;
 
     let mut grids = GRIDS.lock().unwrap();
     let grid = grids

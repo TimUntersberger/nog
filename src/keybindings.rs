@@ -1,13 +1,117 @@
-mod hook;
+use crate::{event::Event, message_loop, util, CHANNEL, CONFIG, WORK_MODE};
+use key::Key;
+use keybinding::Keybinding;
+use keybinding_type::KeybindingType;
+use lazy_static::lazy_static;
+use log::{debug, info};
+use modifier::Modifier;
+use num_traits::FromPrimitive;
+use std::sync::atomic::{AtomicBool, Ordering};
+use winapi::um::winuser::{RegisterHotKey, UnregisterHotKey, WM_HOTKEY};
+
 pub mod key;
-pub mod key_press;
 pub mod keybinding;
 pub mod keybinding_type;
+pub mod modifier;
 
-pub fn register() {
-    hook::register();
+lazy_static! {
+    static ref UNREGISTER: AtomicBool = AtomicBool::new(false);
+}
+
+fn unregister_keybindings<'a>(keybindings: impl Iterator<Item = &'a Keybinding>) {
+    for kb in keybindings {
+        let key = kb.key as u32;
+        let modifier = kb.modifier.bits();
+        let id = key + modifier;
+
+        info!("Unregistering {:?}", kb);
+
+        unsafe {
+            UnregisterHotKey(std::ptr::null_mut(), id as i32);
+        }
+    }
+}
+
+fn register_keybindings<'a>(keybindings: impl Iterator<Item = &'a Keybinding>) {
+    for kb in keybindings {
+        let key = kb.key as u32;
+        let modifier = kb.modifier.bits();
+        let id = key + modifier;
+
+        info!("Registering {:?}", kb);
+
+        unsafe {
+            util::winapi_nullable_to_result(RegisterHotKey(
+                std::ptr::null_mut(),
+                id as i32,
+                modifier,
+                key,
+            ))
+            .expect("Failed to register keybinding");
+        }
+    }
+}
+
+fn get_keybinding(
+    keybindings: &[Keybinding],
+    key: Key,
+    modifier: Modifier,
+) -> Option<Keybinding> {
+    keybindings
+        .iter()
+        .find(|kb| kb.key == key && kb.modifier == modifier)
+        .cloned()
+}
+
+pub fn register() -> Result<(), Box<dyn std::error::Error>> {
+    std::thread::spawn(|| {
+        let keybindings = CONFIG.lock().unwrap().keybindings.clone();
+
+        while UNREGISTER.load(Ordering::SeqCst) {
+            debug!("Waiting for the other thread to get cleaned up");
+            // as long as another thread gets unregistered we cant start a new one
+            std::thread::sleep(std::time::Duration::from_millis(10))
+        }
+
+        register_keybindings(keybindings.iter());
+
+        message_loop::start(|maybe_msg| {
+            if UNREGISTER.load(Ordering::SeqCst) {
+                debug!("Unregistering hot key manager");
+                unregister_keybindings(keybindings.iter());
+                UNREGISTER.store(false, Ordering::SeqCst);
+                return false;
+            }
+
+            if let Some(msg) = maybe_msg {
+                if msg.message != WM_HOTKEY {
+                    return true;
+                }
+
+                let work_mode = *WORK_MODE.lock().unwrap();
+                let modifier = Modifier::from_bits((msg.lParam & 0xffff) as u32).unwrap();
+
+                if let Some(key) = Key::from_isize(msg.lParam >> 16) {
+                    let kb = get_keybinding(&keybindings, key, modifier)
+                        .expect("Couldn't find keybinding");
+
+                    if work_mode || kb.typ == KeybindingType::ToggleWorkMode {
+                        CHANNEL
+                            .sender
+                            .clone()
+                            .send(Event::Keybinding(kb.clone()))
+                            .expect("Failed to send key event");
+                    }
+                }
+            }
+
+            true
+        });
+    });
+
+    Ok(())
 }
 
 pub fn unregister() {
-    hook::unregister();
+    UNREGISTER.store(true, Ordering::SeqCst);
 }

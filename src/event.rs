@@ -1,5 +1,5 @@
 use crate::app_bar::RedrawAppBarReason;
-use crate::{keybindings::keybinding::Keybinding, win_event_handler::WinEvent};
+use crate::{keybindings::keybinding::Keybinding, win_event_handler::win_event::WinEvent};
 use crossbeam_channel::unbounded;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
