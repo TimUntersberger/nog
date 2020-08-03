@@ -220,7 +220,6 @@ impl TileGrid {
                 .push((direction, self.focused_window_id.unwrap()));
 
             self.focused_window_id = Some(next_tile.window.id);
-            println!("{:?}", next_tile);
             next_tile.window.focus()?;
         } else {
             debug!("Couldn't find a valid tile");
