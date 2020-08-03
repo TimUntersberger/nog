@@ -1,8 +1,7 @@
-use crate::hot_key_manager::{key::Key, modifier::Modifier, Direction, Keybinding, KeybindingType};
-use crate::tile_grid::SplitDirection;
-use log::{ debug, error };
+use crate::{keybindings::{keybinding_type::KeybindingType, keybinding::Keybinding, key_press::KeyPress}, direction::Direction, split_direction::SplitDirection};
+use log::{debug, error};
 use regex::Regex;
-use std::io::{Error, ErrorKind, Write};
+use std::io::Write;
 use std::str::FromStr;
 use winapi::um::wingdi::GetBValue;
 use winapi::um::wingdi::GetGValue;
@@ -258,30 +257,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
 
                 for binding in bindings {
                     let typ_str = ensure_str!("keybinding", binding, type);
-                    let key_combo = ensure_str!("keybinding", binding, key);
-                    let key_combo_parts = key_combo.split('+').collect::<Vec<&str>>();
-                    let modifier_count = key_combo_parts.len() - 1;
-
-                    let modifier = key_combo_parts
-                        .iter()
-                        .take(modifier_count)
-                        .map(|x| match *x {
-                            "Alt" => Modifier::ALT,
-                            "Control" => Modifier::CONTROL,
-                            "Shift" => Modifier::SHIFT,
-                            _ => Modifier::default(),
-                        })
-                        .fold(Modifier::default(), |mut sum, crr| {
-                            sum.insert(crr);
-
-                            sum
-                        });
-
-                    let key = key_combo_parts
-                        .iter()
-                        .last()
-                        .and_then(|x| Key::from_str(x).ok())
-                        .ok_or("Invalid key")?;
+                    let key_press = KeyPress::from_str(ensure_str!("keybinding", binding, key))?;
 
                     let maybe_typ =
                         match typ_str {
@@ -342,12 +318,9 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                         };
                         
                     if let Some(typ) = maybe_typ {
-                        config.keybindings.push(Keybinding {
-                            key,
-                            modifier,
-                            typ,
-                            registered: false,
-                        });
+                        let mut kb = Keybinding::from(key_press);
+                        kb.typ = typ;
+                        config.keybindings.push(kb);
                     }
                 }
             }

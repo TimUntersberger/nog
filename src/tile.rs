@@ -1,5 +1,4 @@
-use crate::tile_grid::SplitDirection;
-use crate::window::Window;
+use crate::{split_direction::SplitDirection, window::Window};
 use std::fmt::Debug;
 
 #[derive(Clone)]

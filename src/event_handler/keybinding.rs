@@ -1,14 +1,12 @@
 use crate::change_workspace;
 use crate::display::get_display_by_idx;
 use crate::event::Event;
-use crate::hot_key_manager::Keybinding;
-use crate::hot_key_manager::KeybindingType;
 use crate::CHANNEL;
 use crate::CONFIG;
 use crate::GRIDS;
 use crate::VISIBLE_WORKSPACES;
 use crate::WORKSPACE_ID;
-use crate::update_config;
+use crate::{keybindings::{keybinding_type::KeybindingType, keybinding::Keybinding}, update_config};
 use log::{error, info};
 use winapi::um::processthreadsapi::CreateProcessA;
 use winapi::um::processthreadsapi::PROCESS_INFORMATION;

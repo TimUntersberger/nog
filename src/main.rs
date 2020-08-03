@@ -23,11 +23,12 @@ use workspace::Workspace;
 
 mod app_bar;
 mod keybindings;
+mod direction;
+mod split_direction;
 mod config;
 mod display;
 mod event;
 mod event_handler;
-mod hot_key_manager;
 mod logging;
 mod startup;
 mod task_bar;
@@ -185,8 +186,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         win_event_handler::register()?;
     }
 
-    info!("Starting hot key manager");
-    hot_key_manager::register()?;
+    info!("Listening for keybindings");
+    keybindings::register();
 
     loop {
         select! {
@@ -215,7 +216,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error>> {
-    hot_key_manager::unregister();
+    keybindings::unregister();
 
     let config = CONFIG.lock().unwrap().clone();
     let work_mode = *WORK_MODE.lock().unwrap();
@@ -291,7 +292,7 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
         app_bar::show();
     }
 
-    hot_key_manager::register()?;
+    keybindings::register();
 
     let mut grids = GRIDS.lock().unwrap();
     let grid = grids
@@ -305,13 +306,6 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
 }
 
 fn main() {
-    keybindings::listen();
-    loop {
-
-    }
-}
-
-fn _main() {
     logging::setup().expect("Failed to setup logging");
 
     let panic = std::panic::catch_unwind(|| {

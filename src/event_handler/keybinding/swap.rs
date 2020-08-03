@@ -1,6 +1,5 @@
-use crate::hot_key_manager::Direction;
 use crate::GRIDS;
-use crate::WORKSPACE_ID;
+use crate::{direction::Direction, WORKSPACE_ID};
 
 pub fn handle(direction: Direction) -> Result<(), Box<dyn std::error::Error>> {
     let mut grids = GRIDS.lock().unwrap();

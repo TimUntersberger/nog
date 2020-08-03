@@ -1,22 +1,15 @@
 use crate::display::get_primary_display;
 use crate::display::Display;
-use crate::hot_key_manager::Direction;
 use crate::task_bar;
 use crate::tile::Tile;
 use crate::util;
 use crate::window::Window;
-use crate::CONFIG;
+use crate::{direction::Direction, CONFIG, split_direction::SplitDirection};
 use log::debug;
 use winapi::shared::windef::HWND;
 use winapi::shared::windef::RECT;
 use winapi::um::winuser::SetWindowPos;
 use winapi::um::winuser::SWP_NOSENDCHANGING;
-
-#[derive(Clone, EnumString, Copy, Debug, PartialEq)]
-pub enum SplitDirection {
-    Horizontal,
-    Vertical,
-}
 
 #[derive(Clone)]
 pub struct TileGrid {
@@ -227,10 +220,11 @@ impl TileGrid {
                 .push((direction, self.focused_window_id.unwrap()));
 
             self.focused_window_id = Some(next_tile.window.id);
+            println!("{:?}", next_tile);
             next_tile.window.focus()?;
+        } else {
+            debug!("Couldn't find a valid tile");
         }
-
-        debug!("Couldn't find a valid tile");
 
         Ok(())
     }
@@ -586,6 +580,6 @@ impl TileGrid {
             self.draw_tile(tile);
         }
 
-        // self.print_grid();
+        self.print_grid();
     }
 }
