@@ -1,4 +1,8 @@
-use crate::{keybindings::{keybinding_type::KeybindingType, keybinding::Keybinding, key_press::KeyPress}, direction::Direction, split_direction::SplitDirection};
+use crate::{
+    direction::Direction,
+    keybindings::{key_press::KeyPress, keybinding::Keybinding, keybinding_type::KeybindingType},
+    split_direction::SplitDirection,
+};
 use log::{debug, error};
 use regex::Regex;
 use std::io::Write;
@@ -127,7 +131,7 @@ impl Config {
             "app_bar_font_size" => self.app_bar_font_size += value,
             "margin" => self.margin += value,
             "padding" => self.padding += value,
-            _ => error!("Attempt to alter unknown field: {} by {}", field, value)
+            _ => error!("Attempt to alter unknown field: {} by {}", field, value),
         }
     }
 
@@ -139,7 +143,7 @@ impl Config {
             "remove_title_bar" => self.remove_title_bar = !self.remove_title_bar,
             "remove_task_bar" => self.remove_task_bar = !self.remove_task_bar,
             "display_app_bar" => self.display_app_bar = !self.display_app_bar,
-            _ => error!("Attempt to toggle unknown field: {}", field)
+            _ => error!("Attempt to toggle unknown field: {}", field),
         }
     }
 }
@@ -266,16 +270,12 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                             )),
                             "CloseTile" => Some(KeybindingType::CloseTile),
                             "Quit" => Some(KeybindingType::Quit),
-                            "ChangeWorkspace" => Some(KeybindingType::ChangeWorkspace(ensure_i32!(
-                                "keybinding of type ChangeWorkspace",
-                                binding,
-                                id
-                            ))),
-                            "MoveToWorkspace" => Some(KeybindingType::MoveToWorkspace(ensure_i32!(
-                                "keybinding of type MoveToWorkspace",
-                                binding,
-                                id
-                            ))),
+                            "ChangeWorkspace" => Some(KeybindingType::ChangeWorkspace(
+                                ensure_i32!("keybinding of type ChangeWorkspace", binding, id),
+                            )),
+                            "MoveToWorkspace" => Some(KeybindingType::MoveToWorkspace(
+                                ensure_i32!("keybinding of type MoveToWorkspace", binding, id),
+                            )),
                             "MoveWorkspaceToMonitor" => {
                                 Some(KeybindingType::MoveWorkspaceToMonitor(ensure_i32!(
                                     "keybinding of type MoveWorkspaceToMonitor",
@@ -286,28 +286,34 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                             "ToggleFloatingMode" => Some(KeybindingType::ToggleFloatingMode),
                             "ToggleFullscreen" => Some(KeybindingType::ToggleFullscreen),
                             "ToggleWorkMode" => Some(KeybindingType::ToggleWorkMode),
-
                             "IncrementConfig" => Some(KeybindingType::IncrementConfig(
-                                ensure_str!("keybinding of type IncrementConfig", binding, field).to_string(),
-                                ensure_i32!("keybinding of type IncrementConfig", binding, value)
+                                ensure_str!("keybinding of type IncrementConfig", binding, field)
+                                    .to_string(),
+                                ensure_i32!("keybinding of type IncrementConfig", binding, value),
                             )),
                             "DecrementConfig" => Some(KeybindingType::DecrementConfig(
-                                ensure_str!("keybinding of type DecrementConfig", binding, field).to_string(),
-                                ensure_i32!("keybinding of type DecrementConfig", binding, value)
+                                ensure_str!("keybinding of type DecrementConfig", binding, field)
+                                    .to_string(),
+                                ensure_i32!("keybinding of type DecrementConfig", binding, value),
                             )),
                             "ToggleConfig" => Some(KeybindingType::ToggleConfig(
-                                ensure_str!("keybinding of type ToggleConfig", binding, field).to_string(),
+                                ensure_str!("keybinding of type ToggleConfig", binding, field)
+                                    .to_string(),
                             )),
-                            "Focus" => Some(KeybindingType::Focus(Direction::from_str(ensure_str!(
-                                "keybinding of type Focus",
-                                binding,
-                                direction
-                            ))?)),
-                            "Swap" => Some(KeybindingType::Swap(Direction::from_str(ensure_str!(
-                                "keybinding of type Swap",
-                                binding,
-                                direction
-                            ))?)),
+                            "Focus" => Some(KeybindingType::Focus(Direction::from_str(
+                                ensure_str!("keybinding of type Focus", binding, direction),
+                            )?)),
+                            "Resize" => Some(KeybindingType::Resize(
+                                Direction::from_str(ensure_str!(
+                                    "keybinding of type Resize",
+                                    binding,
+                                    direction
+                                ))?,
+                                ensure_i32!("keybinding of type Resize", binding, amount),
+                            )),
+                            "Swap" => Some(KeybindingType::Swap(Direction::from_str(
+                                ensure_str!("keybinding of type Swap", binding, direction),
+                            )?)),
                             "Split" => Some(KeybindingType::Split(SplitDirection::from_str(
                                 ensure_str!("keybinding of type Split", binding, direction),
                             )?)),
@@ -316,7 +322,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                                 None
                             }
                         };
-                        
+
                     if let Some(typ) = maybe_typ {
                         let mut kb = Keybinding::from(key_press);
                         kb.typ = typ;

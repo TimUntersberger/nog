@@ -14,6 +14,7 @@ use winapi::um::processthreadsapi::STARTUPINFOA;
 
 mod close_tile;
 mod focus;
+mod resize;
 mod split;
 mod swap;
 mod toggle_floating_mode;
@@ -127,6 +128,7 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
             current_config.toggle_field(&field);
             update_config(current_config)?;
         },
+        KeybindingType::Resize(direction, amount) => resize::handle(direction, amount)?,
         KeybindingType::Focus(direction) => focus::handle(direction)?,
         KeybindingType::Swap(direction) => swap::handle(direction)?,
         KeybindingType::Quit => sender.send(Event::Exit)?,
