@@ -9,7 +9,7 @@ pub fn handle(direction: Direction, amount: i32) -> Result<(), Box<dyn std::erro
         .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
         .unwrap();
 
-    let tile = grid.get_focused_tile().expect("Failed to get focused tile");
+    let tile = grid.get_focused_tile().ok_or("Failed to get focused tile")?;
     let column = tile.column.clone();
     let row = tile.row.clone();
     drop(tile);

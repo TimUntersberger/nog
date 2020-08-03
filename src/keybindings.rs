@@ -6,7 +6,10 @@ use lazy_static::lazy_static;
 use log::{debug, info};
 use modifier::Modifier;
 use num_traits::FromPrimitive;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Mutex,
+};
 use winapi::um::winuser::{RegisterHotKey, UnregisterHotKey, WM_HOTKEY};
 
 pub mod key;
@@ -16,13 +19,15 @@ pub mod modifier;
 
 lazy_static! {
     static ref UNREGISTER: AtomicBool = AtomicBool::new(false);
+    static ref PREV_MODE: Mutex<Option<String>> = Mutex::new(None);
+    static ref MODE: Mutex<Option<String>> = Mutex::new(None);
 }
 
 fn unregister_keybindings<'a>(keybindings: impl Iterator<Item = &'a Keybinding>) {
     for kb in keybindings {
         let key = kb.key as u32;
         let modifier = kb.modifier.bits();
-        let id = key + modifier;
+        let id = kb.get_id();
 
         info!("Unregistering {:?}", kb);
 
@@ -36,7 +41,7 @@ fn register_keybindings<'a>(keybindings: impl Iterator<Item = &'a Keybinding>) {
     for kb in keybindings {
         let key = kb.key as u32;
         let modifier = kb.modifier.bits();
-        let id = key + modifier;
+        let id = kb.get_id();
 
         info!("Registering {:?}", kb);
 
@@ -69,14 +74,45 @@ pub fn register() -> Result<(), Box<dyn std::error::Error>> {
             std::thread::sleep(std::time::Duration::from_millis(10))
         }
 
-        register_keybindings(keybindings.iter());
+        register_keybindings(keybindings.iter().filter(|kb| kb.mode == None));
 
         message_loop::start(|maybe_msg| {
             if UNREGISTER.load(Ordering::SeqCst) {
                 debug!("Unregistering hot key manager");
-                unregister_keybindings(keybindings.iter());
+                unregister_keybindings(keybindings.iter().filter(|kb| kb.mode == None));
                 UNREGISTER.store(false, Ordering::SeqCst);
                 return false;
+            }
+
+            let mut prev_mode = PREV_MODE.lock().unwrap();
+            let mode = MODE.lock().unwrap().clone();
+
+            if *prev_mode != mode {
+                if let Some(mode) = prev_mode.clone() {
+                    unregister_keybindings(
+                        keybindings
+                            .iter()
+                            .filter(|kb| kb.mode == Some(mode.clone())),
+                    );
+                    register_keybindings(keybindings.iter().filter(|kb| {
+                        kb.mode == None && kb.typ != KeybindingType::ToggleMode(mode.clone())
+                    }));
+                }
+
+                if let Some(mode) = mode.clone() {
+                    unregister_keybindings(keybindings.iter().filter(|kb| {
+                        kb.mode == None
+                            && kb.typ
+                                != KeybindingType::ToggleMode(mode.clone())
+                    }));
+                    register_keybindings(
+                        keybindings
+                            .iter()
+                            .filter(|kb| kb.mode == Some(mode.clone())),
+                    );
+                }
+
+                *prev_mode = mode.clone();
             }
 
             if let Some(msg) = maybe_msg {
@@ -91,7 +127,8 @@ pub fn register() -> Result<(), Box<dyn std::error::Error>> {
                     let kb = get_keybinding(&keybindings, key, modifier)
                         .expect("Couldn't find keybinding");
 
-                    if work_mode || kb.typ == KeybindingType::ToggleWorkMode {
+                    if work_mode || kb.typ == KeybindingType::ToggleWorkMode
+                    {
                         CHANNEL
                             .sender
                             .clone()
@@ -109,5 +146,23 @@ pub fn register() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 pub fn unregister() {
+    disable_mode();
     UNREGISTER.store(true, Ordering::SeqCst);
+}
+
+pub fn enable_mode(mode: &str) -> bool {
+    let mut mode_guard = MODE.lock().unwrap();
+    let mode = Some(mode.to_string());
+
+    if *mode_guard == mode {
+        return false;
+    }
+
+    *mode_guard = mode;
+
+    true
+}
+
+pub fn disable_mode() {
+    *MODE.lock().unwrap() = None;
 }

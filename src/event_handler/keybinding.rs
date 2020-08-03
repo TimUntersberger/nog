@@ -7,7 +7,7 @@ use crate::VISIBLE_WORKSPACES;
 use crate::WORKSPACE_ID;
 use crate::{
     hot_reload::update_config,
-    keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
+    keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType, self},
     workspace::change_workspace,
 };
 use log::{error, info};
@@ -115,6 +115,14 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
 
             grid.draw_grid();
         }
+        KeybindingType::ToggleMode(mode) => {
+            if keybindings::enable_mode(&mode) {
+                info!("Enabling {} mode", mode);
+            } else {
+                keybindings::disable_mode();
+                info!("Disabling {} mode", mode);
+            }
+        },
         KeybindingType::ToggleWorkMode => toggle_work_mode::handle()?,
         KeybindingType::IncrementConfig(field, value) => {
             let mut current_config = CONFIG.lock().unwrap().clone();

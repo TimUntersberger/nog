@@ -4,8 +4,15 @@ use std::{fmt::Debug, str::FromStr};
 #[derive(Clone)]
 pub struct Keybinding {
     pub typ: KeybindingType,
+    pub mode: Option<String>,
     pub key: Key,
     pub modifier: Modifier,
+}
+
+impl Keybinding {
+    pub fn get_id(&self) -> u32 {
+        self.key as u32 + self.modifier.bits() * 1000
+    }
 }
 
 impl FromStr for Keybinding {
@@ -37,6 +44,7 @@ impl FromStr for Keybinding {
 
         Ok(Self {
             typ: KeybindingType::Quit,
+            mode: None,
             modifier,
             key,
         })
@@ -45,11 +53,14 @@ impl FromStr for Keybinding {
 
 impl Debug for Keybinding {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!(
-            "Keybinding({}+{:?}, {:?})",
-            format!("{:?}", self.modifier).replace(" | ", "+"),
-            self.key,
-            self.typ
-        ))
+        let modifier_str = format!("{:?}", self.modifier).replace(" | ", "+");
+        if modifier_str == "(empty)" {
+            f.write_str(&format!("Keybinding({:?}, {:?}, {})", self.key, self.typ, self.get_id()))
+        } else {
+            f.write_str(&format!(
+                "Keybinding({}+{:?}, {:?}, {})",
+                modifier_str, self.key, self.typ, self.get_id()
+            ))
+        }
     }
 }

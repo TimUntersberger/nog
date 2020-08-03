@@ -148,6 +148,83 @@ impl Config {
     }
 }
 
+fn parse_keybindings(
+    bindings: &Vec<yaml_rust::Yaml>,
+    mode: Option<&str>,
+) -> Result<Vec<Keybinding>, Box<dyn std::error::Error>> {
+    let mut result: Vec<Keybinding> = Vec::new();
+    for binding in bindings {
+        let typ_str = ensure_str!("keybinding", binding, type);
+
+        let maybe_typ = match typ_str {
+            "Launch" => Some(KeybindingType::Launch(
+                ensure_str!("keybinding of type Launch", binding, cmd).to_string(),
+            )),
+            "CloseTile" => Some(KeybindingType::CloseTile),
+            "Quit" => Some(KeybindingType::Quit),
+            "ChangeWorkspace" => Some(KeybindingType::ChangeWorkspace(ensure_i32!(
+                "keybinding of type ChangeWorkspace",
+                binding,
+                id
+            ))),
+            "MoveToWorkspace" => Some(KeybindingType::MoveToWorkspace(ensure_i32!(
+                "keybinding of type MoveToWorkspace",
+                binding,
+                id
+            ))),
+            "MoveWorkspaceToMonitor" => Some(KeybindingType::MoveWorkspaceToMonitor(ensure_i32!(
+                "keybinding of type MoveWorkspaceToMonitor",
+                binding,
+                monitor
+            ))),
+            "ToggleFloatingMode" => Some(KeybindingType::ToggleFloatingMode),
+            "ToggleFullscreen" => Some(KeybindingType::ToggleFullscreen),
+            "ToggleWorkMode" => Some(KeybindingType::ToggleWorkMode),
+            "IncrementConfig" => Some(KeybindingType::IncrementConfig(
+                ensure_str!("keybinding of type IncrementConfig", binding, field).to_string(),
+                ensure_i32!("keybinding of type IncrementConfig", binding, value),
+            )),
+            "DecrementConfig" => Some(KeybindingType::DecrementConfig(
+                ensure_str!("keybinding of type DecrementConfig", binding, field).to_string(),
+                ensure_i32!("keybinding of type DecrementConfig", binding, value),
+            )),
+            "ToggleConfig" => Some(KeybindingType::ToggleConfig(
+                ensure_str!("keybinding of type ToggleConfig", binding, field).to_string(),
+            )),
+            "Focus" => Some(KeybindingType::Focus(Direction::from_str(ensure_str!(
+                "keybinding of type Focus",
+                binding,
+                direction
+            ))?)),
+            "Resize" => Some(KeybindingType::Resize(
+                Direction::from_str(ensure_str!("keybinding of type Resize", binding, direction))?,
+                ensure_i32!("keybinding of type Resize", binding, amount),
+            )),
+            "Swap" => Some(KeybindingType::Swap(Direction::from_str(ensure_str!(
+                "keybinding of type Swap",
+                binding,
+                direction
+            ))?)),
+            "Split" => Some(KeybindingType::Split(SplitDirection::from_str(
+                ensure_str!("keybinding of type Split", binding, direction),
+            )?)),
+            x => {
+                error!("unknown keybinding type {}", x);
+                None
+            }
+        };
+
+        if let Some(typ) = maybe_typ {
+            let mut kb = Keybinding::from_str(ensure_str!("keybinding", binding, key))?;
+            kb.typ = typ;
+            kb.mode = mode.map(|x| x.to_string());
+            result.push(kb);
+        }
+    }
+
+    Ok(result)
+}
+
 pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
     let mut pathbuf = match dirs::config_dir() {
         Some(path) => path,
@@ -256,79 +333,32 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                 }
             }
 
-            if config_key == "keybindings" {
-                let bindings = value.as_vec().ok_or("keybindings has to be an array")?;
+            if config_key == "modes" {
+                if let yaml_rust::yaml::Yaml::Hash(hash) = value {
+                    for entry in hash.iter() {
+                        let (key, value) = entry;
+                        let mode = key.as_str().ok_or("Invalid config key")?;
 
-                for binding in bindings {
-                    let typ_str = ensure_str!("keybinding", binding, type);
-                    let key_press = Keybinding::from_str(ensure_str!("keybinding", binding, key))?;
-
-                    let maybe_typ =
-                        match typ_str {
-                            "Launch" => Some(KeybindingType::Launch(
-                                ensure_str!("keybinding of type Launch", binding, cmd).to_string(),
-                            )),
-                            "CloseTile" => Some(KeybindingType::CloseTile),
-                            "Quit" => Some(KeybindingType::Quit),
-                            "ChangeWorkspace" => Some(KeybindingType::ChangeWorkspace(
-                                ensure_i32!("keybinding of type ChangeWorkspace", binding, id),
-                            )),
-                            "MoveToWorkspace" => Some(KeybindingType::MoveToWorkspace(
-                                ensure_i32!("keybinding of type MoveToWorkspace", binding, id),
-                            )),
-                            "MoveWorkspaceToMonitor" => {
-                                Some(KeybindingType::MoveWorkspaceToMonitor(ensure_i32!(
-                                    "keybinding of type MoveWorkspaceToMonitor",
-                                    binding,
-                                    monitor
-                                )))
-                            }
-                            "ToggleFloatingMode" => Some(KeybindingType::ToggleFloatingMode),
-                            "ToggleFullscreen" => Some(KeybindingType::ToggleFullscreen),
-                            "ToggleWorkMode" => Some(KeybindingType::ToggleWorkMode),
-                            "IncrementConfig" => Some(KeybindingType::IncrementConfig(
-                                ensure_str!("keybinding of type IncrementConfig", binding, field)
-                                    .to_string(),
-                                ensure_i32!("keybinding of type IncrementConfig", binding, value),
-                            )),
-                            "DecrementConfig" => Some(KeybindingType::DecrementConfig(
-                                ensure_str!("keybinding of type DecrementConfig", binding, field)
-                                    .to_string(),
-                                ensure_i32!("keybinding of type DecrementConfig", binding, value),
-                            )),
-                            "ToggleConfig" => Some(KeybindingType::ToggleConfig(
-                                ensure_str!("keybinding of type ToggleConfig", binding, field)
-                                    .to_string(),
-                            )),
-                            "Focus" => Some(KeybindingType::Focus(Direction::from_str(
-                                ensure_str!("keybinding of type Focus", binding, direction),
-                            )?)),
-                            "Resize" => Some(KeybindingType::Resize(
-                                Direction::from_str(ensure_str!(
-                                    "keybinding of type Resize",
-                                    binding,
-                                    direction
-                                ))?,
-                                ensure_i32!("keybinding of type Resize", binding, amount),
-                            )),
-                            "Swap" => Some(KeybindingType::Swap(Direction::from_str(
-                                ensure_str!("keybinding of type Swap", binding, direction),
-                            )?)),
-                            "Split" => Some(KeybindingType::Split(SplitDirection::from_str(
-                                ensure_str!("keybinding of type Split", binding, direction),
-                            )?)),
-                            x => {
-                                error!("unknown keybinding type {}", x);
-                                None
-                            }
-                        };
-
-                    if let Some(typ) = maybe_typ {
-                        let mut kb = Keybinding::from(key_press);
-                        kb.typ = typ;
+                        let mut kb = Keybinding::from_str(ensure_str!("keybinding", value, key))?;
+                        kb.typ = KeybindingType::ToggleMode(mode.into());
                         config.keybindings.push(kb);
+
+                        let maybe_keybindings = value["keybindings"].as_vec();
+
+                        if let Some(keybindings) = maybe_keybindings {
+                            config
+                                .keybindings
+                                .extend_from_slice(&parse_keybindings(keybindings, Some(mode))?);
+                        }
                     }
                 }
+            }
+
+            if config_key == "keybindings" {
+                config.keybindings.extend_from_slice(&parse_keybindings(
+                    value.as_vec().ok_or("keybindings has to be an array")?,
+                    None,
+                )?);
             }
         }
         //Convert normal hexadecimal color format to winapi hexadecimal color format

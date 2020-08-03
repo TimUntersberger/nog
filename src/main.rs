@@ -135,10 +135,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         select! {
             recv(receiver) -> maybe_msg => {
                 let msg = maybe_msg.unwrap();
-                match msg {
-                    Event::Keybinding(kb) => event_handler::keybinding::handle(kb)?,
-                    Event::RedrawAppBar(reason) => app_bar::redraw::redraw(reason),
-                    Event::WinEvent(ev) => event_handler::winevent::handle(ev)?,
+                let _ = match msg {
+                    Event::Keybinding(kb) => event_handler::keybinding::handle(kb),
+                    Event::RedrawAppBar(reason) => Ok(app_bar::redraw::redraw(reason)),
+                    Event::WinEvent(ev) => event_handler::winevent::handle(ev),
                     Event::Exit => {
                         tray::remove_icon(*tray::WINDOW.lock().unwrap() as HWND);
                         on_quit()?;
@@ -147,9 +147,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     Event::ReloadConfig => {
                         info!("Reloading Config");
 
-                        update_config(config::load().expect("Failed to load config"))?;
+                        update_config(config::load().expect("Failed to load config"))
                     }
-                }
+                }.map_err(|e| {
+                    error!("{}", e);
+                });
             }
         }
     }
