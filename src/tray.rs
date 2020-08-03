@@ -133,7 +133,7 @@ pub fn create() -> Result<(), util::WinApiResultError> {
 
         *WINDOW.lock().unwrap() = hwnd as i32;
 
-        message_loop::start(|_| {true});
+        message_loop::start(|_| true);
     });
 
     Ok(())

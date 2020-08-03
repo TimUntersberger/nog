@@ -52,11 +52,7 @@ fn register_keybindings<'a>(keybindings: impl Iterator<Item = &'a Keybinding>) {
     }
 }
 
-fn get_keybinding(
-    keybindings: &[Keybinding],
-    key: Key,
-    modifier: Modifier,
-) -> Option<Keybinding> {
+fn get_keybinding(keybindings: &[Keybinding], key: Key, modifier: Modifier) -> Option<Keybinding> {
     keybindings
         .iter()
         .find(|kb| kb.key == key && kb.modifier == modifier)

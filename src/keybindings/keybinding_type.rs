@@ -1,4 +1,4 @@
-use crate::{split_direction::SplitDirection, direction::Direction};
+use crate::{direction::Direction, split_direction::SplitDirection};
 
 pub type Command = String;
 #[derive(Display, Debug, Clone, PartialEq)]
@@ -20,4 +20,3 @@ pub enum KeybindingType {
     MoveToWorkspace(i32),
     Split(SplitDirection),
 }
-

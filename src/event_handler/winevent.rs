@@ -1,5 +1,8 @@
 use crate::util;
-use crate::{win_event_handler::{win_event_type::WinEventType, win_event::WinEvent}, GRIDS};
+use crate::{
+    win_event_handler::{win_event::WinEvent, win_event_type::WinEventType},
+    GRIDS,
+};
 use log::debug;
 use winapi::shared::windef::HWND;
 

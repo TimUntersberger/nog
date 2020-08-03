@@ -1,4 +1,6 @@
-use winapi::um::winuser::{EVENT_OBJECT_SHOW, EVENT_OBJECT_DESTROY, EVENT_SYSTEM_FOREGROUND, EVENT_OBJECT_HIDE};
+use winapi::um::winuser::{
+    EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE, EVENT_OBJECT_SHOW, EVENT_SYSTEM_FOREGROUND,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum WinEventType {

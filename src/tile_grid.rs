@@ -4,7 +4,7 @@ use crate::task_bar;
 use crate::tile::Tile;
 use crate::util;
 use crate::window::Window;
-use crate::{direction::Direction, CONFIG, split_direction::SplitDirection};
+use crate::{direction::Direction, split_direction::SplitDirection, CONFIG};
 use log::debug;
 use std::collections::HashMap;
 use winapi::shared::windef::HWND;
@@ -524,14 +524,14 @@ impl TileGrid {
         if let Some(modifications) = column_modifications {
             let real_left = self.percentage_to_real(modifications.0);
             let real_right = self.percentage_to_real(modifications.1);
-            
+
             x -= real_left;
             width += real_right + real_left;
         }
         if let Some(modifications) = row_modifications {
             let real_top = self.percentage_to_real(modifications.0);
             let real_bottom = self.percentage_to_real(modifications.1);
-            
+
             y -= real_top;
             height += real_bottom + real_top;
         }
@@ -561,17 +561,20 @@ impl TileGrid {
         // row above
         if let Some(modifications) = self.get_row_modifications(tile.row.map(|x| x - 1)) {
             let real_bottom = self.percentage_to_real(modifications.1);
-            
+
             y += real_bottom;
             height -= real_bottom;
         }
 
-        tile.window.calculate_window_rect(&self.display, x, y, width, height)
+        tile.window
+            .calculate_window_rect(&self.display, x, y, width, height)
     }
 
     pub fn resize_column(&mut self, column: i32, direction: Direction, amount: i32) {
         if amount != 0 {
-            let mut modification = self.get_column_modifications(Some(column)).unwrap_or((0, 0));
+            let mut modification = self
+                .get_column_modifications(Some(column))
+                .unwrap_or((0, 0));
 
             if direction == Direction::Left && column != 1 {
                 modification.0 += amount;

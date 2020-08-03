@@ -1,11 +1,10 @@
-use crate::change_workspace;
 use crate::util;
 use crate::window::gwl_ex_style::GwlExStyle;
 use crate::window::gwl_style::GwlStyle;
 use crate::window::Window;
 use crate::CONFIG;
 use crate::GRIDS;
-use crate::WORKSPACE_ID;
+use crate::{workspace::change_workspace, WORKSPACE_ID};
 use log::debug;
 use winapi::shared::windef::HWND;
 
@@ -26,7 +25,9 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
 
     let rect = window.get_client_rect();
 
-    if !ignore_window_style && (rect.right - rect.left < min_width || rect.bottom - rect.top < min_height) {
+    if !ignore_window_style
+        && (rect.right - rect.left < min_width || rect.bottom - rect.top < min_height)
+    {
         return Ok(());
     }
 

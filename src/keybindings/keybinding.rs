@@ -5,7 +5,7 @@ use std::{fmt::Debug, str::FromStr};
 pub struct Keybinding {
     pub typ: KeybindingType,
     pub key: Key,
-    pub modifier: Modifier
+    pub modifier: Modifier,
 }
 
 impl FromStr for Keybinding {
@@ -38,13 +38,18 @@ impl FromStr for Keybinding {
         Ok(Self {
             typ: KeybindingType::Quit,
             modifier,
-            key
+            key,
         })
     }
 }
 
 impl Debug for Keybinding {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!("Keybinding({}+{:?}, {:?})", format!("{:?}", self.modifier).replace(" | ", "+"), self.key, self.typ))
+        f.write_str(&format!(
+            "Keybinding({}+{:?}, {:?})",
+            format!("{:?}", self.modifier).replace(" | ", "+"),
+            self.key,
+            self.typ
+        ))
     }
 }

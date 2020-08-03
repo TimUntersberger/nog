@@ -4,17 +4,17 @@ use crate::Event;
 use crate::{message_loop, CHANNEL};
 use lazy_static::lazy_static;
 use log::debug;
+use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
+use win_event::WinEvent;
+use win_event_type::WinEventType;
 use winapi::shared::minwindef::DWORD;
 use winapi::shared::ntdef::LONG;
-use winapi::shared::windef::{HWINEVENTHOOK__, HWINEVENTHOOK};
 use winapi::shared::windef::HWND;
+use winapi::shared::windef::{HWINEVENTHOOK, HWINEVENTHOOK__};
 use winapi::um::winuser::SetWinEventHook;
 use winapi::um::winuser::EVENT_MAX;
 use winapi::um::winuser::EVENT_MIN;
 use winapi::um::winuser::OBJID_WINDOW;
-use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
-use win_event_type::WinEventType;
-use win_event::WinEvent;
 
 pub mod win_event;
 pub mod win_event_type;
@@ -23,7 +23,6 @@ lazy_static! {
     static ref HOOK: AtomicPtr<HWINEVENTHOOK__> = AtomicPtr::new(std::ptr::null_mut());
     static ref UNREGISTER: AtomicBool = AtomicBool::new(false);
 }
-
 
 unsafe extern "system" fn handler(
     _: HWINEVENTHOOK,

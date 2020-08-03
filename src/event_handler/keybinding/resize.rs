@@ -1,6 +1,6 @@
 use crate::GRIDS;
 use crate::{direction::Direction, WORKSPACE_ID};
-use log::{info};
+use log::info;
 
 pub fn handle(direction: Direction, amount: i32) -> Result<(), Box<dyn std::error::Error>> {
     let mut grids = GRIDS.lock().unwrap();

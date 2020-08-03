@@ -1,5 +1,5 @@
 use strum_macros::EnumString;
-use winapi::um::winuser::{VK_LSHIFT, VK_LMENU, VK_LCONTROL};
+use winapi::um::winuser::{VK_LCONTROL, VK_LMENU, VK_LSHIFT};
 
 #[derive(Clone, Copy, FromPrimitive, ToPrimitive, PartialEq, EnumString, Display, Debug)]
 #[allow(dead_code)]

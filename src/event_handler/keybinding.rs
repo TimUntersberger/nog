@@ -1,4 +1,3 @@
-use crate::change_workspace;
 use crate::display::get_display_by_idx;
 use crate::event::Event;
 use crate::CHANNEL;
@@ -6,7 +5,11 @@ use crate::CONFIG;
 use crate::GRIDS;
 use crate::VISIBLE_WORKSPACES;
 use crate::WORKSPACE_ID;
-use crate::{keybindings::{keybinding_type::KeybindingType, keybinding::Keybinding}, update_config};
+use crate::{
+    hot_reload::update_config,
+    keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
+    workspace::change_workspace,
+};
 use log::{error, info};
 use winapi::um::processthreadsapi::CreateProcessA;
 use winapi::um::processthreadsapi::PROCESS_INFORMATION;
@@ -117,17 +120,17 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
             let mut current_config = CONFIG.lock().unwrap().clone();
             current_config.increment_field(&field, value);
             update_config(current_config)?;
-        },
+        }
         KeybindingType::DecrementConfig(field, value) => {
             let mut current_config = CONFIG.lock().unwrap().clone();
             current_config.decrement_field(&field, value);
             update_config(current_config)?;
-        },
+        }
         KeybindingType::ToggleConfig(field) => {
             let mut current_config = CONFIG.lock().unwrap().clone();
             current_config.toggle_field(&field);
             update_config(current_config)?;
-        },
+        }
         KeybindingType::Resize(direction, amount) => resize::handle(direction, amount)?,
         KeybindingType::Focus(direction) => focus::handle(direction)?,
         KeybindingType::Swap(direction) => swap::handle(direction)?,
