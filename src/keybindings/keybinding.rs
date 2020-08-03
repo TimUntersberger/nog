@@ -10,8 +10,8 @@ pub struct Keybinding {
 }
 
 impl Keybinding {
-    pub fn get_id(&self) -> u32 {
-        self.key as u32 + self.modifier.bits() * 1000
+    pub fn get_id(&self) -> i32 {
+        (self.key as u32 + self.modifier.bits() * 1000) as i32
     }
 }
 

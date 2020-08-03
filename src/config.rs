@@ -6,7 +6,7 @@ use crate::{
 use log::{debug, error};
 use regex::Regex;
 use std::io::Write;
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 use winapi::um::wingdi::GetBValue;
 use winapi::um::wingdi::GetGValue;
 use winapi::um::wingdi::GetRValue;
@@ -80,6 +80,9 @@ pub struct Config {
     pub workspace_settings: Vec<WorkspaceSetting>,
     pub keybindings: Vec<Keybinding>,
     pub rules: Vec<Rule>,
+    /// contains the metadata for each mode (like an icon)
+    /// HashMap<mode, (Option<char>)>
+    pub mode_meta: HashMap<String, (Option<char>)>
 }
 
 impl Default for Config {
@@ -103,6 +106,7 @@ impl Default for Config {
             multi_monitor: false,
             remove_task_bar: false,
             display_app_bar: false,
+            mode_meta: HashMap::new(),
             workspace_settings: Vec::new(),
             keybindings: Vec::new(),
             rules: Vec::new(),

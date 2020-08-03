@@ -25,32 +25,24 @@ lazy_static! {
 
 fn unregister_keybindings<'a>(keybindings: impl Iterator<Item = &'a Keybinding>) {
     for kb in keybindings {
-        let key = kb.key as u32;
-        let modifier = kb.modifier.bits();
-        let id = kb.get_id();
-
         info!("Unregistering {:?}", kb);
 
         unsafe {
-            UnregisterHotKey(std::ptr::null_mut(), id as i32);
+            UnregisterHotKey(std::ptr::null_mut(), kb.get_id());
         }
     }
 }
 
 fn register_keybindings<'a>(keybindings: impl Iterator<Item = &'a Keybinding>) {
     for kb in keybindings {
-        let key = kb.key as u32;
-        let modifier = kb.modifier.bits();
-        let id = kb.get_id();
-
         info!("Registering {:?}", kb);
 
         unsafe {
             util::winapi_nullable_to_result(RegisterHotKey(
                 std::ptr::null_mut(),
-                id as i32,
-                modifier,
-                key,
+                kb.get_id(),
+                kb.modifier.bits(),
+                kb.key as u32,
             ))
             .expect("Failed to register keybinding");
         }
