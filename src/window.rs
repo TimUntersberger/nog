@@ -28,7 +28,7 @@ use winapi::um::winuser::SWP_NOMOVE;
 use winapi::um::winuser::SWP_NOSIZE;
 use winapi::um::winuser::SW_HIDE;
 use winapi::um::winuser::SW_SHOW;
-use winapi::um::winuser::{SC_MAXIMIZE, SC_RESTORE, WM_CLOSE, WM_SYSCOMMAND, GetClientRect, GetSystemMetricsForDpi};
+use winapi::um::winuser::{SC_MAXIMIZE, SC_RESTORE, WM_CLOSE, WM_SYSCOMMAND, GetClientRect, GetSystemMetricsForDpi, SC_MINIMIZE};
 
 pub mod gwl_ex_style;
 pub mod gwl_style;
@@ -288,6 +288,12 @@ impl Window {
     pub fn send_maximize(&self) {
         unsafe {
             SendMessageA(self.id as HWND, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
+        }
+    }
+
+    pub fn send_minimize(&self) {
+        unsafe {
+            SendMessageA(self.id as HWND, WM_SYSCOMMAND, SC_MINIMIZE, 0);
         }
     }
 

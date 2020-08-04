@@ -11,33 +11,33 @@ Terminal: Windows Terminal | Colourscheme: Nord
 [Demo with GUI](https://gfycat.com/differentadorablekiskadee)
 
 ## Table Of Contents
-
-  * [Motivation](#motivation)
-  * [Config](#config)
-     * [Gap](#gap)
-     * [Bar](#bar)
-     * [Toggles](#toggles)
-     * [Workspaces](#workspaces)
-     * [Rules](#rules)
-        * [Settings](#settings)
-        * [Examples](#examples)
-     * [Keybindings](#keybindings)
-        * [ChangeWorkspace](#changeworkspace)
-        * [Shell](#shell)
-        * [CloseTile](#closetile)
-        * [Quit](#quit)
-        * [ToggleFloatingMode](#togglefloatingmode)
-        * [Focus](#focus)
-        * [Swap](#swap)
-        * [Split](#split)
-        * [IncrementConfig](#incrementConfig)
-        * [DecrementConfig](#decrementConfig)
-        * [ToggleConfig](#toggleConfig)
-     * [Example Config](#example-config)
-  * [Screenshots](#screenshots)
-  * [Development](#development)
-     * [Create installer](#create-installer)
-     * [Create TOC](#create-toc)
+  - [Motivation](#motivation)
+  - [Config](#config)
+     - [Gap](#gap)
+     - [Bar](#bar)
+     - [Toggles](#toggles)
+     - [Workspaces](#workspaces)
+     - [Rules](#rules)
+        - [Settings](#settings)
+        - [Examples](#examples)
+     - [Keybindings](#keybindings)
+        - [ChangeWorkspace](#changeworkspace)
+        - [Shell](#shell)
+        - [CloseTile](#closetile)
+        - [MinimizeTile](#minimizetile)
+        - [Quit](#quit)
+        - [ToggleFloatingMode](#togglefloatingmode)
+        - [Focus](#focus)
+        - [Swap](#swap)
+        - [Split](#split)
+        - [IncrementConfig](#incrementConfig)
+        - [DecrementConfig](#decrementConfig)
+        - [ToggleConfig](#toggleConfig)
+     - [Example Config](#example-config)
+  - [Screenshots](#screenshots)
+  - [Development](#development)
+     - [Create installer](#create-installer)
+     - [Create TOC](#create-toc)
      
 ## Motivation
 
@@ -236,42 +236,22 @@ Note: The windows modifier is reserved for windows itself so we can't use it in 
 
 Keybindings can have the following types:
 
-- [wwm](#wwm)
-  - [Table Of Contents](#table-of-contents)
-  - [Motivation](#motivation)
-  - [Config](#config)
-    - [General](#general)
-    - [Gap](#gap)
-    - [bar](#bar)
-    - [Toggles](#toggles)
-    - [Workspaces](#workspaces)
-    - [Rules](#rules)
-      - [Settings](#settings)
-      - [Examples](#examples)
-    - [Keybindings](#keybindings)
-      - [ChangeWorkspace](#changeworkspace)
-      - [MoveToWorkspace](#movetoworkspace)
-      - [MoveWorkspaceToMonitor](#moveworkspacetomonitor)
-      - [Launch](#launch)
-      - [CloseTile](#closetile)
-      - [Quit](#quit)
-      - [ToggleFloatingMode](#togglefloatingmode)
-      - [ToggleWorkMode](#toggleworkmode)
-      - [ToggleFullscreen](#togglefullscreen)
-      - [Focus](#focus)
-      - [Swap](#swap)
-      - [Split](#split)
-      - [IncrementConfig](#incrementconfig)
-      - [DecrementConfig](#decrementconfig)
-      - [ToggleConfig](#toggleconfig)
-    - [Example Config](#example-config)
-  - [Screenshots](#screenshots)
-    - [default](#default)
-    - [display_app_bar](#display_app_bar)
-    - [display_app_bar + remove_title_bar](#display_app_bar--remove_title_bar)
-    - [display_app_bar + remove_title_bar + remove_task_bar](#display_app_bar--remove_title_bar--remove_task_bar)
-  - [Development](#development)
-    - [Create installer](#create-installer)
+  * [ChangeWorkspace](#changeworkspace)
+  * [MoveToWorkspace](#movetoworkspace)
+  * [MoveWorkspaceToMonitor](#moveworkspacetomonitor)
+  * [Launch](#launch)
+  * [CloseTile](#closetile)
+  * [MinimizeTile](#minimizetile)
+  * [Quit](#quit)
+  * [ToggleFloatingMode](#togglefloatingmode)
+  * [ToggleWorkMode](#toggleworkmode)
+  * [ToggleFullscreen](#togglefullscreen)
+  * [Focus](#focus)
+  * [Swap](#swap)
+  * [Split](#split)
+  * [IncrementConfig](#incrementconfig)
+  * [DecrementConfig](#decrementconfig)
+  * [ToggleConfig](#toggleconfig)
 
 #### ChangeWorkspace
 
@@ -358,6 +338,16 @@ key: Control+Alt+Q
 ```
 
 A CloseTile keybinding closes the currently focused tile and its window.
+
+#### MinimizeTile
+
+example
+```yaml
+type: MinimizeTile
+key: Alt+M
+```
+
+A MinimizeTile keybinding closes the currently focused tile and minimizes its window.
 
 #### Quit
 

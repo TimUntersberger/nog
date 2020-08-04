@@ -80,6 +80,22 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
                 .expect("Failed to change workspace after moving workspace to different monitor");
         }
         KeybindingType::CloseTile => close_tile::handle()?,
+        KeybindingType::MinimizeTile => {
+            let mut grids = GRIDS.lock().unwrap();
+            let grid = grids
+                .iter_mut()
+                .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
+                .unwrap();
+
+            if let Some(tile ) = grid.get_focused_tile_mut() {
+                let id = tile.window.id;
+
+                tile.window.send_minimize();
+                tile.window.reset()?;
+
+                grid.close_tile_by_window_id(id);
+            }
+        },
         KeybindingType::MoveToWorkspace(id) => {
             let mut grids = GRIDS.lock().unwrap();
             let grid = grids

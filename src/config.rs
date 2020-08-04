@@ -289,6 +289,7 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                                 ensure_str!("keybinding of type Launch", binding, cmd).to_string(),
                             )),
                             "CloseTile" => Some(KeybindingType::CloseTile),
+                            "MinimizeTile" => Some(KeybindingType::MinimizeTile),
                             "Quit" => Some(KeybindingType::Quit),
                             "ChangeWorkspace" => Some(KeybindingType::ChangeWorkspace(ensure_i32!(
                                 "keybinding of type ChangeWorkspace",
