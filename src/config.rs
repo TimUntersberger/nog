@@ -151,6 +151,18 @@ impl Config {
             _ => error!("Attempt to toggle unknown field: {}", field),
         }
     }
+
+    pub fn set_bool_field(self: &mut Self, field: &str, value: bool) {
+        match field {
+            "use_border" => self.use_border = value,
+            "light_theme" => self.light_theme = value,
+            "launch_on_startup" => self.launch_on_startup = value,
+            "remove_title_bar" => self.remove_title_bar = value,
+            "remove_task_bar" => self.remove_task_bar = value,
+            "display_app_bar" => self.display_app_bar = value,
+            _ => error!("Attempt to set unknown field: {}", field),
+        }
+    }
 }
 
 fn parse_keybindings(

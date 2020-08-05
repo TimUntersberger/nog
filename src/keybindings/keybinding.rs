@@ -36,11 +36,10 @@ impl FromStr for Keybinding {
                 sum
             });
 
-        let key = key_combo_parts
-            .iter()
-            .last()
-            .and_then(|x| Key::from_str(x).ok())
-            .ok_or("Invalid key")?;
+        let raw_key = key_combo_parts.iter().last().unwrap();
+        let key = Key::from_str(raw_key)
+            .ok()
+            .ok_or(format!("Invalid key {}", raw_key))?;
 
         Ok(Self {
             typ: KeybindingType::Quit,

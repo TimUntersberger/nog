@@ -6,6 +6,7 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<dyn std::error::Error>> {
     engine.register_fn("push", |list: &mut Array, item: Keybinding| list.push(Dynamic::from(Box::new(item))) );
 
     engine.register_fn("close_tile", || {KeybindingType::CloseTile});
+    engine.register_fn("minimize_tile", || {KeybindingType::MinimizeTile});
     engine.register_fn("quit", || {KeybindingType::Quit});
     engine.register_fn("toggle_floating_mode", || {KeybindingType::ToggleFloatingMode});
     engine.register_fn("toggle_work_mode", || {KeybindingType::ToggleWorkMode});
