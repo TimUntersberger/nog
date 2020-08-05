@@ -1,13 +1,16 @@
 use crate::CONFIG;
 use crate::DISPLAYS;
+use std::cmp::Ordering;
 use winapi::shared::minwindef::BOOL;
 use winapi::shared::minwindef::LPARAM;
 use winapi::shared::windef::HDC;
 use winapi::shared::windef::HMONITOR;
 use winapi::shared::windef::LPRECT;
 use winapi::shared::windef::RECT;
-use winapi::um::{shellscalingapi::{MDT_RAW_DPI, GetDpiForMonitor}, winuser::EnumDisplayMonitors};
-use std::cmp::Ordering;
+use winapi::um::{
+    shellscalingapi::{GetDpiForMonitor, MDT_RAW_DPI},
+    winuser::EnumDisplayMonitors,
+};
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Display {

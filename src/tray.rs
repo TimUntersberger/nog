@@ -1,7 +1,7 @@
 use crate::event::Event;
 use crate::util;
 use crate::CHANNEL;
-use crate::CONFIG;
+use crate::{message_loop, CONFIG};
 use lazy_static::lazy_static;
 use num_traits::FromPrimitive;
 use std::sync::Mutex;
@@ -25,9 +25,7 @@ use winapi::um::winuser::CreateIconFromResourceEx;
 use winapi::um::winuser::CreatePopupMenu;
 use winapi::um::winuser::DefWindowProcW;
 use winapi::um::winuser::DestroyMenu;
-use winapi::um::winuser::DispatchMessageW;
 use winapi::um::winuser::GetCursorPos;
-use winapi::um::winuser::GetMessageW;
 use winapi::um::winuser::InsertMenuW;
 use winapi::um::winuser::PostMessageW;
 use winapi::um::winuser::RegisterClassA;
@@ -36,11 +34,9 @@ use winapi::um::winuser::SetFocus;
 use winapi::um::winuser::SetForegroundWindow;
 use winapi::um::winuser::SetMenuItemBitmaps;
 use winapi::um::winuser::TrackPopupMenu;
-use winapi::um::winuser::TranslateMessage;
 use winapi::um::winuser::LR_DEFAULTCOLOR;
 use winapi::um::winuser::MF_BYPOSITION;
 use winapi::um::winuser::MF_STRING;
-use winapi::um::winuser::MSG;
 use winapi::um::winuser::TPM_LEFTALIGN;
 use winapi::um::winuser::TPM_NONOTIFY;
 use winapi::um::winuser::TPM_RETURNCMD;
@@ -137,11 +133,7 @@ pub fn create() -> Result<(), util::WinApiResultError> {
 
         *WINDOW.lock().unwrap() = hwnd as i32;
 
-        let mut msg: MSG = MSG::default();
-        while GetMessageW(&mut msg, 0 as HWND, 0, 0) != 0 {
-            TranslateMessage(&msg);
-            DispatchMessageW(&msg);
-        }
+        message_loop::start(|_| true);
     });
 
     Ok(())

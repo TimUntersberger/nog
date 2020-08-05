@@ -28,7 +28,13 @@ use winapi::um::winuser::SWP_NOMOVE;
 use winapi::um::winuser::SWP_NOSIZE;
 use winapi::um::winuser::SW_HIDE;
 use winapi::um::winuser::SW_SHOW;
-use winapi::um::winuser::{SC_MAXIMIZE, SC_RESTORE, WM_CLOSE, WM_SYSCOMMAND, GetClientRect, GetSystemMetricsForDpi};
+use winapi::um::{
+    processthreadsapi::GetCurrentThreadId,
+    winuser::{
+        AttachThreadInput, GetClientRect, GetSystemMetricsForDpi, GetWindowThreadProcessId,
+        SC_MAXIMIZE, SC_RESTORE, WM_CLOSE, WM_SYSCOMMAND,
+    },
+};
 
 pub mod gwl_ex_style;
 pub mod gwl_style;
@@ -99,6 +105,9 @@ impl Window {
         }
         rect
     }
+    pub fn get_process_id(&self) -> u32 {
+        unsafe { GetWindowThreadProcessId(self.id as HWND, std::ptr::null_mut()) }
+    }
     pub fn get_foreground_window() -> Result<HWND, util::WinApiResultError> {
         unsafe { util::winapi_ptr_to_result(GetForegroundWindow()) }
     }
@@ -135,7 +144,14 @@ impl Window {
             ShowWindow(self.id as HWND, SW_HIDE);
         }
     }
-    pub fn calculate_window_rect(&self, display: &Display, x: i32, y: i32, width: i32, height: i32) -> RECT {
+    pub fn calculate_window_rect(
+        &self,
+        display: &Display,
+        x: i32,
+        y: i32,
+        width: i32,
+        height: i32,
+    ) -> RECT {
         let rule = self.rule.clone().unwrap_or_default();
         let (display_app_bar, remove_title_bar, app_bar_height, use_border) = {
             let config = CONFIG.lock().unwrap();
@@ -253,7 +269,7 @@ impl Window {
      */
     pub fn focus(&self) -> Result<(), util::WinApiResultError> {
         unsafe {
-            SetForegroundWindow(self.id as HWND);
+            dbg!(SetForegroundWindow(self.id as HWND));
         }
 
         Ok(())
@@ -294,6 +310,17 @@ impl Window {
     pub fn send_restore(&self) {
         unsafe {
             SendMessageA(self.id as HWND, WM_SYSCOMMAND, SC_RESTORE, 0);
+        }
+    }
+}
+
+fn get_foreground_window() -> Window {
+    unsafe {
+        let hwnd = GetForegroundWindow();
+
+        Window {
+            id: hwnd as i32,
+            ..Window::default()
         }
     }
 }

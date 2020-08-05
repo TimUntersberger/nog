@@ -62,7 +62,6 @@ pub fn show() {
             ShowWindow(hwnd as HWND, SW_SHOW);
         }
     });
-
 }
 
 fn foreach_taskbar(cb: fn(i32) -> ()) {
@@ -77,7 +76,9 @@ fn foreach_taskbar(cb: fn(i32) -> ()) {
     });
 
     for hmonitor in monitors {
-        let hwnd = *windows.get(hmonitor).expect("Failed to get hwnd of monitor");
+        let hwnd = *windows
+            .get(hmonitor)
+            .expect("Failed to get hwnd of monitor");
         cb(hwnd);
     }
 }

@@ -1,4 +1,5 @@
 use strum_macros::EnumString;
+use winapi::um::winuser::{VK_LCONTROL, VK_LMENU, VK_LSHIFT};
 
 #[derive(Clone, Copy, FromPrimitive, ToPrimitive, PartialEq, EnumString, Display, Debug)]
 #[allow(dead_code)]
@@ -32,6 +33,12 @@ pub enum Key {
     X = 0x58,
     Y = 0x59,
     Z = 0x5A,
+    #[strum(serialize = "Shift")]
+    LShift = VK_LSHIFT as isize,
+    #[strum(serialize = "Control")]
+    LControl = VK_LCONTROL as isize,
+    #[strum(serialize = "Alt")]
+    LAlt = VK_LMENU as isize,
     Left = 0x25,
     Up = 0x26,
     Right = 0x27,

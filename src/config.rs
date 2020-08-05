@@ -1,9 +1,12 @@
-use crate::hot_key_manager::{key::Key, modifier::Modifier, Direction, Keybinding, KeybindingType};
-use crate::tile_grid::SplitDirection;
-use log::{ debug, error };
+use crate::{
+    direction::Direction,
+    keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
+    split_direction::SplitDirection,
+};
+use log::{debug, error};
 use regex::Regex;
-use std::io::{Error, ErrorKind, Write};
-use std::str::FromStr;
+use std::io::Write;
+use std::{collections::HashMap, str::FromStr};
 use winapi::um::wingdi::GetBValue;
 use winapi::um::wingdi::GetGValue;
 use winapi::um::wingdi::GetRValue;
@@ -12,8 +15,8 @@ use winapi::um::wingdi::RGB;
 #[macro_use]
 mod macros;
 
-pub mod rhai;
 pub mod hot_reloading;
+pub mod rhai;
 
 #[derive(Debug, Clone)]
 pub struct Rule {
@@ -78,6 +81,9 @@ pub struct Config {
     pub workspace_settings: Vec<WorkspaceSetting>,
     pub keybindings: Vec<Keybinding>,
     pub rules: Vec<Rule>,
+    /// contains the metadata for each mode (like an icon)
+    /// HashMap<mode, (Option<char>)>
+    pub mode_meta: HashMap<String, (Option<char>)>,
 }
 
 impl Default for Config {
@@ -101,6 +107,7 @@ impl Default for Config {
             multi_monitor: false,
             remove_task_bar: false,
             display_app_bar: false,
+            mode_meta: HashMap::new(),
             workspace_settings: Vec::new(),
             keybindings: Vec::new(),
             rules: Vec::new(),
@@ -129,7 +136,7 @@ impl Config {
             "app_bar_font_size" => self.app_bar_font_size += value,
             "margin" => self.margin += value,
             "padding" => self.padding += value,
-            _ => error!("Attempt to alter unknown field: {} by {}", field, value)
+            _ => error!("Attempt to alter unknown field: {} by {}", field, value),
         }
     }
 
@@ -141,9 +148,86 @@ impl Config {
             "remove_title_bar" => self.remove_title_bar = !self.remove_title_bar,
             "remove_task_bar" => self.remove_task_bar = !self.remove_task_bar,
             "display_app_bar" => self.display_app_bar = !self.display_app_bar,
-            _ => error!("Attempt to toggle unknown field: {}", field)
+            _ => error!("Attempt to toggle unknown field: {}", field),
         }
     }
+}
+
+fn parse_keybindings(
+    bindings: &Vec<yaml_rust::Yaml>,
+    mode: Option<&str>,
+) -> Result<Vec<Keybinding>, Box<dyn std::error::Error>> {
+    let mut result: Vec<Keybinding> = Vec::new();
+    for binding in bindings {
+        let typ_str = ensure_str!("keybinding", binding, type);
+
+        let maybe_typ = match typ_str {
+            "Launch" => Some(KeybindingType::Launch(
+                ensure_str!("keybinding of type Launch", binding, cmd).to_string(),
+            )),
+            "CloseTile" => Some(KeybindingType::CloseTile),
+            "Quit" => Some(KeybindingType::Quit),
+            "ChangeWorkspace" => Some(KeybindingType::ChangeWorkspace(ensure_i32!(
+                "keybinding of type ChangeWorkspace",
+                binding,
+                id
+            ))),
+            "MoveToWorkspace" => Some(KeybindingType::MoveToWorkspace(ensure_i32!(
+                "keybinding of type MoveToWorkspace",
+                binding,
+                id
+            ))),
+            "MoveWorkspaceToMonitor" => Some(KeybindingType::MoveWorkspaceToMonitor(ensure_i32!(
+                "keybinding of type MoveWorkspaceToMonitor",
+                binding,
+                monitor
+            ))),
+            "ToggleFloatingMode" => Some(KeybindingType::ToggleFloatingMode),
+            "ToggleFullscreen" => Some(KeybindingType::ToggleFullscreen),
+            "ToggleWorkMode" => Some(KeybindingType::ToggleWorkMode),
+            "IncrementConfig" => Some(KeybindingType::IncrementConfig(
+                ensure_str!("keybinding of type IncrementConfig", binding, field).to_string(),
+                ensure_i32!("keybinding of type IncrementConfig", binding, value),
+            )),
+            "DecrementConfig" => Some(KeybindingType::DecrementConfig(
+                ensure_str!("keybinding of type DecrementConfig", binding, field).to_string(),
+                ensure_i32!("keybinding of type DecrementConfig", binding, value),
+            )),
+            "ToggleConfig" => Some(KeybindingType::ToggleConfig(
+                ensure_str!("keybinding of type ToggleConfig", binding, field).to_string(),
+            )),
+            "Focus" => Some(KeybindingType::Focus(Direction::from_str(ensure_str!(
+                "keybinding of type Focus",
+                binding,
+                direction
+            ))?)),
+            "Resize" => Some(KeybindingType::Resize(
+                Direction::from_str(ensure_str!("keybinding of type Resize", binding, direction))?,
+                ensure_i32!("keybinding of type Resize", binding, amount),
+            )),
+            "Swap" => Some(KeybindingType::Swap(Direction::from_str(ensure_str!(
+                "keybinding of type Swap",
+                binding,
+                direction
+            ))?)),
+            "Split" => Some(KeybindingType::Split(SplitDirection::from_str(
+                ensure_str!("keybinding of type Split", binding, direction),
+            )?)),
+            x => {
+                error!("unknown keybinding type {}", x);
+                None
+            }
+        };
+
+        if let Some(typ) = maybe_typ {
+            let mut kb = Keybinding::from_str(ensure_str!("keybinding", binding, key))?;
+            kb.typ = typ;
+            kb.mode = mode.map(|x| x.to_string());
+            result.push(kb);
+        }
+    }
+
+    Ok(result)
 }
 
 pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
@@ -254,103 +338,32 @@ pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
                 }
             }
 
-            if config_key == "keybindings" {
-                let bindings = value.as_vec().ok_or("keybindings has to be an array")?;
+            if config_key == "modes" {
+                if let yaml_rust::yaml::Yaml::Hash(hash) = value {
+                    for entry in hash.iter() {
+                        let (key, value) = entry;
+                        let mode = key.as_str().ok_or("Invalid config key")?;
 
-                for binding in bindings {
-                    let typ_str = ensure_str!("keybinding", binding, type);
-                    let key_combo = ensure_str!("keybinding", binding, key);
-                    let key_combo_parts = key_combo.split('+').collect::<Vec<&str>>();
-                    let modifier_count = key_combo_parts.len() - 1;
+                        let mut kb = Keybinding::from_str(ensure_str!("keybinding", value, key))?;
+                        kb.typ = KeybindingType::ToggleMode(mode.into());
+                        config.keybindings.push(kb);
 
-                    let modifier = key_combo_parts
-                        .iter()
-                        .take(modifier_count)
-                        .map(|x| match *x {
-                            "Alt" => Modifier::ALT,
-                            "Control" => Modifier::CONTROL,
-                            "Shift" => Modifier::SHIFT,
-                            _ => Modifier::default(),
-                        })
-                        .fold(Modifier::default(), |mut sum, crr| {
-                            sum.insert(crr);
+                        let maybe_keybindings = value["keybindings"].as_vec();
 
-                            sum
-                        });
-
-                    let key = key_combo_parts
-                        .iter()
-                        .last()
-                        .and_then(|x| Key::from_str(x).ok())
-                        .ok_or("Invalid key")?;
-
-                    let maybe_typ =
-                        match typ_str {
-                            "Launch" => Some(KeybindingType::Launch(
-                                ensure_str!("keybinding of type Launch", binding, cmd).to_string(),
-                            )),
-                            "CloseTile" => Some(KeybindingType::CloseTile),
-                            "Quit" => Some(KeybindingType::Quit),
-                            "ChangeWorkspace" => Some(KeybindingType::ChangeWorkspace(ensure_i32!(
-                                "keybinding of type ChangeWorkspace",
-                                binding,
-                                id
-                            ))),
-                            "MoveToWorkspace" => Some(KeybindingType::MoveToWorkspace(ensure_i32!(
-                                "keybinding of type MoveToWorkspace",
-                                binding,
-                                id
-                            ))),
-                            "MoveWorkspaceToMonitor" => {
-                                Some(KeybindingType::MoveWorkspaceToMonitor(ensure_i32!(
-                                    "keybinding of type MoveWorkspaceToMonitor",
-                                    binding,
-                                    monitor
-                                )))
-                            }
-                            "ToggleFloatingMode" => Some(KeybindingType::ToggleFloatingMode),
-                            "ToggleFullscreen" => Some(KeybindingType::ToggleFullscreen),
-                            "ToggleWorkMode" => Some(KeybindingType::ToggleWorkMode),
-
-                            "IncrementConfig" => Some(KeybindingType::IncrementConfig(
-                                ensure_str!("keybinding of type IncrementConfig", binding, field).to_string(),
-                                ensure_i32!("keybinding of type IncrementConfig", binding, value)
-                            )),
-                            "DecrementConfig" => Some(KeybindingType::DecrementConfig(
-                                ensure_str!("keybinding of type DecrementConfig", binding, field).to_string(),
-                                ensure_i32!("keybinding of type DecrementConfig", binding, value)
-                            )),
-                            "ToggleConfig" => Some(KeybindingType::ToggleConfig(
-                                ensure_str!("keybinding of type ToggleConfig", binding, field).to_string(),
-                            )),
-                            "Focus" => Some(KeybindingType::Focus(Direction::from_str(ensure_str!(
-                                "keybinding of type Focus",
-                                binding,
-                                direction
-                            ))?)),
-                            "Swap" => Some(KeybindingType::Swap(Direction::from_str(ensure_str!(
-                                "keybinding of type Swap",
-                                binding,
-                                direction
-                            ))?)),
-                            "Split" => Some(KeybindingType::Split(SplitDirection::from_str(
-                                ensure_str!("keybinding of type Split", binding, direction),
-                            )?)),
-                            x => {
-                                error!("unknown keybinding type {}", x);
-                                None
-                            }
-                        };
-                        
-                    if let Some(typ) = maybe_typ {
-                        config.keybindings.push(Keybinding {
-                            key,
-                            modifier,
-                            typ,
-                            registered: false,
-                        });
+                        if let Some(keybindings) = maybe_keybindings {
+                            config
+                                .keybindings
+                                .extend_from_slice(&parse_keybindings(keybindings, Some(mode))?);
+                        }
                     }
                 }
+            }
+
+            if config_key == "keybindings" {
+                config.keybindings.extend_from_slice(&parse_keybindings(
+                    value.as_vec().ok_or("keybindings has to be an array")?,
+                    None,
+                )?);
             }
         }
         //Convert normal hexadecimal color format to winapi hexadecimal color format

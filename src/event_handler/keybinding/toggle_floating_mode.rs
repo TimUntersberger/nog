@@ -1,10 +1,11 @@
 use crate::event::Event;
-use crate::win_event_handler::WinEvent;
-use crate::win_event_handler::WinEventType;
 use crate::window::Window;
 use crate::CHANNEL;
 use crate::GRIDS;
-use crate::WORKSPACE_ID;
+use crate::{
+    win_event_handler::{win_event::WinEvent, win_event_type::WinEventType},
+    WORKSPACE_ID,
+};
 use log::debug;
 
 pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
