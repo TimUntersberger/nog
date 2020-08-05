@@ -15,12 +15,12 @@ use event::Event;
 use event::EventChannel;
 use lazy_static::lazy_static;
 use log::{debug, error, info};
+use rhai::{Dynamic, Engine, EvalAltResult, EvalContext, Expression, Scope, ImmutableString, RegisterFn};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use tile_grid::TileGrid;
 use winapi::shared::windef::HWND;
 use workspace::Workspace;
-use rhai::{Dynamic, INT, Expression, EvalAltResult, Module, Imports, Scope, Engine, EvalState};
 
 mod app_bar;
 mod config;
@@ -304,40 +304,37 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
     Ok(())
 }
 
-fn implementation_func(
-    engine: &Engine,
-    scope: &mut Scope,
-    mods: &mut Imports,
-    state: &mut EvalState,
-    lib: &Module,
-    this_ptr: &mut Option<&mut Dynamic>,
-    inputs: &[Expression],
-    level: usize
-) -> Result<Dynamic, Box<EvalAltResult>> {
-    let expression = inputs.get(0).unwrap();
-    let value = engine.eval_expression_tree(scope, mods, state, lib, this_ptr, expression, level)?;
-
-    println!("{:?}", value);
-
-    Ok(().into())
+enum Binding {
+    Launch(ImmutableString)
 }
 
+struct Temp {}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut engine = Engine::new();
 
-    // engine.register_custom_syntax(
-    //     &[ "test", "$expr$"], // the custom syntax
-    //     0,  // the number of new variables declared within this custom syntax
-    //     implementation_func
-    // )?;
+    engine.register_fn("launch", |program: ImmutableString| -> Binding {
+        Binding::Launch(program)
+    });
 
-    engine
-        .eval::<Dynamic>(
-            r#"
-            "#,
-        )
-        .unwrap();
+    engine.register_custom_syntax(
+        &["bind", "$expr$", "to", "$expr$"], // the custom syntax
+        0,                   // the number of new variables declared within this custom syntax
+        |engine, ctx, scope, inputs| {
+            let key_expression = inputs.get(0).unwrap();
+            let func_expression = inputs.get(1).unwrap();
+
+            let key = engine.eval_expression_tree(ctx, scope, key_expression)?.as_str()?.to_string();
+            let func = engine.eval_expression_tree(ctx, scope, func_expression)?;
+
+            println!("{:?}", key);
+            println!("{:?}", func);
+
+            Ok(().into())
+        },
+    )?;
+
+    engine.consume(r#"bind "Alt+Enter" to launch("wt.exe");"#)?;
 
     Ok(())
 }

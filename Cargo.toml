@@ -11,7 +11,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rhai = { version = "0.17.0", features = ["internals"] }
+rhai = { git = "https://github.com/jonathandturner/rhai" }
 log = "0.4"
 notify = "4.0.15"
 # fern = "0.5"

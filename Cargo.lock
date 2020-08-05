@@ -499,12 +499,12 @@ checksum = "26412eb97c6b088a6997e05f69403a802a92d520de2f8e63c2b65f9e0f47c4e8"
 
 [[package]]
 name = "rhai"
-version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aeb8b135a1c494f65c30f1249789196529f87f6338089cb74e38b46e83b38752"
+version = "0.18.0"
+source = "git+https://github.com/jonathandturner/rhai#dab85c90701e86426be20d9e04df153f9c170bf2"
 dependencies = [
  "instant",
  "num-traits",
+ "smallvec",
 ]
 
 [[package]]
@@ -533,6 +533,12 @@ name = "slab"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
+
+[[package]]
+name = "smallvec"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3757cb9d89161a2f24e1cf78efa0c1fcff485d18e3f55e0aa3480824ddaa0f3f"
 
 [[package]]
 name = "strum"
