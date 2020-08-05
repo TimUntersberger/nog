@@ -4,6 +4,7 @@ pub type Command = String;
 #[derive(Display, Debug, Clone, PartialEq)]
 pub enum KeybindingType {
     CloseTile,
+    MinimizeTile,
     Quit,
     ChangeWorkspace(i32),
     ToggleFloatingMode,

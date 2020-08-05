@@ -28,13 +28,7 @@ use winapi::um::winuser::SWP_NOMOVE;
 use winapi::um::winuser::SWP_NOSIZE;
 use winapi::um::winuser::SW_HIDE;
 use winapi::um::winuser::SW_SHOW;
-use winapi::um::{
-    processthreadsapi::GetCurrentThreadId,
-    winuser::{
-        AttachThreadInput, GetClientRect, GetSystemMetricsForDpi, GetWindowThreadProcessId,
-        SC_MAXIMIZE, SC_RESTORE, WM_CLOSE, WM_SYSCOMMAND,
-    },
-};
+use winapi::um::winuser::{SC_MAXIMIZE, SC_RESTORE, WM_CLOSE, WM_SYSCOMMAND, GetClientRect, GetSystemMetricsForDpi, SC_MINIMIZE};
 
 pub mod gwl_ex_style;
 pub mod gwl_style;
@@ -104,9 +98,6 @@ impl Window {
             GetClientRect(self.id as HWND, &mut rect);
         }
         rect
-    }
-    pub fn get_process_id(&self) -> u32 {
-        unsafe { GetWindowThreadProcessId(self.id as HWND, std::ptr::null_mut()) }
     }
     pub fn get_foreground_window() -> Result<HWND, util::WinApiResultError> {
         unsafe { util::winapi_ptr_to_result(GetForegroundWindow()) }
@@ -304,6 +295,12 @@ impl Window {
     pub fn send_maximize(&self) {
         unsafe {
             SendMessageA(self.id as HWND, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
+        }
+    }
+
+    pub fn send_minimize(&self) {
+        unsafe {
+            SendMessageA(self.id as HWND, WM_SYSCOMMAND, SC_MINIMIZE, 0);
         }
     }
 
