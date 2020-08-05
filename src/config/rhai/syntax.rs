@@ -1,7 +1,11 @@
-use crate::{config::Config, keybindings::keybinding_type::KeybindingType};
-use rhai::Engine;
+use crate::{
+    config::Config,
+    keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
+};
+use rhai::{Dynamic, Engine};
+use std::str::FromStr;
 
-pub fn init(config: &mut Config, engine: &mut Engine) -> Result<(), Box<dyn std::error::Error>> {
+pub fn init(engine: &mut Engine) -> Result<(), Box<dyn std::error::Error>> {
     engine.register_custom_syntax(
         &["bind", "$expr$", "to", "$expr$"], // the custom syntax
         0, // the number of new variables declared within this custom syntax
@@ -21,9 +25,15 @@ pub fn init(config: &mut Config, engine: &mut Engine) -> Result<(), Box<dyn std:
             println!("{:?}", key);
             println!("{:?}", binding);
 
-            // let kb = match binding {
-            //     KeybindingType::Launch(program) => Keybinding()
-            // }
+            let mut kb = Keybinding::from_str(&key).unwrap();
+
+            kb.typ = binding;
+
+            scope.set_value("__new_keybinding", kb);
+
+            engine
+                .consume_with_scope(scope, "__keybindings.push(__new_keybinding);")
+                .unwrap();
 
             Ok(().into())
         },
