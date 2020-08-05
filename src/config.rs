@@ -12,6 +12,7 @@ use winapi::um::wingdi::RGB;
 #[macro_use]
 mod macros;
 
+pub mod rhai;
 pub mod hot_reloading;
 
 #[derive(Debug, Clone)]
@@ -54,7 +55,7 @@ impl Default for WorkspaceSetting {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Config {
     pub app_bar_height: i32,
     pub app_bar_bg: i32,
