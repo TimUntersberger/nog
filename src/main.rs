@@ -44,7 +44,7 @@ mod workspace;
 lazy_static! {
     pub static ref WORK_MODE: Mutex<bool> = Mutex::new(CONFIG.lock().unwrap().work_mode);
     pub static ref CONFIG: Mutex<Config> =
-        Mutex::new(config::load().expect("Failed to load config"));
+        Mutex::new(config::rhai::engine::parse_config().expect("Failed to load config"));
     pub static ref DISPLAYS: Mutex<Vec<Display>> = Mutex::new(Vec::new());
     pub static ref CHANNEL: EventChannel = EventChannel::default();
     pub static ref GRIDS: Mutex<Vec<TileGrid>> =
@@ -147,7 +147,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     Event::ReloadConfig => {
                         info!("Reloading Config");
 
-                        update_config(config::load().expect("Failed to load config"))
+                        update_config(config::rhai::engine::parse_config().expect("Failed to load config"))
                     }
                 }.map_err(|e| {
                     error!("{}", e);
@@ -159,13 +159,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dbg!(config::rhai::engine::parse_config()?);
-
-    Ok(())
-}
-
-fn _main() {
+fn main() {
     logging::setup().expect("Failed to setup logging");
 
     let panic = std::panic::catch_unwind(|| {

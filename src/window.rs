@@ -28,7 +28,10 @@ use winapi::um::winuser::SWP_NOMOVE;
 use winapi::um::winuser::SWP_NOSIZE;
 use winapi::um::winuser::SW_HIDE;
 use winapi::um::winuser::SW_SHOW;
-use winapi::um::winuser::{SC_MAXIMIZE, SC_RESTORE, WM_CLOSE, WM_SYSCOMMAND, GetClientRect, GetSystemMetricsForDpi, SC_MINIMIZE};
+use winapi::um::winuser::{
+    GetClientRect, GetSystemMetricsForDpi, SC_MAXIMIZE, SC_MINIMIZE, SC_RESTORE, WM_CLOSE,
+    WM_SYSCOMMAND,
+};
 
 pub mod gwl_ex_style;
 pub mod gwl_style;
