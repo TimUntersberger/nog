@@ -1,6 +1,6 @@
 use super::{functions, syntax};
 use crate::{
-    config::{Config, Rule},
+    config::{Config, Rule, WorkspaceSetting},
     keybindings::keybinding::Keybinding,
 };
 use log::{debug, error};
@@ -102,6 +102,13 @@ pub fn parse_config() -> Result<Config, String> {
     for val in rules {
         let boxed = val.cast::<Box<Rule>>();
         config.rules.push(*boxed);
+    }
+
+    let workspace_settings: Array = scope.get_value("__workspace_settings").unwrap();
+
+    for val in workspace_settings {
+        let boxed = val.cast::<Box<WorkspaceSetting>>();
+        config.workspace_settings.push(*boxed);
     }
 
     Ok(config)
