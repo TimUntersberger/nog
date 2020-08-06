@@ -21,6 +21,7 @@ Terminal: Windows Terminal | Colourscheme: Nord
         - [Settings](#settings)
         - [Examples](#examples)
      - [Keybindings](#keybindings)
+     - [modes](#modes)
   - [Screenshots](#screenshots)
   - [Development](#development)
      - [Create installer](#create-installer)
@@ -443,6 +444,27 @@ bind "Alt+I" toggle_config("display_app_bar");
 ```
 
 A ToggleConfig keybinding can be used to bind a keybinding to toggle a config value. Only works on config values that are boolean. Examples include use_border, light_theme, remove_title_bar, remove_task_bar, display_app_bar.
+
+### Modes
+
+example
+```
+mode "resize" "Alt+R" {
+    bind "H" resize("Left", 2);
+    bind "Shift+H" resize("Left", -2);
+   
+    bind "J" resize("Down", 2);
+    bind "Shift+J" resize("Down", -2);
+
+    bind "K" resize("Up", 2);
+    bind "Shift+K" resize("Up", -2);
+
+    bind "L" resize("Right", 2);
+    bind "Shift+L" resize("Right", -2);
+}
+```
+
+The example defines a new mode called `resize`. You can enter/leave the mode mode by typing `Alt+R`. When you enter a mode every keybinding that doesn't get defined by the mode itself gets ignored.
 
 ## Screenshots
 
