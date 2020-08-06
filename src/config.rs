@@ -13,7 +13,7 @@ pub struct Rule {
     pub manage: bool,
     pub chromium: bool,
     pub firefox: bool,
-    pub workspace: i32,
+    pub workspace_id: i32,
 }
 
 impl Default for Rule {
@@ -24,7 +24,7 @@ impl Default for Rule {
             manage: true,
             chromium: false,
             firefox: false,
-            workspace: -1,
+            workspace_id: -1,
         }
     }
 }

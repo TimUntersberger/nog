@@ -170,7 +170,7 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
                 set!(bool, rule, has_custom_titlebar, key, value);
                 set!(bool, rule, firefox, key, value);
                 set!(bool, rule, chromium, key, value);
-                set!(i32, rule, workspace, key, value);
+                set!(i32, rule, workspace_id, key, value);
             }
 
             add_rule(engine, scope, rule);

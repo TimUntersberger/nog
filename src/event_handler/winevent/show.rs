@@ -61,8 +61,8 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
         debug!("Managing window");
         let mut workspace_id = *WORKSPACE_ID.lock().unwrap();
 
-        if rule.workspace != -1 {
-            workspace_id = rule.workspace;
+        if rule.workspace_id != -1 {
+            workspace_id = rule.workspace_id;
             change_workspace(workspace_id)?;
         }
 

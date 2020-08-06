@@ -59,6 +59,7 @@ pub fn parse_config() -> Result<Config, String> {
         }
     }
 
+    debug!("Parsing config file");
     engine
         .consume_file_with_scope(&mut scope, config_path)
         .map_err(|e| e.to_string())?;
