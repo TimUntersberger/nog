@@ -21,7 +21,7 @@ Terminal: Windows Terminal | Colourscheme: Nord
         - [Settings](#settings)
         - [Examples](#examples)
      - [Keybindings](#keybindings)
-     - [modes](#modes)
+     - [Modes](#modes)
   - [Screenshots](#screenshots)
   - [Development](#development)
      - [Create installer](#create-installer)
