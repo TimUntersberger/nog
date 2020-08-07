@@ -3,7 +3,7 @@ ignore "Task Manager";
 
 rule ".*- Mozilla Firefox|Mozilla Firefox" #{
     has_custom_titlebar: true,
-    workspace: 2,
+    workspace_id: 2,
     firefox: true,
 };
 
