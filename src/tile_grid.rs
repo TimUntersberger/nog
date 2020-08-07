@@ -480,16 +480,18 @@ impl TileGrid {
 
             (config.padding, config.margin, config.remove_task_bar)
         };
-        let column_width = self.display.width() / self.columns;
-        let mut row_height = self.display.height() / self.rows;
+        let display_height = self.display.height() - margin * 2 - padding * 2;
+        let display_width = self.display.width() - margin * 2 - padding * 2;
+        let column_width = display_width / self.columns;
+        let mut row_height = display_height / self.rows;
         let mut x = self.display.left;
         let mut y = self.display.top;
-        let mut height = self.display.height();
-        let mut width = self.display.width();
+        let mut height = display_height;
+        let mut width = display_width;
 
         if !remove_task_bar {
             height -= *task_bar::HEIGHT.lock().unwrap();
-            row_height = (self.display.height() - *task_bar::HEIGHT.lock().unwrap()) / self.rows;
+            row_height = (display_height - *task_bar::HEIGHT.lock().unwrap()) / self.rows;
         }
 
         if !self.fullscreen {
@@ -508,7 +510,7 @@ impl TileGrid {
                 y = row_height * (row - 1);
 
                 if row > 1 {
-                    // height -= CONFIG.padding;
+                    height -= padding;
                     y += padding;
                 }
             }
