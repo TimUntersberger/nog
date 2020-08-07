@@ -1,6 +1,7 @@
 use winapi::um::winuser::{
     DispatchMessageW, PeekMessageW, TranslateMessage, MSG, PM_REMOVE, WM_QUIT,
 };
+use std::{time::Duration, thread};
 
 pub fn start(cb: impl Fn(Option<MSG>) -> bool) {
     let mut msg: MSG = MSG::default();
@@ -18,6 +19,8 @@ pub fn start(cb: impl Fn(Option<MSG>) -> bool) {
                 value = Some(msg);
             }
         }
+
+        thread::sleep(Duration::from_millis(10));
 
         if !cb(value) {
             break;
