@@ -44,7 +44,7 @@ mod workspace;
 lazy_static! {
     pub static ref WORK_MODE: Mutex<bool> = Mutex::new(CONFIG.lock().unwrap().work_mode);
     pub static ref CONFIG: Mutex<Config> =
-        Mutex::new(config::rhai::engine::parse_config().expect("Failed to load config"));
+        Mutex::new(config::rhai::engine::parse_config().map_err(|e| error!("{}", e)).expect("Failed to load config"));
     pub static ref DISPLAYS: Mutex<Vec<Display>> = Mutex::new(Vec::new());
     pub static ref CHANNEL: EventChannel = EventChannel::default();
     pub static ref GRIDS: Mutex<Vec<TileGrid>> =
