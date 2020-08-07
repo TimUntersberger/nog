@@ -24,12 +24,14 @@ jobs:
       run: cargo build --release
     - name: Add Icon
       run: ./rcedit ./target/release/wwm.exe --set-icon ./logo.ico
-    - name: Create Release
-      uses: "marvinpinto/action-automatic-releases@latest"
-      with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "${BRANCH_NAME}"
-        prerelease: true
-        title: "${BRANCH_NAME} Branch"
-        files: |
-          ./target/release/wwm.exe
+    - name: Temp
+      run: echo "${{ env.BRANCH_NAME }}"
+#    - name: Create Release
+#      uses: "marvinpinto/action-automatic-releases@latest"
+#      with:
+#        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+#        automatic_release_tag: "${{ env.BRANCH_NAME }}"
+#        prerelease: true
+#        title: "${{ env.BRANCH_NAME }} Branch"
+#        files: |
+#          ./target/release/wwm.exe
