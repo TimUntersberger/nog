@@ -9,6 +9,7 @@ jobs:
     steps:
       - run: |
           export REF_NAME=$(jq ".ref" $GITHUB_EVENT_PATH)
+          echo "::set-env name=REF_NAME::$REF_NAME"
       - name: Delete Release
         run: |
           hub release delete $REF_NAME
