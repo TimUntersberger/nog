@@ -1,0 +1,14 @@
+name: Auto Delete
+
+on:
+  delete:
+    branches-ignore: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+    - uses: nelonoel/branch-name@v1
