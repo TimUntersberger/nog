@@ -5,11 +5,12 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
-    - uses: nelonoel/branch-name@v1
-    - uses: actions/checkout@v2.3.1
-    - name: Delete Release
-      run: hub release delete '${{ env.BRANCH_NAME }}'
-    - name: Delete Tag
-      run: git push -d origin '${{ env.BRANCH_NAME }}-release'
+      - run: |
+          export REF_NAME=$(jq ".ref" ${{ env.GITHUB_EVENT_PATH }})
+          echo "::set-env name=REF_NAME::$REF_NAME"
+      - name: Delete Release
+        run: hub release delete '${{ env.REF_NAME }}'
+      - name: Delete Tag
+        run: git push -d origin '${{ env.REF_NAME }}-release'
