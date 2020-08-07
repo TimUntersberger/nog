@@ -58,7 +58,7 @@ Example
 bar #{
   height: 20,
   font_size: 17
-}
+};
 ```
 
 The `height` setting defines the height of the app bar
@@ -95,7 +95,7 @@ Example
 ```
 workspace 4 #{
   monitor: 1
-}
+};
 ```
 
 The first thing you have to specifiy is the id of the workspace you want to change. Afterwards every setting is optional.
@@ -156,7 +156,7 @@ Firefox
 rule ".*- Mozilla Firefox|Mozilla Firefox" #{
   has_custom_titlebar: true,
   firefox: true
-}
+};
 ```
 
 Google Chrome
@@ -164,7 +164,7 @@ Google Chrome
 rule ".*- Google Chrome" #{
   has_custom_titlebar: true,
   chromium: true
-}
+};
 ```
 
 Microsoft Edge (Chromium version)
@@ -172,7 +172,7 @@ Microsoft Edge (Chromium version)
 rule ".*- Microsoft Edge" #{
   has_custom_titlebar: true,
   chromium: true
-}
+};
 ```
 
 ### Keybindings

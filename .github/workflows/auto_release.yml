@@ -1,0 +1,35 @@
+name: Rust
+
+on:
+  push:
+    branches-ignore: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: nelonoel/branch-name@v1
+    - uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    - name: Build
+      run: cargo build --release
+    - name: Add Icon
+      run: ./rcedit ./target/release/wwm.exe --set-icon ./logo.ico
+    - name: Create Release
+      uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "${{ env.BRANCH_NAME }}"
+        prerelease: true
+        title: "${{ env.BRANCH_NAME }} Branch"
+        files: |
+          ./target/release/wwm.exe
