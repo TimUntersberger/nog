@@ -1,4 +1,4 @@
-use super::{draw_workspace::draw_workspace, WINDOWS};
+use super::{draw_workspace, WINDOWS};
 use crate::{tile_grid::TileGrid, workspace::is_visible_workspace, CONFIG, GRIDS, WORKSPACE_ID};
 use log::debug;
 use winapi::shared::windef::HWND;
@@ -7,7 +7,7 @@ use winapi::um::wingdi::CreateSolidBrush;
 use winapi::um::wingdi::DeleteObject;
 use winapi::um::winuser::{FillRect, GetClientRect, GetDC};
 
-pub fn draw_workspaces(hwnd: HWND) {
+pub fn draw(hwnd: HWND) {
     let grids = GRIDS.lock().unwrap();
 
     let monitor = *WINDOWS
@@ -31,7 +31,7 @@ pub fn draw_workspaces(hwnd: HWND) {
     erase_workspace(hwnd, (workspaces.len()) as i32);
 
     for (i, workspace) in workspaces.iter().enumerate() {
-        draw_workspace(
+        draw_workspace::draw(
             hwnd,
             i as i32,
             workspace.id,

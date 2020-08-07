@@ -1,9 +1,11 @@
-use crate::{event::Event, message_loop, util, CHANNEL, CONFIG, WORK_MODE};
+use crate::{
+    app_bar::RedrawAppBarReason, event::Event, message_loop, util, CHANNEL, CONFIG, WORK_MODE,
+};
 use key::Key;
 use keybinding::Keybinding;
 use keybinding_type::KeybindingType;
 use lazy_static::lazy_static;
-use log::{debug, info};
+use log::{debug, error, info};
 use modifier::Modifier;
 use num_traits::FromPrimitive;
 use std::sync::{
@@ -147,11 +149,23 @@ pub fn enable_mode(mode: &str) -> bool {
         return false;
     }
 
-    *mode_guard = mode;
+    *mode_guard = mode.clone();
+
+    let sender = CHANNEL.sender.clone();
+
+    let _ = sender
+        .send(Event::RedrawAppBar(RedrawAppBarReason::Mode(mode)))
+        .map_err(|e| error!("{:?}", e));
 
     true
 }
 
 pub fn disable_mode() {
     *MODE.lock().unwrap() = None;
+
+    let sender = CHANNEL.sender.clone();
+
+    let _ = sender
+        .send(Event::RedrawAppBar(RedrawAppBarReason::Mode(None)))
+        .map_err(|e| error!("{:?}", e));
 }

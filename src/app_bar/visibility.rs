@@ -1,4 +1,4 @@
-use super::{draw_datetime::draw_datetime, draw_workspaces::draw_workspaces, WINDOWS};
+use super::{draw_datetime, draw_workspaces, WINDOWS};
 use winapi::{
     shared::windef::HWND,
     um::winuser::{ShowWindow, SW_HIDE, SW_SHOW},
@@ -29,8 +29,8 @@ pub fn show() {
             .collect();
         for hwnd in hwnds {
             ShowWindow(hwnd as HWND, SW_SHOW);
-            draw_workspaces(hwnd as HWND);
-            draw_datetime(hwnd as HWND).expect("Failed to draw datetime");
+            draw_workspaces::draw(hwnd as HWND);
+            draw_datetime::draw(hwnd as HWND).expect("Failed to draw datetime");
         }
     }
 }

@@ -14,7 +14,7 @@ use winapi::{
     },
 };
 
-pub fn draw_workspace(
+pub fn draw(
     hwnd: HWND,
     idx: i32,
     id: i32,

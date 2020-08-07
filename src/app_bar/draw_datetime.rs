@@ -11,7 +11,7 @@ use winapi::um::winuser::{
     DrawTextA, GetClientRect, GetDC, ReleaseDC, DT_CENTER, DT_SINGLELINE, DT_VCENTER,
 };
 
-pub fn draw_datetime(hwnd: HWND) -> Result<(), util::WinApiResultError> {
+pub fn draw(hwnd: HWND) -> Result<(), util::WinApiResultError> {
     if !hwnd.is_null() {
         let mut rect = RECT::default();
 

@@ -30,6 +30,7 @@ use winapi::um::winuser::WM_SETCURSOR;
 pub mod close;
 pub mod create;
 pub mod draw_datetime;
+pub mod draw_mode;
 pub mod draw_workspace;
 pub mod draw_workspaces;
 pub mod font;
@@ -44,10 +45,11 @@ lazy_static! {
     pub static ref REDRAW_REASON: Mutex<RedrawAppBarReason> = Mutex::new(RedrawAppBarReason::Time);
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum RedrawAppBarReason {
     Time,
     Workspace,
+    Mode(Option<String>)
 }
 
 unsafe extern "system" fn window_cb(
@@ -82,7 +84,7 @@ unsafe extern "system" fn window_cb(
         load_font();
     } else if msg == WM_PAINT {
         let now = std::time::SystemTime::now();
-        let reason = *REDRAW_REASON.lock().unwrap();
+        let reason = REDRAW_REASON.lock().unwrap().clone();
         let mut paint = PAINTSTRUCT::default();
 
         GetClientRect(hwnd, &mut paint.rcPaint);
@@ -91,17 +93,25 @@ unsafe extern "system" fn window_cb(
 
         match reason {
             RedrawAppBarReason::Time => {
-                if draw_datetime::draw_datetime(hwnd).is_err() {
+                if draw_datetime::draw(hwnd).is_err() {
                     error!("Failed to draw datetime");
                 }
             }
-            RedrawAppBarReason::Workspace => {
-                debug!("Received redraw-app-bar event");
-                draw_workspaces::draw_workspaces(hwnd);
+            event @ RedrawAppBarReason::Workspace => {
+                debug!("Received {:?}", event);
+                draw_workspaces::draw(hwnd);
                 debug!(
                     "Painting workspaces took {}ms",
                     now.elapsed().expect("Failed to get systemtime").as_millis()
                 )
+            }
+            event @ RedrawAppBarReason::Mode(None) => {
+                debug!("Received {:?}", event);
+                draw_mode::draw(hwnd, None);
+            }
+            RedrawAppBarReason::Mode(mode) => {
+                debug!("Received {:?}", RedrawAppBarReason::Mode(mode.clone()));
+                draw_mode::draw(hwnd, mode);
             }
         }
 

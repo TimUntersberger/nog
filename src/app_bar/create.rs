@@ -1,5 +1,5 @@
 use super::{
-    draw_datetime::draw_datetime, draw_workspaces::draw_workspaces, window_cb, RedrawAppBarReason,
+    draw_datetime, draw_workspaces, window_cb, RedrawAppBarReason,
     WINDOWS,
 };
 use crate::{event::Event, message_loop, task_bar::HEIGHT, util, CHANNEL, CONFIG, DISPLAYS};
@@ -90,8 +90,8 @@ pub fn create() -> Result<(), util::WinApiResultError> {
                 .insert(display.hmonitor as i32, window_handle as i32);
 
             ShowWindow(window_handle, SW_SHOW);
-            draw_workspaces(window_handle);
-            draw_datetime(window_handle).expect("Failed to draw datetime");
+            draw_workspaces::draw(window_handle);
+            draw_datetime::draw(window_handle).expect("Failed to draw datetime");
 
             message_loop::start(|_| true);
         });
