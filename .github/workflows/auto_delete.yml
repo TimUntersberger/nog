@@ -4,16 +4,13 @@ on: [ delete ]
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 jobs:
-  build:
+  cleanup:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          echo $GITHUB_EVENT_PATH
           export REF_NAME=$(jq ".ref" $GITHUB_EVENT_PATH)
-          echo "::set-env name=REF_NAME::$REF_NAME"
       - name: Delete Release
         run: |
-          echo $REF_NAME
-          hub release delete '${{ env.REF_NAME }}'
+          hub release delete $REF_NAME
       - name: Delete Tag
-        run: git push -d origin '${{ env.REF_NAME }}-release'
+        run: git push -d origin "$REF_NAME-release"
