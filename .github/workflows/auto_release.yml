@@ -30,6 +30,6 @@ jobs:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         automatic_release_tag: "${{ env.BRANCH_NAME }}-release"
         prerelease: true
-        title: "${{ env.BRANCH_NAME }} Branch"
+        title: "${{ env.BRANCH_NAME }} branch"
         files: |
           ./target/release/wwm.exe
