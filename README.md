@@ -123,7 +123,7 @@ WWM knows whether to apply the rule based on a regex that has to be provided.
 </br></br></details>
 
 <details>
-  <summary>workspace</summary></br>
+  <summary>workspace_id</summary></br>
   An integer between 1 and 10 that tells wwm in which workspace to put the window.
 </br></br></details>
 
