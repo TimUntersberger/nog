@@ -180,6 +180,17 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
     )?;
 
     engine.register_custom_syntax(
+        &["update_channel", "$expr$", "$expr$"], // the custom syntax
+        0,                     // the number of new variables declared within this custom syntax
+        |engine, ctx, scope, inputs| {
+            let name = get_string!(engine, ctx, scope, inputs, 0);
+            let settings = get_map!(engine, ctx, scope, inputs, 1);
+
+            Ok(().into())
+        },
+    )?;    
+
+    engine.register_custom_syntax(
         &["ignore", "$expr$"], // the custom syntax
         0,                     // the number of new variables declared within this custom syntax
         |engine, ctx, scope, inputs| {

@@ -1,4 +1,4 @@
-use crate::config::Rule;
+use crate::config::rule::Rule;
 use crate::util;
 use crate::{display::Display, CONFIG};
 use gwl_ex_style::GwlExStyle;
@@ -8,7 +8,6 @@ use winapi::shared::windef::RECT;
 use winapi::um::winuser::AdjustWindowRectEx;
 use winapi::um::winuser::GetForegroundWindow;
 use winapi::um::winuser::GetParent;
-use winapi::um::winuser::GetSystemMetrics;
 use winapi::um::winuser::GetWindowLongA;
 use winapi::um::winuser::GetWindowRect;
 use winapi::um::winuser::SendMessageA;

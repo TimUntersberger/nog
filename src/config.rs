@@ -1,48 +1,15 @@
 use crate::keybindings::keybinding::Keybinding;
 use log::error;
-use regex::Regex;
-use std::collections::HashMap;
+use std::{time::Duration, collections::HashMap};
+use workspace_setting::WorkspaceSetting;
+use rule::Rule;
+use update_channel::UpdateChannel;
 
 pub mod hot_reloading;
 pub mod rhai;
-
-#[derive(Debug, Clone)]
-pub struct Rule {
-    pub pattern: Regex,
-    pub has_custom_titlebar: bool,
-    pub manage: bool,
-    pub chromium: bool,
-    pub firefox: bool,
-    pub workspace_id: i32,
-}
-
-impl Default for Rule {
-    fn default() -> Self {
-        Self {
-            pattern: Regex::new("").unwrap(),
-            has_custom_titlebar: false,
-            manage: true,
-            chromium: false,
-            firefox: false,
-            workspace_id: -1,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct WorkspaceSetting {
-    pub id: i32,
-    pub monitor: i32,
-}
-
-impl Default for WorkspaceSetting {
-    fn default() -> Self {
-        Self {
-            id: -1,
-            monitor: -1,
-        }
-    }
-}
+pub mod rule;
+pub mod workspace_setting;
+pub mod update_channel;
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -67,6 +34,9 @@ pub struct Config {
     pub workspace_settings: Vec<WorkspaceSetting>,
     pub keybindings: Vec<Keybinding>,
     pub rules: Vec<Rule>,
+    pub update_channels: Vec<UpdateChannel>,
+    pub default_update_channel: Option<String>,
+    pub update_interval: Duration, //minutes
     /// contains the metadata for each mode (like an icon)
     /// HashMap<mode, (Option<char>)>
     pub mode_meta: HashMap<String, (Option<char>)>,
@@ -97,6 +67,9 @@ impl Default for Config {
             workspace_settings: Vec::new(),
             keybindings: Vec::new(),
             rules: Vec::new(),
+            update_channels: Vec::new(),
+            default_update_channel: None,
+            update_interval: Duration::from_secs(60 * 60)
         }
     }
 }

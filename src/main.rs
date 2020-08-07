@@ -165,7 +165,8 @@ fn main() {
     let panic = std::panic::catch_unwind(|| {
         info!("");
 
-        update::update().expect("Failed to update the program");
+        #[cfg(not(debug_assertions))]
+        update::start().expect("Failed to start update job");
 
         ctrlc::set_handler(|| {
             if let Err(e) = on_quit() {

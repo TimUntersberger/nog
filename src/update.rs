@@ -1,3 +1,3 @@
-pub fn update() -> Result<(), ()> {
+pub fn start() -> Result<(), ()> {
     Ok(())
 }
