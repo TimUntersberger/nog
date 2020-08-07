@@ -17,7 +17,7 @@ pub fn start() {
         let mut path = dirs::config_dir().expect("Failed to get config dir");
 
         path.push("wwm");
-        path.push("config.yaml");
+        path.push("config.rhai");
 
         watcher
             .watch(path, RecursiveMode::NonRecursive)

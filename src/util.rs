@@ -6,13 +6,31 @@ use winapi::um::wingdi::GetBValue;
 use winapi::um::wingdi::GetGValue;
 use winapi::um::wingdi::GetRValue;
 use winapi::um::wingdi::RGB;
-use winapi::um::winuser::GetWindowTextA;
+use winapi::um::winuser::{GetClassNameA, GetWindowTextA};
 
 pub fn get_title_of_window(window_handle: HWND) -> Result<String, WinApiResultError> {
     let mut buffer = [0; 0x200];
 
     unsafe {
         winapi_nullable_to_result(GetWindowTextA(
+            window_handle,
+            buffer.as_mut_ptr(),
+            buffer.len() as i32,
+        ))?;
+    };
+
+    Ok(buffer
+        .iter()
+        .take_while(|b| **b != 0)
+        .map(|byte| char::from(*byte as u8))
+        .collect::<String>())
+}
+
+pub fn get_class_name_of_window(window_handle: HWND) -> Result<String, WinApiResultError> {
+    let mut buffer = [0; 0x200];
+
+    unsafe {
+        winapi_nullable_to_result(GetClassNameA(
             window_handle,
             buffer.as_mut_ptr(),
             buffer.len() as i32,

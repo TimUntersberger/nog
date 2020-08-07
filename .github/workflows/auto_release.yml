@@ -2,7 +2,7 @@ name: Rust
 
 on:
   push:
-    branches: [ development ]
+    branches-ignore: [ master ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -12,6 +12,7 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
+    - uses: nelonoel/branch-name@v1
     - uses: actions/cache@v2
       with:
         path: |
@@ -21,12 +22,14 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     - name: Build
       run: cargo build --release
+    - name: Add Icon
+      run: ./rcedit ./target/release/wwm.exe --set-icon ./logo.ico
     - name: Create Release
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "next"
+        automatic_release_tag: "${{ env.BRANCH_NAME }}-release"
         prerelease: true
-        title: "Development Build"
+        title: "${{ env.BRANCH_NAME }} branch"
         files: |
           ./target/release/wwm.exe

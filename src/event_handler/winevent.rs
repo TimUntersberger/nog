@@ -1,7 +1,8 @@
 use crate::util;
-use crate::win_event_handler::WinEvent;
-use crate::win_event_handler::WinEventType;
-use crate::GRIDS;
+use crate::{
+    win_event_handler::{win_event::WinEvent, win_event_type::WinEventType},
+    GRIDS,
+};
 use log::debug;
 use winapi::shared::windef::HWND;
 
@@ -12,11 +13,13 @@ mod show;
 pub fn handle(ev: WinEvent) -> Result<(), Box<dyn std::error::Error>> {
     let grids = GRIDS.lock().unwrap();
     let mut title: Option<String> = None;
+    let mut grid_id: Option<i32> = None;
 
     for grid in grids.iter() {
         for tile in &grid.tiles {
             if tile.window.id == ev.hwnd {
                 title = Some(tile.window.title.clone());
+                grid_id = Some(grid.id);
                 break;
             }
         }
@@ -38,7 +41,7 @@ pub fn handle(ev: WinEvent) -> Result<(), Box<dyn std::error::Error>> {
     drop(grids);
 
     match ev.typ {
-        WinEventType::Destroy => destroy::handle(ev.hwnd as HWND)?,
+        WinEventType::Destroy => destroy::handle(ev.hwnd as HWND, grid_id)?,
         WinEventType::Show(ignore) => show::handle(ev.hwnd as HWND, ignore)?,
         WinEventType::FocusChange => focus_change::handle(ev.hwnd as HWND)?,
         WinEventType::Hide => {}

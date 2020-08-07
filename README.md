@@ -11,30 +11,21 @@ Terminal: Windows Terminal | Colourscheme: Nord
 [Demo with GUI](https://gfycat.com/differentadorablekiskadee)
 
 ## Table Of Contents
-
-  * [Motivation](#motivation)
-  * [Config](#config)
-     * [Gap](#gap)
-     * [Bar](#bar)
-     * [Toggles](#toggles)
-     * [Workspaces](#workspaces)
-     * [Rules](#rules)
-        * [Settings](#settings)
-        * [Examples](#examples)
-     * [Keybindings](#keybindings)
-        * [ChangeWorkspace](#changeworkspace)
-        * [Shell](#shell)
-        * [CloseTile](#closetile)
-        * [Quit](#quit)
-        * [ToggleFloatingMode](#togglefloatingmode)
-        * [Focus](#focus)
-        * [Swap](#swap)
-        * [Split](#split)
-     * [Example Config](#example-config)
-  * [Screenshots](#screenshots)
-  * [Development](#development)
-     * [Create installer](#create-installer)
-     * [Create TOC](#create-toc)
+  - [Motivation](#motivation)
+  - [Config](#config)
+     - [Gap](#gap)
+     - [Bar](#bar)
+     - [Toggles](#toggles)
+     - [Workspaces](#workspaces)
+     - [Rules](#rules)
+        - [Settings](#settings)
+        - [Examples](#examples)
+     - [Keybindings](#keybindings)
+     - [Modes](#modes)
+  - [Screenshots](#screenshots)
+  - [Development](#development)
+     - [Create installer](#create-installer)
+     - [Create TOC](#create-toc)
      
 ## Motivation
 
@@ -42,9 +33,17 @@ In the beginning i always had a Virtual Machine with i3 for my development purpo
      
 ## Config
 
-The config lives in `C:\Users\<User>\AppData\Roaming\wwm\config.yaml`.
+The config lives in `C:\Users\<User>\AppData\Roaming\wwm\config.rhai`.
 
-If you want to see my own config or just want to know what a config looks like: [my config](#example-config).
+If you want to see what a config looks like you can look inside the `example` folder.
+
+### General
+
+You can specifiy the minimum width/height required for wwm to automatically manage a window. This can be useful when you want to avoid managing small popups that have a dynamic title.
+
+The `min_width` setting defines the minimum width.
+
+The `min_height` setting defines the minimum height.
 
 ### Gap
 
@@ -54,15 +53,27 @@ The inner gap gets defined by the `padding` setting and the outer gap is the sum
 
 ### bar
 
-The `app_bar_height` setting defines the height of the app bar
+Example
+```
+bar #{
+  height: 20,
+  font_size: 17
+};
+```
 
-The `app_bar_font` setting defines the font for the appbar widgets.
+The `height` setting defines the height of the app bar
 
-The `app_bar_font_size` setting defines the font size for the appbar widgets.
+The `date_pattern` setting defines the [chrono](https://docs.rs/chrono/0.4.13/chrono/format/strftime/index.html#specifiers) pattern used by the appbar for the date (NOTE: the pattern has to be inclosed in quotation marks).
+
+The `time_pattern` setting defines the [chrono](https://docs.rs/chrono/0.4.13/chrono/format/strftime/index.html#specifiers) pattern used by the appbar for the time (NOTE: the pattern has to be inclosed in quotation marks).
+
+The `font` setting defines the font for the appbar widgets.
+
+The `font_size` setting defines the font size for the appbar widgets.
 
 A color has to be a valid hex value (e.g 0x27242c)
 
-The `app_bar_bg` setting defines the background color of the appbar
+The `bg` setting defines the background color of the appbar
 
 ### Toggles
 
@@ -80,20 +91,18 @@ The `remove_task_bar` setting hides the taskbar on launch and shows it again whe
 
 ### Workspaces
 
-the workspaces setting has to be an array of objects. Each object must have an id and can have a monitor property. The id has to be between 1 and 10 (inclusive) and specifies which workspaces this applies to. The monitor property can be used to define the monitor on which the workspace initially lives.
-
 Example
-```yaml
-workspaces:
-  - id: 4
-    monitor: 1
-  - id: 5
-    monitor: 1
+```
+workspace 4 #{
+  monitor: 1
+};
 ```
 
-### Rules
+The first thing you have to specifiy is the id of the workspace you want to change. Afterwards every setting is optional.
 
-**[WARNING]: Rules are still WIP so the name of a setting can change at any time**
+The `monitor` setting defines the default monitor of the workspace.
+
+### Rules
 
 Because Windows can sometimes have some really annoying applications that introduce various edge cases I decided to implement a way to configure specific windows.
 
@@ -138,27 +147,32 @@ WWM knows whether to apply the rule based on a regex that has to be provided.
   The same thing as with firefox.
 </br></br></details>
 
+If you want WWM to just ignore a window you can specify this via a `ignore $pattern` or set the `manage` property of a rule to `false`;
+
 #### Examples
 
 Firefox
-```yaml
-pattern: ^.*- Mozilla Firefox|Mozilla Firefox$
-has_custom_titlebar: true
-firefox: true
+```
+rule ".*- Mozilla Firefox|Mozilla Firefox" #{
+  has_custom_titlebar: true,
+  firefox: true
+};
 ```
 
 Google Chrome
-```yaml
-pattern: ^.*- Google Chrome$
-has_custom_titlebar: true
-chromium: true
+```
+rule ".*- Google Chrome" #{
+  has_custom_titlebar: true,
+  chromium: true
+};
 ```
 
 Microsoft Edge (Chromium version)
-```yaml
-pattern: ^.*- Microsoft Edge$
-has_custom_titlebar: true
-chromium: true
+```
+rule ".*- Microsoft Edge" #{
+  has_custom_titlebar: true,
+  chromium: true
+};
 ```
 
 ### Keybindings
@@ -221,26 +235,28 @@ Note: The windows modifier is reserved for windows itself so we can't use it in 
 
 Keybindings can have the following types:
 
-* [Launch](#launch)
-* [CloseTile](#closetile)
-* [Quit](#quit)
-* [Focus](#focus)
-* [Split](#split)
-* [Swap](#swap)
-* [ToggleFloatingMode](#togglefloatingmode)
-* [ToggleWorkMode](#toggleworkmode)
-* [ToggleFullscreen](#togglefullscreen)
-* [ChangeWorkspace](#changeworkspace)
-* [MoveToWorkspace](#movetoworkspace)
-* [MoveWorkspaceToMonitor](#moveworkspacetomonitor)
+  * [ChangeWorkspace](#changeworkspace)
+  * [MoveToWorkspace](#movetoworkspace)
+  * [MoveWorkspaceToMonitor](#moveworkspacetomonitor)
+  * [Launch](#launch)
+  * [CloseTile](#closetile)
+  * [MinimizeTile](#minimizetile)
+  * [Quit](#quit)
+  * [ToggleFloatingMode](#togglefloatingmode)
+  * [ToggleWorkMode](#toggleworkmode)
+  * [ToggleFullscreen](#togglefullscreen)
+  * [Focus](#focus)
+  * [Swap](#swap)
+  * [Split](#split)
+  * [IncrementConfig](#incrementconfig)
+  * [DecrementConfig](#decrementconfig)
+  * [ToggleConfig](#toggleconfig)
 
 #### ChangeWorkspace
 
 example
-```yaml
-type: ChangeWorkspace
-key: Alt+1
-id: 1
+```
+bind "Alt+1" change_workspace(1);
 ```
 
 values
@@ -262,10 +278,8 @@ Workspaces have an upper limit of 10, so if you define a keybinding of type Chan
 #### MoveToWorkspace
 
 example
-```yaml
-type: MoveToWorkspace
-key: Control+Alt+1
-id: 1
+```
+bind "Control+Alt+1" move_to_workspace(1);
 ```
 
 values
@@ -287,10 +301,8 @@ Workspaces have an upper limit of 10, so if you define a keybinding of type Chan
 #### MoveWorkspaceToMonitor
 
 example
-```yaml
-type: MoveWorkspaceToMonitor
-key: Control+Alt+1
-monitor: 1
+```
+bind "Control+Alt+1" move_workspace_to_monitor(1);
 ```
 
 The monitor property can be any valid number, but the range depends on the amount of monitors connected to the computer.
@@ -300,10 +312,8 @@ A MoveWorkspaceToMonitor keybinding moves the current workspace to a different m
 #### Launch
 
 example
-```yaml
-type: Shell
-key: Control+Alt+Enter
-cmd: wt.exe
+```
+bind "Alt+Enter" launch("wt.exe");
 ```
 
 A Launch keybinding takes a cmd, which has to be a valid path to an exe file.
@@ -313,19 +323,26 @@ If the exe can be found in the path, then the name is enough (e.g. `wt.exe`).
 #### CloseTile
 
 example
-```yaml
-type: CloseTile
-key: Control+Alt+Q
+```
+bind "Alt+Q" close_tile();
 ```
 
 A CloseTile keybinding closes the currently focused tile and its window.
 
+#### MinimizeTile
+
+example
+```
+bind "Alt+Q" minimize_tile();
+```
+
+A MinimizeTile keybinding closes the currently focused tile and minimizes its window.
+
 #### Quit
 
 example
-```yaml
-type: Quit
-key: Control+Alt+X
+```
+bind "Alt+X" quit();
 ```
 
 A Quit keybinding closes wwm and unmanages each window.
@@ -333,9 +350,8 @@ A Quit keybinding closes wwm and unmanages each window.
 #### ToggleFloatingMode
 
 example
-```yaml
-type: ToggleFloatingMode
-key: Control+Alt+F
+```
+bind "Control+Alt+F" toggle_floating_mode();
 ```
 
 A ToggleFloatingMode keybinding either manages the currently focused window if it is not already managed or unmanages it.
@@ -343,9 +359,8 @@ A ToggleFloatingMode keybinding either manages the currently focused window if i
 #### ToggleWorkMode
 
 example
-```yaml
-type: ToggleWorkMode
-key: Control+Alt+W
+```
+bind "Control+Alt+W" toggle_work_mode();
 ```
 
 A ToggleWorkMode keybinding can be seen as "starting" and "stopping" wwm. Wwm is not really stopped it just makes wwm take the least amout of resources while still listening only ToggleWorkMode keybindings.
@@ -353,9 +368,8 @@ A ToggleWorkMode keybinding can be seen as "starting" and "stopping" wwm. Wwm is
 #### ToggleFullscreen
 
 example
-```yaml
-type: ToggleWorkMode
-key: Control+Alt+F
+```
+bind "Control+Alt+F" toggle_fullscreen();
 ```
 
 A ToggleFullscreen keybinding enables/disables fullscreen mode of the current workspace. A workspace in fullscreen mode only shows the focused tile, but you are still able to change the focused tile via Focus/Swap keybindings.
@@ -364,10 +378,8 @@ A ToggleFullscreen keybinding enables/disables fullscreen mode of the current wo
 #### Focus
 
 example
-```yaml
-type: Focus
-key: Alt+H
-direction: Left
+```
+bind "Alt+H" focus("Left");
 ```
 
 values
@@ -381,10 +393,8 @@ A Focus keybinding takes a direction, specifying which window gets the focus.
 #### Swap
 
 example
-```yaml
-type: Swap
-key: Control+Alt+H
-direction: Left
+```
+bind "Alt+Shift+H" swap("Left");
 ```
 
 values
@@ -398,10 +408,8 @@ A Swap keybinding takes a direction, specifying which window gets swapped with t
 #### Split
 
 example
-```yaml
-type: Split
-key: Control+Alt+Minus
-direction: Horizontal
+```
+bind "Alt+Split" split("Vertical");
 ```
 
 values
@@ -410,133 +418,53 @@ values
 
 A Split keybinding takes a direction, the new SplitDirection of the currently focused window. The SplitDirection specifies how a new window gets placed in the grid.
 
-### Example Config
-```yaml
-app_bar_font: Cascadia Mono
-app_bar_font_size: 17
+#### IncrementConfig
 
-work_mode: true
-multi_monitor: true
-launch_on_startup: true
-display_app_bar: true
-remove_title_bar: false
-remove_task_bar: true
-
-workspaces:
-  - id: 4
-    monitor: 1
-  - id: 5
-    monitor: 1
-
-rules:
-  - pattern: ^(File Explorer|Task Manager)$
-    manage: false
-  - pattern: ^.*- Mozilla Firefox|Mozilla Firefox$
-    workspace: 2
-    has_custom_titlebar: true
-    firefox: true
-  - pattern: ^.*- Discord|Discord$
-    workspace: 5
-    has_custom_titlebar: true
-  - pattern: ^Spotify Premium$
-    workspace: 4
-    has_custom_titlebar: true
-  - pattern: ^.*- Google Chrome$
-    has_custom_titlebar: true
-    chromium: true
-  - pattern: ^.*- Visual Studio Code$
-    has_custom_titlebar: true
-
-keybindings:
-  - type: Launch
-    key: Alt+Enter
-    cmd: wt.exe
-  - type: Launch
-    key: Alt+B
-    cmd: C:\\Program Files\\Mozilla Firefox\\firefox.exe
-
-  - type: CloseTile
-    key: Alt+Q
-
-  - type: Quit
-    key: Alt+X
-
-  - type: Focus
-    key: Alt+H
-    direction: Left
-  - type: Focus
-    key: Alt+J
-    direction: Down
-  - type: Focus
-    key: Alt+K
-    direction: Up
-  - type: Focus
-    key: Alt+L
-    direction: Right
-
-  - type: Swap
-    key: Alt+Control+H
-    direction: Left
-  - type: Swap
-    key: Alt+Control+J
-    direction: Down
-  - type: Swap
-    key: Alt+Control+K
-    direction: Up
-  - type: Swap
-    key: Alt+Control+L
-    direction: Right
-
-  - type: Split
-    key: Alt+Plus
-    direction: Vertical
-  - type: Split
-    key: Alt+Minus
-    direction: Horizontal
-
-  - type: ToggleFloatingMode
-    key: Alt+Control+F
-  - type: ToggleFullscreen
-    key: Alt+F
-  - type: ToggleWorkMode
-    key: Alt+Control+W
-
-  - type: MoveToWorkspace
-    key: Alt+Shift+1
-    id: 1
-  - type: MoveToWorkspace
-    key: Alt+Shift+2
-    id: 2
-  - type: MoveToWorkspace
-    key: Alt+Shift+3
-    id: 3
-  - type: MoveToWorkspace
-    key: Alt+Shift+4
-    id: 4
-
-  - type: MoveWorkspaceToMonitor
-    key: Alt+Control+1
-    monitor: 1
-  - type: MoveWorkspaceToMonitor
-    key: Alt+Control+2
-    monitor: 2
-
-  - type: ChangeWorkspace
-    key: Alt+1
-    id: 1
-  - type: ChangeWorkspace
-    key: Alt+2
-    id: 2
-  - type: ChangeWorkspace
-    key: Alt+3
-    id: 3
-  - type: ChangeWorkspace
-    key: Alt+4
-    id: 4
-  - type: ChangeWorkspace
-    key: Alt+5
-    id: 5
+example
 ```
+bind "Alt+O" increment_config("app_bar_height", 5);
+```
+
+A IncrementConfig keybinding can be used to bind a keybinding to increment a config value by a specific amount. Only works on config values that are numeric. Examples include app_bar_height, app_bar_bg, app_bar_font_size, margin, padding.
+
+#### DecrementConfig
+
+example
+```
+bind "Alt+Shift+O" decrement_config("app_bar_height", 5);
+```
+
+A DecrementConfig keybinding can be used to bind a keybinding to decrement a config value by a specific amount. Only works on config values that are numeric. Examples include app_bar_height, app_bar_bg, app_bar_font_size, margin, padding.
+
+#### ToggleConfig
+
+example
+```
+bind "Alt+I" toggle_config("display_app_bar");
+```
+
+A ToggleConfig keybinding can be used to bind a keybinding to toggle a config value. Only works on config values that are boolean. Examples include use_border, light_theme, remove_title_bar, remove_task_bar, display_app_bar.
+
+### Modes
+
+example
+```
+mode "resize" "Alt+R" {
+    bind "H" resize("Left", 2);
+    bind "Shift+H" resize("Left", -2);
+   
+    bind "J" resize("Down", 2);
+    bind "Shift+J" resize("Down", -2);
+
+    bind "K" resize("Up", 2);
+    bind "Shift+K" resize("Up", -2);
+
+    bind "L" resize("Right", 2);
+    bind "Shift+L" resize("Right", -2);
+}
+```
+
+The example defines a new mode called `resize`. You can enter/leave the mode mode by typing `Alt+R`. When you enter a mode every keybinding that doesn't get defined by the mode itself gets ignored.
 
 ## Screenshots
 

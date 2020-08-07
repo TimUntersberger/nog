@@ -1,22 +1,16 @@
 use crate::display::get_primary_display;
 use crate::display::Display;
-use crate::hot_key_manager::Direction;
 use crate::task_bar;
 use crate::tile::Tile;
 use crate::util;
 use crate::window::Window;
-use crate::CONFIG;
+use crate::{direction::Direction, split_direction::SplitDirection, CONFIG};
 use log::debug;
+use std::collections::HashMap;
 use winapi::shared::windef::HWND;
 use winapi::shared::windef::RECT;
 use winapi::um::winuser::SetWindowPos;
 use winapi::um::winuser::SWP_NOSENDCHANGING;
-
-#[derive(Clone, EnumString, Copy, Debug, PartialEq)]
-pub enum SplitDirection {
-    Horizontal,
-    Vertical,
-}
 
 #[derive(Clone)]
 pub struct TileGrid {
@@ -24,6 +18,12 @@ pub struct TileGrid {
     pub id: i32,
     pub fullscreen: bool,
     pub focus_stack: Vec<(Direction, i32)>,
+    /// Contains the resize values for each column
+    /// Hashmap<column, (left, right)>
+    pub column_modifications: HashMap<i32, (i32, i32)>,
+    /// Contains the resize values for each row
+    /// Hashmap<column, (top, bottom)>
+    pub row_modifications: HashMap<i32, (i32, i32)>,
     pub tiles: Vec<Tile>,
     pub focused_window_id: Option<i32>,
     pub taskbar_window: i32,
@@ -39,6 +39,8 @@ impl TileGrid {
             fullscreen: false,
             tiles: Vec::new(),
             focus_stack: Vec::with_capacity(5),
+            column_modifications: HashMap::new(),
+            row_modifications: HashMap::new(),
             focused_window_id: None,
             taskbar_window: 0,
             rows: 0,
@@ -228,9 +230,9 @@ impl TileGrid {
 
             self.focused_window_id = Some(next_tile.window.id);
             next_tile.window.focus()?;
+        } else {
+            debug!("Couldn't find a valid tile");
         }
-
-        debug!("Couldn't find a valid tile");
 
         Ok(())
     }
@@ -266,6 +268,7 @@ impl TileGrid {
             if is_empty_row {
                 debug!("row is now empty");
 
+                self.row_modifications.remove(&self.rows);
                 self.rows -= 1;
                 if self.rows == 1 {
                     self.tiles
@@ -292,6 +295,7 @@ impl TileGrid {
             if is_empty_column {
                 debug!("column is now empty");
 
+                self.column_modifications.remove(&self.columns);
                 self.columns -= 1;
 
                 if self.columns == 1 {
@@ -377,6 +381,10 @@ impl TileGrid {
                         let column = focused_tile.column;
                         let row = focused_tile.row.map(|x| x + 1).or(Some(2));
 
+                        // This is not 0 when the new row is not the last one
+                        // It basically is the count of rows in this row that come after the location where this new tile gets placed
+                        let mut row_count = 0;
+
                         // We can assume that row is Some because, there is no case where it is currently None
                         if row.unwrap() <= self.rows {
                             self.tiles
@@ -384,9 +392,10 @@ impl TileGrid {
                                 .filter(|t| t.column == column && t.row >= row)
                                 .for_each(|t| {
                                     t.row = t.row.map(|x| x + 1);
+                                    row_count += 1;
                                 });
                         }
-                        if row > Some(self.rows) {
+                        if row.map(|x| x + row_count) > Some(self.rows) {
                             self.rows += 1;
                         }
 
@@ -399,6 +408,10 @@ impl TileGrid {
                         let row = focused_tile.row;
                         let column = focused_tile.column.map(|x| x + 1).or(Some(2));
 
+                        // This is not 0 when the new column is not the last one
+                        // It basically is the count of columns in this row that come after the location where this new tile gets placed
+                        let mut column_count = 0;
+
                         // We can assume that column is Some because, there is no case where it is currently None
                         if column.unwrap() <= self.columns {
                             self.tiles
@@ -406,12 +419,15 @@ impl TileGrid {
                                 .filter(|t| t.row == row && t.column >= column)
                                 .for_each(|t| {
                                     t.column = t.column.map(|x| x + 1);
+                                    column_count += 1;
                                 });
                         }
 
-                        if column > Some(self.columns) {
+                        if column.map(|x| x + column_count) > Some(self.columns) {
                             self.columns += 1;
                         }
+
+                        dbg!(self.columns);
 
                         (column, row)
                     }
@@ -423,6 +439,7 @@ impl TileGrid {
                     column,
                     split_direction,
                     window,
+                    ..Tile::default()
                 });
             }
             None => {
@@ -435,6 +452,26 @@ impl TileGrid {
                 });
             }
         }
+    }
+
+    fn get_row_modifications(&self, row: Option<i32>) -> Option<(i32, i32)> {
+        row.and_then(|value| self.row_modifications.get(&value))
+            .map(|x| *x)
+    }
+    fn get_column_modifications(&self, column: Option<i32>) -> Option<(i32, i32)> {
+        column
+            .and_then(|value| self.column_modifications.get(&value))
+            .map(|x| *x)
+    }
+    fn get_modifications(&self, tile: &Tile) -> (Option<(i32, i32)>, Option<(i32, i32)>) {
+        (
+            self.get_column_modifications(tile.column),
+            self.get_row_modifications(tile.row),
+        )
+    }
+    /// Converts the percentage to the real pixel value of the current display
+    fn percentage_to_real(&self, p: i32) -> i32 {
+        self.display.height() / 100 * p
     }
     /// Calculates all the data required for drawing the tile
     fn calculate_tile_data(&self, tile: &Tile) -> RECT {
@@ -482,7 +519,85 @@ impl TileGrid {
         y += margin;
         y += padding;
 
-        tile.window.calculate_window_rect(x, y, width, height)
+        let (column_modifications, row_modifications) = self.get_modifications(tile);
+
+        if let Some(modifications) = column_modifications {
+            let real_left = self.percentage_to_real(modifications.0);
+            let real_right = self.percentage_to_real(modifications.1);
+
+            x -= real_left;
+            width += real_right + real_left;
+        }
+        if let Some(modifications) = row_modifications {
+            let real_top = self.percentage_to_real(modifications.0);
+            let real_bottom = self.percentage_to_real(modifications.1);
+
+            y -= real_top;
+            height += real_bottom + real_top;
+        }
+
+        // column to the right
+        if let Some(modifications) = self.get_column_modifications(tile.column.map(|x| x + 1)) {
+            let real_left = self.percentage_to_real(modifications.0);
+
+            width -= real_left;
+        }
+
+        // row below
+        if let Some(modifications) = self.get_row_modifications(tile.row.map(|x| x + 1)) {
+            let real_top = self.percentage_to_real(modifications.0);
+
+            height -= real_top;
+        }
+
+        // column to the left
+        if let Some(modifications) = self.get_column_modifications(tile.column.map(|x| x - 1)) {
+            let real_right = self.percentage_to_real(modifications.1);
+
+            x += real_right;
+            width -= real_right;
+        }
+
+        // row above
+        if let Some(modifications) = self.get_row_modifications(tile.row.map(|x| x - 1)) {
+            let real_bottom = self.percentage_to_real(modifications.1);
+
+            y += real_bottom;
+            height -= real_bottom;
+        }
+
+        tile.window
+            .calculate_window_rect(&self.display, x, y, width, height)
+    }
+
+    pub fn resize_column(&mut self, column: i32, direction: Direction, amount: i32) {
+        if amount != 0 {
+            let mut modification = self
+                .get_column_modifications(Some(column))
+                .unwrap_or((0, 0));
+
+            if direction == Direction::Left && column != 1 {
+                modification.0 += amount;
+            } else if direction == Direction::Right && column != self.columns {
+                modification.1 += amount;
+            }
+
+            self.column_modifications.insert(column, modification);
+        }
+    }
+
+    pub fn resize_row(&mut self, row: i32, direction: Direction, amount: i32) {
+        if amount != 0 {
+            let mut modification = self.get_row_modifications(Some(row)).unwrap_or((0, 0));
+
+            if direction == Direction::Up && row != 1 {
+                modification.0 += amount;
+            } else if direction == Direction::Down && row != self.rows {
+                modification.1 += amount;
+            }
+
+            self.row_modifications.insert(row, modification);
+        }
     }
 
     fn draw_tile(&self, tile: &Tile) {
@@ -569,10 +684,7 @@ impl TileGrid {
         }
 
         for tile in &self.tiles {
-            debug!(
-                "Tile(id: {}, title: '{}', row: {:?} column: {:?})",
-                tile.window.id, tile.window.title, tile.row, tile.column
-            );
+            debug!("{:?}", tile);
 
             self.draw_tile(tile);
         }

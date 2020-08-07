@@ -1,6 +1,6 @@
 use crate::config::Rule;
 use crate::util;
-use crate::CONFIG;
+use crate::{display::Display, CONFIG};
 use gwl_ex_style::GwlExStyle;
 use gwl_style::GwlStyle;
 use winapi::shared::windef::HWND;
@@ -28,7 +28,10 @@ use winapi::um::winuser::SWP_NOMOVE;
 use winapi::um::winuser::SWP_NOSIZE;
 use winapi::um::winuser::SW_HIDE;
 use winapi::um::winuser::SW_SHOW;
-use winapi::um::winuser::{SC_MAXIMIZE, SC_RESTORE, WM_CLOSE, WM_SYSCOMMAND};
+use winapi::um::winuser::{
+    GetClientRect, GetSystemMetricsForDpi, SC_MAXIMIZE, SC_MINIMIZE, SC_RESTORE, WM_CLOSE,
+    WM_SYSCOMMAND,
+};
 
 pub mod gwl_ex_style;
 pub mod gwl_style;
@@ -92,6 +95,13 @@ impl Window {
 
         Ok(())
     }
+    pub fn get_client_rect(&self) -> RECT {
+        let mut rect: RECT = RECT::default();
+        unsafe {
+            GetClientRect(self.id as HWND, &mut rect);
+        }
+        rect
+    }
     pub fn get_foreground_window() -> Result<HWND, util::WinApiResultError> {
         unsafe { util::winapi_ptr_to_result(GetForegroundWindow()) }
     }
@@ -128,15 +138,23 @@ impl Window {
             ShowWindow(self.id as HWND, SW_HIDE);
         }
     }
-    pub fn calculate_window_rect(&self, x: i32, y: i32, width: i32, height: i32) -> RECT {
+    pub fn calculate_window_rect(
+        &self,
+        display: &Display,
+        x: i32,
+        y: i32,
+        width: i32,
+        height: i32,
+    ) -> RECT {
         let rule = self.rule.clone().unwrap_or_default();
-        let (display_app_bar, remove_title_bar, app_bar_height) = {
+        let (display_app_bar, remove_title_bar, app_bar_height, use_border) = {
             let config = CONFIG.lock().unwrap();
 
             (
                 config.display_app_bar,
                 config.remove_title_bar,
                 config.app_bar_height,
+                config.use_border,
             )
         };
 
@@ -146,25 +164,22 @@ impl Window {
         let mut bottom = y + height;
 
         unsafe {
-            let border_width = GetSystemMetrics(SM_CXFRAME);
-            let border_height = GetSystemMetrics(SM_CYFRAME);
+            let border_width = GetSystemMetricsForDpi(SM_CXFRAME, display.dpi);
+            let border_height = GetSystemMetricsForDpi(SM_CYFRAME, display.dpi);
 
             if rule.chromium || rule.firefox || !remove_title_bar {
-                let caption_height = GetSystemMetrics(SM_CYCAPTION);
+                let caption_height = GetSystemMetricsForDpi(SM_CYCAPTION, display.dpi);
                 top += caption_height;
             } else {
                 top -= border_height * 2;
-                bottom -= border_height / 2;
 
-                left += 1;
-                right -= 1;
-                top += 1;
-                bottom += 1;
+                if use_border {
+                    left += 1;
+                    right -= 1;
+                    top += 1;
+                    bottom += 1;
+                }
             }
-
-            // if !remove_task_bar {
-            //     bottom -= *task_bar::HEIGHT.lock().unwrap();
-            // }
 
             if display_app_bar {
                 top += app_bar_height;
@@ -177,6 +192,7 @@ impl Window {
                     right += (border_width as f32 * 1.5) as i32;
                     bottom += (border_height as f32 * 1.5) as i32;
                 } else if rule.chromium {
+                    top -= border_height / 2;
                     left -= border_width * 2;
                     right += border_width * 2;
                     bottom += border_height * 2;
@@ -247,7 +263,7 @@ impl Window {
      */
     pub fn focus(&self) -> Result<(), util::WinApiResultError> {
         unsafe {
-            SetForegroundWindow(self.id as HWND);
+            dbg!(SetForegroundWindow(self.id as HWND));
         }
 
         Ok(())
@@ -274,7 +290,9 @@ impl Window {
             self.style.remove(GwlStyle::CAPTION);
             self.style.remove(GwlStyle::THICKFRAME);
         }
-        self.style.insert(GwlStyle::BORDER);
+        if CONFIG.lock().unwrap().use_border {
+            self.style.insert(GwlStyle::BORDER);
+        }
     }
 
     pub fn send_maximize(&self) {
@@ -283,9 +301,26 @@ impl Window {
         }
     }
 
+    pub fn send_minimize(&self) {
+        unsafe {
+            SendMessageA(self.id as HWND, WM_SYSCOMMAND, SC_MINIMIZE, 0);
+        }
+    }
+
     pub fn send_restore(&self) {
         unsafe {
             SendMessageA(self.id as HWND, WM_SYSCOMMAND, SC_RESTORE, 0);
+        }
+    }
+}
+
+fn get_foreground_window() -> Window {
+    unsafe {
+        let hwnd = GetForegroundWindow();
+
+        Window {
+            id: hwnd as i32,
+            ..Window::default()
         }
     }
 }
