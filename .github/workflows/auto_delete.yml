@@ -13,6 +13,6 @@ jobs:
           echo "::set-env name=REF_NAME::$REF_NAME"
       - name: Delete Release
         run: |
-          hub release delete $REF_NAME
+          hub release delete "$REF_NAME-release"
       - name: Delete Tag
         run: git push -d origin "$REF_NAME-release"
