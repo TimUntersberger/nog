@@ -2,7 +2,7 @@ name: Rust
 
 on:
   push:
-    branches: [ development ]
+    branches-ignore: [ master ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -12,6 +12,7 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
+    - uses: nelonoel/branch-name@v1
     - uses: actions/cache@v2
       with:
         path: |
@@ -27,8 +28,8 @@ jobs:
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "next"
+        automatic_release_tag: "${BRANCH_NAME}"
         prerelease: true
-        title: "Development Build"
+        title: "${BRANCH_NAME} Branch"
         files: |
           ./target/release/wwm.exe
