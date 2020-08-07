@@ -8,7 +8,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          export REF_NAME=$(jq ".ref" ${{ env.GITHUB_EVENT_PATH }})
+          echo "${{ env.GITHUB_EVENT_PATH }}"
+          export REF_NAME=$(jq ".ref" "${{ env.GITHUB_EVENT_PATH }}")
           echo "::set-env name=REF_NAME::$REF_NAME"
       - name: Delete Release
         run: hub release delete '${{ env.REF_NAME }}'
