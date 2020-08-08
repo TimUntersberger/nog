@@ -2,7 +2,7 @@ use crate::workspace::{change_workspace, is_visible_workspace};
 use crate::CONFIG;
 use crate::{display::get_display_by_hmonitor, util, GRIDS};
 use alignment::Alignment;
-use component::{date::DateComponent, mode::ModeComponent, Component};
+use component::{date::DateComponent, mode::ModeComponent, Component, time::TimeComponent};
 use font::load_font;
 use lazy_static::lazy_static;
 use log::{debug, error, info};
@@ -231,9 +231,8 @@ unsafe extern "system" fn window_cb(
 pub fn init() {
     let mut items = ITEMS.lock().unwrap();
 
-    items.push(Item::new(Alignment::Left, Box::new(DateComponent::default())));
+    items.push(Item::new(Alignment::Left, Box::new(TimeComponent::default())));
     items.push(Item::new(Alignment::Left, Box::new(ModeComponent::default())));
-    items.push(Item::new(Alignment::Right, Box::new(ModeComponent::default())));
     items.push(Item::new(Alignment::Right, Box::new(DateComponent::default())));
 
     create::create();

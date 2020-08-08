@@ -2,6 +2,7 @@ use super::RedrawReason;
 
 pub mod date;
 pub mod mode;
+pub mod time;
 
 pub enum ComponentText {
     Basic(String),
