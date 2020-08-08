@@ -1,5 +1,5 @@
 use crate::{
-    app_bar, config::Config, display::get_display_by_hmonitor, keybindings, startup, task_bar,
+    bar, config::Config, display::get_display_by_hmonitor, keybindings, startup, task_bar,
     CONFIG, DISPLAYS, GRIDS, WORKSPACE_ID, WORK_MODE,
 };
 
@@ -18,11 +18,11 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
                 || config.app_bar_height != new_config.app_bar_height
                 || config.light_theme != new_config.light_theme
             {
-                app_bar::close::close();
+                bar::close::close();
                 draw_app_bar = true;
             }
         } else if config.display_app_bar && !new_config.display_app_bar {
-            app_bar::close::close();
+            bar::close::close();
 
             for d in DISPLAYS.lock().unwrap().iter_mut() {
                 d.bottom += config.app_bar_height;
@@ -76,8 +76,8 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
     *CONFIG.lock().unwrap() = new_config;
 
     if draw_app_bar {
-        app_bar::create::create()?;
-        app_bar::visibility::show();
+        bar::create::create()?;
+        bar::visibility::show();
     }
 
     keybindings::register()?;

@@ -19,7 +19,7 @@ use tile_grid::TileGrid;
 use winapi::shared::windef::HWND;
 use workspace::{change_workspace, Workspace};
 
-mod app_bar;
+mod bar;
 mod config;
 mod direction;
 mod display;
@@ -121,7 +121,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         if CONFIG.lock().unwrap().display_app_bar {
-            app_bar::create::create()?;
+            bar::create::create()?;
         }
 
         info!("Registering windows event handler");
@@ -137,7 +137,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 let msg = maybe_msg.unwrap();
                 let _ = match msg {
                     Event::Keybinding(kb) => event_handler::keybinding::handle(kb),
-                    Event::RedrawAppBar(reason) => Ok(app_bar::redraw::redraw(reason)),
+                    Event::RedrawAppBar(reason) => Ok(bar::redraw::redraw(reason)),
                     Event::WinEvent(ev) => event_handler::winevent::handle(ev),
                     Event::Exit => {
                         tray::remove_icon(*tray::WINDOW.lock().unwrap() as HWND);
@@ -159,13 +159,56 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn main() {
+fn main(){
+    logging::setup().expect("Failed to setup logging");
+    info!("Initializing displays");
+    display::init();
+
+    let receiver = CHANNEL.receiver.clone();
+
+    for display in DISPLAYS.lock().unwrap().iter() {
+        VISIBLE_WORKSPACES
+            .lock()
+            .unwrap()
+            .insert(display.hmonitor, 0);
+    }
+
+    change_workspace(1).expect("Failed to change workspace to ID@1");
+    bar::init();
+
+    loop {
+        select! {
+            recv(receiver) -> maybe_msg => {
+                let msg = maybe_msg.unwrap();
+                let _ = match msg {
+                    Event::Keybinding(kb) => event_handler::keybinding::handle(kb),
+                    Event::RedrawAppBar(reason) => Ok(bar::redraw::redraw(reason)),
+                    Event::WinEvent(ev) => event_handler::winevent::handle(ev),
+                    Event::Exit => {
+                        tray::remove_icon(*tray::WINDOW.lock().unwrap() as HWND);
+                        on_quit();
+                        break;
+                    },
+                    Event::ReloadConfig => {
+                        info!("Reloading Config");
+
+                        update_config(config::rhai::engine::parse_config().expect("Failed to load config"))
+                    }
+                }.map_err(|e| {
+                    error!("{}", e);
+                });
+            }
+        }
+    }
+}
+
+fn _main() {
     logging::setup().expect("Failed to setup logging");
 
     let panic = std::panic::catch_unwind(|| {
         info!("");
 
-        #[cfg(not(debug_assertions))]
+        // #[cfg(not(debug_assertions))]
         update::start().expect("Failed to start update job");
 
         ctrlc::set_handler(|| {

@@ -5,8 +5,19 @@ pub mod semantic_version;
 pub mod repository;
 #[derive(Clone, Debug)]
 pub struct UpdateChannel{
-    name: String,
-    repo: Repository,
-    branch: String,
-    version: SemanticVersion
+    pub name: String,
+    pub repo: Repository,
+    pub branch: String,
+    pub version: SemanticVersion
+}
+
+impl Default for UpdateChannel {
+    fn default() -> Self {
+        Self {
+            name: "".into(),
+            branch: "master".into(),
+            repo: Repository::default(),
+            version: SemanticVersion::default()
+        }
+    }
 }

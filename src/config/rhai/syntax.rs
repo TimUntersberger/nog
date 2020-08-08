@@ -1,5 +1,5 @@
 use crate::{
-    config::{WorkspaceSetting, Rule},
+    config::{WorkspaceSetting, Rule, update_channel::UpdateChannel},
     keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
 };
 use log::error;
@@ -185,6 +185,21 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
         |engine, ctx, scope, inputs| {
             let name = get_string!(engine, ctx, scope, inputs, 0);
             let settings = get_map!(engine, ctx, scope, inputs, 1);
+            let mut update_channel = UpdateChannel::default();
+
+            update_channel.name = name;
+
+            for (key, value) in settings.iter().map(|(k, v)| (k.to_string(), v)) {
+                set!(String, update_channel, branch, key, value);
+                set!(String, update_channel, repo, key, value);
+                set!(String, update_channel, version, key, value);
+            }
+
+            scope.set_value("__new_update_channel", update_channel);
+
+            engine
+                .consume_with_scope(scope, "__update_channels.push(__new_update_channel);")
+                .unwrap();
 
             Ok(().into())
         },

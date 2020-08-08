@@ -1,5 +1,5 @@
 use crate::{
-    app_bar::RedrawAppBarReason, display::get_display_by_idx, event::Event, util, CHANNEL, CONFIG,
+    bar::RedrawReason, display::get_display_by_idx, event::Event, util, CHANNEL, CONFIG,
     GRIDS, VISIBLE_WORKSPACES, WORKSPACE_ID,
 };
 use log::debug;
@@ -67,7 +67,7 @@ pub fn change_workspace(id: i32) -> Result<(), util::WinApiResultError> {
     CHANNEL
         .sender
         .clone()
-        .send(Event::RedrawAppBar(RedrawAppBarReason::Workspace))
+        .send(Event::RedrawAppBar(RedrawReason::Workspace))
         .expect("Failed to send redraw-app-bar event");
 
     Ok(())

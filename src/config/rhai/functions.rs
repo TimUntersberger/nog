@@ -1,5 +1,5 @@
 use crate::{
-    config::{WorkspaceSetting, Rule},
+    config::{WorkspaceSetting, Rule, update_channel::UpdateChannel},
     direction::Direction,
     keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
     split_direction::SplitDirection,
@@ -15,6 +15,9 @@ pub fn init(engine: &mut Engine) {
         list.push(Dynamic::from(Box::new(item)))
     });
     engine.register_fn("push", |list: &mut Array, item: WorkspaceSetting| {
+        list.push(Dynamic::from(Box::new(item)))
+    });
+    engine.register_fn("push", |list: &mut Array, item: UpdateChannel| {
         list.push(Dynamic::from(Box::new(item)))
     });
 

@@ -1,5 +1,5 @@
 use crate::{
-    app_bar::RedrawAppBarReason, event::Event, message_loop, util, CHANNEL, CONFIG, WORK_MODE,
+    bar::RedrawReason, event::Event, message_loop, util, CHANNEL, CONFIG, WORK_MODE,
 };
 use key::Key;
 use keybinding::Keybinding;
@@ -154,7 +154,7 @@ pub fn enable_mode(mode: &str) -> bool {
     let sender = CHANNEL.sender.clone();
 
     let _ = sender
-        .send(Event::RedrawAppBar(RedrawAppBarReason::Mode(mode)))
+        .send(Event::RedrawAppBar(RedrawReason::Mode(mode)))
         .map_err(|e| error!("{:?}", e));
 
     true
@@ -166,6 +166,6 @@ pub fn disable_mode() {
     let sender = CHANNEL.sender.clone();
 
     let _ = sender
-        .send(Event::RedrawAppBar(RedrawAppBarReason::Mode(None)))
+        .send(Event::RedrawAppBar(RedrawReason::Mode(None)))
         .map_err(|e| error!("{:?}", e));
 }

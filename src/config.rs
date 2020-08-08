@@ -1,15 +1,15 @@
 use crate::keybindings::keybinding::Keybinding;
 use log::error;
-use std::{time::Duration, collections::HashMap};
-use workspace_setting::WorkspaceSetting;
 use rule::Rule;
+use std::{collections::HashMap, time::Duration};
 use update_channel::UpdateChannel;
+use workspace_setting::WorkspaceSetting;
 
 pub mod hot_reloading;
 pub mod rhai;
 pub mod rule;
-pub mod workspace_setting;
 pub mod update_channel;
+pub mod workspace_setting;
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -69,7 +69,7 @@ impl Default for Config {
             rules: Vec::new(),
             update_channels: Vec::new(),
             default_update_channel: None,
-            update_interval: Duration::from_secs(60 * 60)
+            update_interval: Duration::from_secs(60 * 60),
         }
     }
 }
@@ -121,5 +121,11 @@ impl Config {
             "display_app_bar" => self.display_app_bar = value,
             _ => error!("Attempt to set unknown field: {}", field),
         }
+    }
+
+    pub fn get_update_channel(&self) -> Option<&UpdateChannel> {
+        self.default_update_channel
+            .clone()
+            .and_then(|name| self.update_channels.iter().find(|c| c.name == name))
     }
 }

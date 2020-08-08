@@ -427,8 +427,6 @@ impl TileGrid {
                             self.columns += 1;
                         }
 
-                        dbg!(self.columns);
-
                         (column, row)
                     }
                 };
