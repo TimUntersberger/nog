@@ -1,20 +1,16 @@
-use super::{ComponentText, Component};
-use crate::{bar::RedrawReason, CONFIG};
+use super::{Component, ComponentText};
+use crate::keybindings::MODE;
 
-#[derive(Default, Copy, Clone)]
-pub struct ModeComponent;
+fn render(_: &Component, _: i32) -> Vec<ComponentText> {
+    vec![ComponentText::Basic(
+        MODE.lock()
+            .unwrap()
+            .clone()
+            .map(|m| format!("{} is active", m))
+            .unwrap_or_default(),
+    )]
+}
 
-impl Component for ModeComponent {
-    fn get_width(&self) -> Option<i32> {
-        None
-    }
-    fn render(&self) -> ComponentText {
-        ComponentText::Basic("mode is active".into())
-    }
-    fn should_render(&self, reason: RedrawReason) -> bool {
-       match reason {
-           RedrawReason::Mode(_) => true,
-           _ => false
-       }
-    }
+pub fn create() -> Component {
+    Component::new(render)
 }

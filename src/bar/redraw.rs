@@ -1,21 +1,12 @@
-use super::{RedrawReason, REDRAW_REASON, WINDOWS};
+use super::{get_windows, WINDOWS};
 use winapi::{
     shared::windef::HWND,
     um::winuser::{SendMessageA, WM_PAINT},
 };
 
-pub fn redraw(reason: RedrawReason) {
+pub fn redraw() {
     unsafe {
-        *REDRAW_REASON.lock().unwrap() = reason;
-
-        let hwnds: Vec<i32> = WINDOWS
-            .lock()
-            .unwrap()
-            .iter()
-            .map(|(_, hwnd)| *hwnd)
-            .collect();
-
-        for hwnd in hwnds {
+        for hwnd in get_windows() {
             //TODO: handle error
             SendMessageA(hwnd as HWND, WM_PAINT, 0, 0);
         }

@@ -1,5 +1,5 @@
 use super::{
-    draw_datetime, draw_workspaces, window_cb, RedrawReason,
+    window_cb,
     WINDOWS, redraw::redraw,
 };
 use crate::{event::Event, message_loop, task_bar::HEIGHT, util, CHANNEL, CONFIG, DISPLAYS};
@@ -24,18 +24,18 @@ pub fn create() -> Result<(), util::WinApiResultError> {
 
     let height = *height_guard;
 
-    std::thread::spawn(|| loop {
-        std::thread::sleep(std::time::Duration::from_millis(950));
-        if WINDOWS.lock().unwrap().is_empty() {
-            break;
-        }
+    // std::thread::spawn(|| loop {
+    //     std::thread::sleep(std::time::Duration::from_millis(200));
+    //     if WINDOWS.lock().unwrap().is_empty() {
+    //         break;
+    //     }
 
-        CHANNEL
-            .sender
-            .clone()
-            .send(Event::RedrawAppBar(RedrawReason::Time))
-            .expect("Failed to send redraw-app-bar event");
-    });
+    //     CHANNEL
+    //         .sender
+    //         .clone()
+    //         .send(Event::RedrawAppBar)
+    //         .expect("Failed to send redraw-app-bar event");
+    // });
 
     for display in DISPLAYS.lock().unwrap().clone() {
         std::thread::spawn(move || unsafe {
@@ -90,7 +90,7 @@ pub fn create() -> Result<(), util::WinApiResultError> {
                 .insert(display.hmonitor as i32, window_handle as i32);
 
             ShowWindow(window_handle, SW_SHOW);
-            redraw(RedrawReason::Initialize);
+            redraw();
 
             message_loop::start(|_| true);
         });

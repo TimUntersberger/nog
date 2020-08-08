@@ -1,5 +1,5 @@
 use crate::{
-    bar::RedrawReason, event::Event, message_loop, util, CHANNEL, CONFIG, WORK_MODE,
+    event::Event, message_loop, util, CHANNEL, CONFIG, WORK_MODE,
 };
 use key::Key;
 use keybinding::Keybinding;
@@ -22,7 +22,7 @@ pub mod modifier;
 lazy_static! {
     static ref UNREGISTER: AtomicBool = AtomicBool::new(false);
     static ref PREV_MODE: Mutex<Option<String>> = Mutex::new(None);
-    static ref MODE: Mutex<Option<String>> = Mutex::new(None);
+    pub static ref MODE: Mutex<Option<String>> = Mutex::new(None);
 }
 
 fn unregister_keybindings<'a>(keybindings: impl Iterator<Item = &'a Keybinding>) {
@@ -154,7 +154,7 @@ pub fn enable_mode(mode: &str) -> bool {
     let sender = CHANNEL.sender.clone();
 
     let _ = sender
-        .send(Event::RedrawAppBar(RedrawReason::Mode(mode)))
+        .send(Event::RedrawAppBar)
         .map_err(|e| error!("{:?}", e));
 
     true
@@ -166,6 +166,6 @@ pub fn disable_mode() {
     let sender = CHANNEL.sender.clone();
 
     let _ = sender
-        .send(Event::RedrawAppBar(RedrawReason::Mode(None)))
+        .send(Event::RedrawAppBar)
         .map_err(|e| error!("{:?}", e));
 }

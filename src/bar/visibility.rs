@@ -1,4 +1,4 @@
-use super::{draw_datetime, draw_workspaces, WINDOWS};
+use super::{redraw::redraw, get_windows};
 use winapi::{
     shared::windef::HWND,
     um::winuser::{ShowWindow, SW_HIDE, SW_SHOW},
@@ -7,13 +7,7 @@ use winapi::{
 #[allow(dead_code)]
 pub fn hide() {
     unsafe {
-        let hwnds: Vec<i32> = WINDOWS
-            .lock()
-            .unwrap()
-            .iter()
-            .map(|(_, hwnd)| *hwnd)
-            .collect();
-        for hwnd in hwnds {
+        for hwnd in get_windows() {
             ShowWindow(hwnd as HWND, SW_HIDE);
         }
     }
@@ -21,16 +15,10 @@ pub fn hide() {
 
 pub fn show() {
     unsafe {
-        let hwnds: Vec<i32> = WINDOWS
-            .lock()
-            .unwrap()
-            .iter()
-            .map(|(_, hwnd)| *hwnd)
-            .collect();
-        for hwnd in hwnds {
+        for hwnd in get_windows() {
             ShowWindow(hwnd as HWND, SW_SHOW);
-            draw_workspaces::draw(hwnd as HWND);
-            draw_datetime::draw(hwnd as HWND).expect("Failed to draw datetime");
         }
+
+        redraw();
     }
 }

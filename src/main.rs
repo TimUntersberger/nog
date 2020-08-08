@@ -137,7 +137,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 let msg = maybe_msg.unwrap();
                 let _ = match msg {
                     Event::Keybinding(kb) => event_handler::keybinding::handle(kb),
-                    Event::RedrawAppBar(reason) => Ok(bar::redraw::redraw(reason)),
+                    Event::RedrawAppBar => Ok(bar::redraw::redraw()),
                     Event::WinEvent(ev) => event_handler::winevent::handle(ev),
                     Event::Exit => {
                         tray::remove_icon(*tray::WINDOW.lock().unwrap() as HWND);
@@ -182,7 +182,7 @@ fn main(){
                 let msg = maybe_msg.unwrap();
                 let _ = match msg {
                     Event::Keybinding(kb) => event_handler::keybinding::handle(kb),
-                    Event::RedrawAppBar(reason) => Ok(bar::redraw::redraw(reason)),
+                    Event::RedrawAppBar => Ok(bar::redraw::redraw()),
                     Event::WinEvent(ev) => event_handler::winevent::handle(ev),
                     Event::Exit => {
                         tray::remove_icon(*tray::WINDOW.lock().unwrap() as HWND);
