@@ -31,8 +31,8 @@ mod logging;
 mod message_loop;
 mod popup;
 mod split_direction;
-mod startup;
 mod task_bar;
+mod startup;
 mod tile;
 mod tile_grid;
 mod tray;
@@ -93,11 +93,13 @@ fn on_quit() -> Result<(), util::WinApiResultError> {
     unmanage_everything()?;
 
     popup::cleanup();
+    let remove_task_bar = {
+        let config = CONFIG.lock().unwrap();
+        config.remove_task_bar
+    };
 
-    let config = CONFIG.lock().unwrap();
-
-    if config.remove_task_bar {
-        task_bar::show();
+    if remove_task_bar {
+        task_bar::show_taskbars();
     }
 
     win_event_handler::unregister()?;
@@ -133,9 +135,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     startup::set_launch_on_startup(CONFIG.lock().unwrap().launch_on_startup)?;
 
-    info!("Initializing taskbar");
-    task_bar::init();
-
     info!("Creating tray icon");
     tray::create()?;
 
@@ -145,7 +144,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     if *WORK_MODE.lock().unwrap() {
         if CONFIG.lock().unwrap().remove_task_bar {
             info!("Hiding taskbar");
-            task_bar::hide();
+            task_bar::hide_taskbars();
         }
 
         if CONFIG.lock().unwrap().display_app_bar {

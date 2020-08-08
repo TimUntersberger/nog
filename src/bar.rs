@@ -295,11 +295,11 @@ unsafe extern "system" fn window_cb(
         let left = components_to_section(hdc, &display, &bar_config.components.left);
 
         let mut center = components_to_section(hdc, &display, &bar_config.components.center);
-        center.left = display.width() / 2 - center.right / 2;
+        center.left = display.working_area_width() / 2 - center.right / 2;
         center.right += center.left;
 
         let mut right = components_to_section(hdc, &display, &bar_config.components.right);
-        right.left = display.width() - right.right;
+        right.left = display.working_area_width() - right.right;
         right.right += right.left;
 
         draw_components(

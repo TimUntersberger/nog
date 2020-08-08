@@ -1,6 +1,5 @@
 use crate::display::get_primary_display;
 use crate::display::Display;
-use crate::task_bar;
 use crate::tile::Tile;
 use crate::util;
 use crate::window::Window;
@@ -469,28 +468,23 @@ impl TileGrid {
     }
     /// Converts the percentage to the real pixel value of the current display
     fn percentage_to_real(&self, p: i32) -> i32 {
-        self.display.height() / 100 * p
+        self.display.working_area_height() / 100 * p
     }
     /// Calculates all the data required for drawing the tile
     fn calculate_tile_data(&self, tile: &Tile) -> RECT {
-        let (padding, margin, remove_task_bar) = {
+        let (padding, margin) = {
             let config = CONFIG.lock().unwrap();
 
-            (config.inner_gap, config.outer_gap, config.remove_task_bar)
+            (config.inner_gap, config.outer_gap)
         };
-        let display_height = self.display.height() - margin * 2 - padding * 2;
-        let display_width = self.display.width() - margin * 2 - padding * 2;
+        let display_height = self.display.working_area_height() - margin * 2 - padding * 2;
+        let display_width = self.display.working_area_width() - margin * 2 - padding * 2;
         let column_width = display_width / self.columns;
-        let mut row_height = display_height / self.rows;
-        let mut x = self.display.left;
-        let mut y = self.display.top;
+        let row_height = display_height / self.rows;
+        let mut x = self.display.working_area_left();
+        let mut y = self.display.working_area_top();
         let mut height = display_height;
         let mut width = display_width;
-
-        if !remove_task_bar {
-            height -= *task_bar::HEIGHT.lock().unwrap();
-            row_height = (display_height - *task_bar::HEIGHT.lock().unwrap()) / self.rows;
-        }
 
         if !self.fullscreen {
             if let Some(column) = tile.column {
