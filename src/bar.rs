@@ -214,7 +214,7 @@ unsafe extern "system" fn window_cb(
                 c_text.as_ptr(),
                 text_len,
                 &mut rect,
-                DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE,
             ))
             .map_err(|e| error!("{}", e))
             .unwrap();
