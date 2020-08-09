@@ -294,9 +294,6 @@ unsafe extern "system" fn window_cb(
 
         }
 
-        println!("{} {} {}", prev_widths.0, prev_widths.1, prev_widths.2);
-        println!("{} {} {}", widths.0, widths.1, widths.2);
-
         left = display.width() / 2 - widths.1 / 2;
 
         //draw center items

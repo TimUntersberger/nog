@@ -18,10 +18,10 @@ workspace 2 #{
 set min_height 200;
 set min_width 200;
 
-disable work_mode;
-
+enable multi_monitor;
+enable work_mode;
+enable use_border;
 enable launch_on_startup;
 enable display_app_bar;
-enable multi_monitor;
 enable remove_title_bar;
 enable remove_task_bar;
