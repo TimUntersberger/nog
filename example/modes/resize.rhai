@@ -10,9 +10,4 @@ mode "resize" "Alt+R" {
 
     bind "L" resize("Right", 2);
     bind "Shift+L" resize("Right", -2);
-
-    bind "A" focus("Left");
-    bind "W" focus("Up");
-    bind "D" focus("Right");
-    bind "S" focus("Down");
 }

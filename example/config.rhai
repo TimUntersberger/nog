@@ -7,6 +7,14 @@ bar #{
     font_size: 17
 };
 
+workspace 1 #{
+    text: "  "
+};
+
+workspace 2 #{
+    text: "  "
+};
+
 set min_height 200;
 set min_width 200;
 
