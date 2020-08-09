@@ -89,7 +89,7 @@ pub fn to_widestring(string: &str) -> Vec<u16> {
     string
         .encode_utf16()
         .chain(std::iter::once(0))
-        .collect::<Vec<_>>()
+        .collect()
 }
 
 #[allow(dead_code)]

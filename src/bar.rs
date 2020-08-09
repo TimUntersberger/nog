@@ -37,8 +37,8 @@ use winapi::um::winuser::WM_DEVICECHANGE;
 use winapi::um::winuser::WM_LBUTTONDOWN;
 use winapi::um::winuser::WM_PAINT;
 use winapi::um::winuser::{
-    DrawTextA, FillRect, GetCursorPos, GetDC, ReleaseDC, DT_SINGLELINE, DT_VCENTER, IDC_HAND,
-    WM_SETCURSOR,
+    FillRect, GetCursorPos, GetDC, ReleaseDC, DT_SINGLELINE, DT_VCENTER, IDC_HAND,
+    WM_SETCURSOR, DrawTextW,
 };
 
 pub mod alignment;
@@ -90,7 +90,7 @@ unsafe fn calculate_width(hdc: HDC, str: &CString, len: i32) -> i32 {
 unsafe fn draw_component_text(hdc: HDC, rect: &mut RECT, component_text: &ComponentText) {
     let text = component_text.get_text();
     let text_len = text.len();
-    let c_text = CString::new(text).unwrap();
+    let c_text = util::to_widestring(&text);
 
     let fg = component_text
         .get_fg()
@@ -113,8 +113,7 @@ unsafe fn draw_component_text(hdc: HDC, rect: &mut RECT, component_text: &Compon
     } else {
         SetTextColor(hdc, fg);
         SetBkColor(hdc, bg);
-
-        DrawTextA(
+        DrawTextW(
             hdc,
             c_text.as_ptr(),
             text_len as i32,

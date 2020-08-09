@@ -233,6 +233,7 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
 
             for (key, value) in settings.iter().map(|(k, v)| (k.to_string(), v)) {
                 set!(i32, workspace, monitor, key, value);
+                set!(String, workspace, text, key, value);
             }
 
             scope.set_value("__new_workspace_setting", workspace);

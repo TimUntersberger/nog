@@ -1,9 +1,10 @@
 use super::{Component, ComponentText};
-use crate::{util, workspace::is_visible_workspace, CONFIG, GRIDS, WORKSPACE_ID, display::Display};
+use crate::{display::Display, util, workspace::is_visible_workspace, CONFIG, GRIDS, WORKSPACE_ID};
 use std::sync::Arc;
 
 fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
     let light_theme = CONFIG.lock().unwrap().light_theme;
+    let workspace_settings = CONFIG.lock().unwrap().workspace_settings.clone();
     let app_bar_bg = CONFIG.lock().unwrap().app_bar_bg;
     let workspace_id = *WORKSPACE_ID.lock().unwrap();
 
@@ -12,7 +13,8 @@ fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
         .unwrap()
         .iter()
         .filter(|g| {
-            (!g.tiles.is_empty() || is_visible_workspace(g.id)) && g.display.hmonitor == display.hmonitor
+            (!g.tiles.is_empty() || is_visible_workspace(g.id))
+                && g.display.hmonitor == display.hmonitor
         })
         .map(|grid| {
             let (fg, bg) = if light_theme {
@@ -35,7 +37,18 @@ fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
 
                 (fg, bg)
             };
-            ComponentText::Colored(fg, bg, format!(" {} ", grid.id))
+            ComponentText::Colored(
+                fg,
+                bg,
+                format!(
+                    " {} ",
+                    workspace_settings
+                        .iter()
+                        .find(|s| s.id == grid.id)
+                        .map(|g| g.text.clone())
+                        .unwrap_or(grid.id.to_string())
+                ),
+            )
         })
         .collect()
 }
@@ -45,5 +58,7 @@ fn on_click(_: &Component) {
 }
 
 pub fn create() -> Component {
-    Component::new(Arc::new(render)).with_on_click(Arc::new(on_click)).to_owned()
+    Component::new(Arc::new(render))
+        .with_on_click(Arc::new(on_click))
+        .to_owned()
 }
