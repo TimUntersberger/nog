@@ -1,8 +1,9 @@
 use super::{Component, ComponentText};
-use crate::CONFIG;
+use crate::{display::Display, CONFIG};
 use chrono::Local;
+use std::sync::Arc;
 
-fn render(_: &Component, _: i32) -> Vec<ComponentText> {
+fn render(_: &Component, _: &Display) -> Vec<ComponentText> {
     let config = CONFIG.lock().unwrap();
     let text = Local::now()
         .format(&config.app_bar_date_pattern)
@@ -12,7 +13,7 @@ fn render(_: &Component, _: i32) -> Vec<ComponentText> {
 }
 
 pub fn create() -> Component {
-    Component::new(render)
+    Component::new(Arc::new(render))
 }
 
 

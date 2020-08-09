@@ -5,7 +5,7 @@ const STOP: AtomicBool = AtomicBool::new(false);
 
 pub fn start() -> Result<(), ()> {
     let update_channel = CONFIG.lock().unwrap().get_update_channel().cloned();
-    if let Some(update_channel) = update_channel {
+    if let Some(_update_channel) = update_channel {
         let update_interval = CONFIG.lock().unwrap().update_interval.clone();
 
         thread::spawn(move || {

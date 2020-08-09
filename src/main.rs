@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![feature(type_alias_impl_trait)]
 
 #[macro_use]
 extern crate num_derive;
@@ -98,7 +99,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             .insert(display.hmonitor, 0);
     }
 
+    info!("Initializing bars");
+    
     change_workspace(1).expect("Failed to change workspace to ID@1");
+    bar::init();
 
     info!("Starting hot reloading of config");
     config::hot_reloading::start();
@@ -159,56 +163,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn main(){
-    logging::setup().expect("Failed to setup logging");
-    info!("Initializing displays");
-    display::init();
-
-    let receiver = CHANNEL.receiver.clone();
-
-    for display in DISPLAYS.lock().unwrap().iter() {
-        VISIBLE_WORKSPACES
-            .lock()
-            .unwrap()
-            .insert(display.hmonitor, 0);
-    }
-
-    change_workspace(1).expect("Failed to change workspace to ID@1");
-    bar::init();
-
-    loop {
-        select! {
-            recv(receiver) -> maybe_msg => {
-                let msg = maybe_msg.unwrap();
-                let _ = match msg {
-                    Event::Keybinding(kb) => event_handler::keybinding::handle(kb),
-                    Event::RedrawAppBar => Ok(bar::redraw::redraw()),
-                    Event::WinEvent(ev) => event_handler::winevent::handle(ev),
-                    Event::Exit => {
-                        tray::remove_icon(*tray::WINDOW.lock().unwrap() as HWND);
-                        on_quit();
-                        break;
-                    },
-                    Event::ReloadConfig => {
-                        info!("Reloading Config");
-
-                        update_config(config::rhai::engine::parse_config().expect("Failed to load config"))
-                    }
-                }.map_err(|e| {
-                    error!("{}", e);
-                });
-            }
-        }
-    }
-}
-
-fn _main() {
+fn main() {
     logging::setup().expect("Failed to setup logging");
 
     let panic = std::panic::catch_unwind(|| {
         info!("");
 
-        // #[cfg(not(debug_assertions))]
+        #[cfg(not(debug_assertions))]
         update::start().expect("Failed to start update job");
 
         ctrlc::set_handler(|| {

@@ -1,7 +1,8 @@
 use super::{Component, ComponentText};
-use crate::keybindings::MODE;
+use crate::{display::Display, keybindings::MODE};
+use std::sync::Arc;
 
-fn render(_: &Component, _: i32) -> Vec<ComponentText> {
+fn render(_: &Component, _: &Display) -> Vec<ComponentText> {
     vec![ComponentText::Basic(
         MODE.lock()
             .unwrap()
@@ -12,5 +13,5 @@ fn render(_: &Component, _: i32) -> Vec<ComponentText> {
 }
 
 pub fn create() -> Component {
-    Component::new(render)
+    Component::new(Arc::new(render))
 }

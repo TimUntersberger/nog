@@ -134,7 +134,7 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
     engine.register_custom_syntax(
         &["enable", "$ident$"], // the custom syntax
         0,                      // the number of new variables declared within this custom syntax
-        |engine, ctx, scope, inputs| {
+        |engine, _ctx, scope, inputs| {
             let key = get_variable_name!(inputs, 0);
 
             set(engine, scope, key, true.into())?;
@@ -146,7 +146,7 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
     engine.register_custom_syntax(
         &["disable", "$ident$"], // the custom syntax
         0,                       // the number of new variables declared within this custom syntax
-        |engine, ctx, scope, inputs| {
+        |engine, _ctx, scope, inputs| {
             let key = get_variable_name!(inputs, 0);
 
             set(engine, scope, key, false.into())?;

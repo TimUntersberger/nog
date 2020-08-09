@@ -8,7 +8,7 @@ static DEBUG: &'static str = "debug,wwm::app_bar=debug";
 static DEBUG: &'static str = "debug";
 
 pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
-    let mut path: PathBuf = ["./log"].iter().collect();
+    let path: PathBuf = ["./log"].iter().collect();
 
     #[cfg(not(debug_assertions))]
     {

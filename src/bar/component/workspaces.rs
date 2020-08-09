@@ -1,0 +1,49 @@
+use super::{Component, ComponentText};
+use crate::{util, workspace::is_visible_workspace, CONFIG, GRIDS, WORKSPACE_ID, display::Display};
+use std::sync::Arc;
+
+fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
+    let light_theme = CONFIG.lock().unwrap().light_theme;
+    let app_bar_bg = CONFIG.lock().unwrap().app_bar_bg;
+    let workspace_id = *WORKSPACE_ID.lock().unwrap();
+
+    GRIDS
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|g| {
+            (!g.tiles.is_empty() || is_visible_workspace(g.id)) && g.display.hmonitor == display.hmonitor
+        })
+        .map(|grid| {
+            let (fg, bg) = if light_theme {
+                let fg = 0x00333333;
+
+                let bg = if workspace_id == grid.id {
+                    util::scale_color(app_bar_bg, 0.75) as u32
+                } else {
+                    util::scale_color(app_bar_bg, 0.9) as u32
+                };
+
+                (fg, bg)
+            } else {
+                let fg = 0x00ffffff;
+                let bg = if workspace_id == grid.id {
+                    util::scale_color(app_bar_bg, 2.0) as u32
+                } else {
+                    util::scale_color(app_bar_bg, 1.5) as u32
+                };
+
+                (fg, bg)
+            };
+            ComponentText::Colored(fg, bg, format!(" {} ", grid.id))
+        })
+        .collect()
+}
+
+fn on_click(_: &Component) {
+    println!("ON CLICK");
+}
+
+pub fn create() -> Component {
+    Component::new(Arc::new(render)).with_on_click(Arc::new(on_click)).to_owned()
+}

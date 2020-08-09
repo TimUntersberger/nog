@@ -1,4 +1,4 @@
-use super::{get_windows, WINDOWS};
+use super::{get_windows};
 use winapi::{
     shared::windef::HWND,
     um::winuser::{SendMessageA, WM_PAINT},

@@ -39,7 +39,7 @@ pub struct Config {
     pub update_interval: Duration, //minutes
     /// contains the metadata for each mode (like an icon)
     /// HashMap<mode, (Option<char>)>
-    pub mode_meta: HashMap<String, (Option<char>)>,
+    pub mode_meta: HashMap<String, Option<char>>,
 }
 
 impl Default for Config {

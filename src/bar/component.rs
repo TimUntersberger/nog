@@ -1,8 +1,13 @@
+use crate::display::Display;
+use std::sync::Arc;
+
 pub mod date;
 pub mod mode;
 pub mod time;
 pub mod workspaces;
+pub mod padding;
 
+#[derive(Debug)]
 pub enum ComponentText {
     Basic(String),
     /// (fg, bg, text)
@@ -32,8 +37,8 @@ impl ComponentText {
     }
 }
 
-type RenderFn = fn(&Component, monitor: i32) -> Vec<ComponentText>;
-type OnClickFn = fn(&Component) -> ();
+pub type RenderFn = Arc<dyn Fn(&Component, &Display) -> Vec<ComponentText> + Send + Sync>;
+pub type OnClickFn = Arc<dyn Fn(&Component) -> () + Send + Sync>;
 
 #[derive(Clone)]
 pub struct Component {
@@ -52,15 +57,15 @@ impl Component {
     }
 
     pub fn on_click(&self) {
-        if let Some(fun) = self.on_click_fn {
+        if let Some(fun) = self.on_click_fn.clone() {
             fun(self);
         }
     }
 
-    pub fn render(&self, monitor: i32) -> Vec<ComponentText> {
-        let f = self.render_fn;
+    pub fn render(&self, display: &Display) -> Vec<ComponentText> {
+        let f = self.render_fn.clone();
 
-        f(self, monitor)
+        f(self, display)
     }
 
     pub fn with_on_click(&mut self, f: OnClickFn) -> &mut Self {

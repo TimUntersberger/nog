@@ -1,24 +1,23 @@
-use crate::workspace::{change_workspace, is_visible_workspace};
 use crate::CONFIG;
-use crate::{display::get_display_by_hmonitor, util, GRIDS};
+use crate::{display::get_display_by_hmonitor, util};
 use alignment::Alignment;
-use component::{date, mode, time, workspaces, Component, ComponentText};
+use component::{date, mode, time, workspaces, Component, ComponentText, padding};
 use font::load_font;
 use lazy_static::lazy_static;
-use log::{debug, error, info};
+use log::{error, info};
 use std::collections::HashMap;
-use std::{cmp, ffi::CString, fmt::Debug, sync::Mutex};
+use std::{cmp, ffi::CString, sync::Mutex};
 use winapi::shared::minwindef::LPARAM;
 use winapi::shared::minwindef::LRESULT;
 use winapi::shared::minwindef::UINT;
 use winapi::shared::minwindef::WPARAM;
 use winapi::shared::windef::HDC;
-use winapi::shared::windef::HMONITOR;
+
 use winapi::shared::windef::HWND;
 use winapi::shared::windef::POINT;
 use winapi::shared::windef::RECT;
 use winapi::shared::windef::SIZE;
-use winapi::shared::windowsx::GET_X_LPARAM;
+
 use winapi::um::wingdi::CreateSolidBrush;
 use winapi::um::wingdi::DeleteObject;
 use winapi::um::wingdi::GetTextExtentPoint32A;
@@ -27,7 +26,7 @@ use winapi::um::wingdi::SetTextColor;
 use winapi::um::winuser::BeginPaint;
 use winapi::um::winuser::DefWindowProcA;
 use winapi::um::winuser::EndPaint;
-use winapi::um::winuser::GetClientRect;
+
 use winapi::um::winuser::LoadCursorA;
 use winapi::um::winuser::SetCursor;
 use winapi::um::winuser::IDC_ARROW;
@@ -38,8 +37,8 @@ use winapi::um::winuser::WM_DEVICECHANGE;
 use winapi::um::winuser::WM_LBUTTONDOWN;
 use winapi::um::winuser::WM_PAINT;
 use winapi::um::winuser::{
-    DrawTextA, FillRect, GetCursorPos, GetDC, ReleaseDC, DT_CENTER, DT_END_ELLIPSIS, DT_SINGLELINE,
-    DT_VCENTER, IDC_HAND, WM_SETCURSOR,
+    DrawTextA, FillRect, GetCursorPos, GetDC, ReleaseDC, DT_SINGLELINE, DT_VCENTER, IDC_HAND,
+    WM_SETCURSOR,
 };
 
 pub mod alignment;
@@ -63,6 +62,7 @@ pub struct Item {
     pub left: i32,
     pub right: i32,
     pub alignment: Alignment,
+    /// left, right, width
     pub component: Component,
 }
 
@@ -77,24 +77,14 @@ impl Item {
     }
 }
 
-unsafe fn calculate_width(hdc: HDC, str: &CString, len: i32, item: &Item) -> i32 {
-    cmp::max(
-        {
-            let mut size = SIZE::default();
+unsafe fn calculate_width(hdc: HDC, str: &CString, len: i32) -> i32 {
+    let mut size = SIZE::default();
 
-            util::winapi_nullable_to_result(GetTextExtentPoint32A(
-                hdc,
-                str.as_ptr(),
-                len,
-                &mut size,
-            ))
-            .map_err(|e| error!("{}", e))
-            .unwrap();
+    util::winapi_nullable_to_result(GetTextExtentPoint32A(hdc, str.as_ptr(), len, &mut size))
+        .map_err(|e| error!("{}", e))
+        .unwrap();
 
-            size.cx
-        },
-        item.right - item.left,
-    )
+    size.cx
 }
 
 unsafe fn draw_component_text(hdc: HDC, rect: &mut RECT, component_text: &ComponentText) {
@@ -144,7 +134,12 @@ fn calculate_rect(item: &Item, left: &mut i32, right: &mut i32, width: i32, heig
 
             *left = rect.right;
         }
-        Alignment::Center => {}
+        Alignment::Center => {
+            rect.left = *left;
+            rect.right = rect.left + width;
+
+            *left = rect.right;
+        }
         Alignment::Right => {
             rect.right = *right;
             rect.left = rect.right - width;
@@ -156,6 +151,20 @@ fn calculate_rect(item: &Item, left: &mut i32, right: &mut i32, width: i32, heig
     rect.bottom = height;
 
     rect
+}
+
+unsafe fn clear_section(hdc: HDC, height: i32, left: i32, right: i32) {
+    let brush = CreateSolidBrush(CONFIG.lock().unwrap().app_bar_bg as u32);
+    let mut rect = RECT {
+        left,
+        right,
+        top: 0,
+        bottom: height
+    };
+
+    FillRect(hdc, &mut rect, brush);
+
+    DeleteObject(brush as *mut std::ffi::c_void);
 }
 
 unsafe extern "system" fn window_cb(
@@ -198,6 +207,10 @@ unsafe extern "system" fn window_cb(
         load_font();
     } else if msg == WM_PAINT {
         let mut items = ITEMS.lock().unwrap();
+        // left, center, right
+        let mut prev_widths = (0, 0, 0);
+        // left, center, right
+        let mut widths = (0, 0, 0);
         let mut paint = PAINTSTRUCT::default();
 
         let hmonitor = get_monitor_by_hwnd(hwnd as i32);
@@ -206,16 +219,30 @@ unsafe extern "system" fn window_cb(
 
         BeginPaint(hwnd, &mut paint);
 
-        let mut left = display.left;
-        let mut right = display.right;
+        let hdc = util::winapi_ptr_to_result(GetDC(hwnd))
+            .map_err(|e| error!("{}", e))
+            .unwrap();
 
-        for item in items.iter_mut() {
-            let hdc = util::winapi_ptr_to_result(GetDC(hwnd))
-                .map_err(|e| error!("{}", e))
-                .unwrap();
+        font::set_font(hdc);
 
-            font::set_font(hdc);
-            let component_texts = item.component.render(hmonitor);
+        // indices
+        let mut left = 0;
+        let mut right = display.right - display.left;
+
+        let mut center_item_indices: Vec<usize> = Vec::new();
+
+        for (i, item) in items.iter_mut().enumerate() {
+            match item.alignment {
+                Alignment::Left => prev_widths.0 += (item.right - item.left).abs(),
+                Alignment::Center => prev_widths.1 += (item.right - item.left).abs(),
+                Alignment::Right => prev_widths.2 += (item.right - item.left).abs()
+            };
+
+            if item.alignment == Alignment::Center {
+                center_item_indices.push(i);
+            }
+
+            let component_texts = item.component.render(&display);
             let mut component_texts_iter = component_texts.iter();
 
             if let Some(component_text) = component_texts_iter.next() {
@@ -223,7 +250,66 @@ unsafe extern "system" fn window_cb(
                 let text_len = text.len() as i32;
                 let c_text = CString::new(text).unwrap();
 
-                let width = calculate_width(hdc, &c_text, text_len, item);
+                let width = calculate_width(hdc, &c_text, text_len);
+
+                match item.alignment {
+                    Alignment::Left => widths.0 += width,
+                    Alignment::Center => widths.1 += width,
+                    Alignment::Right => widths.2 += width
+                };
+
+                if item.alignment != Alignment::Center {
+                    let mut rect = calculate_rect(item, &mut left, &mut right, width, height);
+
+                    item.left = rect.left;
+                    item.right = rect.right;
+
+                    draw_component_text(hdc, &mut rect, &component_text);
+                }
+            }
+
+            for component_text in component_texts_iter {
+                let text = component_text.get_text();
+                let text_len = text.len() as i32;
+                let c_text = CString::new(text).unwrap();
+
+                let width = calculate_width(hdc, &c_text, text_len);
+
+                match item.alignment {
+                    Alignment::Left => widths.0 += width,
+                    Alignment::Center => widths.1 += width,
+                    Alignment::Right => widths.2 += width
+                };
+
+                if item.alignment != Alignment::Center {
+                    let mut rect = calculate_rect(item, &mut left, &mut right, width, height);
+
+                    match item.alignment {
+                        Alignment::Left => item.right = rect.right,
+                        Alignment::Right => item.left = rect.left,
+                        Alignment::Center => {}
+                    };
+
+                    draw_component_text(hdc, &mut rect, &component_text);
+                }
+            }
+
+        }
+
+        left = display.width() / 2 - widths.1 / 2;
+
+        //draw center items
+        for idx in center_item_indices {
+            let mut item = items.get_mut(idx).expect("Failed to get item");
+            let component_texts = item.component.render(&display);
+            let mut component_texts_iter = component_texts.iter();
+
+            if let Some(component_text) = component_texts_iter.next() {
+                let text = component_text.get_text();
+                let text_len = text.len() as i32;
+                let c_text = CString::new(text).unwrap();
+
+                let width = calculate_width(hdc, &c_text, text_len);
                 let mut rect = calculate_rect(item, &mut left, &mut right, width, height);
 
                 item.left = rect.left;
@@ -237,21 +323,32 @@ unsafe extern "system" fn window_cb(
                 let text_len = text.len() as i32;
                 let c_text = CString::new(text).unwrap();
 
-                let width = calculate_width(hdc, &c_text, text_len, item);
+                let width = calculate_width(hdc, &c_text, text_len);
                 let mut rect = calculate_rect(item, &mut left, &mut right, width, height);
-
-                match item.alignment {
-                    Alignment::Left => item.right = rect.right,
-                    Alignment::Right => item.left = rect.left,
-                    Alignment::Center => {}
-                };
 
                 draw_component_text(hdc, &mut rect, &component_text);
             }
 
-            ReleaseDC(hwnd, hdc);
         }
 
+        //cleanup previous render if there is any dangling rendered text
+        if prev_widths.0 > widths.0 {
+            clear_section(hdc, height, widths.0, prev_widths.0);
+        }
+
+        if prev_widths.1 > widths.1 {
+            let prev_center_left = display.width() / 2 - prev_widths.1 / 2;
+            let prev_center_right = prev_center_left + prev_widths.1;
+            let delta = (prev_widths.1 - widths.1) / 2;
+            clear_section(hdc, height, prev_center_left, prev_center_left + delta);
+            clear_section(hdc, height, prev_center_right - delta, prev_center_right);
+        }
+
+        if prev_widths.2 > widths.2 {
+            clear_section(hdc, height, display.width() - prev_widths.2, display.width() - widths.2);
+        }
+
+        ReleaseDC(hwnd, hdc);
         EndPaint(hwnd, &paint);
     }
 
@@ -261,12 +358,11 @@ unsafe extern "system" fn window_cb(
 pub fn init() {
     let mut items = ITEMS.lock().unwrap();
 
-    items.push(Item::new(Alignment::Left, time::create()));
-    items.push(Item::new(Alignment::Left, mode::create()));
+    items.push(Item::new(Alignment::Left, workspaces::create()));
+    items.push(Item::new(Alignment::Center, time::create()));
     items.push(Item::new(Alignment::Right, date::create()));
-    items.push(Item::new(Alignment::Right, workspaces::create()));
-
-    create::create();
+    items.push(Item::new(Alignment::Right, padding::create(5)));
+    items.push(Item::new(Alignment::Right, mode::create()));
 }
 
 pub fn get_windows() -> Vec<i32> {
