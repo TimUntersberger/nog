@@ -20,6 +20,7 @@ use winapi::shared::windef::SIZE;
 
 use winapi::um::wingdi::CreateSolidBrush;
 use winapi::um::wingdi::DeleteObject;
+use winapi::um::wingdi::GetTextExtentPoint32W;
 use winapi::um::wingdi::GetTextExtentPoint32A;
 use winapi::um::wingdi::SetBkColor;
 use winapi::um::wingdi::SetTextColor;
@@ -38,7 +39,7 @@ use winapi::um::winuser::WM_LBUTTONDOWN;
 use winapi::um::winuser::WM_PAINT;
 use winapi::um::winuser::{
     FillRect, GetCursorPos, GetDC, ReleaseDC, DT_SINGLELINE, DT_VCENTER, IDC_HAND,
-    WM_SETCURSOR, DrawTextW,
+    WM_SETCURSOR, DrawTextW, DT_CALCRECT,
 };
 
 pub mod alignment;
@@ -77,19 +78,27 @@ impl Item {
     }
 }
 
-unsafe fn calculate_width(hdc: HDC, str: &CString, len: i32) -> i32 {
-    let mut size = SIZE::default();
+unsafe fn calculate_width(hdc: HDC, str: &Vec<u16>) -> i32 {
+    let mut rect = RECT::default();
 
-    util::winapi_nullable_to_result(GetTextExtentPoint32A(hdc, str.as_ptr(), len, &mut size))
-        .map_err(|e| error!("{}", e))
-        .unwrap();
+    DrawTextW(
+        hdc,
+        str.as_ptr(),
+        -1,
+        &mut rect,
+        DT_VCENTER | DT_SINGLELINE | DT_CALCRECT,
+    );
 
-    size.cx
+    (rect.right - rect.left).abs()
 }
 
 unsafe fn draw_component_text(hdc: HDC, rect: &mut RECT, component_text: &ComponentText) {
     let text = component_text.get_text();
-    let text_len = text.len();
+
+    if text.is_empty() {
+        return;
+    }
+
     let c_text = util::to_widestring(&text);
 
     let fg = component_text
@@ -104,23 +113,15 @@ unsafe fn draw_component_text(hdc: HDC, rect: &mut RECT, component_text: &Compon
         .get_bg()
         .unwrap_or(CONFIG.lock().unwrap().app_bar_bg as u32);
 
-    if text_len == 0 {
-        let brush = CreateSolidBrush(bg);
-
-        FillRect(hdc, rect, brush);
-
-        DeleteObject(brush as *mut std::ffi::c_void);
-    } else {
-        SetTextColor(hdc, fg);
-        SetBkColor(hdc, bg);
-        DrawTextW(
-            hdc,
-            c_text.as_ptr(),
-            text_len as i32,
-            rect,
-            DT_VCENTER | DT_SINGLELINE,
-        );
-    }
+    SetTextColor(hdc, fg);
+    SetBkColor(hdc, bg);
+    DrawTextW(
+        hdc,
+        c_text.as_ptr(),
+        -1,
+        rect,
+        DT_VCENTER | DT_SINGLELINE,
+    );
 }
 
 fn calculate_rect(item: &Item, left: &mut i32, right: &mut i32, width: i32, height: i32) -> RECT {
@@ -246,10 +247,9 @@ unsafe extern "system" fn window_cb(
 
             if let Some(component_text) = component_texts_iter.next() {
                 let text = component_text.get_text();
-                let text_len = text.len() as i32;
-                let c_text = CString::new(text).unwrap();
+                let c_text = util::to_widestring(&text);
 
-                let width = calculate_width(hdc, &c_text, text_len);
+                let width = calculate_width(hdc, &c_text);
 
                 match item.alignment {
                     Alignment::Left => widths.0 += width,
@@ -269,10 +269,9 @@ unsafe extern "system" fn window_cb(
 
             for component_text in component_texts_iter {
                 let text = component_text.get_text();
-                let text_len = text.len() as i32;
-                let c_text = CString::new(text).unwrap();
+                let c_text = util::to_widestring(&text);
 
-                let width = calculate_width(hdc, &c_text, text_len);
+                let width = calculate_width(hdc, &c_text);
 
                 match item.alignment {
                     Alignment::Left => widths.0 += width,
@@ -295,6 +294,9 @@ unsafe extern "system" fn window_cb(
 
         }
 
+        println!("{} {} {}", prev_widths.0, prev_widths.1, prev_widths.2);
+        println!("{} {} {}", widths.0, widths.1, widths.2);
+
         left = display.width() / 2 - widths.1 / 2;
 
         //draw center items
@@ -305,10 +307,9 @@ unsafe extern "system" fn window_cb(
 
             if let Some(component_text) = component_texts_iter.next() {
                 let text = component_text.get_text();
-                let text_len = text.len() as i32;
-                let c_text = CString::new(text).unwrap();
+                let c_text = util::to_widestring(&text);
 
-                let width = calculate_width(hdc, &c_text, text_len);
+                let width = calculate_width(hdc, &c_text);
                 let mut rect = calculate_rect(item, &mut left, &mut right, width, height);
 
                 item.left = rect.left;
@@ -319,10 +320,9 @@ unsafe extern "system" fn window_cb(
 
             for component_text in component_texts_iter {
                 let text = component_text.get_text();
-                let text_len = text.len() as i32;
-                let c_text = CString::new(text).unwrap();
+                let c_text = util::to_widestring(&text);
 
-                let width = calculate_width(hdc, &c_text, text_len);
+                let width = calculate_width(hdc, &c_text);
                 let mut rect = calculate_rect(item, &mut left, &mut right, width, height);
 
                 draw_component_text(hdc, &mut rect, &component_text);
@@ -358,10 +358,10 @@ pub fn init() {
     let mut items = ITEMS.lock().unwrap();
 
     items.push(Item::new(Alignment::Left, workspaces::create()));
-    items.push(Item::new(Alignment::Center, time::create()));
-    items.push(Item::new(Alignment::Right, date::create()));
-    items.push(Item::new(Alignment::Right, padding::create(5)));
-    items.push(Item::new(Alignment::Right, mode::create()));
+    // items.push(Item::new(Alignment::Center, time::create()));
+    // items.push(Item::new(Alignment::Right, date::create()));
+    // items.push(Item::new(Alignment::Right, padding::create(5)));
+    // items.push(Item::new(Alignment::Right, mode::create()));
 }
 
 pub fn get_windows() -> Vec<i32> {

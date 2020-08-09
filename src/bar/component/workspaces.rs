@@ -40,14 +40,11 @@ fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
             ComponentText::Colored(
                 fg,
                 bg,
-                format!(
-                    " {} ",
-                    workspace_settings
-                        .iter()
-                        .find(|s| s.id == grid.id)
-                        .map(|g| g.text.clone())
-                        .unwrap_or(grid.id.to_string())
-                ),
+                workspace_settings
+                    .iter()
+                    .find(|s| s.id == grid.id)
+                    .map(|g| g.text.clone())
+                    .unwrap_or(format!(" {} ", grid.id.to_string())),
             )
         })
         .collect()
