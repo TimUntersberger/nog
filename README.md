@@ -94,13 +94,16 @@ The `remove_task_bar` setting hides the taskbar on launch and shows it again whe
 Example
 ```
 workspace 4 #{
-  monitor: 1
+  monitor: 1,
+  text: "test"
 };
 ```
 
 The first thing you have to specifiy is the id of the workspace you want to change. Afterwards every setting is optional.
 
 The `monitor` setting defines the default monitor of the workspace.
+
+The `text` setting defines text that will be displayed when the workspace is visible in the bar (This can be a unicode character like 😋).
 
 ### Rules
 
