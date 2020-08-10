@@ -1,6 +1,4 @@
-use crate::{
-    event::Event, message_loop, util, CHANNEL, CONFIG, WORK_MODE,
-};
+use crate::{event::Event, message_loop, util, CHANNEL, CONFIG, WORK_MODE};
 use key::Key;
 use keybinding::Keybinding;
 use keybinding_type::KeybindingType;

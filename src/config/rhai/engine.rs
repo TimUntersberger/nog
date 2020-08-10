@@ -1,6 +1,6 @@
-use super::{functions, syntax, modules};
+use super::{functions, modules, syntax};
 use crate::{
-    config::{Config, Rule, WorkspaceSetting, update_channel::UpdateChannel},
+    config::{update_channel::UpdateChannel, Config, Rule, WorkspaceSetting},
     keybindings::keybinding::Keybinding,
 };
 use log::{debug, error};
@@ -98,7 +98,7 @@ pub fn parse_config() -> Result<Config, String> {
         set!(i32, config, app_bar_font_size, key, value);
         set!(i32, config, app_bar_bg, key, value);
         if key == "update_interval" {
-            if value.type_name().to_string() != "i32"  {
+            if value.type_name().to_string() != "i32" {
                 return Err(format!(
                     "{} has to be of type {} not {}",
                     "update_interval",
@@ -111,7 +111,7 @@ pub fn parse_config() -> Result<Config, String> {
             }
         }
         if key == "default_update_channel" {
-            if value.type_name().to_string() != "string"  {
+            if value.type_name().to_string() != "string" {
                 return Err(format!(
                     "{} has to be of type {} not {}",
                     "default_update_channel",

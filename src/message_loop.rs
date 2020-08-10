@@ -1,7 +1,7 @@
+use std::{thread, time::Duration};
 use winapi::um::winuser::{
     DispatchMessageW, PeekMessageW, TranslateMessage, MSG, PM_REMOVE, WM_QUIT,
 };
-use std::{time::Duration, thread};
 
 pub fn start(cb: impl Fn(Option<MSG>) -> bool) {
     let mut msg: MSG = MSG::default();

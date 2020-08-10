@@ -44,8 +44,11 @@ mod workspace;
 
 lazy_static! {
     pub static ref WORK_MODE: Mutex<bool> = Mutex::new(CONFIG.lock().unwrap().work_mode);
-    pub static ref CONFIG: Mutex<Config> =
-        Mutex::new(config::rhai::engine::parse_config().map_err(|e| error!("{}", e)).expect("Failed to load config"));
+    pub static ref CONFIG: Mutex<Config> = Mutex::new(
+        config::rhai::engine::parse_config()
+            .map_err(|e| error!("{}", e))
+            .expect("Failed to load config")
+    );
     pub static ref DISPLAYS: Mutex<Vec<Display>> = Mutex::new(Vec::new());
     pub static ref CHANNEL: EventChannel = EventChannel::default();
     pub static ref GRIDS: Mutex<Vec<TileGrid>> =
@@ -100,7 +103,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     info!("Initializing bars");
-    
+
     change_workspace(1).expect("Failed to change workspace to ID@1");
 
     info!("Starting hot reloading of config");
@@ -149,7 +152,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     },
                     Event::ReloadConfig => {
                         info!("Reloading Config");
-                        
+
                         bar::clear();
 
                         bar::empty_components();

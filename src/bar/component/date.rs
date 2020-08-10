@@ -15,5 +15,3 @@ fn render(_: &Component, _: &Display) -> Vec<ComponentText> {
 pub fn create() -> Component {
     Component::new("Date", Arc::new(render))
 }
-
-

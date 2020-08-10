@@ -13,5 +13,5 @@ fn render(_: &Component, _: &Display) -> Vec<ComponentText> {
 }
 
 pub fn create() -> Component {
-    Component::new("ActiveMode",Arc::new(render))
+    Component::new("ActiveMode", Arc::new(render))
 }

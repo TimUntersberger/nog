@@ -1,7 +1,4 @@
-use super::{
-    window_cb,
-    WINDOWS, redraw::redraw,
-};
+use super::{redraw::redraw, window_cb, WINDOWS};
 use crate::{event::Event, message_loop, task_bar::HEIGHT, util, CHANNEL, CONFIG, DISPLAYS};
 use log::{debug, error, info};
 use winapi::shared::windef::HBRUSH;

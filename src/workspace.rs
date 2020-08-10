@@ -1,6 +1,6 @@
 use crate::{
-    display::get_display_by_idx, event::Event, util, CHANNEL, CONFIG,
-    GRIDS, VISIBLE_WORKSPACES, WORKSPACE_ID,
+    display::get_display_by_idx, event::Event, util, CHANNEL, CONFIG, GRIDS, VISIBLE_WORKSPACES,
+    WORKSPACE_ID,
 };
 use log::debug;
 

@@ -1,6 +1,6 @@
 use crate::{
-    bar, config::Config, display::get_display_by_hmonitor, keybindings, startup, task_bar,
-    CONFIG, DISPLAYS, GRIDS, WORKSPACE_ID, WORK_MODE,
+    bar, config::Config, display::get_display_by_hmonitor, keybindings, startup, task_bar, CONFIG,
+    DISPLAYS, GRIDS, WORKSPACE_ID, WORK_MODE,
 };
 
 pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error>> {

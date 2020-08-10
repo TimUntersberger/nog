@@ -1,11 +1,11 @@
 use crate::display::Display;
 use std::{fmt::Debug, sync::Arc};
 
-pub mod date;
 pub mod active_mode;
+pub mod date;
+pub mod padding;
 pub mod time;
 pub mod workspaces;
-pub mod padding;
 
 #[derive(Debug)]
 pub enum ComponentText {
@@ -80,6 +80,9 @@ impl Component {
 
 impl Debug for Component {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!("Component(name: {}, clickable: {})", self.name, self.is_clickable))
+        f.write_str(&format!(
+            "Component(name: {}, clickable: {})",
+            self.name, self.is_clickable
+        ))
     }
 }

@@ -1,4 +1,4 @@
-use super::{redraw::redraw, get_windows};
+use super::{get_windows, redraw::redraw};
 use winapi::{
     shared::windef::HWND,
     um::winuser::{ShowWindow, SW_HIDE, SW_SHOW},

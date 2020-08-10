@@ -4,7 +4,9 @@ use std::sync::Arc;
 
 fn render(amount: i32) -> RenderFn {
     Arc::new(move |_: &Component, _: &Display| {
-        vec![ComponentText::Basic(" ".to_string().repeat(amount as usize))]
+        vec![ComponentText::Basic(
+            " ".to_string().repeat(amount as usize),
+        )]
     })
 }
 

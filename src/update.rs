@@ -1,5 +1,8 @@
 use crate::CONFIG;
-use std::{sync::atomic::{Ordering, AtomicBool}, thread};
+use std::{
+    sync::atomic::{AtomicBool, Ordering},
+    thread,
+};
 
 const STOP: AtomicBool = AtomicBool::new(false);
 

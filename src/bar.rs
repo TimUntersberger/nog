@@ -5,11 +5,9 @@ use font::load_font;
 use lazy_static::lazy_static;
 use log::{error, info};
 use std::collections::{HashMap, VecDeque};
-use std::{
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Mutex,
-    },
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Mutex,
 };
 use winapi::shared::minwindef::LPARAM;
 use winapi::shared::minwindef::LRESULT;
@@ -21,10 +19,8 @@ use winapi::shared::windef::HWND;
 use winapi::shared::windef::POINT;
 use winapi::shared::windef::RECT;
 
-
 use winapi::um::wingdi::CreateSolidBrush;
 use winapi::um::wingdi::DeleteObject;
-
 
 use winapi::um::wingdi::SetBkColor;
 use winapi::um::wingdi::SetTextColor;

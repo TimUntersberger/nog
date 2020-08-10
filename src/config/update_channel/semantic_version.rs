@@ -3,7 +3,7 @@ use std::str::FromStr;
 pub struct SemanticVersion {
     pub major: i32,
     pub minor: i32,
-    pub patch: i32
+    pub patch: i32,
 }
 
 impl From<String> for SemanticVersion {
@@ -16,7 +16,7 @@ impl From<String> for SemanticVersion {
         Self {
             major,
             minor,
-            patch
+            patch,
         }
     }
 }

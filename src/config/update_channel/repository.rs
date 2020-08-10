@@ -1,14 +1,14 @@
 #[derive(Clone, Debug)]
 pub struct Repository {
     origin: String,
-    name: String
+    name: String,
 }
 
 impl Default for Repository {
     fn default() -> Self {
         Self {
             origin: "TimUntersberger".into(),
-            name: "wwm".into()
+            name: "wwm".into(),
         }
     }
 }
@@ -19,9 +19,6 @@ impl From<String> for Repository {
         let origin = tokens.next().unwrap_or_default().into();
         let name = tokens.next().unwrap_or_default().into();
 
-        Self {
-            origin,
-            name
-        }
+        Self { origin, name }
     }
 }

@@ -1,5 +1,10 @@
 use super::{Component, ComponentText};
-use crate::{display::Display, util, workspace::{change_workspace, is_visible_workspace}, CONFIG, GRIDS, WORKSPACE_ID};
+use crate::{
+    display::Display,
+    util,
+    workspace::{change_workspace, is_visible_workspace},
+    CONFIG, GRIDS, WORKSPACE_ID,
+};
 use std::sync::Arc;
 
 fn render(_: &Component, display: &Display) -> Vec<ComponentText> {

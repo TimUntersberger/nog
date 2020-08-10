@@ -1,5 +1,5 @@
 use crate::{
-    config::{WorkspaceSetting, Rule, update_channel::UpdateChannel},
+    config::{update_channel::UpdateChannel, Rule, WorkspaceSetting},
     direction::Direction,
     keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
     split_direction::SplitDirection,
