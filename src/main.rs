@@ -1,5 +1,4 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-#![feature(type_alias_impl_trait)]
 
 #[macro_use]
 extern crate num_derive;
