@@ -9,5 +9,5 @@ fn render(amount: i32) -> RenderFn {
 }
 
 pub fn create(amount: i32) -> Component {
-    Component::new(render(amount))
+    Component::new("Padding", render(amount))
 }

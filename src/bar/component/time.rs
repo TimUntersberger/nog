@@ -13,5 +13,5 @@ fn render(_: &Component, _: &Display) -> Vec<ComponentText> {
 }
 
 pub fn create() -> Component {
-    Component::new(Arc::new(render))
+    Component::new("Time", Arc::new(render))
 }

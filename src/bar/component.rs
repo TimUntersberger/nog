@@ -1,8 +1,8 @@
 use crate::display::Display;
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 pub mod date;
-pub mod mode;
+pub mod active_mode;
 pub mod time;
 pub mod workspaces;
 pub mod padding;
@@ -38,27 +38,30 @@ impl ComponentText {
 }
 
 pub type RenderFn = Arc<dyn Fn(&Component, &Display) -> Vec<ComponentText> + Send + Sync>;
-pub type OnClickFn = Arc<dyn Fn(&Component) -> () + Send + Sync>;
+/// Receives the Component, the display and the idx of ComponentText which got clicked
+pub type OnClickFn = Arc<dyn Fn(&Component, &Display, usize) -> () + Send + Sync>;
 
 #[derive(Clone)]
 pub struct Component {
+    pub name: String,
     pub is_clickable: bool,
     render_fn: RenderFn,
     on_click_fn: Option<OnClickFn>,
 }
 
 impl Component {
-    pub fn new(render_fn: RenderFn) -> Self {
+    pub fn new(name: &str, render_fn: RenderFn) -> Self {
         Self {
+            name: name.into(),
             is_clickable: false,
             render_fn,
             on_click_fn: None,
         }
     }
 
-    pub fn on_click(&self) {
+    pub fn on_click(&self, display: &Display, idx: usize) {
         if let Some(fun) = self.on_click_fn.clone() {
-            fun(self);
+            fun(self, display, idx);
         }
     }
 
@@ -72,5 +75,11 @@ impl Component {
         self.is_clickable = true;
         self.on_click_fn = Some(f);
         self
+    }
+}
+
+impl Debug for Component {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!("Component(name: {}, clickable: {})", self.name, self.is_clickable))
     }
 }

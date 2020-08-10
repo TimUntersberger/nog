@@ -1,5 +1,5 @@
 use super::{Component, ComponentText};
-use crate::{display::Display, util, workspace::is_visible_workspace, CONFIG, GRIDS, WORKSPACE_ID};
+use crate::{display::Display, util, workspace::{change_workspace, is_visible_workspace}, CONFIG, GRIDS, WORKSPACE_ID};
 use std::sync::Arc;
 
 fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
@@ -50,12 +50,26 @@ fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
         .collect()
 }
 
-fn on_click(_: &Component) {
-    println!("ON CLICK");
+fn on_click(_: &Component, display: &Display, idx: usize) {
+    let maybe_id = GRIDS
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|g| {
+            (!g.tiles.is_empty() || is_visible_workspace(g.id))
+                && g.display.hmonitor == display.hmonitor
+        })
+        .map(|g| g.id)
+        .skip(idx)
+        .next();
+
+    if let Some(id) = maybe_id {
+        let _ = change_workspace(id);
+    }
 }
 
 pub fn create() -> Component {
-    Component::new(Arc::new(render))
+    Component::new("Workspaces", Arc::new(render))
         .with_on_click(Arc::new(on_click))
         .to_owned()
 }

@@ -1,10 +1,11 @@
 use crate::{
-    config::{WorkspaceSetting, Rule, update_channel::UpdateChannel},
-    keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType}, bar::{component::Component, alignment::Alignment, self},
+    bar::{self, alignment::Alignment, component::Component},
+    config::{update_channel::UpdateChannel, Rule, WorkspaceSetting},
+    keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
 };
 use log::error;
 use regex::Regex;
-use rhai::{Dynamic, Engine, ParseError, Scope, Map, Array};
+use rhai::{Array, Dynamic, Engine, Map, ParseError, Scope};
 use std::{path::PathBuf, str::FromStr};
 
 #[macro_use]
@@ -116,22 +117,23 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
 
                     for (key, val) in map {
                         let key = key.to_string();
-                        let components = val.cast::<Vec<Component>>();
+                        let components = val.cast::<Array>();
+
                         let alignment = match key.as_str() {
                             "left" => Some(Alignment::Left),
                             "center" => Some(Alignment::Center),
                             "right" => Some(Alignment::Right),
-                            _ => None
+                            _ => None,
                         };
 
                         if let Some(alignment) = alignment {
-                            for component in components {
+                            for v in components {
+                                let component = v.cast::<Component>();
                                 bar::add_component(alignment, component);
                             }
                         }
                     }
-                }
-                else {
+                } else {
                     set(engine, scope, format!("app_bar_{}", key), val.clone())?;
                 }
             }
@@ -203,7 +205,7 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
 
     engine.register_custom_syntax(
         &["update_channel", "$expr$", "$expr$"], // the custom syntax
-        0,                     // the number of new variables declared within this custom syntax
+        0, // the number of new variables declared within this custom syntax
         |engine, ctx, scope, inputs| {
             let name = get_string!(engine, ctx, scope, inputs, 0);
             let settings = get_map!(engine, ctx, scope, inputs, 1);
@@ -225,7 +227,7 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
 
             Ok(().into())
         },
-    )?;    
+    )?;
 
     engine.register_custom_syntax(
         &["ignore", "$expr$"], // the custom syntax
@@ -241,11 +243,11 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
 
             Ok(().into())
         },
-    )?;    
-    
+    )?;
+
     engine.register_custom_syntax(
         &["workspace", "$expr$", "$expr$"], // the custom syntax
-        0,                     // the number of new variables declared within this custom syntax
+        0, // the number of new variables declared within this custom syntax
         |engine, ctx, scope, inputs| {
             let id = get_int!(engine, ctx, scope, inputs, 0);
             let settings = get_map!(engine, ctx, scope, inputs, 1);
