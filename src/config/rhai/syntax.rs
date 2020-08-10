@@ -1,10 +1,10 @@
 use crate::{
     config::{WorkspaceSetting, Rule, update_channel::UpdateChannel},
-    keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
+    keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType}, bar::{component::Component, alignment::Alignment, self},
 };
 use log::error;
 use regex::Regex;
-use rhai::{Dynamic, Engine, ParseError, Scope};
+use rhai::{Dynamic, Engine, ParseError, Scope, Map, Array};
 use std::{path::PathBuf, str::FromStr};
 
 #[macro_use]
@@ -110,8 +110,30 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
         |engine, ctx, scope, inputs| {
             let settings = get_map!(engine, ctx, scope, inputs, 0);
 
-            for (key, val) in settings.iter() {
-                set(engine, scope, format!("app_bar_{}", key), val.clone())?;
+            for (key, val) in settings {
+                if key.to_string() == "components" {
+                    let map = val.cast::<Map>();
+
+                    for (key, val) in map {
+                        let key = key.to_string();
+                        let components = val.cast::<Vec<Component>>();
+                        let alignment = match key.as_str() {
+                            "left" => Some(Alignment::Left),
+                            "center" => Some(Alignment::Center),
+                            "right" => Some(Alignment::Right),
+                            _ => None
+                        };
+
+                        if let Some(alignment) = alignment {
+                            for component in components {
+                                bar::add_component(alignment, component);
+                            }
+                        }
+                    }
+                }
+                else {
+                    set(engine, scope, format!("app_bar_{}", key), val.clone())?;
+                }
             }
 
             Ok(().into())

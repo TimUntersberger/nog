@@ -1,11 +1,11 @@
 use super::{functions, syntax};
 use crate::{
     config::{Config, Rule, WorkspaceSetting, update_channel::UpdateChannel},
-    keybindings::keybinding::Keybinding,
+    keybindings::keybinding::Keybinding, bar::component::{self, Component},
 };
 use log::{debug, error};
-use rhai::{Array, Engine, Map, Scope};
-use std::{io::Write, path::PathBuf, time::Duration};
+use rhai::{Array, Engine, Map, Scope, ImmutableString, Dynamic};
+use std::{io::Write, path::PathBuf, time::Duration, collections::HashMap};
 use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
 
 macro_rules! set {
@@ -30,6 +30,10 @@ pub fn parse_config() -> Result<Config, String> {
     let mut engine = Engine::new();
     let mut scope = Scope::new();
     let mut config = Config::default();
+    let mut components: HashMap<ImmutableString, Dynamic> = Map::new();
+
+    components.insert("time".into(), component::time::create());
+
     let mut config_path: PathBuf = dirs::config_dir().unwrap_or_default();
 
     config_path.push("wwm");
@@ -39,6 +43,7 @@ pub fn parse_config() -> Result<Config, String> {
         std::fs::create_dir(config_path.clone());
     }
 
+    scope.set_value("C", components);
     scope.set_value("__mode", None as Option<String>);
     scope.set_value("__cwd", config_path.to_str().unwrap().to_string());
     scope.set_value("__workspace_settings", Array::new());

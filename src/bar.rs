@@ -351,10 +351,16 @@ unsafe extern "system" fn window_cb(
     DefWindowProcA(hwnd, msg, w_param, l_param)
 }
 
-pub fn init() {
+pub fn add_component(align: Alignment, comp: Component) {
     let mut items = ITEMS.lock().unwrap();
+    items.push(Item::new(align, comp));
+}
 
-    items.push(Item::new(Alignment::Left, workspaces::create()));
+pub fn init() {
+    use Alignment::*;
+
+    add_component(Left, workspaces::create());
+    add_component(Center, time::create());
     // items.push(Item::new(Alignment::Center, time::create()));
     // items.push(Item::new(Alignment::Right, date::create()));
     // items.push(Item::new(Alignment::Right, padding::create(5)));
