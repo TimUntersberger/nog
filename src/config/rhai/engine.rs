@@ -1,11 +1,11 @@
 use super::{functions, syntax, modules};
 use crate::{
     config::{Config, Rule, WorkspaceSetting, update_channel::UpdateChannel},
-    keybindings::keybinding::Keybinding, bar::component::{self, Component},
+    keybindings::keybinding::Keybinding,
 };
 use log::{debug, error};
-use rhai::{Array, Engine, Map, Scope, ImmutableString, Dynamic, Module, packages::Package, module_resolvers::{FileModuleResolver, ModuleResolversCollection}};
-use std::{io::Write, path::PathBuf, time::Duration, collections::HashMap};
+use rhai::{Array, Engine, Map, Scope};
+use std::{io::Write, path::PathBuf, time::Duration};
 use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
 
 macro_rules! set {

@@ -6,8 +6,6 @@ use lazy_static::lazy_static;
 use log::{error, info};
 use std::collections::{HashMap, VecDeque};
 use std::{
-    cmp,
-    ffi::CString,
     sync::{
         atomic::{AtomicBool, Ordering},
         Mutex,
@@ -22,12 +20,12 @@ use winapi::shared::windef::HDC;
 use winapi::shared::windef::HWND;
 use winapi::shared::windef::POINT;
 use winapi::shared::windef::RECT;
-use winapi::shared::windef::SIZE;
+
 
 use winapi::um::wingdi::CreateSolidBrush;
 use winapi::um::wingdi::DeleteObject;
-use winapi::um::wingdi::GetTextExtentPoint32A;
-use winapi::um::wingdi::GetTextExtentPoint32W;
+
+
 use winapi::um::wingdi::SetBkColor;
 use winapi::um::wingdi::SetTextColor;
 use winapi::um::winuser::BeginPaint;
@@ -208,7 +206,7 @@ unsafe extern "system" fn window_cb(
             let idx = *item
                 .widths
                 .iter()
-                .find(|(i, (left, right))| *left <= x && x <= *right)
+                .find(|(_i, (left, right))| *left <= x && x <= *right)
                 .map(|(i, _)| i)
                 .unwrap();
 
