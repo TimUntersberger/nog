@@ -11,5 +11,5 @@ https://timuntersberger.github.io/nog
 
 ```
 cargo build --release
-./rcedit ./target/release/wwm.exe --set-icon ./logo.ico
+./rcedit ./target/release/wwm.exe --set-icon ./assets/logo.ico
 ```
