@@ -1,3 +1,5 @@
+# Basics
+
 The following custom syntax is defined to make it easier for you to write your configuration:
 
 ```nog
