@@ -14,7 +14,7 @@ pub mod workspace_setting;
 #[derive(Clone, Debug)]
 pub struct Config {
     pub app_bar_height: i32,
-    pub app_bar_bg: i32,
+    pub app_bar_color: i32,
     pub app_bar_font: String,
     pub use_border: bool,
     pub app_bar_font_size: i32,
@@ -44,7 +44,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             app_bar_height: 20,
-            app_bar_bg: 0x2e3440,
+            app_bar_color: 0x2e3440,
             app_bar_font: String::from("Consolas"),
             app_bar_font_size: 18,
             launch_on_startup: false,
@@ -87,7 +87,7 @@ impl Config {
     fn alter_numerical_field(self: &mut Self, field: &str, value: i32) {
         match field {
             "app_bar_height" => self.app_bar_height += value,
-            "app_bar_bg" => self.app_bar_bg += value,
+            "app_bar_bg" => self.app_bar_color += value,
             "app_bar_font_size" => self.app_bar_font_size += value,
             "margin" => self.margin += value,
             "padding" => self.padding += value,

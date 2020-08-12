@@ -115,7 +115,7 @@ unsafe fn draw_component_text(hdc: HDC, rect: &mut RECT, component_text: &Compon
 
     let bg = component_text
         .get_bg()
-        .unwrap_or(CONFIG.lock().unwrap().app_bar_bg as u32);
+        .unwrap_or(CONFIG.lock().unwrap().app_bar_color as u32);
 
     SetTextColor(hdc, fg);
     SetBkColor(hdc, bg);
@@ -152,7 +152,7 @@ fn calculate_rect(item: &Item, left: &mut i32, right: &mut i32, width: i32, heig
 }
 
 unsafe fn clear_section(hdc: HDC, height: i32, left: i32, right: i32) {
-    let brush = CreateSolidBrush(CONFIG.lock().unwrap().app_bar_bg as u32);
+    let brush = CreateSolidBrush(CONFIG.lock().unwrap().app_bar_color as u32);
     let mut rect = RECT {
         left,
         right,

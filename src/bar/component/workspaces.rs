@@ -10,7 +10,7 @@ use std::sync::Arc;
 fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
     let light_theme = CONFIG.lock().unwrap().light_theme;
     let workspace_settings = CONFIG.lock().unwrap().workspace_settings.clone();
-    let app_bar_bg = CONFIG.lock().unwrap().app_bar_bg;
+    let app_bar_bg = CONFIG.lock().unwrap().app_bar_color;
     let workspace_id = *WORKSPACE_ID.lock().unwrap();
 
     GRIDS

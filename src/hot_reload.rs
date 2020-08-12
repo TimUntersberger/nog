@@ -12,7 +12,7 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
 
     if work_mode {
         if config.display_app_bar && new_config.display_app_bar {
-            if config.app_bar_bg != new_config.app_bar_bg
+            if config.app_bar_color != new_config.app_bar_color
                 || config.app_bar_font != new_config.app_bar_font
                 || config.app_bar_font_size != new_config.app_bar_font_size
                 || config.app_bar_height != new_config.app_bar_height

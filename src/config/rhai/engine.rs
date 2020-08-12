@@ -94,7 +94,7 @@ pub fn parse_config() -> Result<Config, String> {
         set!(i32, config, app_bar_height, key, value);
         set!(String, config, app_bar_font, key, value);
         set!(i32, config, app_bar_font_size, key, value);
-        set!(i32, config, app_bar_bg, key, value);
+        set!(i32, config, app_bar_color, key, value);
         if key == "update_interval" {
             if value.type_name().to_string() != "i32" {
                 return Err(format!(
@@ -124,10 +124,10 @@ pub fn parse_config() -> Result<Config, String> {
         error!("Unknown setting {}", key);
     }
 
-    config.app_bar_bg = RGB(
-        GetBValue(config.app_bar_bg as u32),
-        GetGValue(config.app_bar_bg as u32),
-        GetRValue(config.app_bar_bg as u32),
+    config.app_bar_color = RGB(
+        GetBValue(config.app_bar_color as u32),
+        GetGValue(config.app_bar_color as u32),
+        GetRValue(config.app_bar_color as u32),
     ) as i32;
 
     let rules: Array = scope.get_value("__rules").unwrap();
