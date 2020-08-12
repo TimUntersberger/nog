@@ -16,8 +16,8 @@ pub fn start() {
 
         let mut path = dirs::config_dir().expect("Failed to get config dir");
 
-        path.push("wwm");
-        path.push("config.rhai");
+        path.push("nog");
+        path.push("config.nog");
 
         watcher
             .watch(path, RecursiveMode::NonRecursive)

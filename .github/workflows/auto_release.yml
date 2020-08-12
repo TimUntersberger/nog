@@ -23,7 +23,7 @@ jobs:
     - name: Build
       run: cargo build --release
     - name: Add Icon
-      run: ./rcedit ./target/release/wwm.exe --set-icon ./logo.ico
+      run: ./rcedit ./target/release/nog.exe --set-icon ./assets/logo.ico
     - name: Create Release
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
@@ -32,4 +32,4 @@ jobs:
         prerelease: true
         title: "${{ env.BRANCH_NAME }} branch"
         files: |
-          ./target/release/wwm.exe
+          ./target/release/nog.exe

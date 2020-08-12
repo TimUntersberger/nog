@@ -14,7 +14,7 @@ use winapi::{
 pub fn create() -> Result<(), util::WinApiResultError> {
     info!("Creating appbar");
 
-    let name = "wwm_app_bar";
+    let name = "nog_bar";
 
     let mut height_guard = HEIGHT.lock().unwrap();
 
