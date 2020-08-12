@@ -8,10 +8,39 @@ bind "<key-combo>" <type>;
 
 It takes two arguments, a [key combination]() and a [type]().
 
-## Example
+If you want to bind a range of things to a type that takes a number as argument, which can happen very fast with [change_workspace](), you can use the `bind_range` keyword.
+
+```nog
+bind_range <start> <end> "<modifiers>" <type>;
+```
+
+This keyword takes four arguments:
+
+1. Start of the range (inclusive)
+2. End of the range (inclusive)
+3. Modifier to use for each keybinding
+4. Type to bind to (e.g. `change_workspace` **not** `change_workspace()`) 
+
+It basically does the following (simplified)
+
+```nog
+for i in range(start,end+1) {
+    bind modifier + i type(i);
+}
+```
+
+## Examples
+
+### bind
 
 ```nog
 bind "Alt+H" focus("Left");
+```
+
+### bind_range
+
+```nog
+bind_range 1 10 "Alt" change_workspace;
 ```
 
 ## Key Combinations
@@ -279,4 +308,20 @@ Toggles a config value that takes a boolean.
 
 ```nog
 bind "<key-combo>" toggle_config("<key>");
+```
+
+### Launch
+
+Starts a program.
+
+#### Arguments
+
+| Position | Value  | Description                                                                                 |
+|----------|--------|---------------------------------------------------------------------------------------------|
+| 1        | String | Path to the executable (e.g. "wt.exe" or "C:\\Program Files\\Mozilla Firefox\\firefox.exe") |
+
+#### Usage
+
+```nog
+bind "<key-combo>" launch("<path>");
 ```

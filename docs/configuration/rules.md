@@ -27,6 +27,34 @@ Thankfully there are currently only a few applications that need a lot of specif
 
 **Note**: You also have to set chromium to true if you use a browser that uses chromium as their base, like the new `Microsoft Edge`
 
+## Examples
+
+### Firefox
+
+```nog
+rule ".*- Mozilla Firefox|Mozilla Firefox" #{
+  has_custom_titlebar: true,
+  firefox: true
+};
+```
+
+### Google Chrome
+
+```nog
+rule ".*- Google Chrome" #{
+  has_custom_titlebar: true,
+  chromium: true
+};
+```
+
+### Visual Studio Code
+
+```nog
+rule ".*- Visual Studio Code" #{
+    has_custom_titlebar: true
+};
+```
+
 ## Shortcuts
 
 This section is a list of shortcuts for common patterns.
