@@ -1,6 +1,7 @@
 - Getting started
 
   - [Installation](getting_started/installation.md)
+  - [Terminology](getting_started/terminology.md)
   
 - Configuration
 
