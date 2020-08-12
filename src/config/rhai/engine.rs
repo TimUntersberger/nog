@@ -82,6 +82,10 @@ pub fn parse_config() -> Result<Config, String> {
         set!(bool, config, work_mode, key, value);
         set!(bool, config, remove_task_bar, key, value);
         set!(bool, config, display_app_bar, key, value);
+        set!(bool, config, use_border, key, value);
+        set!(bool, config, light_theme, key, value);
+        set!(i32, config, margin, key, value);
+        set!(i32, config, padding, key, value);
         set!(i32, config, app_bar_height, key, value);
         set!(String, config, app_bar_date_pattern, key, value);
         set!(String, config, app_bar_time_pattern, key, value);
