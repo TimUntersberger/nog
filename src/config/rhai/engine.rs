@@ -92,8 +92,6 @@ pub fn parse_config() -> Result<Config, String> {
         set!(i32, config, margin, key, value);
         set!(i32, config, padding, key, value);
         set!(i32, config, app_bar_height, key, value);
-        set!(String, config, app_bar_date_pattern, key, value);
-        set!(String, config, app_bar_time_pattern, key, value);
         set!(String, config, app_bar_font, key, value);
         set!(i32, config, app_bar_font_size, key, value);
         set!(i32, config, app_bar_bg, key, value);
