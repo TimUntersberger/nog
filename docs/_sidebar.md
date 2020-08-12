@@ -6,9 +6,10 @@
 
   - [Introduction](configuration/introduction.md)
   - [Basics](configuration/basics.md)
-  - [Bar](configuration/bar.md)
-  - [Gap](configuration/gap.md)
   - [Keybindings](configuration/keybindings.md)
+  - [Bar](configuration/bar.md)
+  - [Workspaces](configuration/workspaces.md)
+  - [Gap](configuration/gap.md)
   - [Modes](configuration/modes.md)
   - [Rules](configuration/rules.md)
 
