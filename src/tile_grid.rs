@@ -478,7 +478,7 @@ impl TileGrid {
         let (padding, margin, remove_task_bar) = {
             let config = CONFIG.lock().unwrap();
 
-            (config.padding, config.margin, config.remove_task_bar)
+            (config.inner_gap, config.outer_gap, config.remove_task_bar)
         };
         let display_height = self.display.height() - margin * 2 - padding * 2;
         let display_width = self.display.width() - margin * 2 - padding * 2;
