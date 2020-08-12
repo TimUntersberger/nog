@@ -24,4 +24,4 @@
 
 - Example Configurations
 
-  - [TimUntersberger](example_configurations/timuntersberger.md)
+  - [timuntersberger](example_configurations/timuntersberger.md)
