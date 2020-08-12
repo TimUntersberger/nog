@@ -140,7 +140,7 @@ pub fn create() -> Result<(), util::WinApiResultError> {
 }
 
 pub fn add_icon(hwnd: HWND) {
-    let icon_bytes = include_bytes!("../logo.png");
+    let icon_bytes = include_bytes!("../assets/logo.png");
 
     unsafe {
         let icon_handle = CreateIconFromResourceEx(

@@ -92,7 +92,7 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
             let cwd = scope
                 .get_value::<String>("__cwd")
                 .ok_or("Failed to get __cwd")?;
-            let file_name = get_string!(engine, ctx, scope, inputs, 0) + ".rhai";
+            let file_name = get_string!(engine, ctx, scope, inputs, 0) + ".nog";
 
             let mut path = PathBuf::new();
 

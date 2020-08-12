@@ -2,7 +2,7 @@ use flexi_logger::{opt_format, Age, Cleanup, Criterion, Duplicate, Logger, Namin
 use std::path   ::PathBuf;
 
 #[cfg(debug_assertions)]
-static DEBUG: &'static str = "debug,wwm::app_bar=debug";
+static DEBUG: &'static str = "debug,nog::app_bar=debug";
 
 #[cfg(not(debug_assertions))]
 static DEBUG: &'static str = "debug";
@@ -15,7 +15,7 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
     {
         path = dirs::config_dir().expect("Failed to get config directory");
 
-        path.push("wwm");
+        path.push("nog");
         path.push("log");
     }
 

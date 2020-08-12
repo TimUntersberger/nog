@@ -36,10 +36,10 @@ pub fn parse_config() -> Result<Config, String> {
 
     let mut config_path: PathBuf = dirs::config_dir().unwrap_or_default();
 
-    config_path.push("wwm");
+    config_path.push("nog");
 
     if !config_path.exists() {
-        debug!("wwm folder doesn't exist yet. Creating the folder");
+        debug!("nog folder doesn't exist yet. Creating the folder");
         std::fs::create_dir(config_path.clone());
     }
 
@@ -54,13 +54,13 @@ pub fn parse_config() -> Result<Config, String> {
     functions::init(&mut engine);
     syntax::init(&mut engine).unwrap();
 
-    config_path.push("config.rhai");
+    config_path.push("config.nog");
 
     if !config_path.exists() {
         debug!("config file doesn't exist yet. Creating the file");
         if let Ok(mut file) = std::fs::File::create(config_path.clone()) {
             debug!("Initializing config with default values");
-            file.write_all(include_bytes!("../../../default_config.rhai"));
+            file.write_all(include_bytes!("../../../assets/default_config.nog"));
         }
     }
 

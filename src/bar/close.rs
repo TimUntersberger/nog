@@ -19,7 +19,7 @@ pub fn close() {
             SendMessageA(hwnd as HWND, WM_CLOSE, 0, 0);
             WINDOWS.lock().unwrap().remove(&hmonitor);
         }
-        let name = CString::new("wwm_app_bar").expect("Failed to transform string to cstring");
+        let name = CString::new("nog_bar").expect("Failed to transform string to cstring");
 
         debug!("Unregistering window class");
 
