@@ -1,5 +1,8 @@
 
 # wwm
+
+**WIP** New documentation: https://timuntersberger.github.io/nog/
+
 Windows window manager is a tiling window manager for Windows 10 (like i3 for linux)
 
 ![Preview](/screen-5.png?raw=true "Preview")
