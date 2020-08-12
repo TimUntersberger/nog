@@ -1,5 +1,5 @@
 use super::{Component, ComponentText, RenderFn};
-use crate::{display::Display, CONFIG};
+use crate::{display::Display};
 use chrono::Local;
 use std::sync::Arc;
 
