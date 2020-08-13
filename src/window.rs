@@ -3,8 +3,10 @@ use crate::util;
 use crate::{display::Display, CONFIG};
 use gwl_ex_style::GwlExStyle;
 use gwl_style::GwlStyle;
+use log::error;
 use winapi::shared::windef::HWND;
-use winapi::shared::windef::RECT;
+use winapi::shared::{minwindef::HMODULE, windef::RECT};
+use winapi::um::errhandlingapi::GetLastError;
 use winapi::um::winuser::AdjustWindowRectEx;
 use winapi::um::winuser::GetForegroundWindow;
 use winapi::um::winuser::GetParent;
@@ -27,9 +29,14 @@ use winapi::um::winuser::SWP_NOMOVE;
 use winapi::um::winuser::SWP_NOSIZE;
 use winapi::um::winuser::SW_HIDE;
 use winapi::um::winuser::SW_SHOW;
-use winapi::um::winuser::{
-    GetClientRect, GetSystemMetricsForDpi, SC_MAXIMIZE, SC_MINIMIZE, SC_RESTORE, WM_CLOSE,
-    WM_SYSCOMMAND,
+use winapi::um::{
+    processthreadsapi::OpenProcess,
+    psapi::GetModuleFileNameExA,
+    winnt::{PROCESS_QUERY_INFORMATION, PROCESS_VM_READ},
+    winuser::{
+        GetClientRect, GetSystemMetricsForDpi, GetWindowModuleFileNameA, GetWindowThreadProcessId,
+        SC_MAXIMIZE, SC_MINIMIZE, SC_RESTORE, WM_CLOSE, WM_SYSCOMMAND,
+    },
 };
 
 pub mod gwl_ex_style;
@@ -266,6 +273,38 @@ impl Window {
         }
 
         Ok(())
+    }
+    pub fn get_process_name(&self) -> String {
+        self.get_process_path()
+            .split("\\")
+            .last()
+            .unwrap()
+            .to_string()
+    }
+    pub fn get_process_path(&self) -> String {
+        let mut buffer = [0; 0x200];
+
+        unsafe {
+            let mut process_id = 0;
+            GetWindowThreadProcessId(self.id as HWND, &mut process_id);
+            let process_handle =
+                OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, process_id);
+
+            if process_handle as i32 == 0 {
+                error!("winapi: {}", GetLastError());
+            }
+            if GetModuleFileNameExA(
+                process_handle,
+                std::ptr::null_mut(),
+                buffer.as_mut_ptr(),
+                buffer.len() as u32,
+            ) == 0
+            {
+                error!("winapi: {}", GetLastError());
+            };
+        }
+
+        util::bytes_to_string(&buffer)
     }
     pub fn send_close(&self) {
         unsafe {

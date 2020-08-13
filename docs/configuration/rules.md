@@ -10,6 +10,8 @@ rule "<pattern>" #{
 };
 ```
 
+**Note**: The pattern can either match the process name (e.g. firefox.exe) or a window title
+
 This keyword requires two arguments. The first one has to be a String which contains a [Regex]() which is used to know when to apply this rule. The second argument is a [map]() which can contain the following properties
 
 | Key                 | Value   | Description                                           |

@@ -38,11 +38,17 @@ workspace 4 #{
 set min_height 200;
 set min_width 200;
 
+update_channel "test" #{
+    branch: "development"
+};
+
+set default_update_channel "test";
+
 enable work_mode;
 enable use_border;
 enable launch_on_startup;
 enable display_app_bar;
-enable multi_monitor;
+disable multi_monitor;
 enable remove_title_bar;
 enable remove_task_bar;
 ```
@@ -82,33 +88,35 @@ bind_range 1 10 "Alt" change_workspace;
 ## rules.nog
 
 ```nog
-ignore "File Explorer";
-ignore "Task Manager";
-ignore "Snipping Tool";
+ignore "explorer.exe";
+ignore "Taskmgr.exe";
+ignore "SnippingTool.exe";
 
-rule ".*- Mozilla Firefox|Mozilla Firefox" #{
+rule "firefox.exe" #{
     has_custom_titlebar: true,
     workspace_id: 2,
     firefox: true
 };
 
-rule ".*- Discord|Discord" #{
+rule "Discord.exe" #{
     has_custom_titlebar: true
 };
 
-rule "Spotify Premium" #{
+rule "Spotify.exe" #{
     has_custom_titlebar: true
 };
 
-rule ".*- Google Chrome" #{
+rule "chrome.exe" #{
     has_custom_titlebar: true,
     workspace_id: 2,
     chromium: true
 };
 
-rule ".*- Visual Studio Code" #{
+rule "Code.exe" #{
     has_custom_titlebar: true
 };
+
+
 ```
 
 ## modes
@@ -128,5 +136,8 @@ mode "resize" "Alt+R" {
 
     bind "L" resize("Right", 2);
     bind "Shift+L" resize("Right", -2);
+
+    bind "C" reset_column();
+    bind "R" reset_row();
 }
 ```

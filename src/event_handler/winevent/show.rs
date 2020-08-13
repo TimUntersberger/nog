@@ -47,7 +47,16 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
             && !window.exstyle.contains(GwlExStyle::DLGMODALFRAME));
 
     for rule in CONFIG.lock().unwrap().rules.clone() {
-        if rule.pattern.is_match(&window.title) {
+        // checks for path
+        let process_name = if rule.pattern.to_string().contains("\\") {
+            window.get_process_path()
+        } else {
+            window.get_process_name()
+        };
+
+        let window_name = window.title.clone();
+
+        if rule.pattern.is_match(&process_name) || rule.pattern.is_match(&window_name) {
             debug!("Rule({:?}) matched!", rule.pattern);
             window.rule = Some(rule);
             break;
@@ -75,6 +84,8 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
         let grid = grids.iter_mut().find(|g| g.id == workspace_id).unwrap();
 
         window.original_rect = window.get_rect()?;
+
+        dbg!(window.get_process_name());
 
         grid.split(window);
 
