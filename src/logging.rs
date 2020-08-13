@@ -1,5 +1,5 @@
 use flexi_logger::{opt_format, Age, Cleanup, Criterion, Duplicate, Logger, Naming};
-use std::path   ::PathBuf;
+use std::path::PathBuf;
 
 #[cfg(debug_assertions)]
 static DEBUG: &'static str = "debug,nog::app_bar=debug";

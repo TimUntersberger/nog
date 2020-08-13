@@ -23,7 +23,10 @@ pub fn is_visible_workspace(id: i32) -> bool {
         .any(|v| *v == id)
 }
 
-pub fn change_workspace(id: i32, ignore_monitor_setting: bool) -> Result<(), util::WinApiResultError> {
+pub fn change_workspace(
+    id: i32,
+    ignore_monitor_setting: bool,
+) -> Result<(), util::WinApiResultError> {
     let mut grids = GRIDS.lock().unwrap();
 
     let workspace_settings = CONFIG.lock().unwrap().workspace_settings.clone();

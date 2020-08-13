@@ -183,9 +183,9 @@ unsafe extern "system" fn window_cb(
 
         let items = ITEMS.lock().unwrap();
 
-        let maybe_item = items.iter().find(|item| {
-            item.component.is_clickable && item.left <= x && x <= item.right
-        });
+        let maybe_item = items
+            .iter()
+            .find(|item| item.component.is_clickable && item.left <= x && x <= item.right);
 
         if maybe_item.is_some() {
             SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_HAND as *const i8));
