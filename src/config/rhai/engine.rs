@@ -1,11 +1,11 @@
-use super::{functions, syntax};
+use super::{functions, modules, syntax};
 use crate::{
-    config::{Config, Rule, WorkspaceSetting},
+    config::{update_channel::UpdateChannel, Config, Rule, WorkspaceSetting},
     keybindings::keybinding::Keybinding,
 };
 use log::{debug, error};
 use rhai::{Array, Engine, Map, Scope};
-use std::{io::Write, path::PathBuf};
+use std::{io::Write, path::PathBuf, time::Duration};
 use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
 
 macro_rules! set {
@@ -30,6 +30,10 @@ pub fn parse_config() -> Result<Config, String> {
     let mut engine = Engine::new();
     let mut scope = Scope::new();
     let mut config = Config::default();
+    let modules_resolver = modules::new();
+
+    engine.set_module_resolver(Some(modules_resolver));
+
     let mut config_path: PathBuf = dirs::config_dir().unwrap_or_default();
 
     config_path.push("nog");
@@ -45,6 +49,7 @@ pub fn parse_config() -> Result<Config, String> {
     scope.set_value("__keybindings", Array::new());
     scope.set_value("__rules", Array::new());
     scope.set_value("__set", Map::new());
+    scope.set_value("__update_channels", Array::new());
 
     functions::init(&mut engine);
     syntax::init(&mut engine).unwrap();
@@ -87,18 +92,42 @@ pub fn parse_config() -> Result<Config, String> {
         set!(i32, config, outer_gap, key, value);
         set!(i32, config, inner_gap, key, value);
         set!(i32, config, app_bar_height, key, value);
-        set!(String, config, app_bar_date_pattern, key, value);
-        set!(String, config, app_bar_time_pattern, key, value);
         set!(String, config, app_bar_font, key, value);
         set!(i32, config, app_bar_font_size, key, value);
-        set!(i32, config, app_bar_bg, key, value);
+        set!(i32, config, app_bar_color, key, value);
+        if key == "update_interval" {
+            if value.type_name().to_string() != "i32" {
+                return Err(format!(
+                    "{} has to be of type {} not {}",
+                    "update_interval",
+                    "i32",
+                    value.type_name()
+                ));
+            } else {
+                config.update_interval = Duration::from_secs(value.clone().cast::<u64>() * 60);
+                continue;
+            }
+        }
+        if key == "default_update_channel" {
+            if value.type_name().to_string() != "string" {
+                return Err(format!(
+                    "{} has to be of type {} not {}",
+                    "default_update_channel",
+                    "String",
+                    value.type_name()
+                ));
+            } else {
+                config.default_update_channel = Some(value.clone().as_str().unwrap().to_string());
+                continue;
+            }
+        }
         error!("Unknown setting {}", key);
     }
 
-    config.app_bar_bg = RGB(
-        GetBValue(config.app_bar_bg as u32),
-        GetGValue(config.app_bar_bg as u32),
-        GetRValue(config.app_bar_bg as u32),
+    config.app_bar_color = RGB(
+        GetBValue(config.app_bar_color as u32),
+        GetGValue(config.app_bar_color as u32),
+        GetRValue(config.app_bar_color as u32),
     ) as i32;
 
     let rules: Array = scope.get_value("__rules").unwrap();
@@ -113,6 +142,13 @@ pub fn parse_config() -> Result<Config, String> {
     for val in workspace_settings {
         let boxed = val.cast::<Box<WorkspaceSetting>>();
         config.workspace_settings.push(*boxed);
+    }
+
+    let update_channels: Array = scope.get_value("__update_channels").unwrap();
+
+    for val in update_channels {
+        let boxed = val.cast::<Box<UpdateChannel>>();
+        config.update_channels.push(*boxed);
     }
 
     Ok(config)

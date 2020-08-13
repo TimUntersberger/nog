@@ -1,4 +1,4 @@
-use crate::app_bar;
+use crate::bar;
 use crate::util;
 use crate::Event;
 use crate::{message_loop, CHANNEL};
@@ -37,7 +37,7 @@ unsafe extern "system" fn handler(
         return;
     }
 
-    if app_bar::WINDOWS
+    if bar::WINDOWS
         .lock()
         .unwrap()
         .values()

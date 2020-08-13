@@ -78,7 +78,7 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
                 .insert(grid_old_monitor, 0);
 
             drop(grids);
-            change_workspace(grid_id)
+            change_workspace(grid_id, true)
                 .expect("Failed to change workspace after moving workspace to different monitor");
         }
         KeybindingType::CloseTile => close_tile::handle()?,
@@ -110,11 +110,11 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
                     let grid = grids.iter_mut().find(|g| g.id == id).unwrap();
                     grid.split(tile.window);
                     drop(grids);
-                    change_workspace(id)?;
+                    change_workspace(id, false)?;
                 }
             }
         }
-        KeybindingType::ChangeWorkspace(id) => change_workspace(id)?,
+        KeybindingType::ChangeWorkspace(id) => change_workspace(id, false)?,
         KeybindingType::ToggleFloatingMode => toggle_floating_mode::handle()?,
         KeybindingType::ToggleFullscreen => {
             let mut grids = GRIDS.lock().unwrap();

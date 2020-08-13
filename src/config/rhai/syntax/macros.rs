@@ -60,7 +60,7 @@ macro_rules! set {
                     $val.type_name()
                 );
             } else {
-                $config.$prop = $val.clone().cast::<$typ>();
+                $config.$prop = $val.clone().cast::<$typ>().into();
                 continue;
             }
         }

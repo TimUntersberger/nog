@@ -19,7 +19,7 @@ use tile_grid::TileGrid;
 use winapi::shared::windef::HWND;
 use workspace::{change_workspace, Workspace};
 
-mod app_bar;
+mod bar;
 mod config;
 mod direction;
 mod display;
@@ -43,8 +43,11 @@ mod workspace;
 
 lazy_static! {
     pub static ref WORK_MODE: Mutex<bool> = Mutex::new(CONFIG.lock().unwrap().work_mode);
-    pub static ref CONFIG: Mutex<Config> =
-        Mutex::new(config::rhai::engine::parse_config().map_err(|e| error!("{}", e)).expect("Failed to load config"));
+    pub static ref CONFIG: Mutex<Config> = Mutex::new(
+        config::rhai::engine::parse_config()
+            .map_err(|e| error!("{}", e))
+            .expect("Failed to load config")
+    );
     pub static ref DISPLAYS: Mutex<Vec<Display>> = Mutex::new(Vec::new());
     pub static ref CHANNEL: EventChannel = EventChannel::default();
     pub static ref GRIDS: Mutex<Vec<TileGrid>> =
@@ -98,7 +101,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             .insert(display.hmonitor, 0);
     }
 
-    change_workspace(1).expect("Failed to change workspace to ID@1");
+    info!("Initializing bars");
+
+    change_workspace(1, false).expect("Failed to change workspace to ID@1");
 
     info!("Starting hot reloading of config");
     config::hot_reloading::start();
@@ -121,7 +126,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         if CONFIG.lock().unwrap().display_app_bar {
-            app_bar::create::create()?;
+            bar::create::create()?;
         }
 
         info!("Registering windows event handler");
@@ -137,7 +142,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 let msg = maybe_msg.unwrap();
                 let _ = match msg {
                     Event::Keybinding(kb) => event_handler::keybinding::handle(kb),
-                    Event::RedrawAppBar(reason) => Ok(app_bar::redraw::redraw(reason)),
+                    Event::RedrawAppBar => Ok(bar::redraw::redraw()),
                     Event::WinEvent(ev) => event_handler::winevent::handle(ev),
                     Event::Exit => {
                         tray::remove_icon(*tray::WINDOW.lock().unwrap() as HWND);
@@ -146,6 +151,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     },
                     Event::ReloadConfig => {
                         info!("Reloading Config");
+
+                        bar::clear();
+
+                        bar::empty_components();
 
                         update_config(config::rhai::engine::parse_config().expect("Failed to load config"))
                     }

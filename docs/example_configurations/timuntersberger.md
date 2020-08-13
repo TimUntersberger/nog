@@ -14,8 +14,8 @@ bar #{
     font_size: 18,
     components: #{
         left: [C::workspaces()],
-        center: [C::time()],
-        right: [C::active_mode(), C::padding(5), C::date(), C::padding(1)]
+        center: [C::time("%T")],
+        right: [C::active_mode(), C::padding(5), C::date("%e %b %Y"), C::padding(1)]
     }
 };
 

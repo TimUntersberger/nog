@@ -111,7 +111,11 @@ pub fn get_display_by_hmonitor(hmonitor: i32) -> Display {
 pub fn get_display_by_idx(idx: i32) -> Display {
     let displays = DISPLAYS.lock().unwrap();
 
-    let x: usize = std::cmp::max(displays.len() - (idx as usize), 0);
+    let x: usize = if idx == -1 {
+        0
+    } else {
+        std::cmp::max(displays.len() - (idx as usize), 0)
+    };
 
     *displays
         .get(x)

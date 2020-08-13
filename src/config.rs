@@ -1,23 +1,21 @@
 use crate::keybindings::keybinding::Keybinding;
 use log::error;
-use std::{time::Duration, collections::HashMap};
-use workspace_setting::WorkspaceSetting;
 use rule::Rule;
+use std::{collections::HashMap, time::Duration};
 use update_channel::UpdateChannel;
+use workspace_setting::WorkspaceSetting;
 
 pub mod hot_reloading;
 pub mod rhai;
 pub mod rule;
-pub mod workspace_setting;
 pub mod update_channel;
+pub mod workspace_setting;
 
 #[derive(Clone, Debug)]
 pub struct Config {
     pub app_bar_height: i32,
-    pub app_bar_bg: i32,
+    pub app_bar_color: i32,
     pub app_bar_font: String,
-    pub app_bar_date_pattern: String,
-    pub app_bar_time_pattern: String,
     pub use_border: bool,
     pub app_bar_font_size: i32,
     pub min_width: i32,
@@ -39,18 +37,16 @@ pub struct Config {
     pub update_interval: Duration, //minutes
     /// contains the metadata for each mode (like an icon)
     /// HashMap<mode, (Option<char>)>
-    pub mode_meta: HashMap<String, (Option<char>)>,
+    pub mode_meta: HashMap<String, Option<char>>,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
             app_bar_height: 20,
-            app_bar_bg: 0x2e3440,
+            app_bar_color: 0x2e3440,
             app_bar_font: String::from("Consolas"),
             app_bar_font_size: 18,
-            app_bar_date_pattern: String::from("%e %b %Y"),
-            app_bar_time_pattern: String::from("%T"),
             launch_on_startup: false,
             min_height: 0,
             min_width: 0,
@@ -69,7 +65,7 @@ impl Default for Config {
             rules: Vec::new(),
             update_channels: Vec::new(),
             default_update_channel: None,
-            update_interval: Duration::from_secs(60 * 60)
+            update_interval: Duration::from_secs(60 * 60),
         }
     }
 }
@@ -91,7 +87,7 @@ impl Config {
     fn alter_numerical_field(self: &mut Self, field: &str, value: i32) {
         match field {
             "app_bar_height" => self.app_bar_height += value,
-            "app_bar_bg" => self.app_bar_bg += value,
+            "app_bar_bg" => self.app_bar_color += value,
             "app_bar_font_size" => self.app_bar_font_size += value,
             "outer_gap" => self.outer_gap += value,
             "inner_gap" => self.inner_gap += value,
@@ -121,5 +117,11 @@ impl Config {
             "display_app_bar" => self.display_app_bar = value,
             _ => error!("Attempt to set unknown field: {}", field),
         }
+    }
+
+    pub fn get_update_channel(&self) -> Option<&UpdateChannel> {
+        self.default_update_channel
+            .clone()
+            .and_then(|name| self.update_channels.iter().find(|c| c.name == name))
     }
 }

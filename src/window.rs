@@ -262,7 +262,7 @@ impl Window {
      */
     pub fn focus(&self) -> Result<(), util::WinApiResultError> {
         unsafe {
-            dbg!(SetForegroundWindow(self.id as HWND));
+            SetForegroundWindow(self.id as HWND);
         }
 
         Ok(())

@@ -1,10 +1,11 @@
 use crate::{
-    config::{WorkspaceSetting, Rule},
+    bar::{self, alignment::Alignment, component::Component},
+    config::{update_channel::UpdateChannel, Rule, WorkspaceSetting},
     keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
 };
 use log::error;
 use regex::Regex;
-use rhai::{Dynamic, Engine, ParseError, Scope};
+use rhai::{Array, Dynamic, Engine, Map, ParseError, Scope};
 use std::{path::PathBuf, str::FromStr};
 
 #[macro_use]
@@ -110,8 +111,31 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
         |engine, ctx, scope, inputs| {
             let settings = get_map!(engine, ctx, scope, inputs, 0);
 
-            for (key, val) in settings.iter() {
-                set(engine, scope, format!("app_bar_{}", key), val.clone())?;
+            for (key, val) in settings {
+                if key.to_string() == "components" {
+                    let map = val.cast::<Map>();
+
+                    for (key, val) in map {
+                        let key = key.to_string();
+                        let components = val.cast::<Array>();
+
+                        let alignment = match key.as_str() {
+                            "left" => Some(Alignment::Left),
+                            "center" => Some(Alignment::Center),
+                            "right" => Some(Alignment::Right),
+                            _ => None,
+                        };
+
+                        if let Some(alignment) = alignment {
+                            for v in components {
+                                let component = v.cast::<Component>();
+                                bar::add_component(alignment, component);
+                            }
+                        }
+                    }
+                } else {
+                    set(engine, scope, format!("app_bar_{}", key), val.clone())?;
+                }
             }
 
             Ok(().into())
@@ -134,7 +158,7 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
     engine.register_custom_syntax(
         &["enable", "$ident$"], // the custom syntax
         0,                      // the number of new variables declared within this custom syntax
-        |engine, ctx, scope, inputs| {
+        |engine, _ctx, scope, inputs| {
             let key = get_variable_name!(inputs, 0);
 
             set(engine, scope, key, true.into())?;
@@ -146,7 +170,7 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
     engine.register_custom_syntax(
         &["disable", "$ident$"], // the custom syntax
         0,                       // the number of new variables declared within this custom syntax
-        |engine, ctx, scope, inputs| {
+        |engine, _ctx, scope, inputs| {
             let key = get_variable_name!(inputs, 0);
 
             set(engine, scope, key, false.into())?;
@@ -181,14 +205,29 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
 
     engine.register_custom_syntax(
         &["update_channel", "$expr$", "$expr$"], // the custom syntax
-        0,                     // the number of new variables declared within this custom syntax
+        0, // the number of new variables declared within this custom syntax
         |engine, ctx, scope, inputs| {
             let name = get_string!(engine, ctx, scope, inputs, 0);
             let settings = get_map!(engine, ctx, scope, inputs, 1);
+            let mut update_channel = UpdateChannel::default();
+
+            update_channel.name = name;
+
+            for (key, value) in settings.iter().map(|(k, v)| (k.to_string(), v)) {
+                set!(String, update_channel, branch, key, value);
+                set!(String, update_channel, repo, key, value);
+                set!(String, update_channel, version, key, value);
+            }
+
+            scope.set_value("__new_update_channel", update_channel);
+
+            engine
+                .consume_with_scope(scope, "__update_channels.push(__new_update_channel);")
+                .unwrap();
 
             Ok(().into())
         },
-    )?;    
+    )?;
 
     engine.register_custom_syntax(
         &["ignore", "$expr$"], // the custom syntax
@@ -204,11 +243,11 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
 
             Ok(().into())
         },
-    )?;    
-    
+    )?;
+
     engine.register_custom_syntax(
         &["workspace", "$expr$", "$expr$"], // the custom syntax
-        0,                     // the number of new variables declared within this custom syntax
+        0, // the number of new variables declared within this custom syntax
         |engine, ctx, scope, inputs| {
             let id = get_int!(engine, ctx, scope, inputs, 0);
             let settings = get_map!(engine, ctx, scope, inputs, 1);
@@ -218,6 +257,7 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
 
             for (key, value) in settings.iter().map(|(k, v)| (k.to_string(), v)) {
                 set!(i32, workspace, monitor, key, value);
+                set!(String, workspace, text, key, value);
             }
 
             scope.set_value("__new_workspace_setting", workspace);
