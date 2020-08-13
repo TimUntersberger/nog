@@ -115,8 +115,6 @@ rule "chrome.exe" #{
 rule "Code.exe" #{
     has_custom_titlebar: true
 };
-
-
 ```
 
 ## modes
