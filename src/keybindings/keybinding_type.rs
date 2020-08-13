@@ -5,6 +5,8 @@ pub type Command = String;
 pub enum KeybindingType {
     CloseTile,
     MinimizeTile,
+    ResetColumn,
+    ResetRow,
     Quit,
     ChangeWorkspace(i32),
     ToggleFloatingMode,

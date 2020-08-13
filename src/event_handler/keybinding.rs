@@ -160,6 +160,42 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
         KeybindingType::Swap(direction) => swap::handle(direction)?,
         KeybindingType::Quit => sender.send(Event::Exit)?,
         KeybindingType::Split(direction) => split::handle(direction)?,
+        KeybindingType::ResetColumn => {
+            let mut grids = GRIDS.lock().unwrap();
+            let grid = grids
+                .iter_mut()
+                .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
+                .unwrap();
+
+            if let Some(modification) = grid
+                .get_focused_tile()
+                .and_then(|t| t.column)
+                .and_then(|c| grid.column_modifications.get_mut(&c))
+            {
+                modification.0 = 0;
+                modification.1 = 0;
+            }
+
+            grid.draw_grid();
+        }
+        KeybindingType::ResetRow => {
+            let mut grids = GRIDS.lock().unwrap();
+            let grid = grids
+                .iter_mut()
+                .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
+                .unwrap();
+
+            if let Some(modification) = grid
+                .get_focused_tile()
+                .and_then(|t| t.row)
+                .and_then(|c| grid.row_modifications.get_mut(&c))
+            {
+                modification.0 = 0;
+                modification.1 = 0;
+            }
+
+            grid.draw_grid();
+        }
     };
 
     Ok(())

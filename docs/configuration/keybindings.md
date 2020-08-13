@@ -325,3 +325,33 @@ Starts a program.
 ```nog
 bind "<key-combo>" launch("<path>");
 ```
+
+### ResetRow
+
+Resets any resizing done on the row the current tile resides on.
+
+#### Arguments
+
+| Position | Value  | Description                                                                                 |
+|----------|--------|---------------------------------------------------------------------------------------------|
+
+#### Usage
+
+```nog
+bind "<key-combo>" reset_row();
+```
+
+### ResetColumn
+
+Resets any resizing done on the column the current tile resides on.
+
+#### Arguments
+
+| Position | Value  | Description                                                                                 |
+|----------|--------|---------------------------------------------------------------------------------------------|
+
+#### Usage
+
+```nog
+bind "<key-combo>" reset_column();
+```

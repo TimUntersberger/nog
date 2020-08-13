@@ -23,6 +23,8 @@ pub fn init(engine: &mut Engine) {
 
     engine.register_fn("close_tile", || KeybindingType::CloseTile);
     engine.register_fn("minimize_tile", || KeybindingType::MinimizeTile);
+    engine.register_fn("reset_row", || KeybindingType::ResetRow);
+    engine.register_fn("reset_column", || KeybindingType::ResetColumn);
     engine.register_fn("quit", || KeybindingType::Quit);
     engine.register_fn("toggle_floating_mode", || {
         KeybindingType::ToggleFloatingMode
