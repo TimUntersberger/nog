@@ -154,7 +154,7 @@ pub fn add_icon(hwnd: HWND) {
         );
 
         let mut tooltip_array = [0u16; 128];
-        let tooltip = "WWM";
+        let tooltip = "Nog";
         let mut tooltip = tooltip.encode_utf16().collect::<Vec<_>>();
         tooltip.extend(vec![0; 128 - tooltip.len()]);
         tooltip_array.swap_with_slice(&mut tooltip[..]);
