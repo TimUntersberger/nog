@@ -1,24 +1,28 @@
 - Getting started
 
   - [Installation](getting_started/installation.md)
+  - [Terminology](getting_started/terminology.md)
   
 - Configuration
 
   - [Introduction](configuration/introduction.md)
   - [Basics](configuration/basics.md)
-  - [Bar](configuration/bar.md)
-  - [Gap](configuration/gap.md)
-  - [Rules](configuration/rules.md)
   - [Keybindings](configuration/keybindings.md)
+  - [Bar](configuration/bar.md)
+  - [Workspaces](configuration/workspaces.md)
+  - [Gap](configuration/gap.md)
   - [Modes](configuration/modes.md)
+  - [Rules](configuration/rules.md)
 
 - Scripting
 
+  - [Types](scripting/types.md)
   - [Variables](scripting/variables.md)
+  - [Conditionals](scripting/conditionals.md)
+  - [Loops](scripting/loops.md)
   - [Functions](scripting/functions.md)
-  - [Custom Syntax](scripting/customsyntax.md)
-  - [Further Reading](scripting/furtherreading.md)
+  - [Further Reading](scripting/further_reading.md)
 
 - Example Configurations
 
-  - [TimUntersberger](example_configurations/timuntersberger.md)
+  - [timuntersberger](example_configurations/timuntersberger.md)
