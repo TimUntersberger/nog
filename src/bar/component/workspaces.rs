@@ -42,15 +42,18 @@ fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
 
                 (fg, bg)
             };
-            ComponentText::Colored(
-                fg,
-                bg,
-                workspace_settings
-                    .iter()
-                    .find(|s| s.id == grid.id)
-                    .map(|g| g.text.clone())
-                    .unwrap_or(format!(" {} ", grid.id.to_string())),
-            )
+            let mut text = format!(" {} ", grid.id.to_string());
+
+            if let Some(settings) = workspace_settings
+                .iter()
+                .find(|s| s.id == grid.id)
+            {
+                if !settings.text.is_empty() {
+                    text = settings.text.clone();
+                }
+            }
+
+            ComponentText::Colored(fg, bg, text)
         })
         .collect()
 }
