@@ -177,9 +177,14 @@ unsafe extern "system" fn window_cb(
         let mut point = POINT::default();
         GetCursorPos(&mut point);
 
+        let hmonitor = get_monitor_by_hwnd(hwnd as i32);
+        let display = get_display_by_hmonitor(hmonitor);
+        let x = point.x - display.left;
+
         let items = ITEMS.lock().unwrap();
+
         let maybe_item = items.iter().find(|item| {
-            item.component.is_clickable && item.left <= point.x && point.x <= item.right
+            item.component.is_clickable && item.left <= x && x <= item.right
         });
 
         if maybe_item.is_some() {
@@ -192,7 +197,10 @@ unsafe extern "system" fn window_cb(
     } else if msg == WM_LBUTTONDOWN {
         let mut point = POINT::default();
         GetCursorPos(&mut point);
-        let x = point.x;
+
+        let hmonitor = get_monitor_by_hwnd(hwnd as i32);
+        let display = get_display_by_hmonitor(hmonitor);
+        let x = point.x - display.left;
 
         let items = ITEMS.lock().unwrap();
         let maybe_item = items
@@ -279,7 +287,7 @@ unsafe extern "system" fn window_cb(
                     }
                 }
 
-                for component_text in component_texts_iter {
+                for (i, component_text) in component_texts_iter.enumerate() {
                     let text = component_text.get_text();
                     let c_text = util::to_widestring(&text);
 
