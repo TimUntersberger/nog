@@ -29,6 +29,7 @@ mod hot_reload;
 mod keybindings;
 mod logging;
 mod message_loop;
+mod popup;
 mod split_direction;
 mod startup;
 mod task_bar;
@@ -184,12 +185,15 @@ fn main() {
         })
         .unwrap();
 
-        if let Err(e) = run() {
-            error!("An error occured {:?}", e);
-            if let Err(e) = on_quit() {
-                error!("Something happend when cleaning up. {}", e);
-            }
-        }
+        display::init();
+        popup::Popup::new("Test window".into(), 200, 100).create();
+
+        // if let Err(e) = run() {
+        //     error!("An error occured {:?}", e);
+        //     if let Err(e) = on_quit() {
+        //         error!("Something happend when cleaning up. {}", e);
+        //     }
+        // }
     });
 
     if let Err(err) = panic {
