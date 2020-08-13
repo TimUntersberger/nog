@@ -69,7 +69,7 @@ fn on_click(_: &Component, display: &Display, idx: usize) {
         .next();
 
     if let Some(id) = maybe_id {
-        let _ = change_workspace(id);
+        let _ = change_workspace(id, true);
     }
 }
 

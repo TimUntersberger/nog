@@ -103,7 +103,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Initializing bars");
 
-    change_workspace(1).expect("Failed to change workspace to ID@1");
+    change_workspace(1, false).expect("Failed to change workspace to ID@1");
 
     info!("Starting hot reloading of config");
     config::hot_reloading::start();

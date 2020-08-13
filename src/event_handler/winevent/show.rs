@@ -63,7 +63,7 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
 
         if rule.workspace_id != -1 {
             workspace_id = rule.workspace_id;
-            change_workspace(workspace_id)?;
+            change_workspace(workspace_id, false)?;
         }
 
         if CONFIG.lock().unwrap().remove_title_bar {
