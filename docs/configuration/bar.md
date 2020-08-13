@@ -153,3 +153,20 @@ Displays spaces.
 ```nog
 let component = C::padding(5);
 ```
+
+### Current Window
+
+![CurrentWindow](../_media/components/current_window.png)
+
+Displays the title of the focused window in the current workspace.
+
+#### Arguments
+
+| Position | Value  | Description                    |
+|----------|--------|--------------------------------|
+
+#### Usage
+
+```nog
+let component = C::current_window();
+```

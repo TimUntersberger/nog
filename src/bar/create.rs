@@ -22,7 +22,7 @@ pub fn create() -> Result<(), util::WinApiResultError> {
     let height = *height_guard;
 
     std::thread::spawn(|| loop {
-        std::thread::sleep(std::time::Duration::from_millis(950));
+        std::thread::sleep(std::time::Duration::from_millis(200));
         if WINDOWS.lock().unwrap().is_empty() {
             break;
         }

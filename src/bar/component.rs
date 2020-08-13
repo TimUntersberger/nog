@@ -6,6 +6,7 @@ pub mod date;
 pub mod padding;
 pub mod time;
 pub mod workspaces;
+pub mod current_window;
 
 #[derive(Debug)]
 pub enum ComponentText {

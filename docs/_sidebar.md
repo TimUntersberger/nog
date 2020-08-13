@@ -1,7 +1,7 @@
 - Getting started
 
   - [Installation](getting_started/installation.md)
-  - [Terminology](getting_started/terminology.md)
+  - [[WIP] Terminology](getting_started/terminology.md)
   
 - Configuration
 
@@ -14,7 +14,7 @@
   - [Modes](configuration/modes.md)
   - [Rules](configuration/rules.md)
 
-- Scripting
+- [WIP] Scripting
 
   - [Types](scripting/types.md)
   - [Variables](scripting/variables.md)
