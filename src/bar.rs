@@ -8,10 +8,7 @@ use font::load_font;
 use lazy_static::lazy_static;
 use log::info;
 
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Mutex, MutexGuard,
-};
+use std::sync::Mutex;
 use winapi::shared::minwindef::LPARAM;
 use winapi::shared::minwindef::LRESULT;
 use winapi::shared::minwindef::UINT;
@@ -32,6 +29,8 @@ use winapi::um::winuser::DefWindowProcA;
 use winapi::um::winuser::EndPaint;
 
 use component::{Component, ComponentText};
+use item::Item;
+use item_section::ItemSection;
 use winapi::um::winuser::LoadCursorA;
 use winapi::um::winuser::SetCursor;
 use winapi::um::winuser::IDC_ARROW;
@@ -50,54 +49,14 @@ pub mod close;
 pub mod component;
 pub mod create;
 pub mod font;
+pub mod item;
+pub mod item_section;
 pub mod redraw;
 pub mod visibility;
 
 lazy_static! {
     pub static ref BARS: Mutex<Vec<Bar>> = Mutex::new(Vec::new());
     pub static ref FONT: Mutex<i32> = Mutex::new(0);
-}
-
-#[derive(Debug, Clone)]
-pub struct Item {
-    pub left: i32,
-    pub right: i32,
-    pub component: Component,
-    pub widths: Vec<(i32, i32)>,
-}
-
-impl Default for Item {
-    fn default() -> Self {
-        Self {
-            widths: Vec::new(),
-            component: Component::default(),
-            left: 0,
-            right: 0,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ItemSection {
-    pub left: i32,
-    pub right: i32,
-    pub items: Vec<Item>,
-}
-
-impl Default for ItemSection {
-    fn default() -> Self {
-        Self {
-            left: 0,
-            right: 0,
-            items: Vec::new(),
-        }
-    }
-}
-
-impl ItemSection {
-    pub fn width(&self) -> i32 {
-        self.right - self.left
-    }
 }
 
 #[derive(Clone)]
