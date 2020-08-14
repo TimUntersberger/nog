@@ -1,7 +1,12 @@
 use crate::GRIDS;
-use crate::WORKSPACE_ID;
+use crate::{popup, WORKSPACE_ID};
 
 pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
+    if popup::is_visible() {
+        popup::close();
+        return Ok(())
+    }
+
     let mut grids = GRIDS.lock().unwrap();
     let grid = grids
         .iter_mut()
