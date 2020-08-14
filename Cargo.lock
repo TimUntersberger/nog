@@ -17,6 +17,7 @@ dependencies = [
  "num-traits",
  "regex",
  "rhai",
+ "serde",
  "strum",
  "strum_macros",
  "thiserror",
