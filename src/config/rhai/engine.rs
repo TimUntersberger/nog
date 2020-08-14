@@ -3,11 +3,14 @@ use crate::{
     config::{update_channel::UpdateChannel, Config, Rule, WorkspaceSetting},
     keybindings::keybinding::Keybinding,
 };
-use log::{debug, error};
-use rhai::{Array, Engine, Map, Scope, module_resolvers::{FileModuleResolver, ModuleResolversCollection}};
-use std::{io::Write, path::PathBuf, time::Duration, rc::Rc, cell::RefCell, sync::Mutex};
-use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
 use lazy_static::lazy_static;
+use log::debug;
+use rhai::{
+    module_resolvers::{FileModuleResolver, ModuleResolversCollection},
+    Array, Engine, Map, Scope,
+};
+use std::{cell::RefCell, io::Write, path::PathBuf, rc::Rc, sync::Mutex};
+use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
 
 lazy_static! {
     pub static ref MODE: Mutex<Option<String>> = Mutex::new(None);
@@ -26,7 +29,8 @@ pub fn parse_config() -> Result<Config, String> {
 
     config_path.push("nog");
 
-    let relative_resolver = FileModuleResolver::new_with_path_and_extension(config_path.clone(), "nog");
+    let relative_resolver =
+        FileModuleResolver::new_with_path_and_extension(config_path.clone(), "nog");
     resolver_collection.push(relative_resolver);
 
     engine.set_module_resolver(Some(resolver_collection));

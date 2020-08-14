@@ -44,10 +44,7 @@ fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
             };
             let mut text = format!(" {} ", grid.id.to_string());
 
-            if let Some(settings) = workspace_settings
-                .iter()
-                .find(|s| s.id == grid.id)
-            {
+            if let Some(settings) = workspace_settings.iter().find(|s| s.id == grid.id) {
                 if !settings.text.is_empty() {
                     text = settings.text.clone();
                 }

@@ -1,6 +1,6 @@
 use super::engine::MODE;
 use crate::{
-    bar::{self, component::Component},
+    bar::component::Component,
     config::{
         bar_config::BarConfig, update_channel::UpdateChannel, Config, Rule, WorkspaceSetting,
     },
@@ -8,8 +8,8 @@ use crate::{
 };
 use log::error;
 use regex::Regex;
-use rhai::{Array, Dynamic, Engine, Map, ParseError, Scope};
-use std::{cell::RefCell, path::PathBuf, rc::Rc, str::FromStr, time::Duration};
+use rhai::{Array, Dynamic, Engine, Map, ParseError};
+use std::{cell::RefCell, rc::Rc, str::FromStr, time::Duration};
 
 #[macro_use]
 mod macros;
@@ -132,7 +132,7 @@ pub fn init(engine: &mut Engine, config: &mut Rc<RefCell<Config>>) -> Result<(),
                                 "left" => &mut bar_config.components.left,
                                 "center" => &mut bar_config.components.center,
                                 "right" => &mut bar_config.components.right,
-                                _ => panic!()
+                                _ => panic!(),
                             };
 
                             list.push(component);
@@ -171,7 +171,7 @@ pub fn init(engine: &mut Engine, config: &mut Rc<RefCell<Config>>) -> Result<(),
     engine.register_custom_syntax(
         &["enable", "$ident$"], // the custom syntax
         0,                      // the number of new variables declared within this custom syntax
-        move |engine, _ctx, scope, inputs| {
+        move |_engine, _ctx, _scope, inputs| {
             let key = get_variable_name!(inputs, 0);
             let mut config = cfg.borrow_mut();
 
@@ -185,7 +185,7 @@ pub fn init(engine: &mut Engine, config: &mut Rc<RefCell<Config>>) -> Result<(),
     engine.register_custom_syntax(
         &["disable", "$ident$"], // the custom syntax
         0,                       // the number of new variables declared within this custom syntax
-        move |engine, _ctx, scope, inputs| {
+        move |_engine, _ctx, _scope, inputs| {
             let key = get_variable_name!(inputs, 0);
             let mut config = cfg.borrow_mut();
 
@@ -294,7 +294,6 @@ pub fn init(engine: &mut Engine, config: &mut Rc<RefCell<Config>>) -> Result<(),
             kb.typ = KeybindingType::ToggleMode(name.clone());
 
             cfg.borrow_mut().keybindings.push(kb);
-
 
             *MODE.lock().unwrap() = Some(name);
 

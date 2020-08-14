@@ -6,8 +6,8 @@ use crate::{
 };
 use font::load_font;
 use lazy_static::lazy_static;
-use log::{error, info};
-use std::collections::{HashMap, VecDeque};
+use log::info;
+
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Mutex, MutexGuard,
@@ -174,7 +174,7 @@ unsafe fn draw_components(
     for component in components {
         let component_texts = component.render(display);
 
-        for (i, component_text) in component_texts.iter().enumerate() {
+        for (_i, component_text) in component_texts.iter().enumerate() {
             let width = calculate_width(hdc, &component_text);
 
             let mut rect = RECT::default();

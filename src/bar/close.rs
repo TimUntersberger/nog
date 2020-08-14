@@ -1,4 +1,4 @@
-use super::{FONT, get_windows};
+use super::{get_windows, FONT};
 use log::{debug, info};
 use std::ffi::CString;
 use winapi::um::winuser::{SendMessageA, UnregisterClassA, WM_CLOSE};

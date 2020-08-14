@@ -5,7 +5,7 @@ use gwl_ex_style::GwlExStyle;
 use gwl_style::GwlStyle;
 use log::error;
 use winapi::shared::windef::HWND;
-use winapi::shared::{minwindef::HMODULE, windef::RECT};
+use winapi::shared::windef::RECT;
 use winapi::um::errhandlingapi::GetLastError;
 use winapi::um::winuser::AdjustWindowRectEx;
 use winapi::um::winuser::GetForegroundWindow;
@@ -34,8 +34,8 @@ use winapi::um::{
     psapi::GetModuleFileNameExA,
     winnt::{PROCESS_QUERY_INFORMATION, PROCESS_VM_READ},
     winuser::{
-        GetClientRect, GetSystemMetricsForDpi, GetWindowModuleFileNameA, GetWindowThreadProcessId,
-        SC_MAXIMIZE, SC_MINIMIZE, SC_RESTORE, WM_CLOSE, WM_SYSCOMMAND, WM_PAINT,
+        GetClientRect, GetSystemMetricsForDpi, GetWindowThreadProcessId, SC_MAXIMIZE, SC_MINIMIZE,
+        SC_RESTORE, WM_CLOSE, WM_PAINT, WM_SYSCOMMAND,
     },
 };
 
@@ -345,7 +345,7 @@ impl Window {
     }
 
     pub fn redraw(&self) {
-        unsafe { 
+        unsafe {
             SendMessageA(self.id as HWND, WM_PAINT, 0, 0);
         }
     }

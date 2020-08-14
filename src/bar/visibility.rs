@@ -1,8 +1,4 @@
 use super::{get_windows, redraw::redraw};
-use winapi::{
-    shared::windef::HWND,
-    um::winuser::{ShowWindow, SW_HIDE, SW_SHOW},
-};
 
 #[allow(dead_code)]
 pub fn hide() {

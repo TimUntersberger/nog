@@ -1,16 +1,16 @@
 use crate::keybindings::keybinding::Keybinding;
+use bar_config::BarConfig;
 use log::error;
 use rule::Rule;
 use std::{collections::HashMap, time::Duration};
 use update_channel::UpdateChannel;
 use workspace_setting::WorkspaceSetting;
-use bar_config::BarConfig;
 
+pub mod bar_config;
 pub mod hot_reloading;
 pub mod rhai;
 pub mod rule;
 pub mod update_channel;
-pub mod bar_config;
 pub mod workspace_setting;
 
 #[derive(Clone, Debug)]
