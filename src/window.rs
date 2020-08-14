@@ -35,7 +35,7 @@ use winapi::um::{
     winnt::{PROCESS_QUERY_INFORMATION, PROCESS_VM_READ},
     winuser::{
         GetClientRect, GetSystemMetricsForDpi, GetWindowModuleFileNameA, GetWindowThreadProcessId,
-        SC_MAXIMIZE, SC_MINIMIZE, SC_RESTORE, WM_CLOSE, WM_SYSCOMMAND,
+        SC_MAXIMIZE, SC_MINIMIZE, SC_RESTORE, WM_CLOSE, WM_SYSCOMMAND, WM_PAINT,
     },
 };
 
@@ -81,7 +81,7 @@ impl Window {
         self.reset_pos()?;
 
         if self.maximized {
-            self.send_maximize();
+            self.maximize();
         }
 
         Ok(())
@@ -306,9 +306,8 @@ impl Window {
 
         util::bytes_to_string(&buffer)
     }
-    pub fn send_close(&self) {
+    pub fn close(&self) {
         unsafe {
-            //TODO: Handle Error
             SendMessageA(self.id as HWND, WM_CLOSE, 0, 0);
         }
     }
@@ -333,19 +332,25 @@ impl Window {
         }
     }
 
-    pub fn send_maximize(&self) {
+    pub fn maximize(&self) {
         unsafe {
             SendMessageA(self.id as HWND, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
         }
     }
 
-    pub fn send_minimize(&self) {
+    pub fn minimize(&self) {
         unsafe {
             SendMessageA(self.id as HWND, WM_SYSCOMMAND, SC_MINIMIZE, 0);
         }
     }
 
-    pub fn send_restore(&self) {
+    pub fn redraw(&self) {
+        unsafe { 
+            SendMessageA(self.id as HWND, WM_PAINT, 0, 0);
+        }
+    }
+
+    pub fn restore(&self) {
         unsafe {
             SendMessageA(self.id as HWND, WM_SYSCOMMAND, SC_RESTORE, 0);
         }

@@ -604,7 +604,6 @@ impl TileGrid {
         let rect = self.calculate_tile_data(tile);
 
         unsafe {
-            //TODO: handle error
             SetWindowPos(
                 tile.window.id as HWND,
                 std::ptr::null_mut(),

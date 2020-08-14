@@ -92,7 +92,7 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
             if let Some(tile) = grid.get_focused_tile_mut() {
                 let id = tile.window.id;
 
-                tile.window.send_minimize();
+                tile.window.minimize();
                 tile.window.reset()?;
 
                 grid.close_tile_by_window_id(id);

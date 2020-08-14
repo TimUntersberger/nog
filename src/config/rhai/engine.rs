@@ -4,52 +4,37 @@ use crate::{
     keybindings::keybinding::Keybinding,
 };
 use log::{debug, error};
-use rhai::{Array, Engine, Map, Scope};
-use std::{io::Write, path::PathBuf, time::Duration, rc::Rc, cell::RefCell};
+use rhai::{Array, Engine, Map, Scope, module_resolvers::{FileModuleResolver, ModuleResolversCollection}};
+use std::{io::Write, path::PathBuf, time::Duration, rc::Rc, cell::RefCell, sync::Mutex};
 use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
+use lazy_static::lazy_static;
 
-macro_rules! set {
-    ($typ: ty, $config: ident, $prop: ident, $key: ident, $val: ident) => {{
-        if $key == stringify!($prop) {
-            if $val.type_name().to_uppercase() != stringify!($typ).to_uppercase() {
-                return Err(format!(
-                    "{} has to be of type {} not {}",
-                    stringify!($key),
-                    stringify!($typ),
-                    $val.type_name()
-                ));
-            } else {
-                $config.$prop = $val.clone().cast::<$typ>();
-                continue;
-            }
-        }
-    }};
+lazy_static! {
+    pub static ref MODE: Mutex<Option<String>> = Mutex::new(None);
 }
 
 pub fn parse_config() -> Result<Config, String> {
     let mut engine = Engine::new();
     let mut scope = Scope::new();
     let mut config = Rc::new(RefCell::new(Config::default()));
-    let modules_resolver = modules::new();
+    let mut resolver_collection = ModuleResolversCollection::new();
 
-    engine.set_module_resolver(Some(modules_resolver));
+    let modules_resolver = modules::new();
+    resolver_collection.push(modules_resolver);
 
     let mut config_path: PathBuf = dirs::config_dir().unwrap_or_default();
 
     config_path.push("nog");
 
+    let relative_resolver = FileModuleResolver::new_with_path_and_extension(config_path.clone(), "nog");
+    resolver_collection.push(relative_resolver);
+
+    engine.set_module_resolver(Some(resolver_collection));
+
     if !config_path.exists() {
         debug!("nog folder doesn't exist yet. Creating the folder");
         std::fs::create_dir(config_path.clone());
     }
-
-    scope.set_value("__mode", None as Option<String>);
-    scope.set_value("__cwd", config_path.to_str().unwrap().to_string());
-    scope.set_value("__workspace_settings", Array::new());
-    scope.set_value("__keybindings", Array::new());
-    scope.set_value("__rules", Array::new());
-    scope.set_value("__set", Map::new());
-    scope.set_value("__update_channels", Array::new());
 
     functions::init(&mut engine);
     syntax::init(&mut engine, &mut config).unwrap();
@@ -69,88 +54,13 @@ pub fn parse_config() -> Result<Config, String> {
         .consume_file_with_scope(&mut scope, config_path)
         .map_err(|e| e.to_string())?;
 
-    // let keybindings: Array = scope.get_value("__keybindings").unwrap();
+    let mut config = config.borrow().clone();
 
-    // for val in keybindings {
-    //     let boxed = val.cast::<Box<Keybinding>>();
-    //     config.keybindings.push(*boxed);
-    // }
+    config.bar.color = RGB(
+        GetBValue(config.bar.color as u32),
+        GetGValue(config.bar.color as u32),
+        GetRValue(config.bar.color as u32),
+    ) as i32;
 
-    // let settings: Map = scope.get_value("__set").unwrap();
-
-    // for (key, value) in settings.iter().map(|(k, v)| (k.to_string(), v)) {
-    //     set!(i32, config, min_height, key, value);
-    //     set!(i32, config, min_width, key, value);
-    //     set!(bool, config, launch_on_startup, key, value);
-    //     set!(bool, config, multi_monitor, key, value);
-    //     set!(bool, config, remove_title_bar, key, value);
-    //     set!(bool, config, work_mode, key, value);
-    //     set!(bool, config, remove_task_bar, key, value);
-    //     set!(bool, config, display_app_bar, key, value);
-    //     set!(bool, config, use_border, key, value);
-    //     set!(bool, config, light_theme, key, value);
-    //     set!(i32, config, outer_gap, key, value);
-    //     set!(i32, config, inner_gap, key, value);
-    //     set!(i32, config, app_bar_height, key, value);
-    //     set!(String, config, app_bar_font, key, value);
-    //     set!(i32, config, app_bar_font_size, key, value);
-    //     set!(i32, config, app_bar_color, key, value);
-    //     if key == "update_interval" {
-    //         if value.type_name().to_string() != "i32" {
-    //             return Err(format!(
-    //                 "{} has to be of type {} not {}",
-    //                 "update_interval",
-    //                 "i32",
-    //                 value.type_name()
-    //             ));
-    //         } else {
-    //             config.update_interval = Duration::from_secs(value.clone().cast::<u64>() * 60);
-    //             continue;
-    //         }
-    //     }
-    //     if key == "default_update_channel" {
-    //         if value.type_name().to_string() != "string" {
-    //             return Err(format!(
-    //                 "{} has to be of type {} not {}",
-    //                 "default_update_channel",
-    //                 "String",
-    //                 value.type_name()
-    //             ));
-    //         } else {
-    //             config.default_update_channel = Some(value.clone().as_str().unwrap().to_string());
-    //             continue;
-    //         }
-    //     }
-    //     error!("Unknown setting {}", key);
-    // }
-
-    // config.app_bar_color = RGB(
-    //     GetBValue(config.app_bar_color as u32),
-    //     GetGValue(config.app_bar_color as u32),
-    //     GetRValue(config.app_bar_color as u32),
-    // ) as i32;
-
-    // let rules: Array = scope.get_value("__rules").unwrap();
-
-    // for val in rules {
-    //     let boxed = val.cast::<Box<Rule>>();
-    //     config.rules.push(*boxed);
-    // }
-
-    // let workspace_settings: Array = scope.get_value("__workspace_settings").unwrap();
-
-    // for val in workspace_settings {
-    //     let boxed = val.cast::<Box<WorkspaceSetting>>();
-    //     config.workspace_settings.push(*boxed);
-    // }
-
-    // let update_channels: Array = scope.get_value("__update_channels").unwrap();
-
-    // for val in update_channels {
-    //     let boxed = val.cast::<Box<UpdateChannel>>();
-    //     config.update_channels.push(*boxed);
-    // }
-
-    let config = config.borrow().clone();
     Ok(config)
 }

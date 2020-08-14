@@ -50,6 +50,17 @@ pub struct Component {
     on_click_fn: Option<OnClickFn>,
 }
 
+impl Default for Component {
+    fn default() -> Self {
+        Self {
+            name: "Default".into(),
+            is_clickable: false,
+            render_fn: Arc::new(|_, _| vec![ComponentText::Basic("Hello World".into())]),
+            on_click_fn: None
+        }
+    }
+}
+
 impl Component {
     pub fn new(name: &str, render_fn: RenderFn) -> Self {
         Self {

@@ -6,9 +6,8 @@ use winapi::{
 
 pub fn redraw() {
     unsafe {
-        for hwnd in get_windows() {
-            //TODO: handle error
-            SendMessageA(hwnd as HWND, WM_PAINT, 0, 0);
+        for window in get_windows() {
+            window.redraw();
         }
     }
 }

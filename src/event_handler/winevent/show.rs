@@ -33,7 +33,7 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
 
     window.original_style = window.get_style().unwrap_or_default();
     if window.original_style.contains(GwlStyle::MAXIMIZE) {
-        window.send_restore();
+        window.restore();
         window.maximized = true;
         window.original_style.remove(GwlStyle::MAXIMIZE);
     }
@@ -84,8 +84,6 @@ pub fn handle(hwnd: HWND, ignore_window_style: bool) -> Result<(), Box<dyn std::
         let grid = grids.iter_mut().find(|g| g.id == workspace_id).unwrap();
 
         window.original_rect = window.get_rect()?;
-
-        dbg!(window.get_process_name());
 
         grid.split(window);
 

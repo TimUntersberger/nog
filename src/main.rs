@@ -152,10 +152,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     Event::ReloadConfig => {
                         info!("Reloading Config");
 
-                        bar::clear();
-
-                        bar::empty_components();
-
                         update_config(config::rhai::engine::parse_config().expect("Failed to load config"))
                     }
                 }.map_err(|e| {

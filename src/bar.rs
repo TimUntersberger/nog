@@ -1,13 +1,16 @@
 use crate::CONFIG;
-use crate::{display::get_display_by_hmonitor, util};
-use alignment::Alignment;
+use crate::{
+    display::{get_display_by_hmonitor, Display},
+    util,
+    window::Window,
+};
 use font::load_font;
 use lazy_static::lazy_static;
 use log::{error, info};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    Mutex,
+    Mutex, MutexGuard,
 };
 use winapi::shared::minwindef::LPARAM;
 use winapi::shared::minwindef::LRESULT;
@@ -43,7 +46,6 @@ use winapi::um::winuser::{
     IDC_HAND, WM_SETCURSOR,
 };
 
-pub mod alignment;
 pub mod close;
 pub mod component;
 pub mod create;
@@ -52,42 +54,82 @@ pub mod redraw;
 pub mod visibility;
 
 lazy_static! {
-    pub static ref HEIGHT: Mutex<i32> = Mutex::new(0);
-    //HMONITOR, HWND
-    pub static ref WINDOWS: Mutex<HashMap<i32, i32>> = Mutex::new(HashMap::new());
-    //TODO: change to RwLock
-    static ref ITEMS: Mutex<VecDeque<Item>> = Mutex::new(VecDeque::new());
-    static ref CLEAR: AtomicBool = AtomicBool::new(false);
+    pub static ref BARS: Mutex<Vec<Bar>> = Mutex::new(Vec::new());
     pub static ref FONT: Mutex<i32> = Mutex::new(0);
 }
 
+#[derive(Debug, Clone)]
 pub struct Item {
     pub left: i32,
     pub right: i32,
-    pub alignment: Alignment,
     pub component: Component,
-    // component_idx, (left, right)
-    pub widths: HashMap<usize, (i32, i32)>,
+    pub widths: Vec<(i32, i32)>,
 }
 
-impl Item {
-    pub fn new(alignment: Alignment, component: Component) -> Self {
+impl Default for Item {
+    fn default() -> Self {
         Self {
-            alignment,
-            component,
-            widths: HashMap::new(),
+            widths: Vec::new(),
+            component: Component::default(),
             left: 0,
             right: 0,
         }
     }
 }
 
-unsafe fn calculate_width(hdc: HDC, str: &Vec<u16>) -> i32 {
+#[derive(Debug, Clone)]
+struct ItemSection {
+    pub left: i32,
+    pub right: i32,
+    pub items: Vec<Item>,
+}
+
+impl Default for ItemSection {
+    fn default() -> Self {
+        Self {
+            left: 0,
+            right: 0,
+            items: Vec::new(),
+        }
+    }
+}
+
+impl ItemSection {
+    pub fn width(&self) -> i32 {
+        self.right - self.left
+    }
+}
+
+#[derive(Clone)]
+pub struct Bar {
+    window: Window,
+    hmonitor: i32,
+    left: ItemSection,
+    center: ItemSection,
+    right: ItemSection,
+}
+
+impl Default for Bar {
+    fn default() -> Self {
+        Self {
+            window: Window::default(),
+            hmonitor: 0,
+            left: ItemSection::default(),
+            center: ItemSection::default(),
+            right: ItemSection::default(),
+        }
+    }
+}
+
+unsafe fn calculate_width(hdc: HDC, component_text: &ComponentText) -> i32 {
+    let text = component_text.get_text();
+    let c_text = util::to_widestring(&text);
+
     let mut rect = RECT::default();
 
     DrawTextW(
         hdc,
-        str.as_ptr(),
+        c_text.as_ptr(),
         -1,
         &mut rect,
         DT_VCENTER | DT_SINGLELINE | DT_CALCRECT,
@@ -122,33 +164,68 @@ unsafe fn draw_component_text(hdc: HDC, rect: &mut RECT, component_text: &Compon
     DrawTextW(hdc, c_text.as_ptr(), -1, rect, DT_VCENTER | DT_SINGLELINE);
 }
 
-fn calculate_rect(item: &Item, left: &mut i32, right: &mut i32, width: i32, height: i32) -> RECT {
-    let mut rect = RECT::default();
+unsafe fn draw_components(
+    hdc: HDC,
+    display: &Display,
+    height: i32,
+    mut offset: i32,
+    components: &[Component],
+) {
+    for component in components {
+        let component_texts = component.render(display);
 
-    match item.alignment {
-        Alignment::Left => {
-            rect.left = *left;
+        for (i, component_text) in component_texts.iter().enumerate() {
+            let width = calculate_width(hdc, &component_text);
+
+            let mut rect = RECT::default();
+
+            rect.left = offset;
             rect.right = rect.left + width;
+            rect.bottom = height;
 
-            *left = rect.right;
-        }
-        Alignment::Center => {
-            rect.left = *left;
-            rect.right = rect.left + width;
+            offset = rect.right;
 
-            *left = rect.right;
-        }
-        Alignment::Right => {
-            rect.right = *right;
-            rect.left = rect.right - width;
-
-            *right = rect.left;
+            draw_component_text(hdc, &mut rect, &component_text);
         }
     }
+}
 
-    rect.bottom = height;
+unsafe fn components_to_section(
+    hdc: HDC,
+    display: &Display,
+    components: &[Component],
+) -> ItemSection {
+    let mut section = ItemSection::default();
+    let mut component_offset = 0;
 
-    rect
+    for component in components {
+        let mut item = Item::default();
+        let mut component_text_offset = 0;
+        let mut component_width = 0;
+
+        for component_text in component.render(&display) {
+            let width = calculate_width(hdc, &component_text);
+            let left = component_text_offset;
+            let right = component_text_offset + width;
+
+            item.widths.push((left, right));
+
+            component_width += width;
+            component_text_offset += width;
+        }
+
+        item.left = component_offset;
+        item.right = item.left + component_width;
+        item.component = component.clone();
+
+        section.items.push(item);
+
+        component_offset += component_width;
+    }
+
+    section.right = component_offset;
+
+    section
 }
 
 unsafe fn clear_section(hdc: HDC, height: i32, left: i32, right: i32) {
@@ -165,6 +242,17 @@ unsafe fn clear_section(hdc: HDC, height: i32, left: i32, right: i32) {
     DeleteObject(brush as *mut std::ffi::c_void);
 }
 
+fn update_bar(bar: Bar) {
+    let mut bars = BARS.lock().unwrap();
+
+    let mut_bar = bars
+        .iter_mut()
+        .find(|b| b.hmonitor == bar.hmonitor)
+        .unwrap();
+
+    *mut_bar = bar;
+}
+
 unsafe extern "system" fn window_cb(
     hwnd: HWND,
     msg: UINT,
@@ -172,22 +260,36 @@ unsafe extern "system" fn window_cb(
     l_param: LPARAM,
 ) -> LRESULT {
     if msg == WM_CLOSE {
-        WINDOWS.lock().unwrap().remove(&(hwnd as i32));
+        let mut bars = BARS.lock().unwrap();
+        let idx = bars
+            .iter()
+            .position(|b| b.window.id == hwnd as i32)
+            .unwrap();
+        bars.remove(idx);
     } else if msg == WM_SETCURSOR {
         let mut point = POINT::default();
         GetCursorPos(&mut point);
 
-        let hmonitor = get_monitor_by_hwnd(hwnd as i32);
-        let display = get_display_by_hmonitor(hmonitor);
+        let bar = get_bar_by_hwnd(hwnd as i32).unwrap();
+        let display = get_display_by_hmonitor(bar.hmonitor);
         let x = point.x - display.left;
+        let mut found = false;
 
-        let items = ITEMS.lock().unwrap();
+        for section in vec![bar.left, bar.center, bar.right] {
+            if section.left <= x && x <= section.right {
+                for item in section.items {
+                    if item.left <= x && x <= item.right {
+                        if item.component.is_clickable {
+                            found = true;
+                        }
 
-        let maybe_item = items
-            .iter()
-            .find(|item| item.component.is_clickable && item.left <= x && x <= item.right);
+                        break;
+                    }
+                }
+            }
+        }
 
-        if maybe_item.is_some() {
+        if found {
             SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_HAND as *const i8));
         } else {
             SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8));
@@ -198,181 +300,100 @@ unsafe extern "system" fn window_cb(
         let mut point = POINT::default();
         GetCursorPos(&mut point);
 
-        let hmonitor = get_monitor_by_hwnd(hwnd as i32);
-        let display = get_display_by_hmonitor(hmonitor);
+        let bar = get_bar_by_hwnd(hwnd as i32).unwrap();
+        let display = get_display_by_hmonitor(bar.hmonitor);
         let x = point.x - display.left;
 
-        let items = ITEMS.lock().unwrap();
-        let maybe_item = items
-            .iter()
-            .find(|item| item.component.is_clickable && item.left <= x && x <= item.right);
-        if let Some(item) = maybe_item {
-            let idx = *item
-                .widths
-                .iter()
-                .find(|(_i, (left, right))| *left <= x && x <= *right)
-                .map(|(i, _)| i)
-                .unwrap();
+        for section in vec![bar.left, bar.center, bar.right] {
+            if section.left <= x && x <= section.right {
+                for (i, item) in section.items.iter().enumerate() {
+                    if item.left <= x && x <= item.right {
+                        if item.component.is_clickable {
+                            item.component.on_click(&display, i);
+                        }
 
-            let display = get_display_by_hmonitor(get_monitor_by_hwnd(hwnd as i32));
-            item.component.on_click(&display, idx);
+                        break;
+                    }
+                }
+            }
         }
     } else if msg == WM_CREATE {
         info!("loading font");
         load_font();
     } else if msg == WM_PAINT {
-        let mut items = ITEMS.lock().unwrap();
-        // left, center, right
-        let mut prev_widths = (0, 0, 0);
-        // left, center, right
-        let mut widths = (0, 0, 0);
+        let bar_config = CONFIG.lock().unwrap().bar.clone();
         let mut paint = PAINTSTRUCT::default();
 
-        let hmonitor = get_monitor_by_hwnd(hwnd as i32);
-        let display = get_display_by_hmonitor(hmonitor);
-        let height = CONFIG.lock().unwrap().bar.height;
+        let mut bar = get_bar_by_hwnd(hwnd as i32).unwrap();
+        let display = get_display_by_hmonitor(bar.hmonitor);
 
         BeginPaint(hwnd, &mut paint);
 
-        let hdc = util::winapi_ptr_to_result(GetDC(hwnd))
-            .map_err(|e| error!("{}", e))
-            .unwrap();
+        let hdc = GetDC(hwnd);
 
-        if CLEAR.load(Ordering::SeqCst) {
-            clear_section(hdc, height, 0, display.width());
-            CLEAR.store(false, Ordering::SeqCst);
-        } else {
-            font::set_font(hdc);
+        font::set_font(hdc);
 
-            // offsets
-            let mut left = 0;
-            let mut right = display.width();
+        let left = components_to_section(hdc, &display, &bar_config.components.left);
 
-            let mut center_item_indices: Vec<usize> = Vec::new();
+        let mut center = components_to_section(hdc, &display, &bar_config.components.center);
+        center.left = display.width() / 2 - center.right / 2;
+        center.right += center.left;
 
-            for (i, item) in items.iter_mut().enumerate() {
-                match item.alignment {
-                    Alignment::Left => prev_widths.0 += (item.right - item.left).abs(),
-                    Alignment::Center => prev_widths.1 += (item.right - item.left).abs(),
-                    Alignment::Right => prev_widths.2 += (item.right - item.left).abs(),
-                };
+        let mut right = components_to_section(hdc, &display, &bar_config.components.right);
+        right.left = display.width() - right.right;
+        right.right += right.left;
 
-                if item.alignment == Alignment::Center {
-                    center_item_indices.push(i);
-                }
+        draw_components(
+            hdc,
+            &display,
+            bar_config.height,
+            left.left,
+            &bar_config.components.left,
+        );
+        draw_components(
+            hdc,
+            &display,
+            bar_config.height,
+            center.left,
+            &bar_config.components.center,
+        );
+        draw_components(
+            hdc,
+            &display,
+            bar_config.height,
+            right.left,
+            &bar_config.components.right,
+        );
 
-                let component_texts = item.component.render(&display);
-                let mut component_texts_iter = component_texts.iter();
-
-                if let Some(component_text) = component_texts_iter.next() {
-                    let text = component_text.get_text();
-                    let c_text = util::to_widestring(&text);
-
-                    let width = calculate_width(hdc, &c_text);
-
-                    match item.alignment {
-                        Alignment::Left => widths.0 += width,
-                        Alignment::Center => widths.1 += width,
-                        Alignment::Right => widths.2 += width,
-                    };
-
-                    if item.alignment != Alignment::Center {
-                        let mut rect = calculate_rect(item, &mut left, &mut right, width, height);
-
-                        item.left = rect.left;
-                        item.right = rect.right;
-                        item.widths.insert(0, (item.left, item.right));
-
-                        draw_component_text(hdc, &mut rect, &component_text);
-                    }
-                }
-
-                for (i, component_text) in component_texts_iter.enumerate() {
-                    let text = component_text.get_text();
-                    let c_text = util::to_widestring(&text);
-
-                    let width = calculate_width(hdc, &c_text);
-
-                    match item.alignment {
-                        Alignment::Left => widths.0 += width,
-                        Alignment::Center => widths.1 += width,
-                        Alignment::Right => widths.2 += width,
-                    };
-
-                    if item.alignment != Alignment::Center {
-                        let mut rect = calculate_rect(item, &mut left, &mut right, width, height);
-
-                        item.widths.insert(i + 1, (rect.left, rect.right));
-
-                        match item.alignment {
-                            Alignment::Left => item.right = rect.right,
-                            Alignment::Right => item.left = rect.left,
-                            Alignment::Center => {}
-                        };
-
-                        draw_component_text(hdc, &mut rect, &component_text);
-                    }
-                }
-            }
-
-            left = display.width() / 2 - widths.1 / 2;
-
-            //draw center items
-            for idx in center_item_indices {
-                let mut item = items.get_mut(idx).expect("Failed to get item");
-                let component_texts = item.component.render(&display);
-                let mut component_texts_iter = component_texts.iter();
-
-                if let Some(component_text) = component_texts_iter.next() {
-                    let text = component_text.get_text();
-                    let c_text = util::to_widestring(&text);
-
-                    let width = calculate_width(hdc, &c_text);
-                    let mut rect = calculate_rect(item, &mut left, &mut right, width, height);
-
-                    item.widths.insert(0, (rect.left, rect.right));
-
-                    item.left = rect.left;
-                    item.right = rect.right;
-
-                    draw_component_text(hdc, &mut rect, &component_text);
-                }
-
-                for (i, component_text) in component_texts_iter.enumerate() {
-                    let text = component_text.get_text();
-                    let c_text = util::to_widestring(&text);
-
-                    let width = calculate_width(hdc, &c_text);
-                    let mut rect = calculate_rect(item, &mut left, &mut right, width, height);
-
-                    item.widths.insert(i + 1, (rect.left, rect.right));
-
-                    draw_component_text(hdc, &mut rect, &component_text);
-                }
-            }
-
-            //cleanup previous render if there is any dangling rendered text
-            if prev_widths.0 > widths.0 {
-                clear_section(hdc, height, widths.0, prev_widths.0);
-            }
-
-            if prev_widths.1 > widths.1 {
-                let prev_center_left = display.width() / 2 - prev_widths.1 / 2;
-                let prev_center_right = prev_center_left + prev_widths.1;
-                let delta = (prev_widths.1 - widths.1) / 2;
-                clear_section(hdc, height, prev_center_left, prev_center_left + delta);
-                clear_section(hdc, height, prev_center_right - delta, prev_center_right);
-            }
-
-            if prev_widths.2 > widths.2 {
-                clear_section(
-                    hdc,
-                    height,
-                    display.width() - prev_widths.2,
-                    display.width() - widths.2,
-                );
-            }
+        if bar.left.width() > left.width() {
+            clear_section(hdc, bar_config.height, left.right, bar.left.right);
         }
+
+        if bar.center.width() > center.width() {
+            let delta = (bar.center.right - center.right) / 2;
+            clear_section(
+                hdc,
+                bar_config.height,
+                bar.center.left,
+                bar.center.left + delta,
+            );
+            clear_section(
+                hdc,
+                bar_config.height,
+                bar.center.right - delta,
+                bar.center.right,
+            );
+        }
+
+        if bar.right.width() > right.width() {
+            clear_section(hdc, bar_config.height, bar.right.left, right.left);
+        }
+
+        bar.left = left;
+        bar.center = center;
+        bar.right = right;
+
+        update_bar(bar);
 
         ReleaseDC(hwnd, hdc);
         EndPaint(hwnd, &paint);
@@ -381,41 +402,31 @@ unsafe extern "system" fn window_cb(
     DefWindowProcA(hwnd, msg, w_param, l_param)
 }
 
-pub fn add_component(align: Alignment, comp: Component) {
-    let mut items = ITEMS.lock().unwrap();
-    if align == Alignment::Right {
-        items.push_front(Item::new(align, comp));
-    } else {
-        items.push_back(Item::new(align, comp));
-    }
-}
-
-pub fn empty_components() {
-    ITEMS.lock().unwrap().clear();
-}
-
-pub fn clear() {
-    CLEAR.store(true, Ordering::SeqCst);
-    redraw::redraw();
-}
-
-pub fn get_windows() -> Vec<i32> {
-    WINDOWS
-        .lock()
+pub fn get_bar_by_hwnd(hwnd: i32) -> Option<Bar> {
+    BARS.lock()
         .unwrap()
         .iter()
-        .map(|(_, hwnd)| *hwnd)
-        .collect::<Vec<i32>>()
+        .cloned()
+        .find(|b| b.window.id == hwnd)
 }
 
-fn get_monitor_by_hwnd(hwnd: i32) -> i32 {
-    WINDOWS
-        .lock()
+pub fn get_bar_by_hmonitor(hmonitor: i32) -> Option<Bar> {
+    BARS.lock()
         .unwrap()
         .iter()
-        .find(|(_, v)| **v == hwnd)
-        .map(|(k, _)| *k)
-        .ok_or(format!("Failed to get monitor for hwnd {}", hwnd))
-        .map_err(|e| error!("{}", e))
+        .cloned()
+        .find(|b| b.hmonitor == hmonitor)
+}
+
+pub fn get_windows() -> Vec<Window> {
+    BARS.lock()
         .unwrap()
+        .iter()
+        .map(|bar| &bar.window)
+        .cloned()
+        .collect()
+}
+
+fn get_monitor_by_hwnd(hwnd: i32) -> Option<i32> {
+    get_bar_by_hwnd(hwnd).map(|bar| bar.hmonitor)
 }

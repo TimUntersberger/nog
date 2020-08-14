@@ -9,7 +9,7 @@ pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
 
     if let Some(tile) = grid.get_focused_tile() {
-        tile.window.send_close();
+        tile.window.close();
         let id = tile.window.id; //need this variable because of borrow checker
         grid.close_tile_by_window_id(id);
         grid.draw_grid();

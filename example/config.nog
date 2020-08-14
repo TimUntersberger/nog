@@ -1,6 +1,6 @@
-execute "modes/resize";
-execute "keybindings";
-execute "rules";
+import "modes/resize";
+import "keybindings";
+import "rules";
 
 bar #{
     font: "Cascadia Mono",

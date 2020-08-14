@@ -7,16 +7,16 @@ use winapi::{
 #[allow(dead_code)]
 pub fn hide() {
     unsafe {
-        for hwnd in get_windows() {
-            ShowWindow(hwnd as HWND, SW_HIDE);
+        for window in get_windows() {
+            window.hide();
         }
     }
 }
 
 pub fn show() {
     unsafe {
-        for hwnd in get_windows() {
-            ShowWindow(hwnd as HWND, SW_SHOW);
+        for window in get_windows() {
+            window.show();
         }
 
         redraw();
