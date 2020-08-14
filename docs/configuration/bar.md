@@ -43,7 +43,7 @@ bar #{
 To use the components provided by default you first have to import them.
 
 ```nog
-import 'nog/components' as C;
+import "nog/components" as C;
 ```
 
 Defining the components used by the bar can be done by setting `components` which is a [map]() that can contain the following properties
