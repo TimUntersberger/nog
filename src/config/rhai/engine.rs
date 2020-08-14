@@ -5,7 +5,7 @@ use crate::{
 };
 use log::{debug, error};
 use rhai::{Array, Engine, Map, Scope};
-use std::{io::Write, path::PathBuf, time::Duration};
+use std::{io::Write, path::PathBuf, time::Duration, rc::Rc, cell::RefCell};
 use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
 
 macro_rules! set {
@@ -29,7 +29,7 @@ macro_rules! set {
 pub fn parse_config() -> Result<Config, String> {
     let mut engine = Engine::new();
     let mut scope = Scope::new();
-    let mut config = Config::default();
+    let mut config = Rc::new(RefCell::new(Config::default()));
     let modules_resolver = modules::new();
 
     engine.set_module_resolver(Some(modules_resolver));
@@ -52,7 +52,7 @@ pub fn parse_config() -> Result<Config, String> {
     scope.set_value("__update_channels", Array::new());
 
     functions::init(&mut engine);
-    syntax::init(&mut engine).unwrap();
+    syntax::init(&mut engine, &mut config).unwrap();
 
     config_path.push("config.nog");
 
@@ -69,87 +69,88 @@ pub fn parse_config() -> Result<Config, String> {
         .consume_file_with_scope(&mut scope, config_path)
         .map_err(|e| e.to_string())?;
 
-    let keybindings: Array = scope.get_value("__keybindings").unwrap();
+    // let keybindings: Array = scope.get_value("__keybindings").unwrap();
 
-    for val in keybindings {
-        let boxed = val.cast::<Box<Keybinding>>();
-        config.keybindings.push(*boxed);
-    }
+    // for val in keybindings {
+    //     let boxed = val.cast::<Box<Keybinding>>();
+    //     config.keybindings.push(*boxed);
+    // }
 
-    let settings: Map = scope.get_value("__set").unwrap();
+    // let settings: Map = scope.get_value("__set").unwrap();
 
-    for (key, value) in settings.iter().map(|(k, v)| (k.to_string(), v)) {
-        set!(i32, config, min_height, key, value);
-        set!(i32, config, min_width, key, value);
-        set!(bool, config, launch_on_startup, key, value);
-        set!(bool, config, multi_monitor, key, value);
-        set!(bool, config, remove_title_bar, key, value);
-        set!(bool, config, work_mode, key, value);
-        set!(bool, config, remove_task_bar, key, value);
-        set!(bool, config, display_app_bar, key, value);
-        set!(bool, config, use_border, key, value);
-        set!(bool, config, light_theme, key, value);
-        set!(i32, config, outer_gap, key, value);
-        set!(i32, config, inner_gap, key, value);
-        set!(i32, config, app_bar_height, key, value);
-        set!(String, config, app_bar_font, key, value);
-        set!(i32, config, app_bar_font_size, key, value);
-        set!(i32, config, app_bar_color, key, value);
-        if key == "update_interval" {
-            if value.type_name().to_string() != "i32" {
-                return Err(format!(
-                    "{} has to be of type {} not {}",
-                    "update_interval",
-                    "i32",
-                    value.type_name()
-                ));
-            } else {
-                config.update_interval = Duration::from_secs(value.clone().cast::<u64>() * 60);
-                continue;
-            }
-        }
-        if key == "default_update_channel" {
-            if value.type_name().to_string() != "string" {
-                return Err(format!(
-                    "{} has to be of type {} not {}",
-                    "default_update_channel",
-                    "String",
-                    value.type_name()
-                ));
-            } else {
-                config.default_update_channel = Some(value.clone().as_str().unwrap().to_string());
-                continue;
-            }
-        }
-        error!("Unknown setting {}", key);
-    }
+    // for (key, value) in settings.iter().map(|(k, v)| (k.to_string(), v)) {
+    //     set!(i32, config, min_height, key, value);
+    //     set!(i32, config, min_width, key, value);
+    //     set!(bool, config, launch_on_startup, key, value);
+    //     set!(bool, config, multi_monitor, key, value);
+    //     set!(bool, config, remove_title_bar, key, value);
+    //     set!(bool, config, work_mode, key, value);
+    //     set!(bool, config, remove_task_bar, key, value);
+    //     set!(bool, config, display_app_bar, key, value);
+    //     set!(bool, config, use_border, key, value);
+    //     set!(bool, config, light_theme, key, value);
+    //     set!(i32, config, outer_gap, key, value);
+    //     set!(i32, config, inner_gap, key, value);
+    //     set!(i32, config, app_bar_height, key, value);
+    //     set!(String, config, app_bar_font, key, value);
+    //     set!(i32, config, app_bar_font_size, key, value);
+    //     set!(i32, config, app_bar_color, key, value);
+    //     if key == "update_interval" {
+    //         if value.type_name().to_string() != "i32" {
+    //             return Err(format!(
+    //                 "{} has to be of type {} not {}",
+    //                 "update_interval",
+    //                 "i32",
+    //                 value.type_name()
+    //             ));
+    //         } else {
+    //             config.update_interval = Duration::from_secs(value.clone().cast::<u64>() * 60);
+    //             continue;
+    //         }
+    //     }
+    //     if key == "default_update_channel" {
+    //         if value.type_name().to_string() != "string" {
+    //             return Err(format!(
+    //                 "{} has to be of type {} not {}",
+    //                 "default_update_channel",
+    //                 "String",
+    //                 value.type_name()
+    //             ));
+    //         } else {
+    //             config.default_update_channel = Some(value.clone().as_str().unwrap().to_string());
+    //             continue;
+    //         }
+    //     }
+    //     error!("Unknown setting {}", key);
+    // }
 
-    config.app_bar_color = RGB(
-        GetBValue(config.app_bar_color as u32),
-        GetGValue(config.app_bar_color as u32),
-        GetRValue(config.app_bar_color as u32),
-    ) as i32;
+    // config.app_bar_color = RGB(
+    //     GetBValue(config.app_bar_color as u32),
+    //     GetGValue(config.app_bar_color as u32),
+    //     GetRValue(config.app_bar_color as u32),
+    // ) as i32;
 
-    let rules: Array = scope.get_value("__rules").unwrap();
+    // let rules: Array = scope.get_value("__rules").unwrap();
 
-    for val in rules {
-        let boxed = val.cast::<Box<Rule>>();
-        config.rules.push(*boxed);
-    }
+    // for val in rules {
+    //     let boxed = val.cast::<Box<Rule>>();
+    //     config.rules.push(*boxed);
+    // }
 
-    let workspace_settings: Array = scope.get_value("__workspace_settings").unwrap();
+    // let workspace_settings: Array = scope.get_value("__workspace_settings").unwrap();
 
-    for val in workspace_settings {
-        let boxed = val.cast::<Box<WorkspaceSetting>>();
-        config.workspace_settings.push(*boxed);
-    }
+    // for val in workspace_settings {
+    //     let boxed = val.cast::<Box<WorkspaceSetting>>();
+    //     config.workspace_settings.push(*boxed);
+    // }
 
-    let update_channels: Array = scope.get_value("__update_channels").unwrap();
+    // let update_channels: Array = scope.get_value("__update_channels").unwrap();
 
-    for val in update_channels {
-        let boxed = val.cast::<Box<UpdateChannel>>();
-        config.update_channels.push(*boxed);
-    }
+    // for val in update_channels {
+    //     let boxed = val.cast::<Box<UpdateChannel>>();
+    //     config.update_channels.push(*boxed);
+    // }
 
+    let config = config.borrow().clone();
     Ok(config)
 }

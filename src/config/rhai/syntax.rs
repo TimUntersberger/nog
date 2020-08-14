@@ -1,12 +1,12 @@
 use crate::{
     bar::{self, alignment::Alignment, component::Component},
-    config::{update_channel::UpdateChannel, Rule, WorkspaceSetting},
+    config::{update_channel::UpdateChannel, Rule, WorkspaceSetting, Config},
     keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
 };
 use log::error;
 use regex::Regex;
 use rhai::{Array, Dynamic, Engine, Map, ParseError, Scope};
-use std::{path::PathBuf, str::FromStr};
+use std::{path::PathBuf, str::FromStr, rc::Rc, cell::RefCell};
 
 #[macro_use]
 mod macros;
@@ -41,24 +41,30 @@ fn set(engine: &Engine, scope: &mut Scope, key: String, val: Dynamic) -> Result<
         .map_err(|x| x.to_string())
 }
 
-pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
+pub fn init(engine: &mut Engine, config: &mut Rc<RefCell<Config>>) -> Result<(), Box<ParseError>> {
+    let cfg = config.clone();
     engine.register_custom_syntax(
         &["bind", "$expr$", "$expr$"], // the custom syntax
         0, // the number of new variables declared within this custom syntax
-        |engine, ctx, scope, inputs| {
+        move |engine, ctx, scope, inputs| {
             let key = get_string!(engine, ctx, scope, inputs, 0);
             let binding = get_type!(engine, ctx, scope, inputs, 1, KeybindingType);
+            let mut kb = Keybinding::from_str(&key).unwrap();
 
-            add_keybinding(engine, scope, key, binding);
+            kb.typ = binding;
+            kb.mode = scope.get_value::<Option<String>>("__mode").unwrap();
+
+            cfg.borrow_mut().keybindings.push(kb);
 
             Ok(().into())
         },
     )?;
 
+    let cfg = config.clone();
     engine.register_custom_syntax(
         &["bind_range", "$expr$", "$expr$", "$expr$", "$ident$"], // the custom syntax
         0, // the number of new variables declared within this custom syntax
-        |engine, ctx, scope, inputs| {
+        move |engine, ctx, scope, inputs| {
             let from = get_int!(engine, ctx, scope, inputs, 0);
             let to = get_int!(engine, ctx, scope, inputs, 1);
             let modifier = get_string!(engine, ctx, scope, inputs, 2);
@@ -78,7 +84,12 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
                 let binding: KeybindingType =
                     engine.eval_expression(&format!("{}({})", binding_name, i))?;
 
-                add_keybinding(engine, scope, key, binding);
+                let mut kb = Keybinding::from_str(&key).unwrap();
+
+                kb.typ = binding;
+                kb.mode = scope.get_value::<Option<String>>("__mode").unwrap();
+
+                cfg.borrow_mut().keybindings.push(kb);
             }
 
             Ok(().into())
@@ -105,10 +116,11 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
         },
     )?;
 
+    let cfg = config.clone();
     engine.register_custom_syntax(
         &["bar", "$expr$"], // the custom syntax
         0,                  // the number of new variables declared within this custom syntax
-        |engine, ctx, scope, inputs| {
+        move |engine, ctx, scope, inputs| {
             let settings = get_map!(engine, ctx, scope, inputs, 0);
 
             for (key, val) in settings {

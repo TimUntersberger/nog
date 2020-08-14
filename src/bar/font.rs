@@ -20,8 +20,8 @@ pub fn load_font() {
     unsafe {
         let mut logfont = LOGFONTA::default();
         let mut font_name: [i8; 32] = [0; 32];
-        let app_bar_font = CONFIG.lock().unwrap().app_bar_font.clone();
-        let app_bar_font_size = CONFIG.lock().unwrap().app_bar_font_size;
+        let app_bar_font = CONFIG.lock().unwrap().bar.font.clone();
+        let app_bar_font_size = CONFIG.lock().unwrap().bar.font_size;
 
         for (i, byte) in CString::new(app_bar_font.as_str())
             .unwrap()

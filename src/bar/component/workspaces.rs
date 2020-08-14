@@ -10,7 +10,7 @@ use std::sync::Arc;
 fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
     let light_theme = CONFIG.lock().unwrap().light_theme;
     let workspace_settings = CONFIG.lock().unwrap().workspace_settings.clone();
-    let app_bar_bg = CONFIG.lock().unwrap().app_bar_color;
+    let bar_color = CONFIG.lock().unwrap().bar.color;
     let workspace_id = *WORKSPACE_ID.lock().unwrap();
 
     GRIDS
@@ -26,18 +26,18 @@ fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
                 let fg = 0x00333333;
 
                 let bg = if workspace_id == grid.id {
-                    util::scale_color(app_bar_bg, 0.75) as u32
+                    util::scale_color(bar_color, 0.75) as u32
                 } else {
-                    util::scale_color(app_bar_bg, 0.9) as u32
+                    util::scale_color(bar_color, 0.9) as u32
                 };
 
                 (fg, bg)
             } else {
                 let fg = 0x00ffffff;
                 let bg = if workspace_id == grid.id {
-                    util::scale_color(app_bar_bg, 2.0) as u32
+                    util::scale_color(bar_color, 2.0) as u32
                 } else {
-                    util::scale_color(app_bar_bg, 1.5) as u32
+                    util::scale_color(bar_color, 1.5) as u32
                 };
 
                 (fg, bg)

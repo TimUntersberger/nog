@@ -153,13 +153,13 @@ impl Window {
         height: i32,
     ) -> RECT {
         let rule = self.rule.clone().unwrap_or_default();
-        let (display_app_bar, remove_title_bar, app_bar_height, use_border) = {
+        let (display_app_bar, remove_title_bar, bar_height, use_border) = {
             let config = CONFIG.lock().unwrap();
 
             (
                 config.display_app_bar,
                 config.remove_title_bar,
-                config.app_bar_height,
+                config.bar.height,
                 config.use_border,
             )
         };
@@ -188,8 +188,8 @@ impl Window {
             }
 
             if display_app_bar {
-                top += app_bar_height;
-                bottom += app_bar_height;
+                top += bar_height;
+                bottom += bar_height;
             }
 
             if rule.firefox || rule.chromium || (!remove_title_bar && rule.has_custom_titlebar) {

@@ -100,7 +100,7 @@ unsafe extern "system" fn window_cb(
 pub fn create() -> Result<(), util::WinApiResultError> {
     let name = util::to_widestring("WWM Tray");
     let config = CONFIG.lock().unwrap();
-    let app_bar_bg = config.app_bar_color;
+    let app_bar_bg = config.bar.color;
 
     std::thread::spawn(move || unsafe {
         let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());

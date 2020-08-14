@@ -15,9 +15,9 @@ pub fn create() -> Result<(), util::WinApiResultError> {
 
     let mut height_guard = HEIGHT.lock().unwrap();
 
-    let app_bar_bg = CONFIG.lock().unwrap().app_bar_color;
+    let app_bar_bg = CONFIG.lock().unwrap().bar.color;
 
-    *height_guard = CONFIG.lock().unwrap().app_bar_height;
+    *height_guard = CONFIG.lock().unwrap().bar.height;
 
     let height = *height_guard;
 
