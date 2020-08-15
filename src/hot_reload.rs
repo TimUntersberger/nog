@@ -12,12 +12,7 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
 
     if work_mode {
         if config.display_app_bar && new_config.display_app_bar {
-            if config.app_bar_color != new_config.app_bar_color
-                || config.app_bar_font != new_config.app_bar_font
-                || config.app_bar_font_size != new_config.app_bar_font_size
-                || config.app_bar_height != new_config.app_bar_height
-                || config.light_theme != new_config.light_theme
-            {
+            if config.bar != new_config.bar || config.light_theme != new_config.light_theme {
                 bar::close::close();
                 draw_app_bar = true;
             }
@@ -25,7 +20,7 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
             bar::close::close();
 
             for d in DISPLAYS.lock().unwrap().iter_mut() {
-                d.bottom += config.app_bar_height;
+                d.bottom += config.bar.height;
             }
 
             for grid in GRIDS.lock().unwrap().iter_mut() {
@@ -35,7 +30,7 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
             draw_app_bar = true;
 
             for d in DISPLAYS.lock().unwrap().iter_mut() {
-                d.bottom -= config.app_bar_height;
+                d.bottom -= config.bar.height;
             }
 
             for grid in GRIDS.lock().unwrap().iter_mut() {

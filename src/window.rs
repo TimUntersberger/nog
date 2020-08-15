@@ -3,8 +3,10 @@ use crate::util;
 use crate::{display::Display, CONFIG};
 use gwl_ex_style::GwlExStyle;
 use gwl_style::GwlStyle;
+use log::error;
 use winapi::shared::windef::HWND;
 use winapi::shared::windef::RECT;
+use winapi::um::errhandlingapi::GetLastError;
 use winapi::um::winuser::AdjustWindowRectEx;
 use winapi::um::winuser::GetForegroundWindow;
 use winapi::um::winuser::GetParent;
@@ -27,9 +29,14 @@ use winapi::um::winuser::SWP_NOMOVE;
 use winapi::um::winuser::SWP_NOSIZE;
 use winapi::um::winuser::SW_HIDE;
 use winapi::um::winuser::SW_SHOW;
-use winapi::um::winuser::{
-    GetClientRect, GetSystemMetricsForDpi, SC_MAXIMIZE, SC_MINIMIZE, SC_RESTORE, WM_CLOSE,
-    WM_SYSCOMMAND,
+use winapi::um::{
+    processthreadsapi::OpenProcess,
+    psapi::GetModuleFileNameExA,
+    winnt::{PROCESS_QUERY_INFORMATION, PROCESS_VM_READ},
+    winuser::{
+        GetClientRect, GetSystemMetricsForDpi, GetWindowThreadProcessId, SC_MAXIMIZE, SC_MINIMIZE,
+        SC_RESTORE, WM_CLOSE, WM_PAINT, WM_SYSCOMMAND,
+    },
 };
 
 pub mod gwl_ex_style;
@@ -74,7 +81,7 @@ impl Window {
         self.reset_pos()?;
 
         if self.maximized {
-            self.send_maximize();
+            self.maximize();
         }
 
         Ok(())
@@ -146,13 +153,13 @@ impl Window {
         height: i32,
     ) -> RECT {
         let rule = self.rule.clone().unwrap_or_default();
-        let (display_app_bar, remove_title_bar, app_bar_height, use_border) = {
+        let (display_app_bar, remove_title_bar, bar_height, use_border) = {
             let config = CONFIG.lock().unwrap();
 
             (
                 config.display_app_bar,
                 config.remove_title_bar,
-                config.app_bar_height,
+                config.bar.height,
                 config.use_border,
             )
         };
@@ -181,8 +188,8 @@ impl Window {
             }
 
             if display_app_bar {
-                top += app_bar_height;
-                bottom += app_bar_height;
+                top += bar_height;
+                bottom += bar_height;
             }
 
             if rule.firefox || rule.chromium || (!remove_title_bar && rule.has_custom_titlebar) {
@@ -267,9 +274,40 @@ impl Window {
 
         Ok(())
     }
-    pub fn send_close(&self) {
+    pub fn get_process_name(&self) -> String {
+        self.get_process_path()
+            .split("\\")
+            .last()
+            .unwrap()
+            .to_string()
+    }
+    pub fn get_process_path(&self) -> String {
+        let mut buffer = [0; 0x200];
+
         unsafe {
-            //TODO: Handle Error
+            let mut process_id = 0;
+            GetWindowThreadProcessId(self.id as HWND, &mut process_id);
+            let process_handle =
+                OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, process_id);
+
+            if process_handle as i32 == 0 {
+                error!("winapi: {}", GetLastError());
+            }
+            if GetModuleFileNameExA(
+                process_handle,
+                std::ptr::null_mut(),
+                buffer.as_mut_ptr(),
+                buffer.len() as u32,
+            ) == 0
+            {
+                error!("winapi: {}", GetLastError());
+            };
+        }
+
+        util::bytes_to_string(&buffer)
+    }
+    pub fn close(&self) {
+        unsafe {
             SendMessageA(self.id as HWND, WM_CLOSE, 0, 0);
         }
     }
@@ -294,19 +332,25 @@ impl Window {
         }
     }
 
-    pub fn send_maximize(&self) {
+    pub fn maximize(&self) {
         unsafe {
             SendMessageA(self.id as HWND, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
         }
     }
 
-    pub fn send_minimize(&self) {
+    pub fn minimize(&self) {
         unsafe {
             SendMessageA(self.id as HWND, WM_SYSCOMMAND, SC_MINIMIZE, 0);
         }
     }
 
-    pub fn send_restore(&self) {
+    pub fn redraw(&self) {
+        unsafe {
+            SendMessageA(self.id as HWND, WM_PAINT, 0, 0);
+        }
+    }
+
+    pub fn restore(&self) {
         unsafe {
             SendMessageA(self.id as HWND, WM_SYSCOMMAND, SC_RESTORE, 0);
         }

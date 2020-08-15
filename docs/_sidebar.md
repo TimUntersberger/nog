@@ -1,7 +1,7 @@
 - Getting started
 
   - [Installation](getting_started/installation.md)
-  - [[WIP] Terminology](getting_started/terminology.md)
+  - [Terminology](getting_started/terminology.md)
   
 - Configuration
 
@@ -14,13 +14,15 @@
   - [Modes](configuration/modes.md)
   - [Rules](configuration/rules.md)
 
-- [WIP] Scripting
+- Scripting
 
   - [Types](scripting/types.md)
   - [Variables](scripting/variables.md)
   - [Conditionals](scripting/conditionals.md)
   - [Loops](scripting/loops.md)
   - [Functions](scripting/functions.md)
+  - [Modules](scripting/modules.md)
+  - [Timestamps](scripting/timestamp.md)
   - [Further Reading](scripting/further_reading.md)
 
 - Example Configurations

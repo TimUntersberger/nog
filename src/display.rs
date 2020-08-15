@@ -49,7 +49,7 @@ impl Display {
         display.is_primary = display.left == 0 && display.top == 0;
 
         if config.display_app_bar {
-            display.bottom -= config.app_bar_height;
+            display.bottom -= config.bar.height;
         }
 
         display

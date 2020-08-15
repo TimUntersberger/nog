@@ -10,7 +10,7 @@ workspace <id> #{
 }
 ```
 
-This keyword requires two arguments. The first one is the id of the workspace you want to customize and the second argument is a [map]() which can contain the following properties
+This keyword requires two arguments. The first one is the id of the workspace you want to customize and the second argument is an [object](scripting/types?id=object) which can contain the following properties
 
 **Note**: The monitor ids are counted from left to right and from top to bottom
 

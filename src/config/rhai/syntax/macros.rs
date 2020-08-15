@@ -52,7 +52,6 @@ macro_rules! set {
     ($typ: ty, $config: ident, $prop: ident, $key: ident, $val: ident) => {{
         if $key == stringify!($prop) {
             if $val.type_name().to_uppercase() != stringify!($typ).to_uppercase() {
-                //TODO: change to EvalAtResult
                 error!(
                     "{} has to be of type {} not {}",
                     stringify!($key),
@@ -61,7 +60,6 @@ macro_rules! set {
                 );
             } else {
                 $config.$prop = $val.clone().cast::<$typ>().into();
-                continue;
             }
         }
     }};

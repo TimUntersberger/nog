@@ -1,10 +1,12 @@
 use crate::keybindings::keybinding::Keybinding;
+use bar_config::BarConfig;
 use log::error;
 use rule::Rule;
 use std::{collections::HashMap, time::Duration};
 use update_channel::UpdateChannel;
 use workspace_setting::WorkspaceSetting;
 
+pub mod bar_config;
 pub mod hot_reloading;
 pub mod rhai;
 pub mod rule;
@@ -13,11 +15,7 @@ pub mod workspace_setting;
 
 #[derive(Clone, Debug)]
 pub struct Config {
-    pub app_bar_height: i32,
-    pub app_bar_color: i32,
-    pub app_bar_font: String,
     pub use_border: bool,
-    pub app_bar_font_size: i32,
     pub min_width: i32,
     pub min_height: i32,
     pub work_mode: bool,
@@ -29,6 +27,7 @@ pub struct Config {
     pub remove_title_bar: bool,
     pub remove_task_bar: bool,
     pub display_app_bar: bool,
+    pub bar: BarConfig,
     pub workspace_settings: Vec<WorkspaceSetting>,
     pub keybindings: Vec<Keybinding>,
     pub rules: Vec<Rule>,
@@ -43,10 +42,6 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            app_bar_height: 20,
-            app_bar_color: 0x2e3440,
-            app_bar_font: String::from("Consolas"),
-            app_bar_font_size: 18,
             launch_on_startup: false,
             min_height: 0,
             min_width: 0,
@@ -59,6 +54,7 @@ impl Default for Config {
             multi_monitor: false,
             remove_task_bar: false,
             display_app_bar: false,
+            bar: BarConfig::default(),
             mode_meta: HashMap::new(),
             workspace_settings: Vec::new(),
             keybindings: Vec::new(),
@@ -86,9 +82,9 @@ impl Config {
 
     fn alter_numerical_field(self: &mut Self, field: &str, value: i32) {
         match field {
-            "app_bar_height" => self.app_bar_height += value,
-            "app_bar_bg" => self.app_bar_color += value,
-            "app_bar_font_size" => self.app_bar_font_size += value,
+            "bar.height" => self.bar.height += value,
+            "bar.bg" => self.bar.color += value,
+            "bar.font_size" => self.bar.font_size += value,
             "outer_gap" => self.outer_gap += value,
             "inner_gap" => self.inner_gap += value,
             _ => error!("Attempt to alter unknown field: {} by {}", field, value),

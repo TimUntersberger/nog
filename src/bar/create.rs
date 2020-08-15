@@ -1,4 +1,4 @@
-use super::{redraw::redraw, window_cb, WINDOWS};
+use super::{get_bar_by_hmonitor, get_windows, redraw::redraw, window_cb, Bar, BARS};
 use crate::{event::Event, message_loop, task_bar::HEIGHT, util, CHANNEL, CONFIG, DISPLAYS};
 use log::{debug, error, info};
 use winapi::shared::windef::HBRUSH;
@@ -15,15 +15,16 @@ pub fn create() -> Result<(), util::WinApiResultError> {
 
     let mut height_guard = HEIGHT.lock().unwrap();
 
-    let app_bar_bg = CONFIG.lock().unwrap().app_bar_color;
+    let app_bar_bg = CONFIG.lock().unwrap().bar.color;
 
-    *height_guard = CONFIG.lock().unwrap().app_bar_height;
+    *height_guard = CONFIG.lock().unwrap().bar.height;
 
     let height = *height_guard;
 
     std::thread::spawn(|| loop {
         std::thread::sleep(std::time::Duration::from_millis(200));
-        if WINDOWS.lock().unwrap().is_empty() {
+
+        if get_windows().is_empty() {
             break;
         }
 
@@ -36,11 +37,7 @@ pub fn create() -> Result<(), util::WinApiResultError> {
 
     for display in DISPLAYS.lock().unwrap().clone() {
         std::thread::spawn(move || unsafe {
-            if WINDOWS
-                .lock()
-                .unwrap()
-                .contains_key(&(display.hmonitor as i32))
-            {
+            if get_bar_by_hmonitor(display.hmonitor as i32).is_some() {
                 error!(
                     "Appbar for monitor {} already exists. Aborting",
                     display.hmonitor as i32
@@ -50,9 +47,9 @@ pub fn create() -> Result<(), util::WinApiResultError> {
             debug!("Creating appbar for display {}", display.hmonitor as i32);
 
             let display_width = display.width();
-            //TODO: Handle error
+
             let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
-            //TODO: Handle error
+
             let background_brush = CreateSolidBrush(app_bar_bg as u32);
 
             let class = WNDCLASSA {
@@ -65,7 +62,6 @@ pub fn create() -> Result<(), util::WinApiResultError> {
 
             RegisterClassA(&class);
 
-            //TODO: handle error
             let window_handle = winapi::um::winuser::CreateWindowExA(
                 winapi::um::winuser::WS_EX_NOACTIVATE | winapi::um::winuser::WS_EX_TOPMOST,
                 name.as_ptr() as *const i8,
@@ -81,10 +77,12 @@ pub fn create() -> Result<(), util::WinApiResultError> {
                 std::ptr::null_mut(),
             );
 
-            WINDOWS
-                .lock()
-                .unwrap()
-                .insert(display.hmonitor as i32, window_handle as i32);
+            let mut bar = Bar::default();
+
+            bar.hmonitor = display.hmonitor as i32;
+            bar.window.id = window_handle as i32;
+
+            BARS.lock().unwrap().push(bar);
 
             ShowWindow(window_handle, SW_SHOW);
             redraw();

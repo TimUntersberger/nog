@@ -2,11 +2,11 @@ use crate::display::Display;
 use std::{fmt::Debug, sync::Arc};
 
 pub mod active_mode;
+pub mod current_window;
 pub mod date;
 pub mod padding;
 pub mod time;
 pub mod workspaces;
-pub mod current_window;
 
 #[derive(Debug)]
 pub enum ComponentText {
@@ -48,6 +48,17 @@ pub struct Component {
     pub is_clickable: bool,
     render_fn: RenderFn,
     on_click_fn: Option<OnClickFn>,
+}
+
+impl Default for Component {
+    fn default() -> Self {
+        Self {
+            name: "Default".into(),
+            is_clickable: false,
+            render_fn: Arc::new(|_, _| vec![ComponentText::Basic("Hello World".into())]),
+            on_click_fn: None,
+        }
+    }
 }
 
 impl Component {

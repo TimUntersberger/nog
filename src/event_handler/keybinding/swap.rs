@@ -1,15 +1,10 @@
-use crate::GRIDS;
-use crate::{direction::Direction, WORKSPACE_ID};
+use crate::{direction::Direction, with_current_grid};
 
 pub fn handle(direction: Direction) -> Result<(), Box<dyn std::error::Error>> {
-    let mut grids = GRIDS.lock().unwrap();
-    let grid = grids
-        .iter_mut()
-        .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
-        .unwrap();
+    with_current_grid(|grid| {
+        grid.swap(direction)?;
+        grid.draw_grid();
 
-    grid.swap(direction)?;
-    grid.draw_grid();
-
-    Ok(())
+        Ok(())
+    })
 }

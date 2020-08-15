@@ -37,12 +37,7 @@ unsafe extern "system" fn handler(
         return;
     }
 
-    if bar::WINDOWS
-        .lock()
-        .unwrap()
-        .values()
-        .any(|v| *v == window_handle as i32)
-    {
+    if bar::get_bar_by_hwnd(window_handle as i32).is_some() {
         return;
     }
 
