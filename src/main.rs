@@ -112,10 +112,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing displays");
     display::init();
 
-    popup::Popup::new("Test window".into(), 200, 100)
-        .with_text(&vec!["Hello World".into(), "Hello World".into()])
-        .create();
-
     for display in DISPLAYS.lock().unwrap().iter() {
         VISIBLE_WORKSPACES
             .lock()

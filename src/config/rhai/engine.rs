@@ -1,15 +1,17 @@
 use super::{functions, modules, syntax};
 use crate::{
+    DISPLAYS,
     config::{update_channel::UpdateChannel, Config, Rule, WorkspaceSetting},
     keybindings::keybinding::Keybinding,
+    popup::Popup,
 };
 use lazy_static::lazy_static;
 use log::debug;
 use rhai::{
     module_resolvers::{FileModuleResolver, ModuleResolversCollection},
-    Array, Engine, Map, Scope,
+    Array, Engine, ImmutableString, Map, RegisterFn, Scope, Dynamic,
 };
-use std::{cell::RefCell, io::Write, path::PathBuf, rc::Rc, sync::Mutex};
+use std::{cell::RefCell, collections::HashMap, io::Write, path::PathBuf, rc::Rc, sync::Mutex};
 use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
 
 lazy_static! {
@@ -32,6 +34,37 @@ pub fn parse_config() -> Result<Config, String> {
     let relative_resolver =
         FileModuleResolver::new_with_path_and_extension(config_path.clone(), "nog");
     resolver_collection.push(relative_resolver);
+
+    engine.register_fn(
+        "popup_new",
+        |name: ImmutableString, width: i32, height: i32, options: Map| {
+            let mut p = Popup::new(&name, width, height);
+
+            for (key, val) in options {
+                match key.as_str() {
+                    "text" => p.with_text(
+                        val.cast::<Array>()
+                            .iter()
+                            .map(|v| v.as_str().unwrap())
+                            .collect::<Vec<&str>>()
+                            .as_slice(),
+                    ),
+                    "padding" => p.with_padding(val.as_int().unwrap()),
+                    _ => &mut p
+                };
+            }
+
+            std::thread::spawn(move || {
+                loop {
+                    std::thread::sleep_ms(20);
+                    if DISPLAYS.lock().unwrap().len() > 0 {
+                        break;
+                    }
+                }
+                p.create();
+            });
+        },
+    );
 
     engine.set_module_resolver(Some(resolver_collection));
 
