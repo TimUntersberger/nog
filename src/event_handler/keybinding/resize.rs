@@ -1,5 +1,4 @@
-use crate::GRIDS;
-use crate::{direction::Direction, with_current_grid, WORKSPACE_ID};
+use crate::{direction::Direction, with_current_grid};
 use log::info;
 
 pub fn handle(direction: Direction, amount: i32) -> Result<(), Box<dyn std::error::Error>> {

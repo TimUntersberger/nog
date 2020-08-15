@@ -2,9 +2,9 @@ use crate::display::get_display_by_idx;
 use crate::event::Event;
 use crate::CHANNEL;
 use crate::CONFIG;
-use crate::GRIDS;
+
 use crate::VISIBLE_WORKSPACES;
-use crate::WORKSPACE_ID;
+
 use crate::{
     hot_reload::update_config,
     keybindings::{self, keybinding::Keybinding, keybinding_type::KeybindingType},
