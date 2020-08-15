@@ -71,6 +71,23 @@ fn unmanage_everything() -> Result<(), util::WinApiResultError> {
     Ok(())
 }
 
+pub fn with_current_grid<TFunction, TReturn>(f: TFunction) -> TReturn
+where
+    TFunction: Fn(&mut TileGrid) -> TReturn,
+{
+    with_grid_by_id(*WORKSPACE_ID.lock().unwrap(), f)
+}
+
+pub fn with_grid_by_id<TFunction, TReturn>(id: i32, f: TFunction) -> TReturn
+where
+    TFunction: Fn(&mut TileGrid) -> TReturn,
+{
+    let mut grids = GRIDS.lock().unwrap();
+    let mut grid = grids.iter_mut().find(|g| g.id == id).unwrap();
+
+    f(&mut grid)
+}
+
 fn on_quit() -> Result<(), util::WinApiResultError> {
     unmanage_everything()?;
 

@@ -385,7 +385,3 @@ pub fn get_windows() -> Vec<Window> {
         .cloned()
         .collect()
 }
-
-fn get_monitor_by_hwnd(hwnd: i32) -> Option<i32> {
-    get_bar_by_hwnd(hwnd).map(|bar| bar.hmonitor)
-}
