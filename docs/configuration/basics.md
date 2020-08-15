@@ -20,7 +20,7 @@ In the following table you can see all of the valid keys, what they do and how t
 | outer_gap         | Number  | The margin between workspace and the display                                  |
 | launch_on_startup | Boolean | Start when you start your computer                                            |
 | multi_monitor     | Boolean | Use all monitors                                                              |
-| work_mode         | Boolean | Start in [work mode]()                                                        |
+| work_mode         | Boolean | Start in [work mode](getting_started/terminology?id=work-mode)                |
 | use_border        | Boolean | Force managed windows to draw a border. (This can help clarity)               |
 | light_theme       | Boolean | Changes how the bar colors get generated to fit light colors                  |
 | display_app_bar   | Boolean | Enable the bar                                                                |
