@@ -1,12 +1,12 @@
 use crate::{
     display::get_primary_display, event::Event, message_loop, task_bar::HEIGHT, util,
-    window::Window, CHANNEL, CONFIG, DISPLAYS,
+    window::Window, CHANNEL, CONFIG, DISPLAYS, bar,
 };
 use log::{debug, error, info};
 use std::{
     collections::HashMap,
     ffi::CString,
-    sync::{Mutex, MutexGuard},
+    sync::{Mutex, MutexGuard, Arc},
     thread,
 };
 use winapi::shared::windef::HWND;
@@ -21,7 +21,10 @@ use winapi::um::winuser::{
 };
 use winapi::{
     shared::minwindef::{HINSTANCE, LPARAM, LRESULT, UINT, WPARAM},
-    um::winuser::{DrawTextW, DT_CENTER, DT_SINGLELINE, DT_VCENTER, WNDCLASSA, DT_CALCRECT},
+    um::winuser::{
+        DrawTextW, SetWindowPos, UnregisterClassA, DT_CALCRECT, DT_CENTER, DT_SINGLELINE,
+        DT_VCENTER, WNDCLASSA, WM_CLOSE,
+    },
 };
 
 use lazy_static::lazy_static;
@@ -30,25 +33,32 @@ lazy_static! {
     static ref POPUP: Mutex<Option<Popup>> = Mutex::new(None);
 }
 
+pub type PopupActionCallback = Arc<dyn Fn() -> () + Sync + Send>;
+#[derive(Default, Clone)]
+pub struct PopupAction {
+    pub text: String,
+    pub cb: Option<PopupActionCallback>
+}
+
 #[derive(Clone)]
 pub struct Popup {
-    pub window: Window,
-    pub name: String,
-    pub width: i32,
-    pub padding: i32,
-    pub height: i32,
-    pub text: Vec<String>,
+    window: Window,
+    width: i32,
+    padding: i32,
+    height: i32,
+    text: Vec<String>,
+    pub actions: Vec<PopupAction>
 }
 
 impl Popup {
-    pub fn new(name: &str, width: i32, height: i32) -> Self {
+    pub fn new() -> Self {
         Self {
             window: Window::default(),
-            name: name.into(),
-            width,
-            height,
-            padding: 0,
+            width: 0,
+            height: 0,
+            padding: 5,
             text: Vec::new(),
+            actions: Vec::new()
         }
     }
 
@@ -58,16 +68,16 @@ impl Popup {
     }
 
     pub fn with_padding(&mut self, padding: i32) -> &mut Self {
-        self.padding = padding;
+        self.padding = padding + 5;
         self
     }
 
     /// Creates the window for the popup with the configured parameters.
     ///
-    /// Returns whether the popup was created.
-    pub fn create(&self) -> bool {
+    /// This function closes a popup that is currently visible.
+    pub fn create(&self) {
         if is_visible() {
-            return false;
+            close();
         }
 
         let mut popup = self.clone();
@@ -75,38 +85,44 @@ impl Popup {
         unsafe {
             thread::spawn(move || {
                 let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
-                let brush = CreateSolidBrush(CONFIG.lock().unwrap().bar.color as u32);
-                let name = CString::new(popup.name.clone()).unwrap();
+                let name = CString::new("NogPopup").unwrap();
                 let display = get_primary_display();
-
-                let class = WNDCLASSA {
-                    hInstance: instance as HINSTANCE,
-                    lpszClassName: name.as_ptr(),
-                    lpfnWndProc: Some(window_cb),
-                    hbrBackground: brush,
-                    ..WNDCLASSA::default()
-                };
-
-                RegisterClassA(&class);
 
                 let window_handle = winapi::um::winuser::CreateWindowExA(
                     winapi::um::winuser::WS_EX_NOACTIVATE | winapi::um::winuser::WS_EX_TOPMOST,
                     name.as_ptr(),
                     name.as_ptr(),
                     winapi::um::winuser::WS_POPUPWINDOW,
-                    display.width() / 2 - popup.width / 2,
-                    display.height() / 2 - popup.height / 2,
-                    popup.width,
-                    popup.height,
+                    0,
+                    0,
+                    0,
+                    0,
                     std::ptr::null_mut(),
                     std::ptr::null_mut(),
                     instance as HINSTANCE,
                     std::ptr::null_mut(),
                 );
 
+                let mut rect = RECT::default();
+                let hdc = GetDC(window_handle);
+                let c_text = util::to_widestring(&popup.text.join("\n"));
+
+                bar::font::set_font(hdc);
+                DrawTextW(hdc, c_text.as_ptr(), -1, &mut rect, DT_CALCRECT);
+
+                let width = rect.right - rect.left;
+                let height = rect.bottom - rect.top;
+
+                let x = display.width() / 2 - width / 2 - popup.padding;
+                let y = display.height() / 2 - height / 2 - popup.padding;
+
+                SetWindowPos(window_handle, std::ptr::null_mut(), x, y, width + popup.padding * 2, height + popup.padding * 2, 0);
+
+                popup.width = width;
+                popup.height = height;
                 popup.window = Window {
                     id: window_handle as i32,
-                    title: popup.name.clone(),
+                    title: "NogPopup".into(),
                     ..Default::default()
                 };
 
@@ -117,8 +133,36 @@ impl Popup {
                 message_loop::start(|_| true);
             });
         }
+    }
+}
 
-        true
+pub fn init() {
+    bar::font::load_font();
+    unsafe {
+        let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
+        let brush = CreateSolidBrush(CONFIG.lock().unwrap().bar.color as u32);
+        let name = CString::new("NogPopup").unwrap();
+
+        let class = WNDCLASSA {
+            hInstance: instance as HINSTANCE,
+            lpszClassName: name.as_ptr(),
+            lpfnWndProc: Some(window_cb),
+            hbrBackground: brush,
+            ..WNDCLASSA::default()
+        };
+
+        RegisterClassA(&class);
+    }
+}
+
+pub fn cleanup() {
+    close();
+    let name = CString::new("NogPopup").unwrap();
+    unsafe {
+        UnregisterClassA(
+            name.as_ptr(),
+            winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut()),
+        );
     }
 }
 
@@ -128,30 +172,39 @@ unsafe extern "system" fn window_cb(
     w_param: WPARAM,
     l_param: LPARAM,
 ) -> LRESULT {
-    if msg == WM_SETCURSOR {
+    if msg == WM_CLOSE {
+        let popup = POPUP.lock().unwrap().clone().unwrap();
+        for action in popup.actions {
+            let cb = action.cb.unwrap().clone();
+            cb();
+        }
+    }
+    else if msg == WM_SETCURSOR {
         SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8));
     } else if msg == WM_PAINT {
+        println!("paint");
         let popup = POPUP.lock().unwrap().clone().unwrap();
-
         let mut rect = RECT::default();
 
         rect.right = popup.width;
         rect.bottom = popup.height;
 
         rect.left += popup.padding;
-        rect.right -= popup.padding;
         rect.top += popup.padding;
-        rect.bottom -= popup.padding;
+        rect.right += popup.padding;
+        rect.bottom += popup.padding;
 
         let mut paint = PAINTSTRUCT::default();
         BeginPaint(hwnd, &mut paint);
 
+
         let hdc = GetDC(hwnd);
+        bar::font::set_font(hdc);
         SetTextColor(hdc, 0x00ffffff);
         SetBkColor(hdc, CONFIG.lock().unwrap().bar.color as u32);
 
         let c_text = util::to_widestring(&popup.text.join("\n"));
-        DrawTextW(hdc, c_text.as_ptr(), -1, &mut rect, DT_CENTER);
+        DrawTextW(hdc, c_text.as_ptr(), -1, &mut rect, 0);
 
         ReleaseDC(hwnd, hdc);
 
@@ -162,11 +215,11 @@ unsafe extern "system" fn window_cb(
 
 /// Close the current popup, if there is one.
 pub fn close() {
-    let mut popup_guard = POPUP.lock().unwrap();
-    if let Some(popup) = popup_guard.clone() {
-        popup.window.close();
-        *popup_guard = None;
+    let maybe_window = POPUP.lock().unwrap().clone().map(|p| p.window);
+    if let Some(window) = maybe_window {
+        window.close();
     }
+    *POPUP.lock().unwrap() = None;
 }
 
 /// Is there a popup currently visible?

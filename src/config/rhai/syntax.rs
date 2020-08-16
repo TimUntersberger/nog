@@ -9,7 +9,7 @@ use crate::{
 use log::error;
 use regex::Regex;
 use rhai::{Array, Dynamic, Engine, Map, ParseError};
-use std::{cell::RefCell, rc::Rc, str::FromStr, time::Duration};
+use std::{cell::RefCell, rc::Rc, str::FromStr, time::Duration, sync::{Mutex, Arc}};
 
 #[macro_use]
 mod macros;
@@ -53,7 +53,7 @@ fn set_config(config: &mut Config, key: String, value: Dynamic) {
     }
 }
 
-pub fn init(engine: &mut Engine, config: &mut Rc<RefCell<Config>>) -> Result<(), Box<ParseError>> {
+pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), Box<ParseError>> {
     let cfg = config.clone();
     engine.register_custom_syntax(
         &["bind", "$expr$", "$expr$"], // the custom syntax
@@ -66,7 +66,7 @@ pub fn init(engine: &mut Engine, config: &mut Rc<RefCell<Config>>) -> Result<(),
             kb.typ = binding;
             kb.mode = MODE.lock().unwrap().clone();
 
-            cfg.borrow_mut().keybindings.push(kb);
+            cfg.lock().unwrap().keybindings.push(kb);
 
             Ok(().into())
         },
@@ -101,7 +101,7 @@ pub fn init(engine: &mut Engine, config: &mut Rc<RefCell<Config>>) -> Result<(),
                 kb.typ = binding;
                 kb.mode = MODE.lock().unwrap().clone();
 
-                cfg.borrow_mut().keybindings.push(kb);
+                cfg.lock().unwrap().keybindings.push(kb);
             }
 
             Ok(().into())
@@ -146,7 +146,7 @@ pub fn init(engine: &mut Engine, config: &mut Rc<RefCell<Config>>) -> Result<(),
                 }
             }
 
-            cfg.borrow_mut().bar = bar_config;
+            cfg.lock().unwrap().bar = bar_config;
 
             Ok(().into())
         },
@@ -159,7 +159,7 @@ pub fn init(engine: &mut Engine, config: &mut Rc<RefCell<Config>>) -> Result<(),
         move |engine, ctx, scope, inputs| {
             let key = get_variable_name!(inputs, 0);
             let value = get_dynamic!(engine, ctx, scope, inputs, 1);
-            let mut config = cfg.borrow_mut();
+            let mut config = cfg.lock().unwrap();
 
             set_config(&mut config, key, value);
 
@@ -173,7 +173,7 @@ pub fn init(engine: &mut Engine, config: &mut Rc<RefCell<Config>>) -> Result<(),
         0,                      // the number of new variables declared within this custom syntax
         move |_engine, _ctx, _scope, inputs| {
             let key = get_variable_name!(inputs, 0);
-            let mut config = cfg.borrow_mut();
+            let mut config = cfg.lock().unwrap();
 
             set_config(&mut config, key, true.into());
 
@@ -187,7 +187,7 @@ pub fn init(engine: &mut Engine, config: &mut Rc<RefCell<Config>>) -> Result<(),
         0,                       // the number of new variables declared within this custom syntax
         move |_engine, _ctx, _scope, inputs| {
             let key = get_variable_name!(inputs, 0);
-            let mut config = cfg.borrow_mut();
+            let mut config = cfg.lock().unwrap();
 
             set_config(&mut config, key, false.into());
 
@@ -214,7 +214,7 @@ pub fn init(engine: &mut Engine, config: &mut Rc<RefCell<Config>>) -> Result<(),
 
             rule.pattern = Regex::new(&format!("^{}$", pattern)).map_err(|e| e.to_string())?;
 
-            cfg.borrow_mut().rules.push(rule);
+            cfg.lock().unwrap().rules.push(rule);
 
             Ok(().into())
         },
@@ -237,7 +237,7 @@ pub fn init(engine: &mut Engine, config: &mut Rc<RefCell<Config>>) -> Result<(),
                 set!(String, update_channel, version, key, value);
             }
 
-            cfg.borrow_mut().update_channels.push(update_channel);
+            cfg.lock().unwrap().update_channels.push(update_channel);
 
             Ok(().into())
         },
@@ -254,7 +254,7 @@ pub fn init(engine: &mut Engine, config: &mut Rc<RefCell<Config>>) -> Result<(),
             rule.pattern = Regex::new(&format!("^{}$", pattern)).map_err(|e| e.to_string())?;
             rule.manage = false;
 
-            cfg.borrow_mut().rules.push(rule);
+            cfg.lock().unwrap().rules.push(rule);
 
             Ok(().into())
         },
@@ -276,7 +276,7 @@ pub fn init(engine: &mut Engine, config: &mut Rc<RefCell<Config>>) -> Result<(),
                 set!(String, workspace, text, key, value);
             }
 
-            cfg.borrow_mut().workspace_settings.push(workspace);
+            cfg.lock().unwrap().workspace_settings.push(workspace);
 
             Ok(().into())
         },
@@ -293,7 +293,7 @@ pub fn init(engine: &mut Engine, config: &mut Rc<RefCell<Config>>) -> Result<(),
             let mut kb = Keybinding::from_str(&key).unwrap();
             kb.typ = KeybindingType::ToggleMode(name.clone());
 
-            cfg.borrow_mut().keybindings.push(kb);
+            cfg.lock().unwrap().keybindings.push(kb);
 
             *MODE.lock().unwrap() = Some(name);
 

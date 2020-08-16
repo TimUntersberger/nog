@@ -1,4 +1,4 @@
-use super::{functions, modules, syntax};
+use super::{functions, modules, syntax, lib};
 use crate::{
     DISPLAYS,
     config::{update_channel::UpdateChannel, Config, Rule, WorkspaceSetting},
@@ -11,17 +11,20 @@ use rhai::{
     module_resolvers::{FileModuleResolver, ModuleResolversCollection},
     Array, Engine, ImmutableString, Map, RegisterFn, Scope, Dynamic,
 };
-use std::{cell::RefCell, collections::HashMap, io::Write, path::PathBuf, rc::Rc, sync::Mutex};
+use std::{cell::RefCell, collections::HashMap, io::Write, path::PathBuf, rc::Rc, sync::{Arc, Mutex}};
 use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
 
 lazy_static! {
     pub static ref MODE: Mutex<Option<String>> = Mutex::new(None);
+    pub static ref ENGINE: Mutex<Engine> = Mutex::new(Engine::new());
+    pub static ref SCOPE: Mutex<Scope<'static>> = Mutex::new(Scope::new());
+    pub static ref AST: Mutex<rhai::AST> = Mutex::new(rhai::AST::default());
 }
 
 pub fn parse_config() -> Result<Config, String> {
     let mut engine = Engine::new();
     let mut scope = Scope::new();
-    let mut config = Rc::new(RefCell::new(Config::default()));
+    let mut config = Arc::new(Mutex::new(Config::default()));
     let mut resolver_collection = ModuleResolversCollection::new();
 
     let modules_resolver = modules::new();
@@ -35,46 +38,12 @@ pub fn parse_config() -> Result<Config, String> {
         FileModuleResolver::new_with_path_and_extension(config_path.clone(), "nog");
     resolver_collection.push(relative_resolver);
 
-    engine.register_fn(
-        "popup_new",
-        |name: ImmutableString, width: i32, height: i32, options: Map| {
-            let mut p = Popup::new(&name, width, height);
-
-            for (key, val) in options {
-                match key.as_str() {
-                    "text" => p.with_text(
-                        val.cast::<Array>()
-                            .iter()
-                            .map(|v| v.as_str().unwrap())
-                            .collect::<Vec<&str>>()
-                            .as_slice(),
-                    ),
-                    "padding" => p.with_padding(val.as_int().unwrap()),
-                    _ => &mut p
-                };
-            }
-
-            std::thread::spawn(move || {
-                loop {
-                    std::thread::sleep_ms(20);
-                    if DISPLAYS.lock().unwrap().len() > 0 {
-                        break;
-                    }
-                }
-                p.create();
-            });
-        },
-    );
-
     engine.set_module_resolver(Some(resolver_collection));
 
     if !config_path.exists() {
         debug!("nog folder doesn't exist yet. Creating the folder");
         std::fs::create_dir(config_path.clone());
     }
-
-    functions::init(&mut engine);
-    syntax::init(&mut engine, &mut config).unwrap();
 
     config_path.push("config.nog");
 
@@ -86,12 +55,24 @@ pub fn parse_config() -> Result<Config, String> {
         }
     }
 
+    syntax::init(&mut engine, &mut config).unwrap();
+    functions::init(&mut engine);
+    lib::init(&mut engine);
+
     debug!("Parsing config file");
-    engine
-        .consume_file_with_scope(&mut scope, config_path)
+    let ast = engine.compile_file_with_scope(&mut scope, config_path)
         .map_err(|e| e.to_string())?;
 
-    let mut config = config.borrow().clone();
+    debug!("Running config file");
+    engine
+        .consume_ast_with_scope(&mut scope, &ast)
+        .map_err(|e| e.to_string())?;
+
+    *ENGINE.lock().unwrap() = engine;
+    *SCOPE.lock().unwrap() = scope;
+    *AST.lock().unwrap() = ast.clone();
+
+    let mut config = config.lock().unwrap().clone();
 
     config.bar.color = RGB(
         GetBValue(config.bar.color as u32),
