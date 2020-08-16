@@ -183,6 +183,7 @@ unsafe extern "system" fn window_cb(
             let cb = action.cb.unwrap().clone();
             cb();
         }
+        *POPUP.lock().unwrap() = None;
     } else if msg == WM_SETCURSOR {
         SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8));
     } else if msg == WM_PAINT {
@@ -221,7 +222,6 @@ pub fn close() {
     if let Some(window) = maybe_window {
         window.close();
     }
-    *POPUP.lock().unwrap() = None;
 }
 
 /// Is there a popup currently visible?
