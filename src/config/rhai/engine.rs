@@ -1,17 +1,24 @@
-use super::{functions, modules, syntax, lib};
+use super::{functions, lib, modules, syntax};
 use crate::{
-    DISPLAYS,
     config::{update_channel::UpdateChannel, Config, Rule, WorkspaceSetting},
     keybindings::keybinding::Keybinding,
     popup::Popup,
+    DISPLAYS,
 };
 use lazy_static::lazy_static;
-use log::{error, debug};
+use log::{debug, error};
 use rhai::{
     module_resolvers::{FileModuleResolver, ModuleResolversCollection},
-    Array, Engine, ImmutableString, Map, RegisterFn, Scope, Dynamic,
+    Array, Dynamic, Engine, ImmutableString, Map, RegisterFn, Scope,
 };
-use std::{cell::RefCell, collections::HashMap, io::Write, path::PathBuf, rc::Rc, sync::{Arc, Mutex}};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    io::Write,
+    path::PathBuf,
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
 
 lazy_static! {
@@ -70,7 +77,8 @@ pub fn parse_config() -> Result<Config, String> {
     lib::init(&mut engine);
 
     debug!("Parsing config file");
-    let ast = engine.compile_file_with_scope(&mut scope, config_path)
+    let ast = engine
+        .compile_file_with_scope(&mut scope, config_path)
         .map_err(|e| e.to_string())?;
 
     debug!("Running config file");

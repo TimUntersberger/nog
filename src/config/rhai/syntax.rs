@@ -9,7 +9,11 @@ use crate::{
 use log::error;
 use regex::Regex;
 use rhai::{Array, Dynamic, Engine, Map, ParseError};
-use std::{cell::RefCell, rc::Rc, str::FromStr, time::Duration, sync::{Mutex, Arc}};
+use std::{
+    str::FromStr,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 #[macro_use]
 mod macros;

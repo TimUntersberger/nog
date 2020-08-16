@@ -1,12 +1,12 @@
 use crate::{
-    display::get_primary_display, event::Event, message_loop, task_bar::HEIGHT, util,
-    window::Window, CHANNEL, CONFIG, DISPLAYS, bar,
+    bar, display::get_primary_display, event::Event, message_loop, task_bar::HEIGHT, util,
+    window::Window, CHANNEL, CONFIG, DISPLAYS,
 };
-use log::{debug, error, info};
+
 use std::{
     collections::HashMap,
     ffi::CString,
-    sync::{Mutex, MutexGuard, Arc},
+    sync::{Arc, Mutex, MutexGuard},
     thread,
 };
 use winapi::shared::windef::HWND;
@@ -14,17 +14,14 @@ use winapi::shared::windef::RECT;
 use winapi::um::wingdi::CreateSolidBrush;
 use winapi::um::wingdi::SetBkColor;
 use winapi::um::wingdi::SetTextColor;
-use winapi::um::wingdi::TRANSPARENT;
+
 use winapi::um::winuser::{
-    BeginPaint, DefWindowProcA, EndPaint, GetCursorPos, GetDC, LoadCursorA, RegisterClassA,
-    ReleaseDC, SetCursor, ShowWindow, IDC_ARROW, PAINTSTRUCT, SW_SHOW, WM_PAINT, WM_SETCURSOR,
+    BeginPaint, DefWindowProcA, EndPaint, GetDC, LoadCursorA, RegisterClassA, ReleaseDC, SetCursor,
+    ShowWindow, IDC_ARROW, PAINTSTRUCT, SW_SHOW, WM_PAINT, WM_SETCURSOR,
 };
 use winapi::{
     shared::minwindef::{HINSTANCE, LPARAM, LRESULT, UINT, WPARAM},
-    um::winuser::{
-        DrawTextW, SetWindowPos, UnregisterClassA, DT_CALCRECT, DT_CENTER, DT_SINGLELINE,
-        DT_VCENTER, WNDCLASSA, WM_CLOSE,
-    },
+    um::winuser::{DrawTextW, SetWindowPos, UnregisterClassA, DT_CALCRECT, WM_CLOSE, WNDCLASSA},
 };
 
 use lazy_static::lazy_static;
@@ -37,7 +34,7 @@ pub type PopupActionCallback = Arc<dyn Fn() -> () + Sync + Send>;
 #[derive(Default, Clone)]
 pub struct PopupAction {
     pub text: String,
-    pub cb: Option<PopupActionCallback>
+    pub cb: Option<PopupActionCallback>,
 }
 
 #[derive(Clone)]
@@ -47,7 +44,7 @@ pub struct Popup {
     padding: i32,
     height: i32,
     text: Vec<String>,
-    pub actions: Vec<PopupAction>
+    pub actions: Vec<PopupAction>,
 }
 
 impl Popup {
@@ -58,7 +55,7 @@ impl Popup {
             height: 0,
             padding: 5,
             text: Vec::new(),
-            actions: Vec::new()
+            actions: Vec::new(),
         }
     }
 
@@ -116,7 +113,15 @@ impl Popup {
                 let x = display.width() / 2 - width / 2 - popup.padding;
                 let y = display.height() / 2 - height / 2 - popup.padding;
 
-                SetWindowPos(window_handle, std::ptr::null_mut(), x, y, width + popup.padding * 2, height + popup.padding * 2, 0);
+                SetWindowPos(
+                    window_handle,
+                    std::ptr::null_mut(),
+                    x,
+                    y,
+                    width + popup.padding * 2,
+                    height + popup.padding * 2,
+                    0,
+                );
 
                 popup.width = width;
                 popup.height = height;
@@ -178,8 +183,7 @@ unsafe extern "system" fn window_cb(
             let cb = action.cb.unwrap().clone();
             cb();
         }
-    }
-    else if msg == WM_SETCURSOR {
+    } else if msg == WM_SETCURSOR {
         SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8));
     } else if msg == WM_PAINT {
         let popup = POPUP.lock().unwrap().clone().unwrap();
@@ -195,7 +199,6 @@ unsafe extern "system" fn window_cb(
 
         let mut paint = PAINTSTRUCT::default();
         BeginPaint(hwnd, &mut paint);
-
 
         let hdc = GetDC(hwnd);
         bar::font::set_font(hdc);

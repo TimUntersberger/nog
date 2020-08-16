@@ -1,7 +1,7 @@
-use rhai::{AST, Engine};
+use rhai::Engine;
 
 mod popup;
 
-pub fn init(engine: &mut Engine){
+pub fn init(engine: &mut Engine) {
     popup::init(engine);
 }

@@ -168,7 +168,7 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
                 grid.draw_grid();
             });
         }
-        KeybindingType::Callback(fn_name) => engine::call(&fn_name)
+        KeybindingType::Callback(fn_name) => engine::call(&fn_name),
     };
 
     Ok(())

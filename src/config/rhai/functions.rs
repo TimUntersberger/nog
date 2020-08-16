@@ -4,7 +4,7 @@ use crate::{
     keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
     split_direction::SplitDirection,
 };
-use rhai::{Array, Dynamic, Engine, RegisterFn, FnPtr};
+use rhai::{Array, Dynamic, Engine, FnPtr, RegisterFn};
 use std::str::FromStr;
 
 pub fn init(engine: &mut Engine) {
@@ -21,7 +21,9 @@ pub fn init(engine: &mut Engine) {
         list.push(Dynamic::from(Box::new(item)))
     });
 
-    engine.register_fn("callback", |fp: FnPtr| KeybindingType::Callback(fp.fn_name().to_string()));
+    engine.register_fn("callback", |fp: FnPtr| {
+        KeybindingType::Callback(fp.fn_name().to_string())
+    });
     engine.register_fn("close_tile", || KeybindingType::CloseTile);
     engine.register_fn("minimize_tile", || KeybindingType::MinimizeTile);
     engine.register_fn("reset_row", || KeybindingType::ResetRow);

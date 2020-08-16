@@ -1,9 +1,9 @@
 use crate::{
-    config::rhai::engine::{self, AST, ENGINE, SCOPE},
+    config::rhai::engine::{self},
     popup::{Popup, PopupAction},
     DISPLAYS,
 };
-use log::error;
+
 use rhai::{Array, Engine, FnPtr, Func, Map, RegisterFn, Scope};
 use std::sync::Arc;
 
@@ -12,7 +12,7 @@ pub fn init(engine: &mut Engine) {
     engine.register_raw_fn(
         "popup_new",
         &[std::any::TypeId::of::<Map>()],
-        move |engine, module, args| {
+        move |_engine, _module, args| {
             let options = args[0].clone().cast::<Map>();
             let mut p = Popup::new();
 

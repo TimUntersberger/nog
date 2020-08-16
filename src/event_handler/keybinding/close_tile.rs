@@ -3,7 +3,7 @@ use crate::{popup, with_current_grid};
 pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
     if popup::is_visible() {
         popup::close();
-        return Ok(())
+        return Ok(());
     }
 
     with_current_grid(|grid| {
