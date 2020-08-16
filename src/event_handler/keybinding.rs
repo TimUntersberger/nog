@@ -1,20 +1,16 @@
-use crate::display::get_display_by_idx;
-use crate::event::Event;
-use crate::CHANNEL;
-use crate::CONFIG;
-
-use crate::VISIBLE_WORKSPACES;
-
 use crate::{
+    config::rhai::engine::{self, SCOPE},
+    config::rhai::engine::{AST, ENGINE},
+    display::get_display_by_idx,
+    event::Event,
     hot_reload::update_config,
     keybindings::{self, keybinding::Keybinding, keybinding_type::KeybindingType},
     with_current_grid, with_grid_by_id,
     workspace::change_workspace,
+    CHANNEL, CONFIG, VISIBLE_WORKSPACES,
 };
 use log::{error, info};
-use winapi::um::processthreadsapi::CreateProcessA;
-use winapi::um::processthreadsapi::PROCESS_INFORMATION;
-use winapi::um::processthreadsapi::STARTUPINFOA;
+use winapi::um::processthreadsapi::{CreateProcessA, PROCESS_INFORMATION, STARTUPINFOA};
 
 mod close_tile;
 mod focus;
@@ -172,6 +168,7 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
                 grid.draw_grid();
             });
         }
+        KeybindingType::Callback(fn_name) => engine::call(&fn_name)
     };
 
     Ok(())

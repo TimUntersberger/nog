@@ -1,7 +1,7 @@
 use crate::{direction::Direction, split_direction::SplitDirection};
 
 pub type Command = String;
-#[derive(Display, Debug, Clone, PartialEq)]
+#[derive(Display, Clone, PartialEq, Debug)]
 pub enum KeybindingType {
     CloseTile,
     MinimizeTile,
@@ -21,6 +21,7 @@ pub enum KeybindingType {
     Focus(Direction),
     Resize(Direction, i32),
     Swap(Direction),
+    Callback(String),
     MoveToWorkspace(i32),
     Split(SplitDirection),
 }

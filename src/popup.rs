@@ -182,7 +182,6 @@ unsafe extern "system" fn window_cb(
     else if msg == WM_SETCURSOR {
         SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8));
     } else if msg == WM_PAINT {
-        println!("paint");
         let popup = POPUP.lock().unwrap().clone().unwrap();
         let mut rect = RECT::default();
 

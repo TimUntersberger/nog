@@ -6,7 +6,7 @@ use crate::{
     popup::Popup,
 };
 use lazy_static::lazy_static;
-use log::debug;
+use log::{error, debug};
 use rhai::{
     module_resolvers::{FileModuleResolver, ModuleResolversCollection},
     Array, Engine, ImmutableString, Map, RegisterFn, Scope, Dynamic,
@@ -19,6 +19,15 @@ lazy_static! {
     pub static ref ENGINE: Mutex<Engine> = Mutex::new(Engine::new());
     pub static ref SCOPE: Mutex<Scope<'static>> = Mutex::new(Scope::new());
     pub static ref AST: Mutex<rhai::AST> = Mutex::new(rhai::AST::default());
+}
+
+pub fn call(fn_name: &str) {
+    let engine = ENGINE.lock().unwrap();
+    let mut scope = SCOPE.lock().unwrap();
+    let ast = AST.lock().unwrap();
+    let _ = engine
+        .call_fn::<(), ()>(&mut *scope, &*ast, fn_name, ())
+        .map_err(|e| error!("{}", e.to_string()));
 }
 
 pub fn parse_config() -> Result<Config, String> {
@@ -39,6 +48,7 @@ pub fn parse_config() -> Result<Config, String> {
     resolver_collection.push(relative_resolver);
 
     engine.set_module_resolver(Some(resolver_collection));
+    engine.set_max_expr_depths(0, 0);
 
     if !config_path.exists() {
         debug!("nog folder doesn't exist yet. Creating the folder");
