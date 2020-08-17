@@ -100,7 +100,7 @@ unsafe extern "system" fn window_cb(
 pub fn create() -> Result<(), util::WinApiResultError> {
     let name = util::to_widestring("WWM Tray");
     let config = CONFIG.lock().unwrap();
-    let app_bar_bg = config.app_bar_bg;
+    let app_bar_bg = config.bar.color;
 
     std::thread::spawn(move || unsafe {
         let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
@@ -154,7 +154,7 @@ pub fn add_icon(hwnd: HWND) {
         );
 
         let mut tooltip_array = [0u16; 128];
-        let tooltip = "WWM";
+        let tooltip = "Nog";
         let mut tooltip = tooltip.encode_utf16().collect::<Vec<_>>();
         tooltip.extend(vec![0; 128 - tooltip.len()]);
         tooltip_array.swap_with_slice(&mut tooltip[..]);

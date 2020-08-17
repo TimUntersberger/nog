@@ -1,4 +1,4 @@
-use crate::app_bar;
+use crate::bar;
 use crate::util;
 use crate::Event;
 use crate::{message_loop, CHANNEL};
@@ -15,9 +15,12 @@ use winapi::um::winuser::SetWinEventHook;
 use winapi::um::winuser::EVENT_MAX;
 use winapi::um::winuser::EVENT_MIN;
 use winapi::um::winuser::OBJID_WINDOW;
+use win_event_code::WinEventCode;
+use num_traits::FromPrimitive;
 
 pub mod win_event;
 pub mod win_event_type;
+pub mod win_event_code;
 
 lazy_static! {
     static ref HOOK: AtomicPtr<HWINEVENTHOOK__> = AtomicPtr::new(std::ptr::null_mut());
@@ -37,12 +40,7 @@ unsafe extern "system" fn handler(
         return;
     }
 
-    if app_bar::WINDOWS
-        .lock()
-        .unwrap()
-        .values()
-        .any(|v| *v == window_handle as i32)
-    {
+    if bar::get_bar_by_hwnd(window_handle as i32).is_some() {
         return;
     }
 

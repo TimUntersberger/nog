@@ -523,8 +523,8 @@ checksum = "26412eb97c6b088a6997e05f69403a802a92d520de2f8e63c2b65f9e0f47c4e8"
 
 [[package]]
 name = "rhai"
-version = "0.18.0"
-source = "git+https://github.com/jonathandturner/rhai#dab85c90701e86426be20d9e04df153f9c170bf2"
+version = "0.19.0"
+source = "git+https://github.com/jonathandturner/rhai#95208e46ba110d4f32fd758f99a36c10291e55fa"
 dependencies = [
  "instant",
  "num-traits",

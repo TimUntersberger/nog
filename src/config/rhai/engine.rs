@@ -1,53 +1,66 @@
-use super::{functions, syntax};
+use super::{functions, lib, modules, syntax};
 use crate::{
-    config::{Config, Rule, WorkspaceSetting},
+    config::{update_channel::UpdateChannel, Config, Rule, WorkspaceSetting},
     keybindings::keybinding::Keybinding,
+    popup::Popup,
+    DISPLAYS,
 };
+use lazy_static::lazy_static;
 use log::{debug, error};
-use rhai::{Array, Engine, Map, Scope};
-use std::{io::Write, path::PathBuf};
+use rhai::{
+    module_resolvers::{FileModuleResolver, ModuleResolversCollection},
+    Array, Dynamic, Engine, ImmutableString, Map, RegisterFn, Scope,
+};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    io::Write,
+    path::PathBuf,
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
 
-macro_rules! set {
-    ($typ: ty, $config: ident, $prop: ident, $key: ident, $val: ident) => {{
-        if $key == stringify!($prop) {
-            if $val.type_name().to_uppercase() != stringify!($typ).to_uppercase() {
-                return Err(format!(
-                    "{} has to be of type {} not {}",
-                    stringify!($key),
-                    stringify!($typ),
-                    $val.type_name()
-                ));
-            } else {
-                $config.$prop = $val.clone().cast::<$typ>();
-                continue;
-            }
-        }
-    }};
+lazy_static! {
+    pub static ref MODE: Mutex<Option<String>> = Mutex::new(None);
+    pub static ref ENGINE: Mutex<Engine> = Mutex::new(Engine::new());
+    pub static ref SCOPE: Mutex<Scope<'static>> = Mutex::new(Scope::new());
+    pub static ref AST: Mutex<rhai::AST> = Mutex::new(rhai::AST::default());
+}
+
+pub fn call(fn_name: &str) {
+    let engine = ENGINE.lock().unwrap();
+    let mut scope = SCOPE.lock().unwrap();
+    let ast = AST.lock().unwrap();
+    let _ = engine
+        .call_fn::<(), ()>(&mut *scope, &*ast, fn_name, ())
+        .map_err(|e| error!("{}", e.to_string()));
 }
 
 pub fn parse_config() -> Result<Config, String> {
     let mut engine = Engine::new();
     let mut scope = Scope::new();
-    let mut config = Config::default();
+    let mut config = Arc::new(Mutex::new(Config::default()));
+    let mut resolver_collection = ModuleResolversCollection::new();
+
+    let modules_resolver = modules::new();
+    resolver_collection.push(modules_resolver);
+
     let mut config_path: PathBuf = dirs::config_dir().unwrap_or_default();
 
     config_path.push("nog");
+
+    let relative_resolver =
+        FileModuleResolver::new_with_path_and_extension(config_path.clone(), "nog");
+    resolver_collection.push(relative_resolver);
+
+    engine.set_module_resolver(Some(resolver_collection));
+    engine.set_max_expr_depths(0, 0);
 
     if !config_path.exists() {
         debug!("nog folder doesn't exist yet. Creating the folder");
         std::fs::create_dir(config_path.clone());
     }
-
-    scope.set_value("__mode", None as Option<String>);
-    scope.set_value("__cwd", config_path.to_str().unwrap().to_string());
-    scope.set_value("__workspace_settings", Array::new());
-    scope.set_value("__keybindings", Array::new());
-    scope.set_value("__rules", Array::new());
-    scope.set_value("__set", Map::new());
-
-    functions::init(&mut engine);
-    syntax::init(&mut engine).unwrap();
 
     config_path.push("config.nog");
 
@@ -59,61 +72,31 @@ pub fn parse_config() -> Result<Config, String> {
         }
     }
 
+    syntax::init(&mut engine, &mut config).unwrap();
+    functions::init(&mut engine);
+    lib::init(&mut engine);
+
     debug!("Parsing config file");
-    engine
-        .consume_file_with_scope(&mut scope, config_path)
+    let ast = engine
+        .compile_file_with_scope(&mut scope, config_path)
         .map_err(|e| e.to_string())?;
 
-    let keybindings: Array = scope.get_value("__keybindings").unwrap();
+    debug!("Running config file");
+    engine
+        .consume_ast_with_scope(&mut scope, &ast)
+        .map_err(|e| e.to_string())?;
 
-    for val in keybindings {
-        let boxed = val.cast::<Box<Keybinding>>();
-        config.keybindings.push(*boxed);
-    }
+    *ENGINE.lock().unwrap() = engine;
+    *SCOPE.lock().unwrap() = scope;
+    *AST.lock().unwrap() = ast.clone();
 
-    let settings: Map = scope.get_value("__set").unwrap();
+    let mut config = config.lock().unwrap().clone();
 
-    for (key, value) in settings.iter().map(|(k, v)| (k.to_string(), v)) {
-        set!(i32, config, min_height, key, value);
-        set!(i32, config, min_width, key, value);
-        set!(bool, config, launch_on_startup, key, value);
-        set!(bool, config, multi_monitor, key, value);
-        set!(bool, config, remove_title_bar, key, value);
-        set!(bool, config, work_mode, key, value);
-        set!(bool, config, remove_task_bar, key, value);
-        set!(bool, config, display_app_bar, key, value);
-        set!(bool, config, use_border, key, value);
-        set!(bool, config, light_theme, key, value);
-        set!(i32, config, margin, key, value);
-        set!(i32, config, padding, key, value);
-        set!(i32, config, app_bar_height, key, value);
-        set!(String, config, app_bar_date_pattern, key, value);
-        set!(String, config, app_bar_time_pattern, key, value);
-        set!(String, config, app_bar_font, key, value);
-        set!(i32, config, app_bar_font_size, key, value);
-        set!(i32, config, app_bar_bg, key, value);
-        error!("Unknown setting {}", key);
-    }
-
-    config.app_bar_bg = RGB(
-        GetBValue(config.app_bar_bg as u32),
-        GetGValue(config.app_bar_bg as u32),
-        GetRValue(config.app_bar_bg as u32),
+    config.bar.color = RGB(
+        GetBValue(config.bar.color as u32),
+        GetGValue(config.bar.color as u32),
+        GetRValue(config.bar.color as u32),
     ) as i32;
-
-    let rules: Array = scope.get_value("__rules").unwrap();
-
-    for val in rules {
-        let boxed = val.cast::<Box<Rule>>();
-        config.rules.push(*boxed);
-    }
-
-    let workspace_settings: Array = scope.get_value("__workspace_settings").unwrap();
-
-    for val in workspace_settings {
-        let boxed = val.cast::<Box<WorkspaceSetting>>();
-        config.workspace_settings.push(*boxed);
-    }
 
     Ok(config)
 }

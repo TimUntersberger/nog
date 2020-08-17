@@ -21,6 +21,9 @@
   - [Conditionals](scripting/conditionals.md)
   - [Loops](scripting/loops.md)
   - [Functions](scripting/functions.md)
+  - [Modules](scripting/modules.md)
+  - [Timestamps](scripting/timestamp.md)
+  - [Popup](scripting/popup.md)
   - [Further Reading](scripting/further_reading.md)
 
 - Example Configurations

@@ -19,7 +19,7 @@ use tile_grid::TileGrid;
 use winapi::shared::windef::HWND;
 use workspace::{change_workspace, Workspace};
 
-mod app_bar;
+mod bar;
 mod config;
 mod direction;
 mod display;
@@ -29,6 +29,7 @@ mod hot_reload;
 mod keybindings;
 mod logging;
 mod message_loop;
+mod popup;
 mod split_direction;
 mod startup;
 mod task_bar;
@@ -43,8 +44,11 @@ mod workspace;
 
 lazy_static! {
     pub static ref WORK_MODE: Mutex<bool> = Mutex::new(CONFIG.lock().unwrap().work_mode);
-    pub static ref CONFIG: Mutex<Config> =
-        Mutex::new(config::rhai::engine::parse_config().expect("Failed to load config"));
+    pub static ref CONFIG: Mutex<Config> = Mutex::new(
+        config::rhai::engine::parse_config()
+            .map_err(|e| error!("{}", e))
+            .expect("Failed to load config")
+    );
     pub static ref DISPLAYS: Mutex<Vec<Display>> = Mutex::new(Vec::new());
     pub static ref CHANNEL: EventChannel = EventChannel::default();
     pub static ref GRIDS: Mutex<Vec<TileGrid>> =
@@ -68,8 +72,27 @@ fn unmanage_everything() -> Result<(), util::WinApiResultError> {
     Ok(())
 }
 
+pub fn with_current_grid<TFunction, TReturn>(f: TFunction) -> TReturn
+where
+    TFunction: Fn(&mut TileGrid) -> TReturn,
+{
+    with_grid_by_id(*WORKSPACE_ID.lock().unwrap(), f)
+}
+
+pub fn with_grid_by_id<TFunction, TReturn>(id: i32, f: TFunction) -> TReturn
+where
+    TFunction: Fn(&mut TileGrid) -> TReturn,
+{
+    let mut grids = GRIDS.lock().unwrap();
+    let mut grid = grids.iter_mut().find(|g| g.id == id).unwrap();
+
+    f(&mut grid)
+}
+
 fn on_quit() -> Result<(), util::WinApiResultError> {
     unmanage_everything()?;
+
+    popup::cleanup();
 
     let config = CONFIG.lock().unwrap();
 
@@ -91,6 +114,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing displays");
     display::init();
 
+    info!("Initializing popups");
+    popup::init();
+
     for display in DISPLAYS.lock().unwrap().iter() {
         VISIBLE_WORKSPACES
             .lock()
@@ -98,7 +124,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             .insert(display.hmonitor, 0);
     }
 
-    change_workspace(1).expect("Failed to change workspace to ID@1");
+    info!("Initializing bars");
+
+    change_workspace(1, false).expect("Failed to change workspace to ID@1");
 
     info!("Starting hot reloading of config");
     config::hot_reloading::start();
@@ -121,7 +149,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         if CONFIG.lock().unwrap().display_app_bar {
-            app_bar::create::create()?;
+            bar::create::create()?;
         }
 
         info!("Registering windows event handler");
@@ -137,7 +165,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 let msg = maybe_msg.unwrap();
                 let _ = match msg {
                     Event::Keybinding(kb) => event_handler::keybinding::handle(kb),
-                    Event::RedrawAppBar(reason) => Ok(app_bar::redraw::redraw(reason)),
+                    Event::RedrawAppBar => Ok(bar::redraw::redraw()),
                     Event::WinEvent(ev) => event_handler::winevent::handle(ev),
                     Event::Exit => {
                         tray::remove_icon(*tray::WINDOW.lock().unwrap() as HWND);
@@ -165,7 +193,8 @@ fn main() {
     let panic = std::panic::catch_unwind(|| {
         info!("");
 
-        update::update().expect("Failed to update the program");
+        #[cfg(not(debug_assertions))]
+        update::start().expect("Failed to start update job");
 
         ctrlc::set_handler(|| {
             if let Err(e) = on_quit() {

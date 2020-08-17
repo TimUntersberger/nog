@@ -1,19 +1,16 @@
-use crate::display::get_display_by_idx;
-use crate::event::Event;
-use crate::CHANNEL;
-use crate::CONFIG;
-use crate::GRIDS;
-use crate::VISIBLE_WORKSPACES;
-use crate::WORKSPACE_ID;
 use crate::{
+    config::rhai::engine::{self, SCOPE},
+    config::rhai::engine::{AST, ENGINE},
+    display::get_display_by_idx,
+    event::Event,
     hot_reload::update_config,
     keybindings::{self, keybinding::Keybinding, keybinding_type::KeybindingType},
+    with_current_grid, with_grid_by_id,
     workspace::change_workspace,
+    CHANNEL, CONFIG, VISIBLE_WORKSPACES,
 };
 use log::{error, info};
-use winapi::um::processthreadsapi::CreateProcessA;
-use winapi::um::processthreadsapi::PROCESS_INFORMATION;
-use winapi::um::processthreadsapi::STARTUPINFOA;
+use winapi::um::processthreadsapi::{CreateProcessA, PROCESS_INFORMATION, STARTUPINFOA};
 
 mod close_tile;
 mod focus;
@@ -61,75 +58,58 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         KeybindingType::MoveWorkspaceToMonitor(monitor) => {
-            let mut grids = GRIDS.lock().unwrap();
-            let mut grid = grids
-                .iter_mut()
-                .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
-                .unwrap();
+            let (grid_id, grid_old_monitor) = with_current_grid(|grid| {
+                let hmonitor = grid.display.hmonitor;
 
-            let grid_id = grid.id;
-            let grid_old_monitor = grid.display.hmonitor;
+                grid.display = get_display_by_idx(monitor);
 
-            grid.display = get_display_by_idx(monitor);
+                (grid.id, hmonitor)
+            });
 
             VISIBLE_WORKSPACES
                 .lock()
                 .unwrap()
                 .insert(grid_old_monitor, 0);
 
-            drop(grids);
-            change_workspace(grid_id)
+            change_workspace(grid_id, true)
                 .expect("Failed to change workspace after moving workspace to different monitor");
         }
         KeybindingType::CloseTile => close_tile::handle()?,
         KeybindingType::MinimizeTile => {
-            let mut grids = GRIDS.lock().unwrap();
-            let grid = grids
-                .iter_mut()
-                .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
-                .unwrap();
+            with_current_grid(|grid| {
+                if let Some(tile) = grid.get_focused_tile_mut() {
+                    let id = tile.window.id;
 
-            if let Some(tile) = grid.get_focused_tile_mut() {
-                let id = tile.window.id;
+                    tile.window.minimize();
+                    tile.window.reset();
 
-                tile.window.send_minimize();
-                tile.window.reset()?;
-
-                grid.close_tile_by_window_id(id);
-            }
+                    grid.close_tile_by_window_id(id);
+                }
+            });
         }
         KeybindingType::MoveToWorkspace(id) => {
-            let mut grids = GRIDS.lock().unwrap();
-            let grid = grids
-                .iter_mut()
-                .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
-                .unwrap();
+            let maybe_tile = with_current_grid(|grid| {
+                grid.focused_window_id
+                    .and_then(|id| grid.close_tile_by_window_id(id))
+            });
 
-            if let Some(window_id) = grid.focused_window_id {
-                if let Some(tile) = grid.close_tile_by_window_id(window_id) {
-                    let grid = grids.iter_mut().find(|g| g.id == id).unwrap();
-                    grid.split(tile.window);
-                    drop(grids);
-                    change_workspace(id)?;
-                }
+            if let Some(tile) = maybe_tile {
+                with_grid_by_id(id, |grid| {
+                    grid.split(tile.window.clone());
+                });
+                change_workspace(id, false)?;
             }
         }
-        KeybindingType::ChangeWorkspace(id) => change_workspace(id)?,
+        KeybindingType::ChangeWorkspace(id) => change_workspace(id, false)?,
         KeybindingType::ToggleFloatingMode => toggle_floating_mode::handle()?,
         KeybindingType::ToggleFullscreen => {
-            let mut grids = GRIDS.lock().unwrap();
-            let mut grid = grids
-                .iter_mut()
-                .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
-                .unwrap();
+            with_current_grid(|grid| {
+                if !grid.tiles.is_empty() {
+                    grid.fullscreen = !grid.fullscreen;
 
-            if grid.tiles.is_empty() {
-                return Ok(());
-            }
-
-            grid.fullscreen = !grid.fullscreen;
-
-            grid.draw_grid();
+                    grid.draw_grid();
+                }
+            });
         }
         KeybindingType::ToggleMode(mode) => {
             if keybindings::enable_mode(&mode) {
@@ -160,6 +140,35 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
         KeybindingType::Swap(direction) => swap::handle(direction)?,
         KeybindingType::Quit => sender.send(Event::Exit)?,
         KeybindingType::Split(direction) => split::handle(direction)?,
+        KeybindingType::ResetColumn => {
+            with_current_grid(|grid| {
+                if let Some(modification) = grid
+                    .get_focused_tile()
+                    .and_then(|t| t.column)
+                    .and_then(|c| grid.column_modifications.get_mut(&c))
+                {
+                    modification.0 = 0;
+                    modification.1 = 0;
+                }
+
+                grid.draw_grid();
+            });
+        }
+        KeybindingType::ResetRow => {
+            with_current_grid(|grid| {
+                if let Some(modification) = grid
+                    .get_focused_tile()
+                    .and_then(|t| t.row)
+                    .and_then(|c| grid.row_modifications.get_mut(&c))
+                {
+                    modification.0 = 0;
+                    modification.1 = 0;
+                }
+
+                grid.draw_grid();
+            });
+        }
+        KeybindingType::Callback(fn_name) => engine::call(&fn_name),
     };
 
     Ok(())

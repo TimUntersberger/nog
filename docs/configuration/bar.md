@@ -12,7 +12,7 @@ bar #{
 };
 ```
 
-The bar keyword takes a [map]() which can contain the following properties:
+The bar keyword takes an [object](scripting/types?id=object) which can contain the following properties:
 
 | Key        | Value  | Description                                                          |
 |------------|--------|----------------------------------------------------------------------|
@@ -46,7 +46,7 @@ To use the components provided by default you first have to import them.
 import "nog/components" as C;
 ```
 
-Defining the components used by the bar can be done by setting `components` which is a [map]() that can contain the following properties
+Defining the components used by the bar can be done by setting `components` which is an [object](scripting/types?id=object) that can contain the following properties
 
 | Key    | Value | Description                      |
 |--------|-------|----------------------------------|
@@ -54,7 +54,7 @@ Defining the components used by the bar can be done by setting `components` whic
 | center | Array | Aligned to the center of the bar |
 | right  | Array | Aligned to the right of the bar  |
 
-Each property takes an [array]() of components.
+Each property takes an [array](scripting/types?id=array) of components.
 
 ```nog
 #{
@@ -152,4 +152,21 @@ Displays spaces.
 
 ```nog
 let component = C::padding(5);
+```
+
+### Current Window
+
+![CurrentWindow](../_media/components/current_window.png)
+
+Displays the title of the focused window in the current workspace.
+
+#### Arguments
+
+| Position | Value  | Description                    |
+|----------|--------|--------------------------------|
+
+#### Usage
+
+```nog
+let component = C::current_window();
 ```

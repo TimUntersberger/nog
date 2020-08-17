@@ -1,3 +1,4 @@
+use crate::util;
 use log::{debug, info};
 use winapi::shared::minwindef::HKEY;
 use winapi::um::winnt::KEY_SET_VALUE;
@@ -7,7 +8,6 @@ use winapi::um::winreg::RegCreateKeyExW;
 use winapi::um::winreg::RegDeleteKeyValueW;
 use winapi::um::winreg::RegSetValueExW;
 use winapi::um::winreg::HKEY_CURRENT_USER;
-use crate::util;
 
 #[allow(unreachable_code, unused_variables)]
 pub fn set_launch_on_startup(enabled: bool) -> Result<(), Box<dyn std::error::Error>> {

@@ -1,63 +1,86 @@
+use super::engine::MODE;
 use crate::{
-    config::{WorkspaceSetting, Rule},
+    bar::component::Component,
+    config::{
+        bar_config::BarConfig, update_channel::UpdateChannel, Config, Rule, WorkspaceSetting,
+    },
     keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
 };
 use log::error;
 use regex::Regex;
-use rhai::{Dynamic, Engine, ParseError, Scope};
-use std::{path::PathBuf, str::FromStr};
+use rhai::{Array, Dynamic, Engine, Map, ParseError};
+use std::{
+    str::FromStr,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 #[macro_use]
 mod macros;
 
-fn add_keybinding(engine: &Engine, scope: &mut Scope, key: String, binding: KeybindingType) {
-    let mut kb = Keybinding::from_str(&key).unwrap();
-
-    kb.typ = binding;
-    kb.mode = scope.get_value::<Option<String>>("__mode").unwrap();
-
-    scope.set_value("__new_keybinding", kb);
-
-    engine
-        .consume_with_scope(scope, "__keybindings.push(__new_keybinding);")
-        .unwrap();
+fn set_config(config: &mut Config, key: String, value: Dynamic) {
+    set!(bool, config, use_border, key, value);
+    set!(i32, config, min_width, key, value);
+    set!(i32, config, min_height, key, value);
+    set!(bool, config, work_mode, key, value);
+    set!(bool, config, light_theme, key, value);
+    set!(bool, config, multi_monitor, key, value);
+    set!(bool, config, launch_on_startup, key, value);
+    set!(i32, config, outer_gap, key, value);
+    set!(i32, config, inner_gap, key, value);
+    set!(bool, config, remove_title_bar, key, value);
+    set!(bool, config, remove_task_bar, key, value);
+    set!(bool, config, display_app_bar, key, value);
+    if key == "update_interval" {
+        if value.type_name().to_string() != "i32" {
+            error!(
+                "{} has to be of type {} not {}",
+                "update_interval",
+                "i32",
+                value.type_name()
+            );
+        } else {
+            config.update_interval = Duration::from_secs(value.clone().cast::<u64>() * 60);
+        }
+    }
+    if key == "default_update_channel" {
+        if value.type_name().to_string() != "string" {
+            error!(
+                "{} has to be of type {} not {}",
+                "default_update_channel",
+                "String",
+                value.type_name()
+            );
+        } else {
+            config.default_update_channel = Some(value.clone().as_str().unwrap().to_string());
+        }
+    }
 }
 
-fn add_rule(engine: &Engine, scope: &mut Scope, rule: Rule) {
-    scope.set_value("__new_rule", rule);
-
-    engine
-        .consume_with_scope(scope, "__rules.push(__new_rule);")
-        .unwrap();
-}
-
-fn set(engine: &Engine, scope: &mut Scope, key: String, val: Dynamic) -> Result<(), String> {
-    scope.set_value("__new_set_key", key);
-    scope.set_value("__new_set_val", val);
-
-    engine
-        .consume_with_scope(scope, "__set[__new_set_key] = __new_set_val;")
-        .map_err(|x| x.to_string())
-}
-
-pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
+pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), Box<ParseError>> {
+    let cfg = config.clone();
     engine.register_custom_syntax(
         &["bind", "$expr$", "$expr$"], // the custom syntax
         0, // the number of new variables declared within this custom syntax
-        |engine, ctx, scope, inputs| {
+        move |engine, ctx, scope, inputs| {
             let key = get_string!(engine, ctx, scope, inputs, 0);
             let binding = get_type!(engine, ctx, scope, inputs, 1, KeybindingType);
+            let mut kb = Keybinding::from_str(&key).unwrap();
 
-            add_keybinding(engine, scope, key, binding);
+            kb.typ = binding;
+            kb.mode = MODE.lock().unwrap().clone();
+
+            cfg.lock().unwrap().keybindings.push(kb);
 
             Ok(().into())
         },
     )?;
 
+    let cfg = config.clone();
     engine.register_custom_syntax(
         &["bind_range", "$expr$", "$expr$", "$expr$", "$ident$"], // the custom syntax
         0, // the number of new variables declared within this custom syntax
-        |engine, ctx, scope, inputs| {
+        move |engine, ctx, scope, inputs| {
             let from = get_int!(engine, ctx, scope, inputs, 0);
             let to = get_int!(engine, ctx, scope, inputs, 1);
             let modifier = get_string!(engine, ctx, scope, inputs, 2);
@@ -77,93 +100,113 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
                 let binding: KeybindingType =
                     engine.eval_expression(&format!("{}({})", binding_name, i))?;
 
-                add_keybinding(engine, scope, key, binding);
+                let mut kb = Keybinding::from_str(&key).unwrap();
+
+                kb.typ = binding;
+                kb.mode = MODE.lock().unwrap().clone();
+
+                cfg.lock().unwrap().keybindings.push(kb);
             }
 
             Ok(().into())
         },
     )?;
 
-    engine.register_custom_syntax(
-        &["execute", "$expr$"], // the custom syntax
-        0,                      // the number of new variables declared within this custom syntax
-        |engine, ctx, scope, inputs| {
-            let cwd = scope
-                .get_value::<String>("__cwd")
-                .ok_or("Failed to get __cwd")?;
-            let file_name = get_string!(engine, ctx, scope, inputs, 0) + ".nog";
-
-            let mut path = PathBuf::new();
-
-            path.push(cwd);
-            path.push(file_name);
-
-            engine.consume_file_with_scope(scope, path)?;
-
-            Ok(().into())
-        },
-    )?;
-
+    let cfg = config.clone();
     engine.register_custom_syntax(
         &["bar", "$expr$"], // the custom syntax
         0,                  // the number of new variables declared within this custom syntax
-        |engine, ctx, scope, inputs| {
+        move |engine, ctx, scope, inputs| {
             let settings = get_map!(engine, ctx, scope, inputs, 0);
+            let mut bar_config: BarConfig = BarConfig::default();
 
-            for (key, val) in settings.iter() {
-                set(engine, scope, format!("app_bar_{}", key), val.clone())?;
+            for (key, val) in settings {
+                if key.to_string() == "components" {
+                    bar_config.components.empty();
+                    let map = val.cast::<Map>();
+
+                    for (key, val) in map {
+                        let key = key.to_string();
+                        let components = val.cast::<Array>();
+
+                        for v in components {
+                            let component = v.cast::<Component>();
+
+                            let list = match key.as_str() {
+                                "left" => &mut bar_config.components.left,
+                                "center" => &mut bar_config.components.center,
+                                "right" => &mut bar_config.components.right,
+                                _ => panic!(),
+                            };
+
+                            list.push(component);
+                        }
+                    }
+                } else {
+                    set!(i32, bar_config, color, key, val);
+                    set!(i32, bar_config, height, key, val);
+                    set!(String, bar_config, font, key, val);
+                    set!(i32, bar_config, font_size, key, val);
+                }
             }
+
+            cfg.lock().unwrap().bar = bar_config;
 
             Ok(().into())
         },
     )?;
 
+    let cfg = config.clone();
     engine.register_custom_syntax(
         &["set", "$ident$", "$expr$"], // the custom syntax
         0, // the number of new variables declared within this custom syntax
-        |engine, ctx, scope, inputs| {
+        move |engine, ctx, scope, inputs| {
             let key = get_variable_name!(inputs, 0);
             let value = get_dynamic!(engine, ctx, scope, inputs, 1);
+            let mut config = cfg.lock().unwrap();
 
-            set(engine, scope, key, value)?;
+            set_config(&mut config, key, value);
 
             Ok(().into())
         },
     )?;
 
+    let cfg = config.clone();
     engine.register_custom_syntax(
         &["enable", "$ident$"], // the custom syntax
         0,                      // the number of new variables declared within this custom syntax
-        |engine, ctx, scope, inputs| {
+        move |_engine, _ctx, _scope, inputs| {
             let key = get_variable_name!(inputs, 0);
+            let mut config = cfg.lock().unwrap();
 
-            set(engine, scope, key, true.into())?;
+            set_config(&mut config, key, true.into());
 
             Ok(().into())
         },
     )?;
 
+    let cfg = config.clone();
     engine.register_custom_syntax(
         &["disable", "$ident$"], // the custom syntax
         0,                       // the number of new variables declared within this custom syntax
-        |engine, ctx, scope, inputs| {
+        move |_engine, _ctx, _scope, inputs| {
             let key = get_variable_name!(inputs, 0);
+            let mut config = cfg.lock().unwrap();
 
-            set(engine, scope, key, false.into())?;
+            set_config(&mut config, key, false.into());
 
             Ok(().into())
         },
     )?;
 
+    let cfg = config.clone();
     engine.register_custom_syntax(
         &["rule", "$expr$", "$expr$"], // the custom syntax
         0, // the number of new variables declared within this custom syntax
-        |engine, ctx, scope, inputs| {
+        move |engine, ctx, scope, inputs| {
             let pattern = get_string!(engine, ctx, scope, inputs, 0);
             let settings = get_map!(engine, ctx, scope, inputs, 1);
             let mut rule = Rule::default();
-
-            rule.pattern = Regex::new(&format!("^{}$", pattern)).map_err(|e| e.to_string())?;
 
             for (key, value) in settings.iter().map(|(k, v)| (k.to_string(), v)) {
                 set!(bool, rule, manage, key, value);
@@ -173,32 +216,59 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
                 set!(i32, rule, workspace_id, key, value);
             }
 
-            add_rule(engine, scope, rule);
+            rule.pattern = Regex::new(&format!("^{}$", pattern)).map_err(|e| e.to_string())?;
+
+            cfg.lock().unwrap().rules.push(rule);
 
             Ok(().into())
         },
     )?;
 
+    let cfg = config.clone();
+    engine.register_custom_syntax(
+        &["update_channel", "$expr$", "$expr$"], // the custom syntax
+        0, // the number of new variables declared within this custom syntax
+        move |engine, ctx, scope, inputs| {
+            let name = get_string!(engine, ctx, scope, inputs, 0);
+            let settings = get_map!(engine, ctx, scope, inputs, 1);
+            let mut update_channel = UpdateChannel::default();
+
+            update_channel.name = name;
+
+            for (key, value) in settings.iter().map(|(k, v)| (k.to_string(), v)) {
+                set!(String, update_channel, branch, key, value);
+                set!(String, update_channel, repo, key, value);
+                set!(String, update_channel, version, key, value);
+            }
+
+            cfg.lock().unwrap().update_channels.push(update_channel);
+
+            Ok(().into())
+        },
+    )?;
+
+    let cfg = config.clone();
     engine.register_custom_syntax(
         &["ignore", "$expr$"], // the custom syntax
         0,                     // the number of new variables declared within this custom syntax
-        |engine, ctx, scope, inputs| {
+        move |engine, ctx, scope, inputs| {
             let pattern = get_string!(engine, ctx, scope, inputs, 0);
             let mut rule = Rule::default();
 
             rule.pattern = Regex::new(&format!("^{}$", pattern)).map_err(|e| e.to_string())?;
             rule.manage = false;
 
-            add_rule(engine, scope, rule);
+            cfg.lock().unwrap().rules.push(rule);
 
             Ok(().into())
         },
-    )?;    
-    
+    )?;
+
+    let cfg = config.clone();
     engine.register_custom_syntax(
         &["workspace", "$expr$", "$expr$"], // the custom syntax
-        0,                     // the number of new variables declared within this custom syntax
-        |engine, ctx, scope, inputs| {
+        0, // the number of new variables declared within this custom syntax
+        move |engine, ctx, scope, inputs| {
             let id = get_int!(engine, ctx, scope, inputs, 0);
             let settings = get_map!(engine, ctx, scope, inputs, 1);
             let mut workspace = WorkspaceSetting::default();
@@ -207,32 +277,33 @@ pub fn init(engine: &mut Engine) -> Result<(), Box<ParseError>> {
 
             for (key, value) in settings.iter().map(|(k, v)| (k.to_string(), v)) {
                 set!(i32, workspace, monitor, key, value);
+                set!(String, workspace, text, key, value);
             }
 
-            scope.set_value("__new_workspace_setting", workspace);
-
-            engine
-                .consume_with_scope(scope, "__workspace_settings.push(__new_workspace_setting);")
-                .unwrap();
+            cfg.lock().unwrap().workspace_settings.push(workspace);
 
             Ok(().into())
         },
     )?;
 
+    let cfg = config.clone();
     engine.register_custom_syntax(
         &["mode", "$expr$", "$expr$", "$block$"], // the custom syntax
         0, // the number of new variables declared within this custom syntax
-        |engine, ctx, scope, inputs| {
+        move |engine, ctx, scope, inputs| {
             let name = get_string!(engine, ctx, scope, inputs, 0);
             let key = get_string!(engine, ctx, scope, inputs, 1);
 
-            add_keybinding(engine, scope, key, KeybindingType::ToggleMode(name.clone()));
+            let mut kb = Keybinding::from_str(&key).unwrap();
+            kb.typ = KeybindingType::ToggleMode(name.clone());
 
-            scope.set_value("__mode", Some(name));
+            cfg.lock().unwrap().keybindings.push(kb);
+
+            *MODE.lock().unwrap() = Some(name);
 
             engine.eval_expression_tree(ctx, scope, inputs.get(2).unwrap())?;
 
-            scope.set_value("__mode", None as Option<String>);
+            *MODE.lock().unwrap() = None;
 
             Ok(().into())
         },

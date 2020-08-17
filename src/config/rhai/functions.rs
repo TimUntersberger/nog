@@ -1,10 +1,10 @@
 use crate::{
-    config::{WorkspaceSetting, Rule},
+    config::{update_channel::UpdateChannel, Rule, WorkspaceSetting},
     direction::Direction,
     keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
     split_direction::SplitDirection,
 };
-use rhai::{Array, Dynamic, Engine, RegisterFn};
+use rhai::{Array, Dynamic, Engine, FnPtr, RegisterFn};
 use std::str::FromStr;
 
 pub fn init(engine: &mut Engine) {
@@ -17,9 +17,17 @@ pub fn init(engine: &mut Engine) {
     engine.register_fn("push", |list: &mut Array, item: WorkspaceSetting| {
         list.push(Dynamic::from(Box::new(item)))
     });
+    engine.register_fn("push", |list: &mut Array, item: UpdateChannel| {
+        list.push(Dynamic::from(Box::new(item)))
+    });
 
+    engine.register_fn("callback", |fp: FnPtr| {
+        KeybindingType::Callback(fp.fn_name().to_string())
+    });
     engine.register_fn("close_tile", || KeybindingType::CloseTile);
     engine.register_fn("minimize_tile", || KeybindingType::MinimizeTile);
+    engine.register_fn("reset_row", || KeybindingType::ResetRow);
+    engine.register_fn("reset_column", || KeybindingType::ResetColumn);
     engine.register_fn("quit", || KeybindingType::Quit);
     engine.register_fn("toggle_floating_mode", || {
         KeybindingType::ToggleFloatingMode

@@ -19,11 +19,15 @@ pub fn get_title_of_window(window_handle: HWND) -> Result<String, WinApiResultEr
         ))?;
     };
 
-    Ok(buffer
+    Ok(bytes_to_string(&buffer))
+}
+
+pub fn bytes_to_string(buffer: &[i8]) -> String {
+    buffer
         .iter()
         .take_while(|b| **b != 0)
         .map(|byte| char::from(*byte as u8))
-        .collect::<String>())
+        .collect::<String>()
 }
 
 pub fn get_class_name_of_window(window_handle: HWND) -> Result<String, WinApiResultError> {
@@ -86,10 +90,7 @@ where
 }
 
 pub fn to_widestring(string: &str) -> Vec<u16> {
-    string
-        .encode_utf16()
-        .chain(std::iter::once(0))
-        .collect::<Vec<_>>()
+    string.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
 #[allow(dead_code)]

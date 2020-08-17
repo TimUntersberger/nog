@@ -6,9 +6,9 @@ Defining a keybinding is very simple using the `bind` keyword.
 bind "<key-combo>" <type>;
 ```
 
-It takes two arguments, a [key combination]() and a [type]().
+It takes two arguments, a [key combination](configuration/keybindings?id=key-combinations) and a [type](configuration/keybindings?id=types).
 
-If you want to bind a range of things to a type that takes a number as argument, which can happen very fast with [change_workspace](), you can use the `bind_range` keyword.
+If you want to bind a range of things to a type that takes a number as argument, which can happen very fast with [change_workspace](configuration/keybindings?id=change-workspace), you can use the `bind_range` keyword.
 
 ```nog
 bind_range <start> <end> "<modifiers>" <type>;
@@ -183,7 +183,7 @@ bind "<key-combo>" toggle_floating_mode();
 
 ### ToggleWorkMode
 
-Toggles the [work mode]().
+Toggles the [work mode](getting-started/terminology?id=work-mode).
 
 #### Arguments
 
@@ -324,4 +324,61 @@ Starts a program.
 
 ```nog
 bind "<key-combo>" launch("<path>");
+```
+
+### ResetRow
+
+Resets any resizing done on the row the current tile resides on.
+
+#### Arguments
+
+| Position | Value  | Description                                                                                 |
+|----------|--------|---------------------------------------------------------------------------------------------|
+
+#### Usage
+
+```nog
+bind "<key-combo>" reset_row();
+```
+
+### ResetColumn
+
+Resets any resizing done on the column the current tile resides on.
+
+#### Arguments
+
+| Position | Value  | Description                                                                                 |
+|----------|--------|---------------------------------------------------------------------------------------------|
+
+#### Usage
+
+```nog
+bind "<key-combo>" reset_column();
+```
+
+### Callback
+
+Calls a function.
+
+#### Arguments
+
+| Position | Value            | Description               |
+|----------|------------------|---------------------------|
+| 1        | Function Pointer | The function to be called |
+
+#### Usage
+
+```nog
+bind "<key-combo>" callback(|| {
+    print("Hello World");
+});
+```
+
+or 
+
+```nog
+fn cb(){
+    print("Hello World");
+}
+bind "<key-combo>" callback(Fn("cb"));
 ```

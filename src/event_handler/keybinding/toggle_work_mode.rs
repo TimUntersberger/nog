@@ -1,9 +1,9 @@
-use crate::app_bar;
+use crate::bar;
 use crate::task_bar;
 use crate::unmanage_everything;
 use crate::win_event_handler;
 use crate::CONFIG;
-use crate::WORK_MODE;
+use crate::{popup, WORK_MODE};
 
 pub fn turn_work_mode_off(
     display_app_bar: bool,
@@ -11,8 +11,10 @@ pub fn turn_work_mode_off(
 ) -> Result<(), Box<dyn std::error::Error>> {
     win_event_handler::unregister()?;
 
+    popup::close();
+
     if display_app_bar {
-        app_bar::close::close();
+        bar::close::close();
     }
 
     if remove_task_bar {
@@ -29,7 +31,7 @@ pub fn turn_work_mode_on(
 ) -> Result<(), Box<dyn std::error::Error>> {
     win_event_handler::register()?;
     if display_app_bar {
-        app_bar::create::create().expect("Failed to create app bar");
+        bar::create::create().expect("Failed to create app bar");
     }
     if remove_task_bar {
         task_bar::hide();
