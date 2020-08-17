@@ -13,9 +13,10 @@ edition = "2018"
 [dependencies]
 rhai = { git = "https://github.com/jonathandturner/rhai", features = ["only_i32", "sync"] }
 log = "0.4"
-notify = "4.0.15"
 # fern = "0.5"
+syn = "1.0.38"
 flexi_logger = "0.15"
+reqwest = { version = "0.10", features = ["blocking", "json"] }
 winapi = { version = "0.3", features = ["winuser", "errhandlingapi", "impl-default", "shellapi", "windowsx", "shellscalingapi", "processthreadsapi", "psapi"] }
 chrono = "0.4"
 lazy_static = "1.4.0"
@@ -24,8 +25,8 @@ num-derive = "0.3"
 strum = "0.18.0"
 strum_macros = "0.18.0"
 dirs = "2.0"
+notify = "4.0.15"
 crossbeam-channel = "0.4"
-yaml-rust = "0.4.4"
 bitflags = "1.2"
 thiserror = "1.0"
 ctrlc = { version = "3.0", features = ["termination"] }
