@@ -20,10 +20,12 @@ jobs:
           ~/.cargo/git
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    - name: Set Env
+      run: echo ::set-env name=COMMIT_HASH::$(git rev-parse --short HEAD)
     - name: Build
       run: cargo build --release
       env:
-        NOG_VERSION: "${{ env.BRANCH_NAME }} $(git rev-parse --short HEAD)"
+        NOG_VERSION: "${{ env.BRANCH_NAME }} ${{ env.COMMIT_HASH }}"
     - name: Add Icon
       run: ./rcedit ./target/release/nog.exe --set-icon ./assets/logo.ico
     - name: Create Release
