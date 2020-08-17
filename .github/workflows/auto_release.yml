@@ -23,7 +23,7 @@ jobs:
     - name: Build
       run: cargo build --release
       env:
-        NOG_VERSION: "${{ env.BRANCH_NAME }} ${{ git rev-parse --short HEAD }}"
+        NOG_VERSION: "${{ env.BRANCH_NAME }} (git rev-parse --short HEAD)"
     - name: Add Icon
       run: ./rcedit ./target/release/nog.exe --set-icon ./assets/logo.ico
     - name: Create Release
