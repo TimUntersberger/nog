@@ -154,7 +154,10 @@ pub fn add_icon(hwnd: HWND) {
         );
 
         let mut tooltip_array = [0u16; 128];
-        let tooltip = "Nog";
+        let version = option_env!("NOG_VERSION")
+            .map(|s| format!(" {}", s))
+            .unwrap_or_default();
+        let tooltip = format!("Nog{}", version);
         let mut tooltip = tooltip.encode_utf16().collect::<Vec<_>>();
         tooltip.extend(vec![0; 128 - tooltip.len()]);
         tooltip_array.swap_with_slice(&mut tooltip[..]);
