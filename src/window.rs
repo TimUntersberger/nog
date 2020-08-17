@@ -76,25 +76,21 @@ impl Window {
             ..Self::default()
         }
     }
-    pub fn reset_style(&mut self) -> Result<(), util::WinApiResultError> {
+    pub fn reset_style(&mut self) {
         self.style = self.original_style;
-
-        Ok(())
     }
-    pub fn reset(&mut self) -> Result<(), util::WinApiResultError> {
-        self.reset_style()?;
+    pub fn reset(&mut self) {
+        self.reset_style();
         self.update_style();
-        self.reset_pos()?;
+        self.reset_pos();
 
         if self.maximized {
             self.maximize();
         }
-
-        Ok(())
     }
-    pub fn reset_pos(&self) -> Result<(), util::WinApiResultError> {
+    pub fn reset_pos(&self) {
         unsafe {
-            util::winapi_nullable_to_result(SetWindowPos(
+            SetWindowPos(
                 self.id as HWND,
                 std::ptr::null_mut(),
                 self.original_rect.left,
@@ -102,10 +98,8 @@ impl Window {
                 self.original_rect.right - self.original_rect.left,
                 self.original_rect.bottom - self.original_rect.top,
                 0,
-            ))?;
+            );
         }
-
-        Ok(())
     }
     pub fn get_client_rect(&self) -> RECT {
         let mut rect: RECT = RECT::default();

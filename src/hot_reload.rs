@@ -49,7 +49,7 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
 
         for grid in grids.iter_mut() {
             for tile in &mut grid.tiles {
-                tile.window.reset_style()?;
+                tile.window.reset_style();
                 tile.window.update_style();
             }
         }
