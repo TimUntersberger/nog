@@ -16,8 +16,6 @@ use winapi::um::winuser::EVENT_MAX;
 use winapi::um::winuser::EVENT_MIN;
 use winapi::um::winuser::OBJID_WINDOW;
 
-use num_traits::FromPrimitive;
-
 pub mod win_event;
 pub mod win_event_type;
 pub mod win_event_code;
