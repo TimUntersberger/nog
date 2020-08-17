@@ -70,6 +70,12 @@ impl Default for Window {
 }
 
 impl Window {
+    pub fn new(hwnd: i32) -> Self {
+        Self {
+            id: hwnd,
+            ..Self::default()
+        }
+    }
     pub fn reset_style(&mut self) -> Result<(), util::WinApiResultError> {
         self.style = self.original_style;
 

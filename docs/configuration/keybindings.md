@@ -355,3 +355,30 @@ Resets any resizing done on the column the current tile resides on.
 ```nog
 bind "<key-combo>" reset_column();
 ```
+
+### Callback
+
+Calls a function.
+
+#### Arguments
+
+| Position | Value            | Description               |
+|----------|------------------|---------------------------|
+| 1        | Function Pointer | The function to be called |
+
+#### Usage
+
+```nog
+bind "<key-combo>" callback(|| {
+    print("Hello World");
+});
+```
+
+or 
+
+```nog
+fn cb(){
+    print("Hello World");
+}
+bind "<key-combo>" callback(Fn("cb"));
+```

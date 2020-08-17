@@ -56,9 +56,3 @@ You can also rename the export;
 let x = 0;
 export x as y;
 ```
-
-## Builtin
-
-* [nog/components]()
-* [WIP nog/http]()
-* [WIP nog/popup]()
