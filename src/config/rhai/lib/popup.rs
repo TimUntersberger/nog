@@ -4,7 +4,7 @@ use crate::{
     DISPLAYS,
 };
 
-use rhai::{Array, Engine, FnPtr, Map, };
+use rhai::{Array, Engine, FnPtr, Map};
 use std::sync::Arc;
 
 pub fn init(engine: &mut Engine) {

@@ -17,8 +17,8 @@ use winapi::um::winuser::EVENT_MIN;
 use winapi::um::winuser::OBJID_WINDOW;
 
 pub mod win_event;
-pub mod win_event_type;
 pub mod win_event_code;
+pub mod win_event_type;
 
 lazy_static! {
     static ref HOOK: AtomicPtr<HWINEVENTHOOK__> = AtomicPtr::new(std::ptr::null_mut());

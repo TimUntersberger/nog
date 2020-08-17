@@ -60,7 +60,8 @@ pub fn parse_config() -> Result<Config, String> {
         debug!("config file doesn't exist yet. Creating the file");
         if let Ok(mut file) = std::fs::File::create(config_path.clone()) {
             debug!("Initializing config with default values");
-            file.write_all(include_bytes!("../../../assets/default_config.nog")).map_err(|e| e.to_string())?;
+            file.write_all(include_bytes!("../../../assets/default_config.nog"))
+                .map_err(|e| e.to_string())?;
         }
     }
 

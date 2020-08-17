@@ -3,7 +3,7 @@ use strum_macros::EnumString;
 #[repr(u32)]
 #[allow(dead_code)]
 pub enum WinEventCode {
-    ObjectAcceleratorChange= 0x8012,
+    ObjectAcceleratorChange = 0x8012,
     ObjectCloaked = 0x8017,
     ObjectContentScrolled = 0x8015,
     ObjectCreate = 0x8000,

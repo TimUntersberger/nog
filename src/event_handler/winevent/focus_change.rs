@@ -1,4 +1,4 @@
-use crate::{with_current_grid};
+use crate::with_current_grid;
 use winapi::shared::windef::HWND;
 
 pub fn handle(hwnd: HWND) -> Result<(), Box<dyn std::error::Error>> {

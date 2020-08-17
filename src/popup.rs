@@ -1,7 +1,4 @@
-use crate::{
-    bar, display::get_primary_display, message_loop,  util,
-    window::Window, CONFIG, 
-};
+use crate::{bar, display::get_primary_display, message_loop, util, window::Window, CONFIG};
 
 use std::{
     ffi::CString,
