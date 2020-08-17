@@ -29,6 +29,7 @@ mod hot_reload;
 mod keybindings;
 mod logging;
 mod message_loop;
+mod popup;
 mod split_direction;
 mod startup;
 mod task_bar;
@@ -91,6 +92,8 @@ where
 fn on_quit() -> Result<(), util::WinApiResultError> {
     unmanage_everything()?;
 
+    popup::cleanup();
+
     let config = CONFIG.lock().unwrap();
 
     if config.remove_task_bar {
@@ -110,6 +113,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Initializing displays");
     display::init();
+
+    info!("Initializing popups");
+    popup::init();
 
     for display in DISPLAYS.lock().unwrap().iter() {
         VISIBLE_WORKSPACES
