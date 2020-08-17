@@ -21,7 +21,7 @@ jobs:
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     - name: Set Env
-      run: echo ::set-env name=COMMIT_HASH::$(git rev-parse --short HEAD)
+      run: echo "::set-env name=COMMIT_HASH::$(git rev-parse --short HEAD)"
     - name: Build
       run: cargo build --release
       env:
