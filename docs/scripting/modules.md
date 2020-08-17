@@ -37,7 +37,7 @@ You can also import a module without using the `as` keyword if you don't care ab
 import "script";
 ```
 
-**WARNING**: Recursive imports CAN crash the applications very fast.
+**WARNING**: Recursive imports CAN crash the application very fast.
 
 ## Exporting
 
