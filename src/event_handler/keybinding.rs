@@ -1,13 +1,11 @@
 use crate::{
-    config::rhai::engine::{self, SCOPE},
-    config::rhai::engine::{AST, ENGINE},
     display::get_display_by_idx,
     event::Event,
     hot_reload::update_config,
     keybindings::{self, keybinding::Keybinding, keybinding_type::KeybindingType},
     with_current_grid, with_grid_by_id,
     workspace::change_workspace,
-    CHANNEL, CONFIG, VISIBLE_WORKSPACES,
+    CHANNEL, CONFIG, VISIBLE_WORKSPACES, config::rhai::engine,
 };
 use log::{error, info};
 use winapi::um::processthreadsapi::{CreateProcessA, PROCESS_INFORMATION, STARTUPINFOA};

@@ -362,14 +362,3 @@ impl Window {
         }
     }
 }
-
-fn get_foreground_window() -> Window {
-    unsafe {
-        let hwnd = GetForegroundWindow();
-
-        Window {
-            id: hwnd as i32,
-            ..Window::default()
-        }
-    }
-}
