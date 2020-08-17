@@ -3,13 +3,15 @@ use crate::task_bar;
 use crate::unmanage_everything;
 use crate::win_event_handler;
 use crate::CONFIG;
-use crate::WORK_MODE;
+use crate::{popup, WORK_MODE};
 
 pub fn turn_work_mode_off(
     display_app_bar: bool,
     remove_task_bar: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     win_event_handler::unregister()?;
+
+    popup::close();
 
     if display_app_bar {
         bar::close::close();
