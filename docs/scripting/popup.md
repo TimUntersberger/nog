@@ -2,6 +2,8 @@
 
 A popup is a small window that is centered and adapts its size to the content. The popup uses the bar font, font size and color.
 
+You can close a popup by using the [CloseTile](configuration/keybindings?id=close-tile) keybinding.
+
 ![Popup](../_media/popup.png)
 
 ## API

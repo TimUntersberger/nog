@@ -138,7 +138,7 @@ bind "<key-combo>" minimize_tile();
 
 ### CloseTile
 
-Unmanages the current tile and closes it.
+If a popup is currently visible then it closes it else it unmanages the current tile and closes it.
 
 #### Arguments
 
