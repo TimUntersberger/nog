@@ -512,58 +512,63 @@ impl TileGrid {
                     y += padding;
                 }
             }
-        }
 
-        x += margin;
-        x += padding;
-        y += margin;
-        y += padding;
+            x += margin;
+            x += padding;
+            y += margin;
+            y += padding;
 
-        let (column_modifications, row_modifications) = self.get_modifications(tile);
+            let (column_modifications, row_modifications) = self.get_modifications(tile);
 
-        if let Some(modifications) = column_modifications {
-            let real_left = self.percentage_to_real(modifications.0);
-            let real_right = self.percentage_to_real(modifications.1);
+            if let Some(modifications) = column_modifications {
+                let real_left = self.percentage_to_real(modifications.0);
+                let real_right = self.percentage_to_real(modifications.1);
 
-            x -= real_left;
-            width += real_right + real_left;
-        }
-        if let Some(modifications) = row_modifications {
-            let real_top = self.percentage_to_real(modifications.0);
-            let real_bottom = self.percentage_to_real(modifications.1);
+                x -= real_left;
+                width += real_right + real_left;
+            }
+            if let Some(modifications) = row_modifications {
+                let real_top = self.percentage_to_real(modifications.0);
+                let real_bottom = self.percentage_to_real(modifications.1);
 
-            y -= real_top;
-            height += real_bottom + real_top;
-        }
+                y -= real_top;
+                height += real_bottom + real_top;
+            }
 
-        // column to the right
-        if let Some(modifications) = self.get_column_modifications(tile.column.map(|x| x + 1)) {
-            let real_left = self.percentage_to_real(modifications.0);
+            // column to the right
+            if let Some(modifications) = self.get_column_modifications(tile.column.map(|x| x + 1)) {
+                let real_left = self.percentage_to_real(modifications.0);
 
-            width -= real_left;
-        }
+                width -= real_left;
+            }
 
-        // row below
-        if let Some(modifications) = self.get_row_modifications(tile.row.map(|x| x + 1)) {
-            let real_top = self.percentage_to_real(modifications.0);
+            // row below
+            if let Some(modifications) = self.get_row_modifications(tile.row.map(|x| x + 1)) {
+                let real_top = self.percentage_to_real(modifications.0);
 
-            height -= real_top;
-        }
+                height -= real_top;
+            }
 
-        // column to the left
-        if let Some(modifications) = self.get_column_modifications(tile.column.map(|x| x - 1)) {
-            let real_right = self.percentage_to_real(modifications.1);
+            // column to the left
+            if let Some(modifications) = self.get_column_modifications(tile.column.map(|x| x - 1)) {
+                let real_right = self.percentage_to_real(modifications.1);
 
-            x += real_right;
-            width -= real_right;
-        }
+                x += real_right;
+                width -= real_right;
+            }
 
-        // row above
-        if let Some(modifications) = self.get_row_modifications(tile.row.map(|x| x - 1)) {
-            let real_bottom = self.percentage_to_real(modifications.1);
+            // row above
+            if let Some(modifications) = self.get_row_modifications(tile.row.map(|x| x - 1)) {
+                let real_bottom = self.percentage_to_real(modifications.1);
 
-            y += real_bottom;
-            height -= real_bottom;
+                y += real_bottom;
+                height -= real_bottom;
+            }
+        } else {
+            x += margin;
+            x += padding;
+            y += margin;
+            y += padding;
         }
 
         tile.window
