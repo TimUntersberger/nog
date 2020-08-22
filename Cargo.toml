@@ -18,6 +18,8 @@ syn = "1.0.38"
 flexi_logger = "0.15"
 reqwest = { version = "0.10", features = ["blocking", "json"] }
 winapi = { version = "0.3", features = ["winuser", "errhandlingapi", "impl-default", "shellapi", "windowsx", "shellscalingapi", "processthreadsapi", "psapi"] }
+serde = "1.0"
+serde_json = "1.0"
 chrono = "0.4"
 lazy_static = "1.4.0"
 num-traits = "0.2"

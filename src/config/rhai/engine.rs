@@ -1,4 +1,4 @@
-use super::{functions, lib, modules, syntax};
+use super::{functions, lib, modules, syntax, types};
 use crate::config::Config;
 use lazy_static::lazy_static;
 use log::{debug, error};
@@ -66,6 +66,7 @@ pub fn parse_config() -> Result<Config, String> {
     }
 
     syntax::init(&mut engine, &mut config).unwrap();
+    types::init(&mut engine);
     functions::init(&mut engine);
     lib::init(&mut engine);
 
