@@ -22,25 +22,18 @@ fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
                 && g.display.hmonitor == display.hmonitor
         })
         .map(|grid| {
-            let (fg, bg) = if light_theme {
-                let fg = 0x00333333;
-
-                let bg = if workspace_id == grid.id {
+            let bg = if light_theme {
+                if workspace_id == grid.id {
                     util::scale_color(bar_color, 0.75) as u32
                 } else {
                     util::scale_color(bar_color, 0.9) as u32
-                };
-
-                (fg, bg)
+                }
             } else {
-                let fg = 0x00ffffff;
-                let bg = if workspace_id == grid.id {
+                if workspace_id == grid.id {
                     util::scale_color(bar_color, 2.0) as u32
                 } else {
                     util::scale_color(bar_color, 1.5) as u32
-                };
-
-                (fg, bg)
+                }
             };
             let mut text = format!(" {} ", grid.id.to_string());
 
@@ -50,7 +43,7 @@ fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
                 }
             }
 
-            ComponentText::Colored(fg, bg, text)
+            ComponentText::Colored(None, Some(bg), text)
         })
         .collect()
 }

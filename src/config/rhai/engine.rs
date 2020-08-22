@@ -4,7 +4,7 @@ use lazy_static::lazy_static;
 use log::{debug, error};
 use rhai::{
     module_resolvers::{FileModuleResolver, ModuleResolversCollection},
-    Engine, Scope,
+    Engine, Scope, Dynamic,
 };
 use std::{
     io::Write,
@@ -78,10 +78,10 @@ pub fn parse_config() -> Result<Config, String> {
     engine
         .consume_ast_with_scope(&mut scope, &ast)
         .map_err(|e| e.to_string())?;
-
+    
     *ENGINE.lock().unwrap() = engine;
     *SCOPE.lock().unwrap() = scope;
-    *AST.lock().unwrap() = ast.clone();
+    *AST.lock().unwrap() = ast;
 
     let mut config = config.lock().unwrap().clone();
 
