@@ -1,6 +1,6 @@
 use crate::{
     bar, config::Config, display::get_display_by_hmonitor, keybindings, startup, task_bar, CONFIG,
-    DISPLAYS, GRIDS, WORKSPACE_ID, WORK_MODE,
+    DISPLAYS, GRIDS, WORKSPACE_ID, WORK_MODE, with_current_grid,
 };
 
 pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error>> {
@@ -87,13 +87,9 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
 
     keybindings::register()?;
 
-    let mut grids = GRIDS.lock().unwrap();
-    let grid = grids
-        .iter_mut()
-        .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
-        .unwrap();
-
-    grid.draw_grid();
+    with_current_grid(|grid| {
+        grid.draw_grid();
+    });
 
     Ok(())
 }
