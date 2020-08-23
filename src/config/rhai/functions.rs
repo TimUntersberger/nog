@@ -1,26 +1,18 @@
+use super::engine::{self, ENGINE};
 use crate::{
     config::{update_channel::UpdateChannel, Rule, WorkspaceSetting},
     direction::Direction,
     keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
     split_direction::SplitDirection,
 };
-use rhai::{Array, Dynamic, Engine, FnPtr, RegisterFn};
+use log::error;
+use rhai::{Module, Array, Dynamic, Engine, FnPtr, ImmutableString, ModuleResolver, RegisterFn, Map};
 use std::str::FromStr;
 
 pub fn init(engine: &mut Engine) {
-    engine.register_fn("push", |list: &mut Array, item: Keybinding| {
-        list.push(Dynamic::from(Box::new(item)))
+    engine.register_fn("callback", |fp: FnPtr| {
+        KeybindingType::Callback(engine::add_callback(fp))
     });
-    engine.register_fn("push", |list: &mut Array, item: Rule| {
-        list.push(Dynamic::from(Box::new(item)))
-    });
-    engine.register_fn("push", |list: &mut Array, item: WorkspaceSetting| {
-        list.push(Dynamic::from(Box::new(item)))
-    });
-    engine.register_fn("push", |list: &mut Array, item: UpdateChannel| {
-        list.push(Dynamic::from(Box::new(item)))
-    });
-
     engine.register_fn("close_tile", || KeybindingType::CloseTile);
     engine.register_fn("minimize_tile", || KeybindingType::MinimizeTile);
     engine.register_fn("reset_row", || KeybindingType::ResetRow);
