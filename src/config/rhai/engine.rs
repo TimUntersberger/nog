@@ -4,7 +4,7 @@ use lazy_static::lazy_static;
 use log::{debug, error};
 use rhai::{
     module_resolvers::{FileModuleResolver, ModuleResolversCollection},
-    Engine, Scope, Dynamic,
+    Engine, Scope, 
 };
 use std::{
     io::Write,

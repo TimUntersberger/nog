@@ -1,7 +1,6 @@
 use crate::{
-    config::{update_channel::UpdateChannel, Rule, WorkspaceSetting},
     direction::Direction,
-    keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
+    keybindings::keybinding_type::KeybindingType,
     split_direction::SplitDirection,
 };
 use rhai::{Engine, FnPtr, RegisterFn};

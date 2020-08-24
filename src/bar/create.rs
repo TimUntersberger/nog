@@ -1,5 +1,5 @@
-use super::{get_bar_by_hmonitor, get_windows, redraw::redraw, window_cb, Bar, BARS};
-use crate::{event::Event, message_loop, task_bar::HEIGHT, util, CHANNEL, CONFIG, DISPLAYS};
+use super::{get_bar_by_hmonitor, redraw::redraw, window_cb, Bar, BARS};
+use crate::{message_loop, task_bar::HEIGHT, util, CONFIG, DISPLAYS};
 use log::{debug, error, info};
 use winapi::shared::windef::HBRUSH;
 use winapi::um::wingdi::CreateSolidBrush;
