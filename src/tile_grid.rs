@@ -11,7 +11,7 @@ use winapi::shared::windef::RECT;
 use winapi::um::winuser::SetWindowPos;
 use winapi::um::winuser::SWP_NOSENDCHANGING;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TileGrid {
     pub display: Display,
     pub id: i32,

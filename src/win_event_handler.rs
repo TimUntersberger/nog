@@ -7,6 +7,7 @@ use log::debug;
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 use win_event::WinEvent;
 use win_event_type::WinEventType;
+use win_event_code::WinEventCode;
 use winapi::shared::minwindef::DWORD;
 use winapi::shared::ntdef::LONG;
 use winapi::shared::windef::HWND;
@@ -15,6 +16,7 @@ use winapi::um::winuser::SetWinEventHook;
 use winapi::um::winuser::EVENT_MAX;
 use winapi::um::winuser::EVENT_MIN;
 use winapi::um::winuser::OBJID_WINDOW;
+use num_traits::FromPrimitive;
 
 pub mod win_event;
 pub mod win_event_code;

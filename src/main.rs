@@ -21,6 +21,7 @@ use workspace::{change_workspace, Workspace};
 
 mod bar;
 mod config;
+mod monitor;
 mod direction;
 mod display;
 mod event;
@@ -53,8 +54,6 @@ lazy_static! {
     pub static ref CHANNEL: EventChannel = EventChannel::default();
     pub static ref GRIDS: Mutex<Vec<TileGrid>> =
         Mutex::new((1..11).map(TileGrid::new).collect::<Vec<TileGrid>>());
-    pub static ref WORKSPACES: Mutex<Vec<Workspace>> =
-        Mutex::new((1..11).map(Workspace::new).collect::<Vec<Workspace>>());
     pub static ref VISIBLE_WORKSPACES: Mutex<HashMap<i32, i32>> = Mutex::new(HashMap::new());
     pub static ref WORKSPACE_ID: Mutex<i32> = Mutex::new(1);
 }
@@ -107,8 +106,21 @@ fn on_quit() -> Result<(), util::WinApiResultError> {
     std::process::exit(0);
 }
 
+fn init_visible_workspaces() {
+    let mut vw = VISIBLE_WORKSPACES
+            .lock()
+            .unwrap();
+
+    for display in DISPLAYS.lock().unwrap().iter() {
+        vw.insert(display.hmonitor, 0);
+    }
+}
+
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let receiver = CHANNEL.receiver.clone();
+
+    info!("Initializing monitor hook");
+    monitor::init();
 
     info!("Initializing config");
     lazy_static::initialize(&CONFIG);
@@ -119,12 +131,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing popups");
     popup::init();
 
-    for display in DISPLAYS.lock().unwrap().iter() {
-        VISIBLE_WORKSPACES
-            .lock()
-            .unwrap()
-            .insert(display.hmonitor, 0);
-    }
+    init_visible_workspaces();
 
     info!("Initializing bars");
 
@@ -137,9 +144,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Creating tray icon");
     tray::create()?;
-
-    info!("Initializing workspaces");
-    lazy_static::initialize(&WORKSPACES);
 
     if *WORK_MODE.lock().unwrap() {
         if CONFIG.lock().unwrap().remove_task_bar {

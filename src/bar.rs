@@ -14,8 +14,8 @@ use winapi::shared::minwindef::LRESULT;
 use winapi::shared::minwindef::UINT;
 use winapi::shared::minwindef::WPARAM;
 use winapi::shared::windef::HDC;
-
 use winapi::shared::windef::HWND;
+
 use winapi::shared::windef::POINT;
 use winapi::shared::windef::RECT;
 
@@ -253,8 +253,6 @@ unsafe extern "system" fn window_cb(
         } else {
             SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8));
         }
-    } else if msg == WM_DEVICECHANGE {
-        println!("Device change!");
     } else if msg == WM_LBUTTONDOWN {
         let mut point = POINT::default();
         GetCursorPos(&mut point);
