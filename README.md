@@ -5,6 +5,10 @@
 
 https://timuntersberger.github.io/nog
 
+## Download
+
+In almost all cases the [development]() release is the way to go.
+
 ## Development
 
 ### Create Executable
