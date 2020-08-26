@@ -5,7 +5,7 @@ extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
 
-use config::Config;
+use config::{rule::Rule, Config};
 use crossbeam_channel::select;
 use display::Display;
 use event::Event;
@@ -51,6 +51,7 @@ lazy_static! {
     );
     pub static ref DISPLAYS: Mutex<Vec<Display>> = Mutex::new(Vec::new());
     pub static ref CHANNEL: EventChannel = EventChannel::default();
+    pub static ref ADDITIONAL_RULES: Mutex<Vec<Rule>> = Mutex::new(Vec::new());
     pub static ref GRIDS: Mutex<Vec<TileGrid>> =
         Mutex::new((1..11).map(TileGrid::new).collect::<Vec<TileGrid>>());
     pub static ref WORKSPACES: Mutex<Vec<Workspace>> =
