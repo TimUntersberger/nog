@@ -153,7 +153,7 @@ bind "<key-combo>" close_tile();
 
 ### IgnoreTile
 
-Unmanages the current window and setups a rule that ignores the application during the lifetime of the program.
+Unmanages the current window and sets up a rule that ignores the application during the lifetime of the program.
 
 #### Arguments
 
