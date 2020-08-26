@@ -1,9 +1,9 @@
 use crate::bar;
-use crate::task_bar;
 use crate::unmanage_everything;
 use crate::win_event_handler;
 use crate::CONFIG;
 use crate::{popup, WORK_MODE};
+use crate::task_bar;
 
 pub fn turn_work_mode_off(
     display_app_bar: bool,
@@ -18,7 +18,7 @@ pub fn turn_work_mode_off(
     }
 
     if remove_task_bar {
-        task_bar::show();
+        task_bar::show_taskbars();
     }
 
     unmanage_everything()?;
@@ -34,7 +34,7 @@ pub fn turn_work_mode_on(
         bar::create::create().expect("Failed to create app bar");
     }
     if remove_task_bar {
-        task_bar::hide();
+        task_bar::hide_taskbars();
     }
     Ok(())
 }

@@ -6,6 +6,7 @@ use winapi::um::winuser::{
 pub enum WinEventType {
     Destroy,
     Hide,
+    ///Takes a bool, which tells us whether to ignore all rules
     Show(bool),
     FocusChange,
 }

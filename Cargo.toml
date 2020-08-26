@@ -1,6 +1,6 @@
 [package]
-name = "Nog"
-version = "0.11.0"
+name = "nog"
+version = "0.13.0"
 log = "debug"
 description = "A tiling window manager for Windows 10"
 license = "MIT"

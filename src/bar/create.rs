@@ -1,5 +1,5 @@
 use super::{get_bar_by_hmonitor, get_windows, redraw::redraw, window_cb, Bar, BARS};
-use crate::{event::Event, message_loop, task_bar::HEIGHT, util, CHANNEL, CONFIG, DISPLAYS};
+use crate::{event::Event, message_loop, util, CHANNEL, CONFIG, DISPLAYS};
 use log::{debug, error, info};
 use winapi::shared::windef::HBRUSH;
 use winapi::um::wingdi::CreateSolidBrush;
@@ -13,13 +13,8 @@ pub fn create() -> Result<(), util::WinApiResultError> {
 
     let name = "nog_bar";
 
-    let mut height_guard = HEIGHT.lock().unwrap();
-
     let app_bar_bg = CONFIG.lock().unwrap().bar.color;
-
-    *height_guard = CONFIG.lock().unwrap().bar.height;
-
-    let height = *height_guard;
+    let height = CONFIG.lock().unwrap().bar.height;
 
     std::thread::spawn(|| loop {
         std::thread::sleep(std::time::Duration::from_millis(200));
@@ -46,7 +41,7 @@ pub fn create() -> Result<(), util::WinApiResultError> {
 
             debug!("Creating appbar for display {}", display.hmonitor as i32);
 
-            let display_width = display.width();
+            let working_area_width = display.working_area_width();
 
             let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
 
@@ -67,9 +62,9 @@ pub fn create() -> Result<(), util::WinApiResultError> {
                 name.as_ptr() as *const i8,
                 name.as_ptr() as *const i8,
                 winapi::um::winuser::WS_POPUPWINDOW & !winapi::um::winuser::WS_BORDER,
-                display.left,
-                display.top,
-                display_width,
+                display.working_area_left(),
+                display.working_area_top(),
+                working_area_width,
                 height,
                 std::ptr::null_mut(),
                 std::ptr::null_mut(),

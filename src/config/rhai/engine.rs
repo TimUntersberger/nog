@@ -1,22 +1,14 @@
 use super::{functions, lib, modules, syntax};
-use crate::{
-    config::{update_channel::UpdateChannel, Config, Rule, WorkspaceSetting},
-    keybindings::keybinding::Keybinding,
-    popup::Popup,
-    DISPLAYS,
-};
+use crate::config::Config;
 use lazy_static::lazy_static;
 use log::{debug, error};
 use rhai::{
     module_resolvers::{FileModuleResolver, ModuleResolversCollection},
-    Array, Dynamic, Engine, ImmutableString, Map, RegisterFn, Scope,
+    Engine, Scope,
 };
 use std::{
-    cell::RefCell,
-    collections::HashMap,
     io::Write,
     path::PathBuf,
-    rc::Rc,
     sync::{Arc, Mutex},
 };
 use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
@@ -59,7 +51,7 @@ pub fn parse_config() -> Result<Config, String> {
 
     if !config_path.exists() {
         debug!("nog folder doesn't exist yet. Creating the folder");
-        std::fs::create_dir(config_path.clone());
+        std::fs::create_dir(config_path.clone()).map_err(|e| e.to_string())?;
     }
 
     config_path.push("config.nog");
@@ -68,7 +60,8 @@ pub fn parse_config() -> Result<Config, String> {
         debug!("config file doesn't exist yet. Creating the file");
         if let Ok(mut file) = std::fs::File::create(config_path.clone()) {
             debug!("Initializing config with default values");
-            file.write_all(include_bytes!("../../../assets/default_config.nog"));
+            file.write_all(include_bytes!("../../../assets/default_config.nog"))
+                .map_err(|e| e.to_string())?;
         }
     }
 

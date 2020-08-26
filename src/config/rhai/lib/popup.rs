@@ -1,10 +1,10 @@
 use crate::{
-    config::rhai::engine::{self},
+    config::rhai::engine,
     popup::{Popup, PopupAction},
     DISPLAYS,
 };
 
-use rhai::{Array, Engine, FnPtr, Func, Map, RegisterFn, Scope};
+use rhai::{Array, Engine, FnPtr, Map};
 use std::sync::Arc;
 
 pub fn init(engine: &mut Engine) {

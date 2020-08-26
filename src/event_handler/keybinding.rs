@@ -1,15 +1,14 @@
 use crate::{
-    config::rhai::engine::{self, SCOPE},
-    config::rhai::engine::{AST, ENGINE},
+    config::{rhai::engine, rule::Rule},
     display::get_display_by_idx,
     event::Event,
     hot_reload::update_config,
     keybindings::{self, keybinding::Keybinding, keybinding_type::KeybindingType},
     with_current_grid, with_grid_by_id,
     workspace::change_workspace,
-    CHANNEL, CONFIG, VISIBLE_WORKSPACES,
+    ADDITIONAL_RULES, CHANNEL, CONFIG, VISIBLE_WORKSPACES,
 };
-use log::{error, info};
+use log::{error, info, debug};
 use winapi::um::processthreadsapi::{CreateProcessA, PROCESS_INFORMATION, STARTUPINFOA};
 
 mod close_tile;
@@ -169,6 +168,25 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
             });
         }
         KeybindingType::Callback(fn_name) => engine::call(&fn_name),
+        KeybindingType::IgnoreTile => {
+            with_current_grid(|grid| {
+                if let Some(tile) = grid.get_focused_tile() {
+                    let process_name = tile.window.get_process_name();
+                    let mut rules = ADDITIONAL_RULES.lock().unwrap();
+                    let mut rule = Rule::default();
+                    let pattern = format!("^{}$", process_name);
+
+                    debug!("Adding rule with pattern {}", pattern);
+
+                    rule.pattern = regex::Regex::new(&pattern)
+                        .expect("Failed to build regex");
+                    rule.manage = false;
+
+                    rules.push(rule);
+                }
+            });
+            toggle_floating_mode::handle()?;
+        }
     };
 
     Ok(())

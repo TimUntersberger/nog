@@ -1,12 +1,8 @@
-use crate::{
-    bar, display::get_primary_display, event::Event, message_loop, task_bar::HEIGHT, util,
-    window::Window, CHANNEL, CONFIG, DISPLAYS,
-};
+use crate::{bar, display::get_primary_display, message_loop, util, window::Window, CONFIG};
 
 use std::{
-    collections::HashMap,
     ffi::CString,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{Arc, Mutex},
     thread,
 };
 use winapi::shared::windef::HWND;

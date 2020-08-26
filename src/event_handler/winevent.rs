@@ -1,7 +1,7 @@
 use crate::util;
 use crate::{
     win_event_handler::{win_event::WinEvent, win_event_type::WinEventType},
-    GRIDS, window::Window,
+    GRIDS,
 };
 use log::debug;
 use winapi::shared::windef::HWND;
