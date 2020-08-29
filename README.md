@@ -7,7 +7,7 @@ https://timuntersberger.github.io/nog
 
 ## Download
 
-In almost all cases the [development]() release is the way to go.
+In almost all cases the [development](https://github.com/TimUntersberger/nog/releases/tag/development-release) release is the way to go.
 
 ## Development
 
