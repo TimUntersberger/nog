@@ -170,3 +170,25 @@ Displays the title of the focused window in the current workspace.
 ```nog
 let component = C::current_window();
 ```
+
+### Custom
+
+You can create custom components by using the `create` function provided in the `nog/components` module.
+
+A custom component requires at least two things, a name and a function that tells nog how to render the component. Anything else is optional and can be configured in the optional object.
+
+#### Arguments
+
+| Position | Value    | Description                             |
+|----------|----------|-----------------------------------------|
+| 1        | String   | Name of the component                   |
+| 2        | Function | The function that renders the component |
+| 3        | Object   | (Optional) Additional configuration     |
+
+#### Usage
+
+```nog
+let component = C::create("My Component", || {
+    ["Hello World"]
+});
+```
