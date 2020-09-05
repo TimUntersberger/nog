@@ -3,7 +3,7 @@ use rhai::{ser::to_dynamic, Dynamic};
 #[derive(Copy, Clone)]
 pub enum ContentType {
     Json,
-    Text
+    Text,
 }
 
 impl Default for ContentType {
@@ -16,7 +16,7 @@ impl Default for ContentType {
 pub struct HttpResponse {
     pub body: Dynamic,
     pub status_code: i32,
-    pub content_type: ContentType
+    pub content_type: ContentType,
 }
 
 impl HttpResponse {

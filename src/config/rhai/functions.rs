@@ -1,4 +1,4 @@
-use super::engine::{self, ENGINE};
+use super::engine;
 use crate::{
     direction::Direction, keybindings::keybinding_type::KeybindingType,
     split_direction::SplitDirection,

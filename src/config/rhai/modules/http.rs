@@ -1,5 +1,8 @@
 use crate::config::rhai::types::http_response::HttpResponse;
-use reqwest::{Method, blocking::{Client, RequestBuilder}};
+use reqwest::{
+    blocking::{Client, RequestBuilder},
+    Method,
+};
 use rhai::{
     de::from_dynamic, Array, Dynamic, EvalAltResult, ImmutableString, Map, Module, FLOAT, INT,
 };
@@ -16,7 +19,11 @@ fn load_request_body(rb: RequestBuilder, body: Dynamic) -> RequestBuilder {
     }
 }
 
-fn request<T>(method: Method, url: ImmutableString, body: T) -> Result<HttpResponse, Box<EvalAltResult>>
+fn request<T>(
+    method: Method,
+    url: ImmutableString,
+    body: T,
+) -> Result<HttpResponse, Box<EvalAltResult>>
 where
     T: Into<Dynamic>,
 {
@@ -42,7 +49,7 @@ macro_rules! register_methods {
 
 pub fn new() -> Module {
     let mut module = Module::new();
-    
+
     register_methods!(module, "put", Method::PUT);
     register_methods!(module, "patch", Method::PATCH);
     register_methods!(module, "delete", Method::DELETE);
