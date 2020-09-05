@@ -127,10 +127,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             .insert(display.hmonitor, 0);
     }
 
-    info!("Initializing bars");
-
-    change_workspace(1, false).expect("Failed to change workspace to ID@1");
-
     info!("Starting hot reloading of config");
     config::hot_reloading::start();
 
@@ -155,6 +151,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         info!("Registering windows event handler");
         win_event_handler::register()?;
     }
+
+    info!("Initializing bars");
+
+    change_workspace(1, false).expect("Failed to change workspace to ID@1");
 
     info!("Listening for keybindings");
     keybindings::register()?;
