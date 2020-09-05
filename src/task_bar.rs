@@ -1,23 +1,75 @@
-use crate::{display, util, CONFIG};
-use lazy_static::lazy_static;
+use crate::{util, CONFIG, DISPLAYS};
 use log::{debug, info};
-use std::collections::HashMap;
-use std::sync::Mutex;
+use std::mem::size_of;
 use winapi::shared::windef::HWND;
 use winapi::shared::{
     minwindef::{BOOL, LPARAM},
+    windef::HMONITOR,
     windef::RECT,
 };
-use winapi::um::winuser::EnumWindows;
-use winapi::um::winuser::GetWindowRect;
-use winapi::um::winuser::ShowWindow;
-use winapi::um::winuser::SW_HIDE;
-use winapi::um::winuser::{MonitorFromWindow, MONITOR_DEFAULTTONULL, SW_SHOW};
+use winapi::um::winuser::{
+    EnumWindows, GetMonitorInfoA, GetWindowRect, IsWindowVisible, MonitorFromWindow, ShowWindow,
+    MONITORINFO, MONITOR_DEFAULTTONULL, SW_HIDE, SW_SHOW,
+};
 
-lazy_static! {
-    // hmonitor, hwnd
-    pub static ref WINDOWS: Mutex<HashMap<i32, i32>> = Mutex::new(HashMap::new());
-    pub static ref HEIGHT: Mutex<i32> = Mutex::new(0);
+#[derive(Debug, Clone, Copy)]
+pub enum TaskBarPosition {
+    Top,
+    Bottom,
+    Left,
+    Right,
+    Hidden,
+}
+
+impl Default for TaskBarPosition {
+    fn default() -> Self {
+        TaskBarPosition::Bottom
+    }
+}
+
+#[derive(Default, Debug, Clone, Copy)]
+pub struct TaskBar {
+    pub hwnd: i32,
+    pub height: i32,
+    pub width: i32,
+    pub position: TaskBarPosition,
+}
+
+pub fn show_taskbars() {
+    foreach_taskbar(|hwnd| {
+        info!("Showing taskbar {}", hwnd);
+        unsafe {
+            ShowWindow(hwnd as HWND, SW_SHOW);
+        }
+    });
+
+    update_task_bars();
+}
+pub fn hide_taskbars() {
+    foreach_taskbar(|hwnd| {
+        info!("Hiding taskbar {}", hwnd);
+        unsafe {
+            ShowWindow(hwnd as HWND, SW_HIDE);
+        }
+    });
+
+    update_task_bars();
+}
+fn foreach_taskbar(cb: fn(i32) -> ()) {
+    let mut displays = DISPLAYS.lock().unwrap();
+    displays.sort_by(|x, y| y.is_primary.cmp(&x.is_primary));
+
+    let displays = displays.iter().filter(|x| x.task_bar.is_some());
+
+    for display in displays {
+        cb(display.task_bar.unwrap().hwnd);
+    }
+}
+
+pub fn update_task_bars() {
+    unsafe {
+        EnumWindows(Some(enum_windows_cb), 0);
+    }
 }
 
 unsafe extern "system" fn enum_windows_cb(hwnd: HWND, _: LPARAM) -> BOOL {
@@ -27,21 +79,34 @@ unsafe extern "system" fn enum_windows_cb(hwnd: HWND, _: LPARAM) -> BOOL {
         .is_match(&class_name);
 
     if is_task_bar {
-        let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONULL);
         let mut rect = RECT::default();
 
         GetWindowRect(hwnd, &mut rect);
 
-        *HEIGHT.lock().unwrap() = rect.bottom - rect.top;
+        let hmonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONULL) as i32;
+        let task_bar = TaskBar {
+            hwnd: hwnd as i32,
+            height: rect.bottom - rect.top,
+            width: rect.right - rect.left,
+            position: get_taskbar_position(rect, hwnd, hmonitor),
+        };
 
-        WINDOWS.lock().unwrap().insert(monitor as i32, hwnd as i32);
+        debug!("Initialized {:?})", task_bar);
 
-        debug!(
-            "Initialized Taskbar(hwnd: {}, hmonitor: {})",
-            hwnd as i32, monitor as i32
-        );
+        let is_display_primary = match DISPLAYS
+            .lock()
+            .unwrap()
+            .iter_mut()
+            .find(|d| d.hmonitor == hmonitor)
+        {
+            Some(d) => {
+                d.task_bar = Some(task_bar);
+                d.is_primary
+            }
+            _ => false,
+        };
 
-        if !CONFIG.lock().unwrap().multi_monitor {
+        if !CONFIG.lock().unwrap().multi_monitor && is_display_primary {
             return 0;
         }
     }
@@ -49,45 +114,31 @@ unsafe extern "system" fn enum_windows_cb(hwnd: HWND, _: LPARAM) -> BOOL {
     1
 }
 
-pub fn init() {
+fn get_taskbar_position(rect: RECT, hwnd: HWND, hmonitor: i32) -> TaskBarPosition {
+    let mut monitor_info = MONITORINFO {
+        cbSize: size_of::<MONITORINFO>() as u32,
+        ..MONITORINFO::default()
+    };
     unsafe {
-        EnumWindows(Some(enum_windows_cb), 0);
+        GetMonitorInfoA(hmonitor as HMONITOR, &mut monitor_info);
     }
-}
+    let RECT {
+        left,
+        right,
+        top,
+        bottom,
+    } = monitor_info.rcMonitor;
+    let is_window_visible = unsafe { IsWindowVisible(hwnd) == 1 };
 
-pub fn show() {
-    foreach_taskbar(|hwnd| {
-        info!("Showing taskbar {}", hwnd);
-        unsafe {
-            ShowWindow(hwnd as HWND, SW_SHOW);
-        }
-    });
-}
-
-fn foreach_taskbar(cb: fn(i32) -> ()) {
-    let windows = WINDOWS.lock().unwrap();
-    let mut monitors = windows.keys().collect::<Vec<&i32>>();
-
-    monitors.sort_by(|x, y| {
-        let display_x = display::get_display_by_hmonitor(**x);
-        let display_y = display::get_display_by_hmonitor(**y);
-
-        display_y.is_primary.cmp(&display_x.is_primary)
-    });
-
-    for hmonitor in monitors {
-        let hwnd = *windows
-            .get(hmonitor)
-            .expect("Failed to get hwnd of monitor");
-        cb(hwnd);
+    if !is_window_visible {
+        TaskBarPosition::Hidden
+    } else if rect.left == left && rect.top == top && rect.bottom == bottom {
+        TaskBarPosition::Left
+    } else if rect.right == right && rect.top == top && rect.bottom == bottom {
+        TaskBarPosition::Right
+    } else if rect.left == left && rect.top == top && rect.right == right {
+        TaskBarPosition::Top
+    } else {
+        TaskBarPosition::Bottom
     }
-}
-
-pub fn hide() {
-    foreach_taskbar(|hwnd| {
-        info!("Hiding taskbar {}", hwnd);
-        unsafe {
-            ShowWindow(hwnd as HWND, SW_HIDE);
-        }
-    });
 }

@@ -8,7 +8,7 @@ pub struct SemanticVersion {
 
 impl From<String> for SemanticVersion {
     fn from(s: String) -> Self {
-        let mut tokens = s.split(".");
+        let mut tokens = s.split('.');
         let major = i32::from_str(tokens.next().unwrap_or_default()).unwrap_or_default();
         let minor = i32::from_str(tokens.next().unwrap_or_default()).unwrap_or_default();
         let patch = i32::from_str(tokens.next().unwrap_or_default()).unwrap_or_default();

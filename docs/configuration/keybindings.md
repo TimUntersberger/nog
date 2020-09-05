@@ -151,6 +151,21 @@ If a popup is currently visible then it closes it else it unmanages the current 
 bind "<key-combo>" close_tile();
 ```
 
+### IgnoreTile
+
+Unmanages the current window and sets up a rule that ignores the application during the lifetime of the program.
+
+#### Arguments
+
+| Position | Value  | Description                                        |
+|----------|--------|----------------------------------------------------|
+
+#### Usage
+
+```nog
+bind "<key-combo>" ignore_tile();
+```
+
 ### Quit
 
 Exits the window manager.
@@ -168,7 +183,7 @@ bind "<key-combo>" quit();
 
 ### ToggleFloatingMode
 
-Manages/Unmanages the current window.
+Manages/Unmanages the current window. Ignores all rules.
 
 #### Arguments
 

@@ -6,8 +6,8 @@ pub fn handle(direction: Direction, amount: i32) -> Result<(), Box<dyn std::erro
         let tile = grid
             .get_focused_tile()
             .ok_or("Failed to get focused tile")?;
-        let column = tile.column.clone();
-        let row = tile.row.clone();
+        let column = tile.column;
+        let row = tile.row;
 
         if direction == Direction::Left || direction == Direction::Right {
             if let Some(value) = column {

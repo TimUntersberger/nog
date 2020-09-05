@@ -1,16 +1,12 @@
+use crate::task_bar;
 use crate::CONFIG;
 use crate::DISPLAYS;
 use std::cmp::Ordering;
 use winapi::shared::minwindef::BOOL;
 use winapi::shared::minwindef::LPARAM;
-use winapi::shared::windef::HDC;
-use winapi::shared::windef::HMONITOR;
-use winapi::shared::windef::LPRECT;
-use winapi::shared::windef::RECT;
-use winapi::um::{
-    shellscalingapi::{GetDpiForMonitor, MDT_RAW_DPI},
-    winuser::EnumDisplayMonitors,
-};
+use winapi::shared::windef::{HDC, HMONITOR, LPRECT, RECT};
+use winapi::um::shellscalingapi::{GetDpiForMonitor, MDT_RAW_DPI};
+use winapi::um::winuser::EnumDisplayMonitors;
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Display {
@@ -21,6 +17,7 @@ pub struct Display {
     pub right: i32,
     pub top: i32,
     pub bottom: i32,
+    pub task_bar: Option<task_bar::TaskBar>,
 }
 
 impl Display {
@@ -29,6 +26,57 @@ impl Display {
     }
     pub fn width(&self) -> i32 {
         self.right - self.left
+    }
+    pub fn working_area_height(&self) -> i32 {
+        let task_bar_height = if let Some(task_bar) = self.task_bar {
+            match task_bar.position {
+                task_bar::TaskBarPosition::Top | task_bar::TaskBarPosition::Bottom => {
+                    task_bar.height
+                }
+                _ => 0,
+            }
+        } else {
+            0
+        };
+
+        self.height() - task_bar_height
+    }
+    pub fn working_area_width(&self) -> i32 {
+        let task_bar_width = if self.task_bar.is_some() {
+            let task_bar = self.task_bar.unwrap();
+            match task_bar.position {
+                task_bar::TaskBarPosition::Left | task_bar::TaskBarPosition::Right => {
+                    task_bar.width
+                }
+                _ => 0,
+            }
+        } else {
+            0
+        };
+
+        self.width() - task_bar_width
+    }
+    pub fn working_area_top(&self) -> i32 {
+        let offset = if let Some(task_bar) = self.task_bar {
+            match task_bar.position {
+                task_bar::TaskBarPosition::Top => task_bar.height,
+                _ => 0,
+            }
+        } else {
+            0
+        };
+        self.top + offset
+    }
+    pub fn working_area_left(&self) -> i32 {
+        let offset = if let Some(task_bar) = self.task_bar {
+            match task_bar.position {
+                task_bar::TaskBarPosition::Left => task_bar.width,
+                _ => 0,
+            }
+        } else {
+            0
+        };
+        self.left + offset
     }
     pub fn new(hmonitor: HMONITOR, rect: RECT) -> Self {
         let mut display = Display::default();
@@ -77,17 +125,21 @@ pub fn init() {
         );
     }
 
-    let mut displays = DISPLAYS.lock().unwrap();
+    {
+        let mut displays = DISPLAYS.lock().unwrap();
 
-    displays.sort_by(|x, y| {
-        let ordering = y.left.cmp(&x.left);
+        displays.sort_by(|x, y| {
+            let ordering = y.left.cmp(&x.left);
 
-        if ordering == Ordering::Equal {
-            return y.top.cmp(&x.top);
-        }
+            if ordering == Ordering::Equal {
+                return y.top.cmp(&x.top);
+            }
 
-        ordering
-    });
+            ordering
+        });
+    }
+
+    task_bar::update_task_bars();
 }
 
 pub fn get_primary_display() -> Display {

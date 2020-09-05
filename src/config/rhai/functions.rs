@@ -1,12 +1,9 @@
 use super::engine::{self, ENGINE};
 use crate::{
-    config::{update_channel::UpdateChannel, Rule, WorkspaceSetting},
-    direction::Direction,
-    keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
+    direction::Direction, keybindings::keybinding_type::KeybindingType,
     split_direction::SplitDirection,
 };
-use log::error;
-use rhai::{Module, Array, Dynamic, Engine, FnPtr, ImmutableString, ModuleResolver, RegisterFn, Map};
+use rhai::{Engine, FnPtr, RegisterFn};
 use std::str::FromStr;
 
 pub fn init(engine: &mut Engine) {
@@ -14,6 +11,7 @@ pub fn init(engine: &mut Engine) {
         KeybindingType::Callback(engine::add_callback(fp))
     });
     engine.register_fn("close_tile", || KeybindingType::CloseTile);
+    engine.register_fn("ignore_tile", || KeybindingType::IgnoreTile);
     engine.register_fn("minimize_tile", || KeybindingType::MinimizeTile);
     engine.register_fn("reset_row", || KeybindingType::ResetRow);
     engine.register_fn("reset_column", || KeybindingType::ResetColumn);
@@ -31,9 +29,6 @@ pub fn init(engine: &mut Engine) {
     });
     engine.register_fn("move_workspace_to_monitor", |id: i32| {
         KeybindingType::MoveWorkspaceToMonitor(id)
-    });
-    engine.register_fn("toggle_mode", |mode: String| {
-        KeybindingType::ToggleMode(mode)
     });
     engine.register_fn("toggle_mode", |mode: String| {
         KeybindingType::ToggleMode(mode)

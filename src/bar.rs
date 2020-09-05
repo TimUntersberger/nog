@@ -265,10 +265,14 @@ unsafe extern "system" fn window_cb(
 
         for section in vec![bar.left, bar.center, bar.right] {
             if section.left <= x && x <= section.right {
-                for (i, item) in section.items.iter().enumerate() {
+                for item in section.items.iter() {
                     if item.left <= x && x <= item.right {
                         if item.component.is_clickable {
-                            item.component.on_click(&display, i);
+                            for (i, width) in item.widths.iter().enumerate() {
+                                if width.0 <= x && x <= width.1 {
+                                    item.component.on_click(&display, i);
+                                }
+                            }
                         }
 
                         break;
@@ -295,11 +299,11 @@ unsafe extern "system" fn window_cb(
         let left = components_to_section(hdc, &display, &bar_config.components.left);
 
         let mut center = components_to_section(hdc, &display, &bar_config.components.center);
-        center.left = display.width() / 2 - center.right / 2;
+        center.left = display.working_area_width() / 2 - center.right / 2;
         center.right += center.left;
 
         let mut right = components_to_section(hdc, &display, &bar_config.components.right);
-        right.left = display.width() - right.right;
+        right.left = display.working_area_width() - right.right;
         right.right += right.left;
 
         draw_components(
