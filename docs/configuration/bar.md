@@ -175,7 +175,31 @@ let component = C::current_window();
 
 You can create custom components by using the `create` function provided in the `nog/components` module.
 
-A custom component requires at least two things, a name and a function that tells nog how to render the component. Anything else is optional and can be configured in the optional object.
+A custom component requires at least two things, a name and a render function that tells nog how to render the component. Anything else is optional and can be configured in the optional object.
+
+The render function has to return an array.
+
+**Example**
+```nog
+C::create("My Component", || {
+    ["Hello World"]
+});
+```
+
+The text/background color of the component will be the same as the bar.
+
+If you want to customize the color you have to return an array instead of a string.
+
+**Example**
+```nog
+C::create("My Component", || {
+    [0xffffff, -1, "Hello World"]
+});
+```
+
+The first item is the foreground color of the component, followed by the background color and then the text to be displayed.
+
+Setting the color to -1 tells nog to just use the default color.
 
 #### Arguments
 
@@ -185,10 +209,26 @@ A custom component requires at least two things, a name and a function that tell
 | 2        | Function | The function that renders the component |
 | 3        | Object   | (Optional) Additional configuration     |
 
+The last argument is an object that can contain the following keys:
+
+| Key      | Value    | Description                                                                                          |
+|----------|----------|------------------------------------------------------------------------------------------------------|
+| on_click | Function | Gets called whenever you click on the item. Setting this also enables hover style for your component |
+
 #### Usage
 
+Simple
 ```nog
 let component = C::create("My Component", || {
     ["Hello World"]
+});
+```
+
+With on click
+```nog
+let component = C::create("My Component", || {
+    ["Hello World"]
+}, || {
+    print("Clicked");
 });
 ```
