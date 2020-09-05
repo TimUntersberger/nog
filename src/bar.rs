@@ -265,10 +265,14 @@ unsafe extern "system" fn window_cb(
 
         for section in vec![bar.left, bar.center, bar.right] {
             if section.left <= x && x <= section.right {
-                for (i, item) in section.items.iter().enumerate() {
+                for item in section.items.iter() {
                     if item.left <= x && x <= item.right {
                         if item.component.is_clickable {
-                            item.component.on_click(&display, i);
+                            for (i, width) in item.widths.iter().enumerate() {
+                                if width.0 <= x && x <= width.1 {
+                                    item.component.on_click(&display, i);
+                                }
+                            }
                         }
 
                         break;

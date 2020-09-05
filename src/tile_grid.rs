@@ -436,7 +436,6 @@ impl TileGrid {
                     column,
                     split_direction,
                     window,
-                    ..Tile::default()
                 });
             }
             None => {
@@ -453,12 +452,12 @@ impl TileGrid {
 
     fn get_row_modifications(&self, row: Option<i32>) -> Option<(i32, i32)> {
         row.and_then(|value| self.row_modifications.get(&value))
-            .map(|x| *x)
+            .copied()
     }
     fn get_column_modifications(&self, column: Option<i32>) -> Option<(i32, i32)> {
         column
             .and_then(|value| self.column_modifications.get(&value))
-            .map(|x| *x)
+            .copied()
     }
     fn get_modifications(&self, tile: &Tile) -> (Option<(i32, i32)>, Option<(i32, i32)>) {
         (

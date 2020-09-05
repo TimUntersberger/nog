@@ -8,7 +8,7 @@ use crate::{
     workspace::change_workspace,
     ADDITIONAL_RULES, CHANNEL, CONFIG, VISIBLE_WORKSPACES,
 };
-use log::{error, info, debug};
+use log::{debug, error, info};
 use winapi::um::processthreadsapi::{CreateProcessA, PROCESS_INFORMATION, STARTUPINFOA};
 
 mod close_tile;
@@ -178,8 +178,7 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
 
                     debug!("Adding rule with pattern {}", pattern);
 
-                    rule.pattern = regex::Regex::new(&pattern)
-                        .expect("Failed to build regex");
+                    rule.pattern = regex::Regex::new(&pattern).expect("Failed to build regex");
                     rule.manage = false;
 
                     rules.push(rule);

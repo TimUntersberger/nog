@@ -22,9 +22,7 @@ pub fn handle(hwnd: HWND, force: bool) -> Result<(), Box<dyn std::error::Error>>
 
     let rect = window.get_client_rect();
 
-    if !force
-        && (rect.right - rect.left < min_width || rect.bottom - rect.top < min_height)
-    {
+    if !force && (rect.right - rect.left < min_width || rect.bottom - rect.top < min_height) {
         return Ok(());
     }
 
@@ -53,7 +51,7 @@ pub fn handle(hwnd: HWND, force: bool) -> Result<(), Box<dyn std::error::Error>>
         .chain(additional_rules.iter())
     {
         // checks for path
-        let process_name = if rule.pattern.to_string().contains("\\") {
+        let process_name = if rule.pattern.to_string().contains('\\') {
             window.get_process_path()
         } else {
             window.get_process_name()

@@ -15,7 +15,7 @@ impl Default for Repository {
 
 impl From<String> for Repository {
     fn from(s: String) -> Self {
-        let mut tokens = s.split("/");
+        let mut tokens = s.split('/');
         let origin = tokens.next().unwrap_or_default().into();
         let name = tokens.next().unwrap_or_default().into();
 

@@ -71,7 +71,7 @@ pub fn parse_config() -> Result<Config, String> {
 
     debug!("Parsing config file");
     let ast = engine
-        .compile_file_with_scope(&mut scope, config_path)
+        .compile_file_with_scope(&scope, config_path)
         .map_err(|e| e.to_string())?;
 
     debug!("Running config file");
@@ -81,7 +81,7 @@ pub fn parse_config() -> Result<Config, String> {
 
     *ENGINE.lock().unwrap() = engine;
     *SCOPE.lock().unwrap() = scope;
-    *AST.lock().unwrap() = ast.clone();
+    *AST.lock().unwrap() = ast;
 
     let mut config = config.lock().unwrap().clone();
 

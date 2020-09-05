@@ -1,5 +1,5 @@
-use super::{get_bar_by_hmonitor, get_windows, redraw::redraw, window_cb, Bar, BARS};
-use crate::{event::Event, message_loop, util, CHANNEL, CONFIG, DISPLAYS};
+use super::{get_bar_by_hmonitor, redraw::redraw, window_cb, Bar, BARS};
+use crate::{message_loop, util, CONFIG, DISPLAYS};
 use log::{debug, error, info};
 use winapi::shared::windef::HBRUSH;
 use winapi::um::wingdi::CreateSolidBrush;
@@ -16,19 +16,19 @@ pub fn create() -> Result<(), util::WinApiResultError> {
     let app_bar_bg = CONFIG.lock().unwrap().bar.color;
     let height = CONFIG.lock().unwrap().bar.height;
 
-    std::thread::spawn(|| loop {
-        std::thread::sleep(std::time::Duration::from_millis(200));
+    // std::thread::spawn(|| loop {
+    //     std::thread::sleep(std::time::Duration::from_millis(200));
 
-        if get_windows().is_empty() {
-            break;
-        }
+    //     if get_windows().is_empty() {
+    //         break;
+    //     }
 
-        CHANNEL
-            .sender
-            .clone()
-            .send(Event::RedrawAppBar)
-            .expect("Failed to send redraw-app-bar event");
-    });
+    //     CHANNEL
+    //         .sender
+    //         .clone()
+    //         .send(Event::RedrawAppBar)
+    //         .expect("Failed to send redraw-app-bar event");
+    // });
 
     for display in DISPLAYS.lock().unwrap().clone() {
         std::thread::spawn(move || unsafe {

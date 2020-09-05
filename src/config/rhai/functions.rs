@@ -1,26 +1,11 @@
 use crate::{
-    config::{update_channel::UpdateChannel, Rule, WorkspaceSetting},
-    direction::Direction,
-    keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
+    direction::Direction, keybindings::keybinding_type::KeybindingType,
     split_direction::SplitDirection,
 };
-use rhai::{Array, Dynamic, Engine, FnPtr, RegisterFn};
+use rhai::{Engine, FnPtr, RegisterFn};
 use std::str::FromStr;
 
 pub fn init(engine: &mut Engine) {
-    engine.register_fn("push", |list: &mut Array, item: Keybinding| {
-        list.push(Dynamic::from(Box::new(item)))
-    });
-    engine.register_fn("push", |list: &mut Array, item: Rule| {
-        list.push(Dynamic::from(Box::new(item)))
-    });
-    engine.register_fn("push", |list: &mut Array, item: WorkspaceSetting| {
-        list.push(Dynamic::from(Box::new(item)))
-    });
-    engine.register_fn("push", |list: &mut Array, item: UpdateChannel| {
-        list.push(Dynamic::from(Box::new(item)))
-    });
-
     engine.register_fn("callback", |fp: FnPtr| {
         KeybindingType::Callback(fp.fn_name().to_string())
     });
