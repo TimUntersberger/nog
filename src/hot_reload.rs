@@ -1,6 +1,6 @@
 use crate::{
-    bar, config::Config, display::get_display_by_hmonitor, keybindings, startup, task_bar, CONFIG,
-    DISPLAYS, GRIDS, WORKSPACE_ID, WORK_MODE, with_current_grid,
+    bar, config::Config, display::get_display_by_hmonitor, keybindings, startup, task_bar,
+    with_current_grid, CONFIG, DISPLAYS, GRIDS, WORK_MODE,
 };
 
 pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error>> {
@@ -15,13 +15,13 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
         if config.remove_task_bar && !new_config.remove_task_bar {
             task_bar::show_taskbars();
             bar::close::close();
-            draw_app_bar = new_config.display_app_bar; 
-            update_grid_displays = true; 
+            draw_app_bar = new_config.display_app_bar;
+            update_grid_displays = true;
         } else if !config.remove_task_bar && new_config.remove_task_bar {
             task_bar::hide_taskbars();
             bar::close::close();
-            draw_app_bar = new_config.display_app_bar; 
-            update_grid_displays = true; 
+            draw_app_bar = new_config.display_app_bar;
+            update_grid_displays = true;
         }
 
         if config.display_app_bar && new_config.display_app_bar {
@@ -36,7 +36,7 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
                 d.bottom += config.bar.height;
             }
 
-            update_grid_displays = true; 
+            update_grid_displays = true;
         } else if !config.display_app_bar && new_config.display_app_bar {
             draw_app_bar = true;
 

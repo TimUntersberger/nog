@@ -64,7 +64,7 @@ fn create_component(name: ImmutableString, render_fn: FnPtr, options: Map) -> Co
                             &mut *scope,
                             &*ast,
                             &fn_name,
-                            (component.clone(), display.clone(), idx as i32),
+                            (component.clone(), *display, idx as i32),
                         )
                         .map_err(|e| error!("{}", e.to_string()));
                 }));
@@ -94,12 +94,9 @@ pub fn new() -> Module {
         Ok(bar::component::padding::create(amount))
     });
 
-    module.set_fn_2(
-        "create",
-        |name: ImmutableString, render_fn: FnPtr| {
-            Ok(create_component(name, render_fn, Map::new()))
-        },
-    );
+    module.set_fn_2("create", |name: ImmutableString, render_fn: FnPtr| {
+        Ok(create_component(name, render_fn, Map::new()))
+    });
     module.set_fn_3(
         "create",
         |name: ImmutableString, render_fn: FnPtr, options: Map| {

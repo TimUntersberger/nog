@@ -1,6 +1,5 @@
 use crate::{
-    direction::Direction,
-    keybindings::keybinding_type::KeybindingType,
+    direction::Direction, keybindings::keybinding_type::KeybindingType,
     split_direction::SplitDirection,
 };
 use rhai::{Engine, FnPtr, RegisterFn};
