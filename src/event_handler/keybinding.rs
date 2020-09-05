@@ -167,7 +167,7 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
                 grid.draw_grid();
             });
         }
-        KeybindingType::Callback(fn_name) => engine::call(&fn_name),
+        KeybindingType::Callback(idx) => engine::call(idx),
         KeybindingType::IgnoreTile => {
             with_current_grid(|grid| {
                 if let Some(tile) = grid.get_focused_tile() {

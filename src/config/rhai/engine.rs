@@ -1,10 +1,10 @@
-use super::{functions, lib, modules, syntax};
+use super::{functions, lib, modules, syntax, types};
 use crate::config::Config;
 use lazy_static::lazy_static;
 use log::{debug, error};
 use rhai::{
     module_resolvers::{FileModuleResolver, ModuleResolversCollection},
-    Engine, Scope,
+    Engine, FnPtr, Scope,
 };
 use std::{
     io::Write,
@@ -18,21 +18,41 @@ lazy_static! {
     pub static ref ENGINE: Mutex<Engine> = Mutex::new(Engine::new());
     pub static ref SCOPE: Mutex<Scope<'static>> = Mutex::new(Scope::new());
     pub static ref AST: Mutex<rhai::AST> = Mutex::new(rhai::AST::default());
+    pub static ref CALLBACKS: Mutex<Vec<FnPtr>> = Mutex::new(Vec::new());
 }
 
-pub fn call(fn_name: &str) {
+pub fn add_callback(fp: FnPtr) -> usize {
+    let mut callbacks = CALLBACKS.lock().unwrap();
+    let idx = callbacks.len();
+    callbacks.push(fp);
+    idx
+}
+
+pub fn call(idx: usize) {
     let engine = ENGINE.lock().unwrap();
-    let mut scope = SCOPE.lock().unwrap();
     let ast = AST.lock().unwrap();
-    let _ = engine
-        .call_fn::<(), ()>(&mut *scope, &*ast, fn_name, ())
+    let callbacks = CALLBACKS.lock().unwrap();
+    let _ = callbacks[idx]
+        .call_dynamic(&*engine, &*ast, None, [])
         .map_err(|e| error!("{}", e.to_string()));
+}
+
+fn build_relative_resolver(config_path: &PathBuf) -> FileModuleResolver {
+    FileModuleResolver::new_with_path_and_extension(config_path.clone(), "nog")
 }
 
 pub fn parse_config() -> Result<Config, String> {
     let mut engine = Engine::new();
     let mut scope = Scope::new();
     let mut config = Arc::new(Mutex::new(Config::default()));
+
+    syntax::init(&mut engine, &mut config).unwrap();
+    types::init(&mut engine);
+    functions::init(&mut engine);
+    lib::init(&mut engine);
+
+    *CALLBACKS.lock().unwrap() = Vec::new();
+
     let mut resolver_collection = ModuleResolversCollection::new();
 
     let modules_resolver = modules::new();
@@ -42,8 +62,8 @@ pub fn parse_config() -> Result<Config, String> {
 
     config_path.push("nog");
 
-    let relative_resolver =
-        FileModuleResolver::new_with_path_and_extension(config_path.clone(), "nog");
+    let relative_resolver = build_relative_resolver(&config_path);
+
     resolver_collection.push(relative_resolver);
 
     engine.set_module_resolver(Some(resolver_collection));
@@ -64,10 +84,6 @@ pub fn parse_config() -> Result<Config, String> {
                 .map_err(|e| e.to_string())?;
         }
     }
-
-    syntax::init(&mut engine, &mut config).unwrap();
-    functions::init(&mut engine);
-    lib::init(&mut engine);
 
     debug!("Parsing config file");
     let ast = engine

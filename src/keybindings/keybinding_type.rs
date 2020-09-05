@@ -22,7 +22,7 @@ pub enum KeybindingType {
     Focus(Direction),
     Resize(Direction, i32),
     Swap(Direction),
-    Callback(String),
+    Callback(usize),
     MoveToWorkspace(i32),
     Split(SplitDirection),
 }

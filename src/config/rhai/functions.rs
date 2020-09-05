@@ -1,3 +1,4 @@
+use super::engine;
 use crate::{
     direction::Direction, keybindings::keybinding_type::KeybindingType,
     split_direction::SplitDirection,
@@ -7,7 +8,7 @@ use std::str::FromStr;
 
 pub fn init(engine: &mut Engine) {
     engine.register_fn("callback", |fp: FnPtr| {
-        KeybindingType::Callback(fp.fn_name().to_string())
+        KeybindingType::Callback(engine::add_callback(fp))
     });
     engine.register_fn("close_tile", || KeybindingType::CloseTile);
     engine.register_fn("ignore_tile", || KeybindingType::IgnoreTile);
