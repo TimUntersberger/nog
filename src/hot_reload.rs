@@ -1,6 +1,6 @@
 use crate::{
     bar, config::Config, display::get_display_by_hmonitor, keybindings, startup, task_bar, CONFIG,
-    DISPLAYS, GRIDS, WORKSPACE_ID, WORK_MODE,
+    DISPLAYS, GRIDS, WORKSPACE_ID, WORK_MODE, with_current_grid,
 };
 
 pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error>> {
@@ -9,8 +9,21 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
     let config = CONFIG.lock().unwrap().clone();
     let work_mode = *WORK_MODE.lock().unwrap();
     let mut draw_app_bar = false;
+    let mut update_grid_displays = false;
 
     if work_mode {
+        if config.remove_task_bar && !new_config.remove_task_bar {
+            task_bar::show_taskbars();
+            bar::close::close();
+            draw_app_bar = new_config.display_app_bar; 
+            update_grid_displays = true; 
+        } else if !config.remove_task_bar && new_config.remove_task_bar {
+            task_bar::hide_taskbars();
+            bar::close::close();
+            draw_app_bar = new_config.display_app_bar; 
+            update_grid_displays = true; 
+        }
+
         if config.display_app_bar && new_config.display_app_bar {
             if config.bar != new_config.bar || config.light_theme != new_config.light_theme {
                 bar::close::close();
@@ -23,9 +36,7 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
                 d.bottom += config.bar.height;
             }
 
-            for grid in GRIDS.lock().unwrap().iter_mut() {
-                grid.display = get_display_by_hmonitor(grid.display.hmonitor);
-            }
+            update_grid_displays = true; 
         } else if !config.display_app_bar && new_config.display_app_bar {
             draw_app_bar = true;
 
@@ -33,14 +44,13 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
                 d.bottom -= config.bar.height;
             }
 
+            update_grid_displays = true;
+        }
+
+        if update_grid_displays {
             for grid in GRIDS.lock().unwrap().iter_mut() {
                 grid.display = get_display_by_hmonitor(grid.display.hmonitor);
             }
-        }
-        if config.remove_task_bar && !new_config.remove_task_bar {
-            task_bar::show();
-        } else if !config.remove_task_bar && new_config.remove_task_bar {
-            task_bar::hide();
         }
     }
 
@@ -77,13 +87,9 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
 
     keybindings::register()?;
 
-    let mut grids = GRIDS.lock().unwrap();
-    let grid = grids
-        .iter_mut()
-        .find(|g| g.id == *WORKSPACE_ID.lock().unwrap())
-        .unwrap();
-
-    grid.draw_grid();
+    with_current_grid(|grid| {
+        grid.draw_grid();
+    });
 
     Ok(())
 }

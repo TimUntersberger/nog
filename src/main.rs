@@ -5,7 +5,7 @@ extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
 
-use config::Config;
+use config::{rule::Rule, Config};
 use crossbeam_channel::select;
 use display::Display;
 use event::Event;
@@ -31,8 +31,8 @@ mod logging;
 mod message_loop;
 mod popup;
 mod split_direction;
-mod startup;
 mod task_bar;
+mod startup;
 mod tile;
 mod tile_grid;
 mod tray;
@@ -51,6 +51,7 @@ lazy_static! {
     );
     pub static ref DISPLAYS: Mutex<Vec<Display>> = Mutex::new(Vec::new());
     pub static ref CHANNEL: EventChannel = EventChannel::default();
+    pub static ref ADDITIONAL_RULES: Mutex<Vec<Rule>> = Mutex::new(Vec::new());
     pub static ref GRIDS: Mutex<Vec<TileGrid>> =
         Mutex::new((1..11).map(TileGrid::new).collect::<Vec<TileGrid>>());
     pub static ref WORKSPACES: Mutex<Vec<Workspace>> =
@@ -93,11 +94,13 @@ fn on_quit() -> Result<(), util::WinApiResultError> {
     unmanage_everything()?;
 
     popup::cleanup();
+    let remove_task_bar = {
+        let config = CONFIG.lock().unwrap();
+        config.remove_task_bar
+    };
 
-    let config = CONFIG.lock().unwrap();
-
-    if config.remove_task_bar {
-        task_bar::show();
+    if remove_task_bar {
+        task_bar::show_taskbars();
     }
 
     win_event_handler::unregister()?;
@@ -133,9 +136,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     startup::set_launch_on_startup(CONFIG.lock().unwrap().launch_on_startup)?;
 
-    info!("Initializing taskbar");
-    task_bar::init();
-
     info!("Creating tray icon");
     tray::create()?;
 
@@ -145,7 +145,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     if *WORK_MODE.lock().unwrap() {
         if CONFIG.lock().unwrap().remove_task_bar {
             info!("Hiding taskbar");
-            task_bar::hide();
+            task_bar::hide_taskbars();
         }
 
         if CONFIG.lock().unwrap().display_app_bar {
