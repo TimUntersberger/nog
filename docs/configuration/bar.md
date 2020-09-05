@@ -201,6 +201,23 @@ The first item is the foreground color of the component, followed by the backgro
 
 Setting the color to -1 tells nog to just use the default color.
 
+You can use the created component like you would use the default components.
+
+**Example**
+```nog
+let component = C::create("My Component", || {
+    ["Hello World"]
+});
+
+bar {
+    components: #{
+        left: [component],
+        center: [],
+        right: []
+    }
+}
+```
+
 #### Arguments
 
 | Position | Value    | Description                             |
