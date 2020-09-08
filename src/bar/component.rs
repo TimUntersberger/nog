@@ -8,11 +8,11 @@ pub mod padding;
 pub mod time;
 pub mod workspaces;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ComponentText {
     Basic(String),
     /// (fg, bg, text)
-    Colored(u32, u32, String),
+    Colored(Option<u32>, Option<u32>, String),
 }
 
 impl ComponentText {
@@ -26,14 +26,14 @@ impl ComponentText {
     pub fn get_fg(&self) -> Option<u32> {
         match self {
             Self::Basic(_) => None,
-            Self::Colored(fg, _, _) => Some(*fg),
+            Self::Colored(fg, _, _) => fg.clone(),
         }
     }
 
     pub fn get_bg(&self) -> Option<u32> {
         match self {
             Self::Basic(_) => None,
-            Self::Colored(_, bg, _) => Some(*bg),
+            Self::Colored(_, bg, _) => bg.clone(),
         }
     }
 }

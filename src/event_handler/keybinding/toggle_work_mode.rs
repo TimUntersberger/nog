@@ -1,9 +1,9 @@
 use crate::bar;
+use crate::task_bar;
 use crate::unmanage_everything;
 use crate::win_event_handler;
 use crate::CONFIG;
 use crate::{popup, WORK_MODE};
-use crate::task_bar;
 
 pub fn turn_work_mode_off(
     display_app_bar: bool,

@@ -32,7 +32,7 @@ fn set_config(config: &mut Config, key: String, value: Dynamic) {
     set!(bool, config, remove_task_bar, key, value);
     set!(bool, config, display_app_bar, key, value);
     if key == "update_interval" {
-        if value.type_name().to_string() != "i32" {
+        if value.type_name() != "i32" {
             error!(
                 "{} has to be of type {} not {}",
                 "update_interval",
@@ -44,7 +44,7 @@ fn set_config(config: &mut Config, key: String, value: Dynamic) {
         }
     }
     if key == "default_update_channel" {
-        if value.type_name().to_string() != "string" {
+        if value.type_name() != "string" {
             error!(
                 "{} has to be of type {} not {}",
                 "default_update_channel",
@@ -52,7 +52,7 @@ fn set_config(config: &mut Config, key: String, value: Dynamic) {
                 value.type_name()
             );
         } else {
-            config.default_update_channel = Some(value.clone().as_str().unwrap().to_string());
+            config.default_update_channel = Some(value.as_str().unwrap().to_string());
         }
     }
 }
@@ -121,7 +121,7 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
             let mut bar_config: BarConfig = BarConfig::default();
 
             for (key, val) in settings {
-                if key.to_string() == "components" {
+                if *key == "components" {
                     bar_config.components.empty();
                     let map = val.cast::<Map>();
 

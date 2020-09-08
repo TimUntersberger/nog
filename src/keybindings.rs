@@ -102,7 +102,7 @@ pub fn register() -> Result<(), Box<dyn std::error::Error>> {
                     );
                 }
 
-                *prev_mode = mode.clone();
+                *prev_mode = mode;
             }
 
             if let Some(msg) = maybe_msg {
@@ -121,7 +121,7 @@ pub fn register() -> Result<(), Box<dyn std::error::Error>> {
                         CHANNEL
                             .sender
                             .clone()
-                            .send(Event::Keybinding(kb.clone()))
+                            .send(Event::Keybinding(kb))
                             .expect("Failed to send key event");
                     }
                 }
@@ -147,7 +147,7 @@ pub fn enable_mode(mode: &str) -> bool {
         return false;
     }
 
-    *mode_guard = mode.clone();
+    *mode_guard = mode;
 
     let sender = CHANNEL.sender.clone();
 

@@ -276,7 +276,7 @@ impl Window {
     }
     pub fn get_process_name(&self) -> String {
         self.get_process_path()
-            .split("\\")
+            .split('\\')
             .last()
             .unwrap()
             .to_string()

@@ -23,6 +23,7 @@
   - [Functions](scripting/functions.md)
   - [Modules](scripting/modules.md)
   - [Timestamps](scripting/timestamp.md)
+  - [HTTP](scripting/http.md)
   - [Popup](scripting/popup.md)
   - [Further Reading](scripting/further_reading.md)
 

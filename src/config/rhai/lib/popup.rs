@@ -39,8 +39,9 @@ pub fn init(engine: &mut Engine) {
                                         action.text = val.to_string();
                                     }
                                     "cb" => {
-                                        let name = val.cast::<FnPtr>().fn_name().to_string();
-                                        action.cb = Some(Arc::new(move || engine::call(&name)));
+                                        let fp = val.cast::<FnPtr>();
+                                        let idx = engine::add_callback(fp);
+                                        action.cb = Some(Arc::new(move || engine::call(idx)));
                                     }
                                     _ => {}
                                 };
