@@ -16,19 +16,19 @@ pub fn create() -> Result<(), util::WinApiResultError> {
     let app_bar_bg = CONFIG.lock().unwrap().bar.color;
     let height = CONFIG.lock().unwrap().bar.height;
 
-    // std::thread::spawn(|| loop {
-    //     std::thread::sleep(std::time::Duration::from_millis(200));
+    std::thread::spawn(|| loop {
+        std::thread::sleep(std::time::Duration::from_millis(200));
 
-    //     if get_windows().is_empty() {
-    //         break;
-    //     }
+        if get_windows().is_empty() {
+            break;
+        }
 
-    //     CHANNEL
-    //         .sender
-    //         .clone()
-    //         .send(Event::RedrawAppBar)
-    //         .expect("Failed to send redraw-app-bar event");
-    // });
+        CHANNEL
+            .sender
+            .clone()
+            .send(Event::RedrawAppBar)
+            .expect("Failed to send redraw-app-bar event");
+    });
 
     for display in DISPLAYS.lock().unwrap().clone() {
         std::thread::spawn(move || unsafe {
