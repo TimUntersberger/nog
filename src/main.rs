@@ -19,13 +19,14 @@ use parking_lot::{
     deadlock
 };
 use tile_grid::TileGrid;
+use event_handler::keybinding::toggle_work_mode;
 use winapi::shared::windef::HWND;
-use workspace::{change_workspace, Workspace};
 use log::debug;
 use std::{
     thread,
     time::Duration,
 };
+use workspace::Workspace;
 
 mod bar;
 mod config;
@@ -152,23 +153,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing workspaces");
     lazy_static::initialize(&WORKSPACES);
 
-    if *WORK_MODE.lock() {
-        if CONFIG.lock().remove_task_bar {
-            info!("Hiding taskbar");
-            task_bar::hide_taskbars();
-        }
-
-        if CONFIG.lock().display_app_bar {
-            bar::create::create()?;
-        }
-
-        info!("Registering windows event handler");
-        win_event_handler::register()?;
-    }
-
-    info!("Initializing bars");
-
-    change_workspace(1, false).expect("Failed to change workspace to ID@1");
+    toggle_work_mode::initialize()?;
 
     info!("Listening for keybindings");
     keybindings::register()?;
