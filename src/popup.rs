@@ -2,9 +2,10 @@ use crate::{bar, display::get_primary_display, message_loop, util, window::Windo
 
 use std::{
     ffi::CString,
-    sync::{Arc, Mutex},
+    sync::{Arc},
     thread,
 };
+use parking_lot::Mutex;
 use winapi::shared::windef::HWND;
 use winapi::shared::windef::RECT;
 use winapi::um::wingdi::CreateSolidBrush;
@@ -127,7 +128,7 @@ impl Popup {
                     ..Default::default()
                 };
 
-                *POPUP.lock().unwrap() = Some(popup);
+                *POPUP.lock() = Some(popup);
 
                 ShowWindow(window_handle, SW_SHOW);
 
@@ -141,7 +142,7 @@ pub fn init() {
     bar::font::load_font();
     unsafe {
         let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
-        let brush = CreateSolidBrush(CONFIG.lock().unwrap().bar.color as u32);
+        let brush = CreateSolidBrush(CONFIG.lock().bar.color as u32);
         let name = CString::new("NogPopup").unwrap();
 
         let class = WNDCLASSA {
@@ -174,16 +175,16 @@ unsafe extern "system" fn window_cb(
     l_param: LPARAM,
 ) -> LRESULT {
     if msg == WM_CLOSE {
-        let popup = POPUP.lock().unwrap().clone().unwrap();
+        let popup = POPUP.lock().clone().unwrap();
         for action in popup.actions {
             let cb = action.cb.unwrap().clone();
             cb();
         }
-        *POPUP.lock().unwrap() = None;
+        *POPUP.lock() = None;
     } else if msg == WM_SETCURSOR {
         SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8));
     } else if msg == WM_PAINT {
-        let popup = POPUP.lock().unwrap().clone().unwrap();
+        let popup = POPUP.lock().clone().unwrap();
         let mut rect = RECT::default();
 
         rect.right = popup.width;
@@ -200,7 +201,7 @@ unsafe extern "system" fn window_cb(
         let hdc = GetDC(hwnd);
         bar::font::set_font(hdc);
         SetTextColor(hdc, 0x00ffffff);
-        SetBkColor(hdc, CONFIG.lock().unwrap().bar.color as u32);
+        SetBkColor(hdc, CONFIG.lock().bar.color as u32);
 
         let c_text = util::to_widestring(&popup.text.join("\n"));
         DrawTextW(hdc, c_text.as_ptr(), -1, &mut rect, 0);
@@ -214,7 +215,7 @@ unsafe extern "system" fn window_cb(
 
 /// Close the current popup, if there is one.
 pub fn close() {
-    let maybe_window = POPUP.lock().unwrap().clone().map(|p| p.window);
+    let maybe_window = POPUP.lock().clone().map(|p| p.window);
     if let Some(window) = maybe_window {
         window.close();
     }
@@ -222,5 +223,5 @@ pub fn close() {
 
 /// Is there a popup currently visible?
 pub fn is_visible() -> bool {
-    POPUP.lock().unwrap().is_some()
+    POPUP.lock().is_some()
 }

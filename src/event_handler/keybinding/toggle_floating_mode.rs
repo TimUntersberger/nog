@@ -11,8 +11,8 @@ use log::debug;
 pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
     let window_handle = Window::get_foreground_window()?;
 
-    let mut grids = GRIDS.lock().unwrap();
-    let gid = *WORKSPACE_ID.lock().unwrap();
+    let mut grids = GRIDS.lock();
+    let gid = *WORKSPACE_ID.lock();
 
     // May have a grid that has the window as tile
     let maybe_grid = grids

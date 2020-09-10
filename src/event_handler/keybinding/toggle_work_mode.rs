@@ -40,9 +40,9 @@ pub fn turn_work_mode_on(
 }
 
 pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
-    let work_mode = *WORK_MODE.lock().unwrap();
-    let display_app_bar = CONFIG.lock().unwrap().display_app_bar;
-    let remove_task_bar = CONFIG.lock().unwrap().remove_task_bar;
+    let work_mode = *WORK_MODE.lock();
+    let display_app_bar = CONFIG.lock().display_app_bar;
+    let remove_task_bar = CONFIG.lock().remove_task_bar;
 
     if work_mode {
         turn_work_mode_off(display_app_bar, remove_task_bar)?;
@@ -50,7 +50,7 @@ pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
         turn_work_mode_on(display_app_bar, remove_task_bar)?;
     }
 
-    *WORK_MODE.lock().unwrap() = !work_mode;
+    *WORK_MODE.lock() = !work_mode;
 
     Ok(())
 }

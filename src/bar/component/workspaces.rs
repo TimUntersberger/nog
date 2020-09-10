@@ -8,14 +8,14 @@ use crate::{
 use std::sync::Arc;
 
 fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
-    let light_theme = CONFIG.lock().unwrap().light_theme;
-    let workspace_settings = CONFIG.lock().unwrap().workspace_settings.clone();
-    let bar_color = CONFIG.lock().unwrap().bar.color;
-    let workspace_id = *WORKSPACE_ID.lock().unwrap();
+    let light_theme = CONFIG.lock().light_theme;
+    let workspace_settings = CONFIG.lock().workspace_settings.clone();
+    let bar_color = CONFIG.lock().bar.color;
+    let workspace_id = *WORKSPACE_ID.lock();
 
     GRIDS
         .lock()
-        .unwrap()
+        
         .iter()
         .filter(|g| {
             (!g.tiles.is_empty() || is_visible_workspace(g.id))
@@ -51,7 +51,6 @@ fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
 fn on_click(_: &Component, display: &Display, idx: usize) {
     let maybe_id = GRIDS
         .lock()
-        .unwrap()
         .iter()
         .filter(|g| {
             (!g.tiles.is_empty() || is_visible_workspace(g.id))

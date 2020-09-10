@@ -20,6 +20,6 @@ pub fn close() {
             winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut()),
         );
 
-        *FONT.lock().unwrap() = 0;
+        *FONT.lock() = 0;
     }
 }

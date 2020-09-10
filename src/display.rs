@@ -80,7 +80,7 @@ impl Display {
     }
     pub fn new(hmonitor: HMONITOR, rect: RECT) -> Self {
         let mut display = Display::default();
-        let config = CONFIG.lock().unwrap();
+        let config = CONFIG.lock();
         let mut dpi_x: u32 = 0;
         let mut dpi_y: u32 = 0;
 
@@ -107,8 +107,8 @@ impl Display {
 unsafe extern "system" fn monitor_cb(hmonitor: HMONITOR, _: HDC, rect: LPRECT, _: LPARAM) -> BOOL {
     let display = Display::new(hmonitor, *rect);
 
-    if CONFIG.lock().unwrap().multi_monitor || display.is_primary {
-        DISPLAYS.lock().unwrap().push(display);
+    if CONFIG.lock().multi_monitor || display.is_primary {
+        DISPLAYS.lock().push(display);
     }
 
     1
@@ -126,7 +126,7 @@ pub fn init() {
     }
 
     {
-        let mut displays = DISPLAYS.lock().unwrap();
+        let mut displays = DISPLAYS.lock();
 
         displays.sort_by(|x, y| {
             let ordering = y.left.cmp(&x.left);
@@ -145,7 +145,6 @@ pub fn init() {
 pub fn get_primary_display() -> Display {
     *DISPLAYS
         .lock()
-        .unwrap()
         .iter()
         .find(|d| d.is_primary)
         .expect("Couldn't find primary display")
@@ -154,14 +153,13 @@ pub fn get_primary_display() -> Display {
 pub fn get_display_by_hmonitor(hmonitor: i32) -> Display {
     *DISPLAYS
         .lock()
-        .unwrap()
         .iter()
         .find(|d| d.hmonitor == hmonitor)
         .expect(format!("Couldn't find display with hmonitor of {}", hmonitor).as_str())
 }
 
 pub fn get_display_by_idx(idx: i32) -> Display {
-    let displays = DISPLAYS.lock().unwrap();
+    let displays = DISPLAYS.lock();
 
     let x: usize = if idx == -1 {
         0

@@ -6,8 +6,8 @@ use crate::{
 pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error>> {
     keybindings::unregister();
 
-    let config = CONFIG.lock().unwrap().clone();
-    let work_mode = *WORK_MODE.lock().unwrap();
+    let config = CONFIG.lock().clone();
+    let work_mode = *WORK_MODE.lock();
     let mut draw_app_bar = false;
     let mut update_grid_displays = false;
 
@@ -32,7 +32,7 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
         } else if config.display_app_bar && !new_config.display_app_bar {
             bar::close::close();
 
-            for d in DISPLAYS.lock().unwrap().iter_mut() {
+            for d in DISPLAYS.lock().iter_mut() {
                 d.bottom += config.bar.height;
             }
 
@@ -40,7 +40,7 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
         } else if !config.display_app_bar && new_config.display_app_bar {
             draw_app_bar = true;
 
-            for d in DISPLAYS.lock().unwrap().iter_mut() {
+            for d in DISPLAYS.lock().iter_mut() {
                 d.bottom -= config.bar.height;
             }
 
@@ -48,14 +48,14 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
         }
 
         if update_grid_displays {
-            for grid in GRIDS.lock().unwrap().iter_mut() {
+            for grid in GRIDS.lock().iter_mut() {
                 grid.display = get_display_by_hmonitor(grid.display.hmonitor);
             }
         }
     }
 
     if config.remove_title_bar && !new_config.remove_title_bar {
-        let mut grids = GRIDS.lock().unwrap();
+        let mut grids = GRIDS.lock();
 
         for grid in grids.iter_mut() {
             for tile in &mut grid.tiles {
@@ -64,7 +64,7 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
             }
         }
     } else if !config.remove_title_bar && new_config.remove_title_bar {
-        let mut grids = GRIDS.lock().unwrap();
+        let mut grids = GRIDS.lock();
 
         for grid in grids.iter_mut() {
             for tile in &mut grid.tiles {
@@ -78,7 +78,7 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
         startup::set_launch_on_startup(new_config.launch_on_startup)?;
     }
 
-    *CONFIG.lock().unwrap() = new_config;
+    *CONFIG.lock() = new_config;
 
     if draw_app_bar {
         bar::create::create()?;

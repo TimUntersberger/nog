@@ -11,7 +11,7 @@ mod focus_change;
 mod show;
 
 pub fn handle(ev: WinEvent) -> Result<(), Box<dyn std::error::Error>> {
-    let grids = GRIDS.lock().unwrap();
+    let grids = GRIDS.lock();
     let mut title: Option<String> = None;
     let mut grid_id: Option<i32> = None;
 

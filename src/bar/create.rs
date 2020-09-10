@@ -13,8 +13,8 @@ pub fn create() -> Result<(), util::WinApiResultError> {
 
     let name = "nog_bar";
 
-    let app_bar_bg = CONFIG.lock().unwrap().bar.color;
-    let height = CONFIG.lock().unwrap().bar.height;
+    let app_bar_bg = CONFIG.lock().bar.color;
+    let height = CONFIG.lock().bar.height;
 
     std::thread::spawn(|| loop {
         std::thread::sleep(std::time::Duration::from_millis(200));
@@ -30,7 +30,7 @@ pub fn create() -> Result<(), util::WinApiResultError> {
             .expect("Failed to send redraw-app-bar event");
     });
 
-    for display in DISPLAYS.lock().unwrap().clone() {
+    for display in DISPLAYS.lock().clone() {
         std::thread::spawn(move || unsafe {
             if get_bar_by_hmonitor(display.hmonitor as i32).is_some() {
                 error!(
@@ -77,7 +77,7 @@ pub fn create() -> Result<(), util::WinApiResultError> {
             bar.hmonitor = display.hmonitor as i32;
             bar.window.id = window_handle as i32;
 
-            BARS.lock().unwrap().push(bar);
+            BARS.lock().push(bar);
 
             ShowWindow(window_handle, SW_SHOW);
             redraw();

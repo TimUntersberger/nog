@@ -8,7 +8,7 @@ use font::load_font;
 use lazy_static::lazy_static;
 use log::info;
 
-use std::sync::Mutex;
+use parking_lot::Mutex;
 use winapi::shared::minwindef::LPARAM;
 use winapi::shared::minwindef::LRESULT;
 use winapi::shared::minwindef::UINT;
@@ -108,7 +108,7 @@ unsafe fn draw_component_text(hdc: HDC, rect: &mut RECT, component_text: &Compon
 
     let fg = component_text
         .get_fg()
-        .unwrap_or(if CONFIG.lock().unwrap().light_theme {
+        .unwrap_or(if CONFIG.lock().light_theme {
             0x00333333
         } else {
             0x00ffffff
@@ -116,7 +116,7 @@ unsafe fn draw_component_text(hdc: HDC, rect: &mut RECT, component_text: &Compon
 
     let bg = component_text
         .get_bg()
-        .unwrap_or(CONFIG.lock().unwrap().bar.color as u32);
+        .unwrap_or(CONFIG.lock().bar.color as u32);
 
     SetTextColor(hdc, fg);
     SetBkColor(hdc, bg);
@@ -188,7 +188,7 @@ unsafe fn components_to_section(
 }
 
 unsafe fn clear_section(hdc: HDC, height: i32, left: i32, right: i32) {
-    let brush = CreateSolidBrush(CONFIG.lock().unwrap().bar.color as u32);
+    let brush = CreateSolidBrush(CONFIG.lock().bar.color as u32);
     let mut rect = RECT {
         left,
         right,
@@ -202,7 +202,7 @@ unsafe fn clear_section(hdc: HDC, height: i32, left: i32, right: i32) {
 }
 
 fn update_bar(bar: Bar) {
-    let mut bars = BARS.lock().unwrap();
+    let mut bars = BARS.lock();
 
     let mut_bar = bars
         .iter_mut()
@@ -219,7 +219,7 @@ unsafe extern "system" fn window_cb(
     l_param: LPARAM,
 ) -> LRESULT {
     if msg == WM_CLOSE {
-        let mut bars = BARS.lock().unwrap();
+        let mut bars = BARS.lock();
         let idx = bars
             .iter()
             .position(|b| b.window.id == hwnd as i32)
@@ -284,7 +284,7 @@ unsafe extern "system" fn window_cb(
         info!("loading font");
         load_font();
     } else if msg == WM_PAINT {
-        let bar_config = CONFIG.lock().unwrap().bar.clone();
+        let bar_config = CONFIG.lock().bar.clone();
         let mut paint = PAINTSTRUCT::default();
 
         let mut bar = get_bar_by_hwnd(hwnd as i32).unwrap();
@@ -367,7 +367,7 @@ unsafe extern "system" fn window_cb(
 
 pub fn get_bar_by_hwnd(hwnd: i32) -> Option<Bar> {
     BARS.lock()
-        .unwrap()
+        
         .iter()
         .cloned()
         .find(|b| b.window.id == hwnd)
@@ -375,7 +375,7 @@ pub fn get_bar_by_hwnd(hwnd: i32) -> Option<Bar> {
 
 pub fn get_bar_by_hmonitor(hmonitor: i32) -> Option<Bar> {
     BARS.lock()
-        .unwrap()
+        
         .iter()
         .cloned()
         .find(|b| b.hmonitor == hmonitor)
@@ -383,7 +383,7 @@ pub fn get_bar_by_hmonitor(hmonitor: i32) -> Option<Bar> {
 
 pub fn get_windows() -> Vec<Window> {
     BARS.lock()
-        .unwrap()
+        
         .iter()
         .map(|bar| &bar.window)
         .cloned()

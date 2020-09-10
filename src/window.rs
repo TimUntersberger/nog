@@ -154,7 +154,7 @@ impl Window {
     ) -> RECT {
         let rule = self.rule.clone().unwrap_or_default();
         let (display_app_bar, remove_title_bar, bar_height, use_border) = {
-            let config = CONFIG.lock().unwrap();
+            let config = CONFIG.lock();
 
             (
                 config.display_app_bar,
@@ -327,7 +327,7 @@ impl Window {
             self.style.remove(GwlStyle::CAPTION);
             self.style.remove(GwlStyle::THICKFRAME);
         }
-        if CONFIG.lock().unwrap().use_border {
+        if CONFIG.lock().use_border {
             self.style.insert(GwlStyle::BORDER);
         }
     }
