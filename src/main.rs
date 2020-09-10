@@ -129,12 +129,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing popups");
     popup::init();
 
-    let temp = CONFIG.lock();
-    let temp2 = CONFIG.lock();
-
-    println!("{}", temp.min_height);
-    println!("{}", temp2.min_height);
-
     for display in DISPLAYS.lock().iter() {
         VISIBLE_WORKSPACES
             .lock()
@@ -191,7 +185,7 @@ fn main() {
 
     thread::spawn(|| {
         loop {
-            std::thread::sleep(Duration::from_secs(2));
+            std::thread::sleep(Duration::from_secs(5));
             let deadlocks = deadlock::check_deadlock();
             if deadlocks.is_empty() {
                 continue;
