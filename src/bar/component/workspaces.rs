@@ -15,7 +15,6 @@ fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
 
     GRIDS
         .lock()
-        
         .iter()
         .filter(|g| {
             (!g.tiles.is_empty() || is_visible_workspace(g.id))
@@ -35,6 +34,7 @@ fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
                     util::scale_color(bar_color, 1.5) as u32
                 }
             };
+
             let mut text = format!(" {} ", grid.id.to_string());
 
             if let Some(settings) = workspace_settings.iter().find(|s| s.id == grid.id) {
@@ -49,20 +49,26 @@ fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
 }
 
 fn on_click(_: &Component, display: &Display, idx: usize) {
-    let maybe_id = GRIDS
-        .lock()
-        .iter()
-        .filter(|g| {
-            (!g.tiles.is_empty() || is_visible_workspace(g.id))
-                && g.display.hmonitor == display.hmonitor
-        })
-        .map(|g| g.id)
-        .skip(idx)
-        .next();
+    let display = display.clone();
 
-    if let Some(id) = maybe_id {
-        let _ = change_workspace(id, true);
-    }
+    //Note: have to run this in a new thread, because locking a mutex twice on a thread causes a
+    //deadlock.
+    std::thread::spawn(move|| {
+        let maybe_id = GRIDS
+            .lock()
+            .iter()
+            .filter(|g| {
+                (!g.tiles.is_empty() || is_visible_workspace(g.id))
+                    && g.display.hmonitor == display.hmonitor
+            })
+            .map(|g| g.id)
+            .skip(idx)
+            .next();
+
+        if let Some(id) = maybe_id {
+            let _ = change_workspace(id, true);
+        }
+    });
 }
 
 pub fn create() -> Component {

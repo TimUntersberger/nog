@@ -367,7 +367,6 @@ unsafe extern "system" fn window_cb(
 
 pub fn get_bar_by_hwnd(hwnd: i32) -> Option<Bar> {
     BARS.lock()
-        
         .iter()
         .cloned()
         .find(|b| b.window.id == hwnd)
@@ -375,7 +374,6 @@ pub fn get_bar_by_hwnd(hwnd: i32) -> Option<Bar> {
 
 pub fn get_bar_by_hmonitor(hmonitor: i32) -> Option<Bar> {
     BARS.lock()
-        
         .iter()
         .cloned()
         .find(|b| b.hmonitor == hmonitor)
@@ -383,7 +381,6 @@ pub fn get_bar_by_hmonitor(hmonitor: i32) -> Option<Bar> {
 
 pub fn get_windows() -> Vec<Window> {
     BARS.lock()
-        
         .iter()
         .map(|bar| &bar.window)
         .cloned()
