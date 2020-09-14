@@ -194,6 +194,8 @@ fn main() {
 
 	    debug!("deadlock detected");
             debug!("backtrace: \n{:?}", deadlocks.first().unwrap().first().unwrap().backtrace());
+
+            on_quit();
         }
     });
 
