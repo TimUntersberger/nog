@@ -183,6 +183,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn main() {
+    std::env::set_var("RUST_BACKTRACE", "full");
     logging::setup().expect("Failed to setup logging");
 
     thread::spawn(|| {
