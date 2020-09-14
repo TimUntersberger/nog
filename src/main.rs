@@ -103,10 +103,12 @@ fn on_quit() -> Result<(), util::WinApiResultError> {
     unmanage_everything()?;
 
     popup::cleanup();
-    let remove_task_bar = {
-        let config = CONFIG.lock();
-        config.remove_task_bar
-    };
+    let display_app_bar = CONFIG.lock().display_app_bar;
+    let remove_task_bar = CONFIG.lock().remove_task_bar;
+
+    if display_app_bar {
+        bar::close::close();
+    }
 
     if remove_task_bar {
         task_bar::show_taskbars();
