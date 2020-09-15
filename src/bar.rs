@@ -9,7 +9,7 @@ use lazy_static::lazy_static;
 use log::info;
 
 use parking_lot::Mutex;
-use winapi::shared::minwindef::LPARAM;
+use winapi::{shared::minwindef::LPARAM, um::winuser::WM_APPCOMMAND, um::winuser::WM_APP, um::shellapi::ABN_FULLSCREENAPP};
 use winapi::shared::minwindef::LRESULT;
 use winapi::shared::minwindef::UINT;
 use winapi::shared::minwindef::WPARAM;
@@ -218,7 +218,17 @@ unsafe extern "system" fn window_cb(
     w_param: WPARAM,
     l_param: LPARAM,
 ) -> LRESULT {
-    if msg == WM_CLOSE {
+    if msg == WM_APP + 1 {
+        if w_param == ABN_FULLSCREENAPP as usize {
+            let is_fullscreen = l_param == 1;
+            if is_fullscreen {
+                visibility::hide();
+            } else {
+                visibility::show();
+            }
+        }
+    }
+    else if msg == WM_CLOSE {
         let mut bars = BARS.lock();
         let idx = bars
             .iter()

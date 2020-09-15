@@ -1,7 +1,7 @@
 use super::{get_bar_by_hmonitor, get_windows, redraw::redraw, window_cb, Bar, BARS};
 use crate::{event::Event, message_loop, util, CHANNEL, CONFIG, DISPLAYS};
 use log::{debug, error, info};
-use winapi::shared::minwindef::HINSTANCE;
+use winapi::{shared::minwindef::HINSTANCE, um::shellapi::ABM_SETAUTOHIDEBAR, um::winuser::WM_APP};
 use winapi::shared::windef::{HBRUSH, HWND, RECT};
 use winapi::um::shellapi::{
     SHAppBarMessage, ABE_TOP, ABM_NEW, ABM_QUERYPOS, ABM_SETPOS, APPBARDATA,
@@ -88,27 +88,12 @@ pub fn create() -> Result<(), util::WinApiResultError> {
             let mut appbar_data: APPBARDATA = APPBARDATA {
                 cbSize: 4 + 4 + 4 + 4 + 16 + 4,
                 hWnd: window_handle as HWND,
-                uCallbackMessage: window_handle as u32,
+                uCallbackMessage: WM_APP + 1,
                 uEdge: ABE_TOP,
                 ..Default::default()
             };
 
             SHAppBarMessage(ABM_NEW, &mut appbar_data as *mut APPBARDATA);
-
-            GetWindowRect(appbar_data.hWnd as HWND, &mut appbar_data.rc as *mut RECT);
-
-            SHAppBarMessage(ABM_QUERYPOS, &mut appbar_data as *mut APPBARDATA);
-
-            SHAppBarMessage(ABM_SETPOS, &mut appbar_data as *mut APPBARDATA);
-
-            MoveWindow(
-                appbar_data.hWnd as HWND,
-                appbar_data.rc.left,
-                appbar_data.rc.top,
-                appbar_data.rc.right - appbar_data.rc.left,
-                appbar_data.rc.bottom - appbar_data.rc.top,
-                true as i32,
-            );
 
             message_loop::start(|_| true);
         });
