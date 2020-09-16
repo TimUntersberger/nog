@@ -220,12 +220,7 @@ unsafe extern "system" fn window_cb(
 ) -> LRESULT {
     if msg == WM_APP + 1 {
         if w_param == ABN_FULLSCREENAPP as usize {
-            let is_fullscreen = l_param == 1;
-            if is_fullscreen {
-                visibility::hide();
-            } else {
-                visibility::show();
-            }
+            visibility::toggle_by_hwnd(hwnd as i32);
         }
     }
     else if msg == WM_CLOSE {
