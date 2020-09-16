@@ -1,4 +1,4 @@
-use super::{get_windows, redraw::redraw};
+use super::{get_windows, get_bar_by_hwnd, redraw::redraw};
 
 #[allow(dead_code)]
 pub fn hide() {
@@ -17,4 +17,15 @@ pub fn show() {
     }
 
     redraw();
+}
+
+pub fn toggle_by_hwnd(hwnd: i32) {
+    let bar = get_bar_by_hwnd(hwnd).unwrap();
+    match bar.window.is_hidden() {
+        false => bar.window.hide(),
+        true => {
+            bar.window.show();
+            redraw();
+        }
+    }
 }
