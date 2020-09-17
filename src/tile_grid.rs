@@ -2,7 +2,7 @@ use crate::display::get_primary_display;
 use crate::display::Display;
 use crate::tile::Tile;
 use crate::util;
-use crate::window::Window;
+use crate::system::NativeWindow;
 use crate::{direction::Direction, split_direction::SplitDirection, CONFIG};
 use log::debug;
 use std::collections::HashMap;
@@ -363,7 +363,7 @@ impl TileGrid {
 
         maybe_removed_tile
     }
-    pub fn split(&mut self, window: Window) {
+    pub fn split(&mut self, window: NativeWindow) {
         if self.tiles.iter().any(|t| t.window.id == window.id) {
             return;
         }

@@ -29,6 +29,7 @@ use std::{
 use workspace::Workspace;
 
 mod bar;
+mod system;
 mod config;
 mod direction;
 mod display;
@@ -75,7 +76,7 @@ fn unmanage_everything() -> Result<(), util::WinApiResultError> {
     for grid in grids.iter_mut() {
         for tile in &mut grid.tiles.clone() {
             grid.close_tile_by_window_id(tile.window.id);
-            tile.window.reset();
+            tile.window.cleanup();
         }
     }
 

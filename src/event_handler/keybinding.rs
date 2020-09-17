@@ -79,7 +79,7 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
                     let id = tile.window.id;
 
                     tile.window.minimize();
-                    tile.window.reset();
+                    tile.window.cleanup();
 
                     grid.close_tile_by_window_id(id);
                 }
