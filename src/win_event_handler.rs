@@ -38,7 +38,7 @@ unsafe extern "system" fn handler(
         return;
     }
 
-    if bar::get_bar_by_hwnd(window_handle as i32).is_some() {
+    if bar::get_bar_by_hwnd(window_handle.into()).is_some() {
         return;
     }
 
@@ -49,7 +49,7 @@ unsafe extern "system" fn handler(
 
     let event = Event::WinEvent(WinEvent {
         typ: win_event_type,
-        hwnd: window_handle as i32,
+        window: window_handle.into(),
     });
 
     CHANNEL.sender.clone().send(event).unwrap();

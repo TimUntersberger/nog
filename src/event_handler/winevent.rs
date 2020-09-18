@@ -4,7 +4,6 @@ use crate::{
     GRIDS,
 };
 use log::debug;
-use winapi::shared::windef::HWND;
 
 mod destroy;
 mod focus_change;
@@ -17,7 +16,7 @@ pub fn handle(ev: WinEvent) -> Result<(), Box<dyn std::error::Error>> {
 
     for grid in grids.iter() {
         for tile in &grid.tiles {
-            if tile.window.id == ev.hwnd {
+            if tile.window.id == ev.window.id {
                 title = Some(tile.window.title.clone());
                 grid_id = Some(grid.id);
                 break;
@@ -31,19 +30,19 @@ pub fn handle(ev: WinEvent) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     if title.is_none() {
-        title = util::get_title_of_window(ev.hwnd as HWND).ok();
+        title = ev.window.get_title().ok();
     }
 
     if title.is_some() {
-        debug!("{:?}: '{}' | {}", ev.typ, title.unwrap(), ev.hwnd as i32);
+        debug!("{:?}: '{}' | {}", ev.typ, title.unwrap(), ev.window.id);
     }
 
     drop(grids);
 
     match ev.typ {
-        WinEventType::Destroy => destroy::handle(ev.hwnd as HWND, grid_id)?,
-        WinEventType::Show(ignore) => show::handle(ev.hwnd as HWND, ignore)?,
-        WinEventType::FocusChange => focus_change::handle(ev.hwnd as HWND)?,
+        WinEventType::Destroy => destroy::handle(ev.window, grid_id)?,
+        WinEventType::Show(ignore) => show::handle(ev.window, ignore)?,
+        WinEventType::FocusChange => focus_change::handle(ev.window)?,
         WinEventType::Hide => {}
     };
 

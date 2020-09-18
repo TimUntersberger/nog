@@ -10,26 +10,19 @@ use crossbeam_channel::select;
 use display::Display;
 use event::Event;
 use event::EventChannel;
+use event_handler::keybinding::toggle_work_mode;
 use hot_reload::update_config;
 use lazy_static::lazy_static;
-use log::{error, info};
-use std::collections::HashMap;
-use parking_lot::{
-    Mutex,
-    deadlock
-};
-use tile_grid::TileGrid;
-use event_handler::keybinding::toggle_work_mode;
-use winapi::shared::windef::HWND;
 use log::debug;
-use std::{
-    thread,
-    time::Duration,
-};
+use log::{error, info};
+use parking_lot::{deadlock, Mutex};
+use std::collections::HashMap;
+use std::{thread, time::Duration};
+use tile_grid::TileGrid;
+use winapi::shared::windef::HWND;
 use workspace::Workspace;
 
 mod bar;
-mod system;
 mod config;
 mod direction;
 mod display;
@@ -42,6 +35,7 @@ mod message_loop;
 mod popup;
 mod split_direction;
 mod startup;
+mod system;
 mod task_bar;
 mod tile;
 mod tile_grid;
@@ -131,10 +125,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     popup::init();
 
     for display in DISPLAYS.lock().iter() {
-        VISIBLE_WORKSPACES
-            .lock()
-            
-            .insert(display.hmonitor, 0);
+        VISIBLE_WORKSPACES.lock().insert(display.hmonitor, 0);
     }
 
     info!("Starting hot reloading of config");
@@ -172,7 +163,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         update_config(config::rhai::engine::parse_config().expect("Failed to load config"))
                     }
                 }.map_err(|e| {
-                    error!("{}", e);
+                    error!("{:?}", e);
                 });
             }
         }
@@ -185,19 +176,20 @@ fn main() {
     std::env::set_var("RUST_BACKTRACE", "full");
     logging::setup().expect("Failed to setup logging");
 
-    thread::spawn(|| {
-        loop {
-            std::thread::sleep(Duration::from_secs(5));
-            let deadlocks = deadlock::check_deadlock();
-            if deadlocks.is_empty() {
-                continue;
-            }
-
-	    debug!("deadlock detected");
-            debug!("backtrace: \n{:?}", deadlocks.first().unwrap().first().unwrap().backtrace());
-
-            on_quit();
+    thread::spawn(|| loop {
+        std::thread::sleep(Duration::from_secs(5));
+        let deadlocks = deadlock::check_deadlock();
+        if deadlocks.is_empty() {
+            continue;
         }
+
+        debug!("deadlock detected");
+        debug!(
+            "backtrace: \n{:?}",
+            deadlocks.first().unwrap().first().unwrap().backtrace()
+        );
+
+        on_quit();
     });
 
     let panic = std::panic::catch_unwind(|| {

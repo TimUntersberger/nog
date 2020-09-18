@@ -1,11 +1,7 @@
-use crate::{bar, display::get_primary_display, message_loop, util, window::Window, CONFIG};
+use crate::{bar, display::get_primary_display, message_loop, util, system::NativeWindow, CONFIG};
 
-use std::{
-    ffi::CString,
-    sync::{Arc},
-    thread,
-};
 use parking_lot::Mutex;
+use std::{ffi::CString, sync::Arc, thread};
 use winapi::shared::windef::HWND;
 use winapi::shared::windef::RECT;
 use winapi::um::wingdi::CreateSolidBrush;
@@ -36,7 +32,7 @@ pub struct PopupAction {
 
 #[derive(Clone)]
 pub struct Popup {
-    window: Window,
+    window: NativeWindow,
     width: i32,
     padding: i32,
     height: i32,
@@ -47,7 +43,7 @@ pub struct Popup {
 impl Popup {
     pub fn new() -> Self {
         Self {
-            window: Window::default(),
+            window: NativeWindow::new(),
             width: 0,
             height: 0,
             padding: 5,
@@ -122,11 +118,8 @@ impl Popup {
 
                 popup.width = width;
                 popup.height = height;
-                popup.window = Window {
-                    id: window_handle as i32,
-                    title: "NogPopup".into(),
-                    ..Default::default()
-                };
+                popup.window = window_handle.into();
+                popup.window.title = "NogPopup".into();
 
                 *POPUP.lock() = Some(popup);
 

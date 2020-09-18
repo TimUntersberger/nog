@@ -7,14 +7,10 @@ use crate::{
     keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
 };
 use log::error;
+use parking_lot::Mutex;
 use regex::Regex;
 use rhai::{Array, Dynamic, Engine, Map, ParseError};
-use std::{
-    str::FromStr,
-    sync::{Arc},
-    time::Duration,
-};
-use parking_lot::Mutex;
+use std::{str::FromStr, sync::Arc, time::Duration};
 
 #[macro_use]
 mod macros;

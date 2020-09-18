@@ -1,8 +1,7 @@
-use crate::CONFIG;
+use crate::{CONFIG, system::{WindowId, NativeWindow}};
 use crate::{
     display::{get_display_by_hmonitor, Display},
-    util,
-    window::Window,
+    util
 };
 use font::load_font;
 use lazy_static::lazy_static;
@@ -61,7 +60,7 @@ lazy_static! {
 
 #[derive(Clone)]
 pub struct Bar {
-    window: Window,
+    window: NativeWindow,
     hmonitor: i32,
     left: ItemSection,
     center: ItemSection,
@@ -71,7 +70,7 @@ pub struct Bar {
 impl Default for Bar {
     fn default() -> Self {
         Self {
-            window: Window::default(),
+            window: NativeWindow::new(),
             hmonitor: 0,
             left: ItemSection::default(),
             center: ItemSection::default(),
@@ -229,7 +228,7 @@ unsafe extern "system" fn window_cb(
         let mut point = POINT::default();
         GetCursorPos(&mut point);
 
-        let bar = get_bar_by_hwnd(hwnd as i32).unwrap();
+        let bar = get_bar_by_hwnd(hwnd.into()).unwrap();
         let display = get_display_by_hmonitor(bar.hmonitor);
         let x = point.x - display.left;
         let mut found = false;
@@ -259,7 +258,7 @@ unsafe extern "system" fn window_cb(
         let mut point = POINT::default();
         GetCursorPos(&mut point);
 
-        let bar = get_bar_by_hwnd(hwnd as i32).unwrap();
+        let bar = get_bar_by_hwnd(hwnd.into()).unwrap();
         let display = get_display_by_hmonitor(bar.hmonitor);
         let x = point.x - display.left;
 
@@ -287,7 +286,7 @@ unsafe extern "system" fn window_cb(
         let bar_config = CONFIG.lock().bar.clone();
         let mut paint = PAINTSTRUCT::default();
 
-        let mut bar = get_bar_by_hwnd(hwnd as i32).unwrap();
+        let mut bar = get_bar_by_hwnd(hwnd.into()).unwrap();
         let display = get_display_by_hmonitor(bar.hmonitor);
 
         BeginPaint(hwnd, &mut paint);
@@ -365,24 +364,14 @@ unsafe extern "system" fn window_cb(
     DefWindowProcA(hwnd, msg, w_param, l_param)
 }
 
-pub fn get_bar_by_hwnd(hwnd: i32) -> Option<Bar> {
-    BARS.lock()
-        .iter()
-        .cloned()
-        .find(|b| b.window.id == hwnd)
+pub fn get_bar_by_hwnd(hwnd: WindowId) -> Option<Bar> {
+    BARS.lock().iter().cloned().find(|b| b.window.id == hwnd)
 }
 
 pub fn get_bar_by_hmonitor(hmonitor: i32) -> Option<Bar> {
-    BARS.lock()
-        .iter()
-        .cloned()
-        .find(|b| b.hmonitor == hmonitor)
+    BARS.lock().iter().cloned().find(|b| b.hmonitor == hmonitor)
 }
 
-pub fn get_windows() -> Vec<Window> {
-    BARS.lock()
-        .iter()
-        .map(|bar| &bar.window)
-        .cloned()
-        .collect()
+pub fn get_windows() -> Vec<NativeWindow> {
+    BARS.lock().iter().map(|bar| &bar.window).cloned().collect()
 }

@@ -53,7 +53,7 @@ fn on_click(_: &Component, display: &Display, idx: usize) {
 
     //Note: have to run this in a new thread, because locking a mutex twice on a thread causes a
     //deadlock.
-    std::thread::spawn(move|| {
+    std::thread::spawn(move || {
         let maybe_id = GRIDS
             .lock()
             .iter()

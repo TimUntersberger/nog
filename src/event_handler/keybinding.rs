@@ -65,9 +65,7 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
                 (grid.id, hmonitor)
             });
 
-            VISIBLE_WORKSPACES
-                .lock()
-                .insert(grid_old_monitor, 0);
+            VISIBLE_WORKSPACES.lock().insert(grid_old_monitor, 0);
 
             change_workspace(grid_id, true)
                 .expect("Failed to change workspace after moving workspace to different monitor");

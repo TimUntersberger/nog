@@ -1,22 +1,22 @@
-use crate::display::get_primary_display;
+use crate::{display::get_primary_display, system::WindowId};
 use crate::display::Display;
-use crate::tile::Tile;
-use crate::util;
 use crate::system::NativeWindow;
+use crate::system::SystemError;
+use crate::system::SystemResult;
+use crate::tile::Tile;
 use crate::{direction::Direction, split_direction::SplitDirection, CONFIG};
 use log::debug;
 use std::collections::HashMap;
-use winapi::shared::windef::HWND;
 use winapi::shared::windef::RECT;
-use winapi::um::winuser::SetWindowPos;
 use winapi::um::winuser::SWP_NOSENDCHANGING;
+use log::error;
 
 #[derive(Clone)]
 pub struct TileGrid {
     pub display: Display,
     pub id: i32,
     pub fullscreen: bool,
-    pub focus_stack: Vec<(Direction, i32)>,
+    pub focus_stack: Vec<(Direction, WindowId)>,
     /// Contains the resize values for each column
     /// Hashmap<column, (left, right)>
     pub column_modifications: HashMap<i32, (i32, i32)>,
@@ -24,7 +24,7 @@ pub struct TileGrid {
     /// Hashmap<column, (top, bottom)>
     pub row_modifications: HashMap<i32, (i32, i32)>,
     pub tiles: Vec<Tile>,
-    pub focused_window_id: Option<i32>,
+    pub focused_window_id: Option<WindowId>,
     pub taskbar_window: i32,
     pub rows: i32,
     pub columns: i32,
@@ -46,33 +46,34 @@ impl TileGrid {
             columns: 0,
         }
     }
-    pub fn hide(&self) {
+    pub fn hide(&self) -> SystemResult {
         for tile in &self.tiles {
-            tile.window.hide();
+            tile.window.hide()?;
         }
+
+        Ok(())
     }
-    pub fn show(&self) {
+    pub fn show(&self) -> SystemResult {
         for tile in &self.tiles {
-            tile.window.show();
-            tile.window
-                .to_foreground(true)
-                .expect("Failed to move window to foreground");
-            tile.window
-                .remove_topmost()
-                .expect("Failed to remove top-most window");
+            tile.window.show()?;
+            tile.window.to_foreground(true).map_err(SystemError::ShowWindow)?;
+            if let Err(e) = tile.window.remove_topmost() {
+                error!("{}", e);
+            }
         }
         if let Some(tile) = self.get_focused_tile() {
-            tile.window.focus().expect("Failed to focus window");
+            tile.window.focus()?;
         }
+        Ok(())
     }
-    pub fn get_tile_by_id(&self, id: i32) -> Option<Tile> {
+    pub fn get_tile_by_id(&self, id: WindowId) -> Option<Tile> {
         self.tiles
             .iter()
             .find(|tile| tile.window.id == id)
             .clone()
             .cloned()
     }
-    pub fn get_tile_by_id_mut(&mut self, id: i32) -> Option<&mut Tile> {
+    pub fn get_tile_by_id_mut(&mut self, id: WindowId) -> Option<&mut Tile> {
         self.tiles.iter_mut().find(|tile| tile.window.id == id)
     }
     pub fn get_focused_tile(&self) -> Option<&Tile> {
@@ -88,7 +89,7 @@ impl TileGrid {
             focused_tile.split_direction = direction;
         }
     }
-    fn get_next_tile_id(&self, direction: Direction) -> Option<i32> {
+    fn get_next_tile_id(&self, direction: Direction) -> Option<WindowId> {
         self.get_next_tile(direction).map(|t| t.window.id)
     }
     fn get_next_tile(&self, direction: Direction) -> Option<Tile> {
@@ -145,13 +146,13 @@ impl TileGrid {
                 .cloned()
         })
     }
-    fn set_location(&mut self, id: i32, row: Option<i32>, col: Option<i32>) {
+    fn set_location(&mut self, id: WindowId, row: Option<i32>, col: Option<i32>) {
         if let Some(mut tile) = self.get_tile_by_id_mut(id) {
             tile.row = row;
             tile.column = col;
         }
     }
-    fn swap_tiles(&mut self, x: i32, y: i32) {
+    fn swap_tiles(&mut self, x: WindowId, y: WindowId) {
         //borrow checker bullshit
         let x_tile = {
             let tile = self.get_tile_by_id(x).unwrap();
@@ -164,27 +165,23 @@ impl TileGrid {
         self.set_location(x_tile.0, y_tile.1, y_tile.2);
         self.set_location(y_tile.0, x_tile.1, x_tile.2);
     }
-    pub fn swap(&mut self, direction: Direction) -> Result<(), util::WinApiResultError> {
-        if let Some(tile) = self.check_focus_stack(direction)? {
+    pub fn swap(&mut self, direction: Direction) {
+        if let Some(tile) = self.check_focus_stack(direction) {
             //if the focus stack is not empty, then some tile must have focus
             let focused_id = self.focused_window_id.unwrap();
             self.swap_tiles(tile.window.id, focused_id);
-            return Ok(());
         }
-        let maybe_next_id = self.get_next_tile_id(direction);
-        if let Some(next_id) = maybe_next_id {
+        else if let Some(next_id) = self.get_next_tile_id(direction) {
             //if we get a next tile we can assume that a tile is focused
             let focused_id = self.focused_window_id.unwrap();
             self.swap_tiles(next_id, focused_id);
             self.focus_stack.push((direction, next_id));
         }
-
-        Ok(())
     }
     fn check_focus_stack(
         &mut self,
         direction: Direction,
-    ) -> Result<Option<Tile>, util::WinApiResultError> {
+    ) -> Option<Tile> {
         if let Some(prev) = self.focus_stack.pop() {
             // This variable says that the action cancels the previous action.
             // Example: Left -> Right
@@ -200,7 +197,7 @@ impl TileGrid {
 
                 if let Some(tile) = maybe_tile {
                     debug!("The direction counters the previous one. Reverting the previous one.");
-                    return Ok(Some(tile));
+                    return Some(tile);
                 }
             }
 
@@ -212,10 +209,10 @@ impl TileGrid {
             }
         }
 
-        Ok(None)
+        None
     }
-    pub fn focus(&mut self, direction: Direction) -> Result<(), util::WinApiResultError> {
-        if let Some(tile) = self.check_focus_stack(direction)? {
+    pub fn focus(&mut self, direction: Direction) -> SystemResult {
+        if let Some(tile) = self.check_focus_stack(direction) {
             self.focused_window_id = Some(tile.window.id);
             tile.window.focus()?;
             return Ok(());
@@ -235,19 +232,19 @@ impl TileGrid {
 
         Ok(())
     }
-    pub fn focus_right(&mut self) -> Result<(), util::WinApiResultError> {
+    pub fn focus_right(&mut self) -> SystemResult {
         self.focus(Direction::Right)
     }
-    pub fn focus_left(&mut self) -> Result<(), util::WinApiResultError> {
+    pub fn focus_left(&mut self) -> SystemResult {
         self.focus(Direction::Left)
     }
-    pub fn focus_up(&mut self) -> Result<(), util::WinApiResultError> {
+    pub fn focus_up(&mut self) -> SystemResult {
         self.focus(Direction::Up)
     }
-    pub fn focus_down(&mut self) -> Result<(), util::WinApiResultError> {
+    pub fn focus_down(&mut self) -> SystemResult {
         self.focus(Direction::Down)
     }
-    pub fn close_tile_by_window_id(&mut self, id: i32) -> Option<Tile> {
+    pub fn close_tile_by_window_id(&mut self, id: WindowId) -> Option<Tile> {
         let maybe_removed_tile = self
             .tiles
             .iter()
@@ -598,20 +595,14 @@ impl TileGrid {
         }
     }
 
-    fn draw_tile(&self, tile: &Tile) {
+    fn draw_tile(&self, tile: &Tile) -> SystemResult {
         let rect = self.calculate_tile_data(tile);
 
-        unsafe {
-            SetWindowPos(
-                tile.window.id as HWND,
-                std::ptr::null_mut(),
-                rect.left,
-                rect.top,
-                rect.right - rect.left,
-                rect.bottom - rect.top,
-                SWP_NOSENDCHANGING,
-            );
-        }
+        tile.window.set_window_pos(
+            crate::system::win::Rectangle::from_winapi_rect(rect), 
+            None, 
+            Some(SWP_NOSENDCHANGING)
+        ).map_err(SystemError::DrawTile)
     }
 
     #[allow(dead_code)]
@@ -672,20 +663,23 @@ impl TileGrid {
         println!();
     }
 
-    pub fn draw_grid(&self) {
+    pub fn draw_grid(&self) -> SystemResult {
         debug!("Drawing grid");
 
         if self.fullscreen {
-            self.draw_tile(self.get_focused_tile().expect("Couldn't get focused tile"));
-            return;
+            if let Some(tile) = self.get_focused_tile() {
+                self.draw_tile(tile)?;
+            }
+        } else {
+            for tile in &self.tiles {
+                debug!("{:?}", tile);
+
+                self.draw_tile(tile)?;
+            }
+
+            // self.print_grid();
         }
 
-        for tile in &self.tiles {
-            debug!("{:?}", tile);
-
-            self.draw_tile(tile);
-        }
-
-        // self.print_grid();
+        Ok(())
     }
 }

@@ -93,12 +93,7 @@ unsafe extern "system" fn enum_windows_cb(hwnd: HWND, _: LPARAM) -> BOOL {
 
         debug!("Initialized {:?})", task_bar);
 
-        let is_display_primary = match DISPLAYS
-            .lock()
-            
-            .iter_mut()
-            .find(|d| d.hmonitor == hmonitor)
-        {
+        let is_display_primary = match DISPLAYS.lock().iter_mut().find(|d| d.hmonitor == hmonitor) {
             Some(d) => {
                 d.task_bar = Some(task_bar);
                 d.is_primary

@@ -1,11 +1,11 @@
 use crate::bar;
+use crate::info;
 use crate::task_bar;
 use crate::unmanage_everything;
 use crate::win_event_handler;
+use crate::workspace::change_workspace;
 use crate::CONFIG;
 use crate::{popup, WORK_MODE};
-use crate::info;
-use crate::workspace::{change_workspace};
 
 pub fn initialize() -> Result<(), Box<dyn std::error::Error>> {
     if *WORK_MODE.lock() {

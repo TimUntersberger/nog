@@ -5,7 +5,6 @@ use std::sync::Arc;
 fn render(_: &Component, _: &Display) -> Vec<ComponentText> {
     vec![ComponentText::Basic(
         MODE.lock()
-            
             .clone()
             .map(|m| format!("{} is active", m))
             .unwrap_or_default(),

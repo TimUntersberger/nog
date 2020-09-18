@@ -2,17 +2,13 @@ use super::{functions, lib, modules, syntax, types};
 use crate::config::Config;
 use lazy_static::lazy_static;
 use log::{debug, error};
+use parking_lot::Mutex;
 use rhai::{
     module_resolvers::{FileModuleResolver, ModuleResolversCollection},
     Engine, FnPtr, Scope,
 };
-use std::{
-    io::Write,
-    path::PathBuf,
-    sync::{Arc},
-};
+use std::{io::Write, path::PathBuf, sync::Arc};
 use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
-use parking_lot::Mutex;
 
 lazy_static! {
     pub static ref MODE: Mutex<Option<String>> = Mutex::new(None);

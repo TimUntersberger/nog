@@ -1,4 +1,4 @@
-use crate::{split_direction::SplitDirection};
+use crate::split_direction::SplitDirection;
 use crate::system::NativeWindow;
 use std::fmt::Debug;
 

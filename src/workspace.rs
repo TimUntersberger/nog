@@ -16,10 +16,7 @@ impl Workspace {
 }
 
 pub fn is_visible_workspace(id: i32) -> bool {
-    VISIBLE_WORKSPACES
-        .lock()
-        .values()
-        .any(|v| *v == id)
+    VISIBLE_WORKSPACES.lock().values().any(|v| *v == id)
 }
 
 pub fn change_workspace(

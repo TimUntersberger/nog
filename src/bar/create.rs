@@ -1,5 +1,5 @@
-use super::{get_bar_by_hmonitor, redraw::redraw, window_cb, Bar, BARS, get_windows};
-use crate::{message_loop, util, CONFIG, DISPLAYS, CHANNEL, event::Event};
+use super::{get_bar_by_hmonitor, get_windows, redraw::redraw, window_cb, Bar, BARS};
+use crate::{event::Event, message_loop, util, CHANNEL, CONFIG, DISPLAYS};
 use log::{debug, error, info};
 use winapi::shared::windef::HBRUSH;
 use winapi::um::wingdi::CreateSolidBrush;
@@ -75,7 +75,7 @@ pub fn create() -> Result<(), util::WinApiResultError> {
             let mut bar = Bar::default();
 
             bar.hmonitor = display.hmonitor as i32;
-            bar.window.id = window_handle as i32;
+            bar.window.id = window_handle.into();
 
             BARS.lock().push(bar);
 

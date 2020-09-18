@@ -1,5 +1,5 @@
 use crate::event::Event;
-use crate::window::Window;
+use crate::system::NativeWindow;
 use crate::CHANNEL;
 use crate::GRIDS;
 use crate::{
@@ -9,7 +9,7 @@ use crate::{
 use log::debug;
 
 pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
-    let window_handle = Window::get_foreground_window()?;
+    let window = NativeWindow::get_foreground_window()?;
 
     let mut grids = GRIDS.lock();
     let gid = *WORKSPACE_ID.lock();
@@ -20,7 +20,7 @@ pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
         .map(|g| (g.id, g.get_focused_tile_mut())) // (grid_id, maybe_focused_tile)
         .filter(|t| t.1.is_some()) // check whether it is safe to unwrap
         .map(|t| (t.0, t.1.unwrap())) // unwrap focused_tile -> (grid_id, focused_tile)
-        .find(|t| t.1.window.id == window_handle as i32); // find me the tuple that has the window
+        .find(|t| t.1.window.id == window.id); // find me the tuple that has the window
 
     if let Some(tuple) = maybe_grid {
         let grid_id = tuple.0;
@@ -49,7 +49,7 @@ pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         CHANNEL.sender.clone().send(Event::WinEvent(WinEvent {
             typ: WinEventType::Show(true),
-            hwnd: window_handle as i32,
+            window,
         }))?;
     }
 

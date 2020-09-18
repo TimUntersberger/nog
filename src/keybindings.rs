@@ -6,10 +6,8 @@ use lazy_static::lazy_static;
 use log::{debug, error, info};
 use modifier::Modifier;
 use num_traits::FromPrimitive;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-};
 use parking_lot::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use winapi::um::winuser::{RegisterHotKey, UnregisterHotKey, WM_HOTKEY};
 
 pub mod key;
