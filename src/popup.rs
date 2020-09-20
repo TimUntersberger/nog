@@ -1,23 +1,19 @@
-use crate::{bar, display::get_primary_display, message_loop, util, system::NativeWindow, CONFIG};
-
+use crate::{bar, display::get_primary_display, message_loop, system::NativeWindow, util, CONFIG};
+use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use std::{ffi::CString, sync::Arc, thread};
-use winapi::shared::windef::HWND;
-use winapi::shared::windef::RECT;
-use winapi::um::wingdi::CreateSolidBrush;
-use winapi::um::wingdi::SetBkColor;
-use winapi::um::wingdi::SetTextColor;
-
-use winapi::um::winuser::{
-    BeginPaint, DefWindowProcA, EndPaint, GetDC, LoadCursorA, RegisterClassA, ReleaseDC, SetCursor,
-    ShowWindow, IDC_ARROW, PAINTSTRUCT, SW_SHOW, WM_PAINT, WM_SETCURSOR,
-};
 use winapi::{
     shared::minwindef::{HINSTANCE, LPARAM, LRESULT, UINT, WPARAM},
+    shared::windef::{HWND, RECT},
+    um::wingdi::CreateSolidBrush,
+    um::wingdi::SetBkColor,
+    um::wingdi::SetTextColor,
+    um::winuser::{
+        BeginPaint, DefWindowProcA, EndPaint, GetDC, LoadCursorA, RegisterClassA, ReleaseDC,
+        SetCursor, ShowWindow, IDC_ARROW, PAINTSTRUCT, SW_SHOW, WM_PAINT, WM_SETCURSOR,
+    },
     um::winuser::{DrawTextW, SetWindowPos, UnregisterClassA, DT_CALCRECT, WM_CLOSE, WNDCLASSA},
 };
-
-use lazy_static::lazy_static;
 
 lazy_static! {
     static ref POPUP: Mutex<Option<Popup>> = Mutex::new(None);

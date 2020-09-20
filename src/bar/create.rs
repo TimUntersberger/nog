@@ -1,4 +1,6 @@
-use super::{get_bar_by_hmonitor, get_windows, redraw::redraw, window_cb, Bar, BARS};
+use std::ffi::CString;
+
+use super::{get_windows, redraw::redraw, window_cb, with_bar_by, Bar, BARS};
 use crate::{event::Event, message_loop, util, CHANNEL, CONFIG, DISPLAYS};
 use log::{debug, error, info};
 use winapi::shared::windef::HBRUSH;
@@ -32,14 +34,17 @@ pub fn create() -> Result<(), util::WinApiResultError> {
 
     for display in DISPLAYS.lock().clone() {
         std::thread::spawn(move || unsafe {
-            if get_bar_by_hmonitor(display.hmonitor as i32).is_some() {
+            let c_name = CString::new(name).unwrap();
+
+            if with_bar_by(|b| b.display.id == display.id, |b| b.is_some()) {
                 error!(
-                    "Appbar for monitor {} already exists. Aborting",
-                    display.hmonitor as i32
+                    "Appbar for monitor {:?} already exists. Aborting",
+                    display.id
                 );
+                return;
             }
 
-            debug!("Creating appbar for display {}", display.hmonitor as i32);
+            debug!("Creating appbar for display {:?}", display.id);
 
             let working_area_width = display.working_area_width();
 
@@ -49,7 +54,7 @@ pub fn create() -> Result<(), util::WinApiResultError> {
 
             let class = WNDCLASSA {
                 hInstance: instance as HINSTANCE,
-                lpszClassName: name.as_ptr() as *const i8,
+                lpszClassName: c_name.as_ptr(),
                 lpfnWndProc: Some(window_cb),
                 hbrBackground: background_brush as HBRUSH,
                 ..WNDCLASSA::default()
@@ -59,11 +64,11 @@ pub fn create() -> Result<(), util::WinApiResultError> {
 
             let window_handle = winapi::um::winuser::CreateWindowExA(
                 winapi::um::winuser::WS_EX_NOACTIVATE | winapi::um::winuser::WS_EX_TOPMOST,
-                name.as_ptr() as *const i8,
-                name.as_ptr() as *const i8,
+                c_name.as_ptr(),
+                c_name.as_ptr(),
                 winapi::um::winuser::WS_POPUPWINDOW & !winapi::um::winuser::WS_BORDER,
                 display.working_area_left(),
-                display.working_area_top(),
+                display.working_area_top() - height,
                 working_area_width,
                 height,
                 std::ptr::null_mut(),
@@ -74,13 +79,12 @@ pub fn create() -> Result<(), util::WinApiResultError> {
 
             let mut bar = Bar::default();
 
-            bar.hmonitor = display.hmonitor as i32;
-            bar.window.id = window_handle.into();
+            bar.display = display;
+            bar.window = window_handle.into();
+            bar.window.show();
+            bar.window.redraw();
 
             BARS.lock().push(bar);
-
-            ShowWindow(window_handle, SW_SHOW);
-            redraw();
 
             message_loop::start(|_| true);
         });

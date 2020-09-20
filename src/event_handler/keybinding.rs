@@ -1,6 +1,6 @@
 use crate::{
     config::{rhai::engine, rule::Rule},
-    display::get_display_by_idx,
+    display::with_display_by_idx,
     event::Event,
     hot_reload::update_config,
     keybindings::{self, keybinding::Keybinding, keybinding_type::KeybindingType},
@@ -58,11 +58,11 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
         }
         KeybindingType::MoveWorkspaceToMonitor(monitor) => {
             let (grid_id, grid_old_monitor) = with_current_grid(|grid| {
-                let hmonitor = grid.display.hmonitor;
+                let old_id = grid.display.id;
 
-                grid.display = get_display_by_idx(monitor);
+                grid.display = with_display_by_idx(monitor, |d| d.unwrap().clone());
 
-                (grid.id, hmonitor)
+                (grid.id, old_id)
             });
 
             VISIBLE_WORKSPACES.lock().insert(grid_old_monitor, 0);

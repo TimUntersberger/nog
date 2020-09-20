@@ -1,6 +1,6 @@
 use crate::{
-    bar, config::Config, display::get_display_by_hmonitor, keybindings, startup, task_bar,
-    with_current_grid, CONFIG, DISPLAYS, GRIDS, WORK_MODE,
+    bar, config::Config, keybindings, startup, task_bar, with_current_grid, CONFIG, GRIDS,
+    WORK_MODE,
 };
 
 pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error>> {
@@ -9,19 +9,16 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
     let config = CONFIG.lock().clone();
     let work_mode = *WORK_MODE.lock();
     let mut draw_app_bar = false;
-    let mut update_grid_displays = false;
 
     if work_mode {
         if config.remove_task_bar && !new_config.remove_task_bar {
             task_bar::show_taskbars();
             bar::close::close();
             draw_app_bar = new_config.display_app_bar;
-            update_grid_displays = true;
         } else if !config.remove_task_bar && new_config.remove_task_bar {
             task_bar::hide_taskbars();
             bar::close::close();
             draw_app_bar = new_config.display_app_bar;
-            update_grid_displays = true;
         }
 
         if config.display_app_bar && new_config.display_app_bar {
@@ -31,26 +28,8 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
             }
         } else if config.display_app_bar && !new_config.display_app_bar {
             bar::close::close();
-
-            for d in DISPLAYS.lock().iter_mut() {
-                d.bottom += config.bar.height;
-            }
-
-            update_grid_displays = true;
         } else if !config.display_app_bar && new_config.display_app_bar {
             draw_app_bar = true;
-
-            for d in DISPLAYS.lock().iter_mut() {
-                d.bottom -= config.bar.height;
-            }
-
-            update_grid_displays = true;
-        }
-
-        if update_grid_displays {
-            for grid in GRIDS.lock().iter_mut() {
-                grid.display = get_display_by_hmonitor(grid.display.hmonitor);
-            }
         }
     }
 

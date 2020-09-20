@@ -64,7 +64,7 @@ fn create_component(name: ImmutableString, render_fn: FnPtr, options: Map) -> Co
                             &mut *scope,
                             &*ast,
                             &fn_name,
-                            (component.clone(), *display, idx as i32),
+                            (component.clone(), display.clone(), idx as i32),
                         )
                         .map_err(|e| error!("{}", e.to_string()));
                 }));

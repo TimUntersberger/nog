@@ -1,7 +1,12 @@
 use thiserror::Error;
 
+pub mod win;
+
+pub use win::api;
+pub use win::win_event_listener::WinEventListener;
+pub use win::Window as NativeWindow;
+
 pub type SpecificError = win::WinError;
-pub type NativeWindow = win::WinWindow;
 
 #[derive(Debug, Default, PartialEq, Clone, Copy)]
 pub struct WindowId(i32);
@@ -27,6 +32,32 @@ impl From<i32> for WindowId {
 impl PartialEq<i32> for WindowId {
     fn eq(&self, other: &i32) -> bool {
         self.0 == *other
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialOrd, PartialEq, Hash, Eq)]
+pub struct DisplayId(i32);
+
+impl PartialEq<i32> for DisplayId {
+    fn eq(&self, other: &i32) -> bool {
+        self.0 == *other
+    }
+}
+
+#[derive(Default, Debug, Copy, Clone)]
+pub struct Rectangle {
+    pub left: i32,
+    pub right: i32,
+    pub top: i32,
+    pub bottom: i32,
+}
+
+impl Rectangle {
+    pub fn width(&self) -> i32 {
+        self.right - self.left
+    }
+    pub fn height(&self) -> i32 {
+        self.bottom - self.top
     }
 }
 
@@ -57,5 +88,3 @@ pub enum SystemError {
 }
 
 pub type SystemResult<T = ()> = Result<T, SystemError>;
-
-pub mod win;

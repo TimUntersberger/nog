@@ -1,12 +1,10 @@
 use crate::{
-    system::NativeWindow,
-    workspace::change_workspace, ADDITIONAL_RULES, CONFIG, GRIDS, WORKSPACE_ID,
+    system::NativeWindow, workspace::change_workspace, ADDITIONAL_RULES, CONFIG, GRIDS,
+    WORKSPACE_ID,
 };
 use log::debug;
 
 pub fn handle(mut window: NativeWindow, force: bool) -> Result<(), Box<dyn std::error::Error>> {
-    window.title = window.get_title()?;
-
     let min_width = CONFIG.lock().min_width;
     let min_height = CONFIG.lock().min_height;
 

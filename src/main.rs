@@ -18,6 +18,7 @@ use log::{error, info};
 use parking_lot::{deadlock, Mutex};
 use std::collections::HashMap;
 use std::{thread, time::Duration};
+use system::{DisplayId, SystemResult, WinEventListener};
 use tile_grid::TileGrid;
 use winapi::shared::windef::HWND;
 use workspace::Workspace;
@@ -56,21 +57,22 @@ lazy_static! {
     pub static ref DISPLAYS: Mutex<Vec<Display>> = Mutex::new(Vec::new());
     pub static ref CHANNEL: EventChannel = EventChannel::default();
     pub static ref ADDITIONAL_RULES: Mutex<Vec<Rule>> = Mutex::new(Vec::new());
+    pub static ref WIN_EVENT_LISTENER: WinEventListener = WinEventListener::default();
     pub static ref GRIDS: Mutex<Vec<TileGrid>> =
         Mutex::new((1..11).map(TileGrid::new).collect::<Vec<TileGrid>>());
     pub static ref WORKSPACES: Mutex<Vec<Workspace>> =
         Mutex::new((1..11).map(Workspace::new).collect::<Vec<Workspace>>());
-    pub static ref VISIBLE_WORKSPACES: Mutex<HashMap<i32, i32>> = Mutex::new(HashMap::new());
+    pub static ref VISIBLE_WORKSPACES: Mutex<HashMap<DisplayId, i32>> = Mutex::new(HashMap::new());
     pub static ref WORKSPACE_ID: Mutex<i32> = Mutex::new(1);
 }
 
-fn unmanage_everything() -> Result<(), util::WinApiResultError> {
+fn unmanage_everything() -> SystemResult {
     let mut grids = GRIDS.lock();
 
     for grid in grids.iter_mut() {
         for tile in &mut grid.tiles.clone() {
             grid.close_tile_by_window_id(tile.window.id);
-            tile.window.cleanup();
+            tile.window.cleanup()?;
         }
     }
 
@@ -94,7 +96,7 @@ where
     f(&mut grid)
 }
 
-fn on_quit() -> Result<(), util::WinApiResultError> {
+fn on_quit() -> SystemResult {
     unmanage_everything()?;
 
     popup::cleanup();
@@ -107,7 +109,7 @@ fn on_quit() -> Result<(), util::WinApiResultError> {
         task_bar::show_taskbars();
     }
 
-    win_event_handler::unregister()?;
+    WIN_EVENT_LISTENER.stop();
 
     std::process::exit(0);
 }
@@ -125,7 +127,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     popup::init();
 
     for display in DISPLAYS.lock().iter() {
-        VISIBLE_WORKSPACES.lock().insert(display.hmonitor, 0);
+        VISIBLE_WORKSPACES.lock().insert(display.id, 0);
     }
 
     info!("Starting hot reloading of config");
@@ -164,6 +166,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }.map_err(|e| {
                     error!("{:?}", e);
+                    crate::system::win::api::print_last_error();
                 });
             }
         }

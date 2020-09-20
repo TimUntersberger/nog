@@ -1,14 +1,17 @@
-use super::{SystemError, SystemResult, WindowId};
+use super::{DisplayId, Rectangle, SystemError, SystemResult, WindowId};
 use crate::{
-    util,
-    display::Display, window::gwl_ex_style::GwlExStyle, window::gwl_style::GwlStyle, Rule, CONFIG,
+    display::Display, util, window::gwl_ex_style::GwlExStyle, window::gwl_style::GwlStyle, Rule,
+    CONFIG,
 };
+use log::error;
 use thiserror::Error;
 use winapi::{
     shared::{minwindef::*, windef::*},
-    um::{*, winnt::*, psapi::*, winuser::*, errhandlingapi::*},
+    um::{errhandlingapi::*, psapi::*, winnt::*, winuser::*, *},
 };
-use log::error;
+
+pub mod api;
+pub mod win_event_listener;
 
 impl From<HWND> for WindowId {
     fn from(val: HWND) -> Self {
@@ -22,6 +25,36 @@ impl Into<HWND> for WindowId {
     }
 }
 
+impl PartialEq<HWND> for WindowId {
+    fn eq(&self, other: &HWND) -> bool {
+        self.0 == (*other) as i32
+    }
+}
+
+impl From<HMONITOR> for DisplayId {
+    fn from(val: HMONITOR) -> Self {
+        Self(val as i32)
+    }
+}
+
+impl Into<HMONITOR> for DisplayId {
+    fn into(self) -> HMONITOR {
+        self.0 as HMONITOR
+    }
+}
+
+impl From<HMONITOR> for Display {
+    fn from(val: HMONITOR) -> Self {
+        Self::new(val.into())
+    }
+}
+
+impl PartialEq<i32> for Display {
+    fn eq(&self, other: &i32) -> bool {
+        self.id == *other
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum WinError {
     #[error("Winapi return value is null")]
@@ -32,16 +65,8 @@ pub enum WinError {
 
 type WinResult<T = ()> = Result<T, WinError>;
 
-#[derive(Default, Debug, Copy, Clone)]
-pub struct Rectangle {
-    pub left: i32,
-    pub right: i32,
-    pub top: i32,
-    pub bottom: i32,
-}
-
-impl Rectangle {
-    pub fn from_winapi_rect(rect: RECT) -> Self {
+impl From<RECT> for Rectangle {
+    fn from(rect: RECT) -> Self {
         Self {
             left: rect.left,
             right: rect.right,
@@ -71,10 +96,8 @@ fn lresult_to_result(v: LRESULT) -> WinResult<LRESULT> {
     Ok(v)
 }
 
-mod api {}
-
 #[derive(Debug, Clone)]
-pub struct WinWindow {
+pub struct Window {
     pub id: WindowId,
     pub title: String,
     pub maximized: bool,
@@ -85,31 +108,38 @@ pub struct WinWindow {
     pub original_rect: Rectangle,
 }
 
-impl PartialEq<i32> for WinWindow {
+impl PartialEq<i32> for Window {
     fn eq(&self, other: &i32) -> bool {
         self.id == *other
     }
 }
 
-impl From<WindowId> for WinWindow {
+impl From<WindowId> for Window {
     fn from(val: WindowId) -> Self {
-        let mut window = WinWindow::new();
+        let mut window = Window::new();
         window.id = val;
         window
     }
 }
 
-impl From<HWND> for WinWindow {
+impl From<HWND> for Window {
     fn from(val: HWND) -> Self {
-        let mut window = WinWindow::new();
+        let mut window = Window::new();
         window.id = val.into();
         window
     }
 }
 
-impl WinWindow {
+impl Window {
+    pub fn is_hidden(&self) -> bool {
+        unsafe { IsWindowVisible(self.id.into()) == 1 }
+    }
+    pub fn is_visible(&self) -> bool {
+        !self.is_hidden()
+    }
     pub fn should_manage(&self) -> bool {
-        self.original_style.contains(GwlStyle::CAPTION) && !self.exstyle.contains(GwlExStyle::DLGMODALFRAME)
+        self.original_style.contains(GwlStyle::CAPTION)
+            && !self.exstyle.contains(GwlExStyle::DLGMODALFRAME)
     }
     pub fn remove_title_bar(&mut self) -> SystemResult {
         let rule = self.rule.clone().unwrap_or_default();
@@ -121,11 +151,28 @@ impl WinWindow {
             self.style.insert(GwlStyle::BORDER);
         }
         self.update_style()
-            .map(|_|{})
+            .map(|_| {})
             .map_err(SystemError::Unknown)
-   }
-    pub fn get_foreground_window() -> WinResult<WinWindow> {
+    }
+    pub fn get_display(&self) -> WinResult<Display> {
+        unsafe {
+            nullable_to_result(MonitorFromWindow(self.id.into(), MONITOR_DEFAULTTONULL).into())
+        }
+    }
+    pub fn get_foreground_window() -> WinResult<Window> {
         unsafe { nullable_to_result(GetForegroundWindow().into()) }
+    }
+    pub fn get_class_name(&self) -> WinResult<String> {
+        let mut buffer = [0; 0x200];
+
+        unsafe {
+            nullable_to_result(GetClassNameA(
+                self.id.into(),
+                buffer.as_mut_ptr(),
+                buffer.len() as i32,
+            ))
+            .map(|_| util::bytes_to_string(&buffer))
+        }
     }
     pub fn get_parent_window(&self) -> WinResult<WindowId> {
         unsafe { nullable_to_result(GetParent(self.id.into()).into()) }
@@ -138,11 +185,8 @@ impl WinWindow {
     }
     pub fn get_ex_style(&self) -> WinResult<GwlExStyle> {
         unsafe {
-            nullable_to_result(GetWindowLongA(
-                self.id.into(),
-                GWL_EXSTYLE,
-            ))
-            .map(|x| GwlExStyle::from_bits_unchecked(x as u32 as i32))
+            nullable_to_result(GetWindowLongA(self.id.into(), GWL_EXSTYLE))
+                .map(|x| GwlExStyle::from_bits_unchecked(x as u32 as i32))
         }
     }
     pub fn get_title(&self) -> WinResult<String> {
@@ -153,14 +197,14 @@ impl WinWindow {
                 self.id.into(),
                 buffer.as_mut_ptr(),
                 buffer.len() as i32,
-            )).map(|_| util::bytes_to_string(&buffer))
+            ))
+            .map(|_| util::bytes_to_string(&buffer))
         }
     }
     pub fn get_rect(&self) -> WinResult<Rectangle> {
         unsafe {
             let mut temp = RECT::default();
-            nullable_to_result(GetWindowRect(self.id.into(), &mut temp))
-                .map(|_| Rectangle::from_winapi_rect(temp))
+            nullable_to_result(GetWindowRect(self.id.into(), &mut temp)).map(|_| temp.into())
         }
     }
     pub fn reset_style(&mut self) {
@@ -168,11 +212,7 @@ impl WinWindow {
     }
     pub fn update_style(&self) -> WinResult<i32> {
         unsafe {
-            nullable_to_result::<i32>(SetWindowLongA(
-                self.id.into(),
-                GWL_STYLE,
-                self.style.bits(),
-            ))
+            nullable_to_result::<i32>(SetWindowLongA(self.id.into(), GWL_STYLE, self.style.bits()))
         }
     }
     /// TODO: extract somewhere else
@@ -186,15 +226,10 @@ impl WinWindow {
         height: i32,
     ) -> RECT {
         let rule = self.rule.clone().unwrap_or_default();
-        let (display_app_bar, remove_title_bar, bar_height, use_border) = {
+        let (remove_title_bar, use_border) = {
             let config = CONFIG.lock();
 
-            (
-                config.display_app_bar,
-                config.remove_title_bar,
-                config.bar.height,
-                config.use_border,
-            )
+            (config.remove_title_bar, config.use_border)
         };
 
         let mut left = x;
@@ -218,11 +253,6 @@ impl WinWindow {
                     top += 1;
                     bottom -= 1;
                 }
-            }
-
-            if display_app_bar {
-                top += bar_height;
-                bottom += bar_height;
             }
 
             if rule.firefox || rule.chromium || (!remove_title_bar && rule.has_custom_titlebar) {
@@ -252,7 +282,7 @@ impl WinWindow {
             bottom,
         };
 
-        //println!("before {}", rect_to_string(rect));
+        // println!("before {}", rect_to_string(rect));
 
         unsafe {
             AdjustWindowRectEx(
@@ -271,11 +301,7 @@ impl WinWindow {
     pub fn to_foreground(&self, topmost: bool) -> WinResult {
         self.set_window_pos(
             Rectangle::default(),
-            Some(if topmost {
-                HWND_TOPMOST
-            } else {
-                HWND_TOP
-            }),
+            Some(if topmost { HWND_TOPMOST } else { HWND_TOP }),
             Some(SWP_NOMOVE | SWP_NOSIZE),
         )
     }
@@ -304,7 +330,7 @@ impl WinWindow {
             ))
         }
     }
-    pub fn reset_pos(&self) -> WinResult {
+    fn reset_pos(&self) -> WinResult {
         self.set_window_pos(self.original_rect, None, None)
     }
     pub fn get_process_name(&self) -> String {
@@ -321,8 +347,11 @@ impl WinWindow {
         unsafe {
             let mut process_id = 0;
             GetWindowThreadProcessId(self.id.into(), &mut process_id);
-            let process_handle =
-                processthreadsapi::OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, process_id);
+            let process_handle = processthreadsapi::OpenProcess(
+                PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
+                0,
+                process_id,
+            );
 
             if process_handle as i32 == 0 {
                 error!("winapi: {}", GetLastError());
@@ -363,30 +392,21 @@ impl WinWindow {
 
         Ok(())
     }
-    pub fn show(&self) -> SystemResult {
+    pub fn show(&self) {
         unsafe {
-            bool_to_result(ShowWindow(self.id.into(), SW_SHOW))
-                .map(|_| {})
-                .map_err(SystemError::ShowWindow)
+            ShowWindow(self.id.into(), SW_SHOW);
         }
     }
-    pub fn hide(&self) -> SystemResult {
+    pub fn hide(&self) {
         unsafe {
-            bool_to_result(ShowWindow(self.id.into(), SW_HIDE))
-                .map(|_| {})
-                .map_err(SystemError::HideWindow)
+            ShowWindow(self.id.into(), SW_HIDE);
         }
     }
     pub fn close(&self) -> SystemResult {
         unsafe {
-            lresult_to_result(SendMessageA(
-                self.id.into(),
-                WM_SYSCOMMAND,
-                SC_CLOSE,
-                0,
-            ))
-            .map(|_| {})
-            .map_err(SystemError::CloseWindow)
+            lresult_to_result(SendMessageA(self.id.into(), WM_SYSCOMMAND, SC_CLOSE, 0))
+                .map(|_| {})
+                .map_err(SystemError::CloseWindow)
         }
     }
     pub fn focus(&self) -> SystemResult {
@@ -416,7 +436,7 @@ impl WinWindow {
 
         Ok(())
     }
-    pub fn restore(&self) -> WinResult {
+    fn restore(&self) -> WinResult {
         unsafe {
             lresult_to_result(SendMessageA(self.id.into(), WM_SYSCOMMAND, SC_RESTORE, 0))
                 .map(|_| {})
@@ -424,26 +444,16 @@ impl WinWindow {
     }
     pub fn minimize(&self) -> SystemResult {
         unsafe {
-            lresult_to_result(SendMessageA(
-                self.id.into(),
-                WM_SYSCOMMAND,
-                SC_MINIMIZE,
-                0,
-            ))
-            .map(|_| {})
-            .map_err(SystemError::MinimizeWindow)
+            lresult_to_result(SendMessageA(self.id.into(), WM_SYSCOMMAND, SC_MINIMIZE, 0))
+                .map(|_| {})
+                .map_err(SystemError::MinimizeWindow)
         }
     }
     pub fn maximize(&self) -> SystemResult {
         unsafe {
-            lresult_to_result(SendMessageA(
-                self.id.into(),
-                WM_SYSCOMMAND,
-                SC_MAXIMIZE,
-                0,
-            ))
-            .map(|_| {})
-            .map_err(SystemError::MaximizeWindow)
+            lresult_to_result(SendMessageA(self.id.into(), WM_SYSCOMMAND, SC_MAXIMIZE, 0))
+                .map(|_| {})
+                .map_err(SystemError::MaximizeWindow)
         }
     }
 }

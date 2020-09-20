@@ -1,4 +1,4 @@
-use crate::{with_current_grid, system::NativeWindow};
+use crate::{system::NativeWindow, with_current_grid};
 
 pub fn handle(window: NativeWindow) -> Result<(), Box<dyn std::error::Error>> {
     with_current_grid(|grid| {

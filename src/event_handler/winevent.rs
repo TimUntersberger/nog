@@ -24,6 +24,7 @@ pub fn handle(ev: WinEvent) -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    // window is not already managed and the event isn't `Show`
     if title.is_none() && ev.typ != WinEventType::Show(false) && ev.typ != WinEventType::Show(true)
     {
         return Ok(());

@@ -1,165 +1,187 @@
-use crate::task_bar;
-use crate::CONFIG;
-use crate::DISPLAYS;
-use std::cmp::Ordering;
-use winapi::shared::minwindef::BOOL;
-use winapi::shared::minwindef::LPARAM;
-use winapi::shared::windef::{HDC, HMONITOR, LPRECT, RECT};
-use winapi::um::shellscalingapi::{GetDpiForMonitor, MDT_RAW_DPI};
-use winapi::um::winuser::EnumDisplayMonitors;
+use task_bar::TaskbarPosition;
 
-#[derive(Default, Debug, Clone, Copy)]
+use crate::DISPLAYS;
+use crate::{system::DisplayId, CONFIG};
+use crate::{
+    system::{api, Rectangle},
+    task_bar,
+};
+use std::cmp::Ordering;
+
+#[derive(Default, Debug, Clone)]
 pub struct Display {
-    pub hmonitor: i32,
+    pub id: DisplayId,
     pub dpi: u32,
-    pub is_primary: bool,
-    pub left: i32,
-    pub right: i32,
-    pub top: i32,
-    pub bottom: i32,
-    pub task_bar: Option<task_bar::TaskBar>,
+    pub rect: Rectangle,
+    pub taskbar: Option<task_bar::Taskbar>,
 }
 
 impl Display {
     pub fn height(&self) -> i32 {
-        self.bottom - self.top
+        self.rect.height()
     }
     pub fn width(&self) -> i32 {
-        self.right - self.left
+        self.rect.width()
+    }
+    pub fn is_primary(&self) -> bool {
+        self.rect.left == 0 && self.rect.top == 0
+    }
+    pub fn get_rect(&self) -> Rectangle {
+        api::get_display_rect(self.id)
     }
     pub fn working_area_height(&self) -> i32 {
-        let task_bar_height = if let Some(task_bar) = self.task_bar {
-            match task_bar.position {
-                task_bar::TaskBarPosition::Top | task_bar::TaskBarPosition::Bottom => {
-                    task_bar.height
+        let tb_height = self
+            .taskbar
+            .clone()
+            .map(|tb| match tb.position {
+                // Should probably handle the error at some point instead of just unwraping
+                TaskbarPosition::Top | TaskbarPosition::Bottom => {
+                    tb.window.get_rect().unwrap().height()
                 }
                 _ => 0,
-            }
-        } else {
-            0
-        };
+            })
+            .unwrap_or(0);
 
-        self.height() - task_bar_height
+        self.height()
+            - if CONFIG.lock().remove_task_bar {
+                0
+            } else {
+                tb_height
+            }
+            - if CONFIG.lock().display_app_bar {
+                CONFIG.lock().bar.height
+            } else {
+                0
+            }
+    }
+    pub fn get_taskbar_position(&self) -> TaskbarPosition {
+        // Should probably handle the error at some point instead of just unwraping
+        let task_bar_rect = self.taskbar.clone().unwrap().window.get_rect().unwrap();
+        if self.rect.left == task_bar_rect.left
+            && self.rect.top == task_bar_rect.top
+            && self.rect.bottom == task_bar_rect.bottom
+        {
+            TaskbarPosition::Left
+        } else if self.rect.right == task_bar_rect.right
+            && self.rect.top == task_bar_rect.top
+            && self.rect.bottom == task_bar_rect.bottom
+        {
+            TaskbarPosition::Right
+        } else if self.rect.left == task_bar_rect.left
+            && self.rect.top == task_bar_rect.top
+            && self.rect.right == task_bar_rect.right
+        {
+            TaskbarPosition::Top
+        } else {
+            TaskbarPosition::Bottom
+        }
     }
     pub fn working_area_width(&self) -> i32 {
-        let task_bar_width = if self.task_bar.is_some() {
-            let task_bar = self.task_bar.unwrap();
-            match task_bar.position {
-                task_bar::TaskBarPosition::Left | task_bar::TaskBarPosition::Right => {
-                    task_bar.width
+        let tb_width = self
+            .taskbar
+            .clone()
+            .map(|tb| match tb.position {
+                // Should probably handle the error at some point instead of just unwraping
+                TaskbarPosition::Left | TaskbarPosition::Right => {
+                    tb.window.get_rect().unwrap().width()
                 }
                 _ => 0,
-            }
-        } else {
-            0
-        };
+            })
+            .unwrap_or(0);
 
-        self.width() - task_bar_width
+        self.width()
+            - if CONFIG.lock().remove_task_bar {
+                0
+            } else {
+                tb_width
+            }
     }
     pub fn working_area_top(&self) -> i32 {
-        let offset = if let Some(task_bar) = self.task_bar {
-            match task_bar.position {
-                task_bar::TaskBarPosition::Top => task_bar.height,
+        let mut offset = self
+            .taskbar
+            .clone()
+            .map(|t| match t.position {
+                // Should probably handle the error at some point instead of just unwraping
+                TaskbarPosition::Top => t.window.get_rect().unwrap().height(),
                 _ => 0,
-            }
-        } else {
-            0
-        };
-        self.top + offset
-    }
-    pub fn working_area_left(&self) -> i32 {
-        let offset = if let Some(task_bar) = self.task_bar {
-            match task_bar.position {
-                task_bar::TaskBarPosition::Left => task_bar.width,
-                _ => 0,
-            }
-        } else {
-            0
-        };
-        self.left + offset
-    }
-    pub fn new(hmonitor: HMONITOR, rect: RECT) -> Self {
-        let mut display = Display::default();
+            })
+            .unwrap_or(0);
+
         let config = CONFIG.lock();
-        let mut dpi_x: u32 = 0;
-        let mut dpi_y: u32 = 0;
-
-        unsafe {
-            GetDpiForMonitor(hmonitor, MDT_RAW_DPI, &mut dpi_x, &mut dpi_y);
-        }
-        display.dpi = dpi_x;
-        display.hmonitor = hmonitor as i32;
-        display.left = rect.left;
-        display.right = rect.right;
-        display.top = rect.top;
-        display.bottom = rect.bottom;
-
-        display.is_primary = display.left == 0 && display.top == 0;
 
         if config.display_app_bar {
-            display.bottom -= config.bar.height;
+            offset += config.bar.height;
         }
+
+        self.rect.top + offset
+    }
+    pub fn working_area_left(&self) -> i32 {
+        let offset = self
+            .taskbar
+            .clone()
+            .map(|t| match t.position {
+                // Should probably handle the error at some point instead of just unwraping
+                TaskbarPosition::Left => t.window.get_rect().unwrap().width(),
+                _ => 0,
+            })
+            .unwrap_or(0);
+
+        self.rect.left + offset
+    }
+    pub fn new(id: DisplayId) -> Self {
+        let mut display = Display::default();
+
+        display.dpi = api::get_display_dpi(id);
+        display.id = id;
+        display.rect = display.get_rect();
 
         display
     }
 }
 
-unsafe extern "system" fn monitor_cb(hmonitor: HMONITOR, _: HDC, rect: LPRECT, _: LPARAM) -> BOOL {
-    let display = Display::new(hmonitor, *rect);
-
-    if CONFIG.lock().multi_monitor || display.is_primary {
-        DISPLAYS.lock().push(display);
-    }
-
-    1
-}
-
 pub fn init() {
-    unsafe {
-        //is synchronous so don't have to worry about race conditions
-        EnumDisplayMonitors(
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            Some(monitor_cb),
-            0,
-        );
+    let mut displays = api::get_displays();
+
+    if !CONFIG.lock().multi_monitor {
+        displays = displays
+            .iter_mut()
+            .filter(|d| d.is_primary())
+            .map(|d| d.to_owned())
+            .collect();
     }
 
-    {
-        let mut displays = DISPLAYS.lock();
+    displays.sort_by(|x, y| {
+        let ordering = y.rect.left.cmp(&x.rect.left);
 
-        displays.sort_by(|x, y| {
-            let ordering = y.left.cmp(&x.left);
+        if ordering == Ordering::Equal {
+            return y.rect.top.cmp(&x.rect.top);
+        }
 
-            if ordering == Ordering::Equal {
-                return y.top.cmp(&x.top);
-            }
+        ordering
+    });
 
-            ordering
-        });
-    }
+    *DISPLAYS.lock() = displays;
 
     task_bar::update_task_bars();
 }
 
+pub fn with_display_by<TF, TCb, TReturn>(f: TF, cb: TCb) -> TReturn
+where
+    TF: Fn(&&mut Display) -> bool,
+    TCb: Fn(Option<&mut Display>) -> TReturn,
+{
+    cb(DISPLAYS.lock().iter_mut().find(f))
+}
+
 pub fn get_primary_display() -> Display {
-    *DISPLAYS
-        .lock()
-        .iter()
-        .find(|d| d.is_primary)
-        .expect("Couldn't find primary display")
+    with_display_by(|d| d.is_primary(), |d| d.unwrap().clone())
 }
 
-pub fn get_display_by_hmonitor(hmonitor: i32) -> Display {
-    *DISPLAYS
-        .lock()
-        .iter()
-        .find(|d| d.hmonitor == hmonitor)
-        .expect(format!("Couldn't find display with hmonitor of {}", hmonitor).as_str())
-}
-
-pub fn get_display_by_idx(idx: i32) -> Display {
-    let displays = DISPLAYS.lock();
+pub fn with_display_by_idx<TCb, TReturn>(idx: i32, cb: TCb) -> TReturn
+where
+    TCb: Fn(Option<&mut Display>) -> TReturn,
+{
+    let mut displays = DISPLAYS.lock();
 
     let x: usize = if idx == -1 {
         0
@@ -167,7 +189,5 @@ pub fn get_display_by_idx(idx: i32) -> Display {
         std::cmp::max(displays.len() - (idx as usize), 0)
     };
 
-    *displays
-        .get(x)
-        .expect(format!("Couldn't get display at index {}", x).as_str())
+    cb(displays.get_mut(x))
 }

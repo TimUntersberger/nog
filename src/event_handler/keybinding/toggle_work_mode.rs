@@ -2,9 +2,9 @@ use crate::bar;
 use crate::info;
 use crate::task_bar;
 use crate::unmanage_everything;
-use crate::win_event_handler;
 use crate::workspace::change_workspace;
 use crate::CONFIG;
+use crate::WIN_EVENT_LISTENER;
 use crate::{popup, WORK_MODE};
 
 pub fn initialize() -> Result<(), Box<dyn std::error::Error>> {
@@ -21,7 +21,7 @@ pub fn turn_work_mode_off(
     display_app_bar: bool,
     remove_task_bar: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    win_event_handler::unregister()?;
+    WIN_EVENT_LISTENER.stop();
 
     popup::close();
 
@@ -50,7 +50,7 @@ pub fn turn_work_mode_on(
     }
 
     info!("Registering windows event handler");
-    win_event_handler::register()?;
+    WIN_EVENT_LISTENER.start();
 
     info!("Initializing bars");
 

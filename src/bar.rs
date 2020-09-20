@@ -1,7 +1,7 @@
-use crate::{CONFIG, system::{WindowId, NativeWindow}};
+use crate::{display::Display, util};
 use crate::{
-    display::{get_display_by_hmonitor, Display},
-    util
+    system::{NativeWindow, WindowId},
+    CONFIG,
 };
 use font::load_font;
 use lazy_static::lazy_static;
@@ -58,10 +58,10 @@ lazy_static! {
     pub static ref FONT: Mutex<i32> = Mutex::new(0);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Bar {
     window: NativeWindow,
-    hmonitor: i32,
+    display: Display,
     left: ItemSection,
     center: ItemSection,
     right: ItemSection,
@@ -71,7 +71,7 @@ impl Default for Bar {
     fn default() -> Self {
         Self {
             window: NativeWindow::new(),
-            hmonitor: 0,
+            display: Display::default(),
             left: ItemSection::default(),
             center: ItemSection::default(),
             right: ItemSection::default(),
@@ -200,17 +200,6 @@ unsafe fn clear_section(hdc: HDC, height: i32, left: i32, right: i32) {
     DeleteObject(brush as *mut std::ffi::c_void);
 }
 
-fn update_bar(bar: Bar) {
-    let mut bars = BARS.lock();
-
-    let mut_bar = bars
-        .iter_mut()
-        .find(|b| b.hmonitor == bar.hmonitor)
-        .unwrap();
-
-    *mut_bar = bar;
-}
-
 unsafe extern "system" fn window_cb(
     hwnd: HWND,
     msg: UINT,
@@ -228,57 +217,67 @@ unsafe extern "system" fn window_cb(
         let mut point = POINT::default();
         GetCursorPos(&mut point);
 
-        let bar = get_bar_by_hwnd(hwnd.into()).unwrap();
-        let display = get_display_by_hmonitor(bar.hmonitor);
-        let x = point.x - display.left;
-        let mut found = false;
+        with_bar_by(
+            |b| b.window.id == hwnd,
+            |b| {
+                if let Some(bar) = b {
+                    let x = point.x - bar.display.rect.left;
+                    let mut found = false;
 
-        for section in vec![bar.left, bar.center, bar.right] {
-            if section.left <= x && x <= section.right {
-                for item in section.items {
-                    if item.left <= x && x <= item.right {
-                        if item.component.is_clickable {
-                            found = true;
+                    for section in vec![&bar.left, &bar.center, &bar.right] {
+                        if section.left <= x && x <= section.right {
+                            for item in &section.items {
+                                if item.left <= x && x <= item.right {
+                                    if item.component.is_clickable {
+                                        found = true;
+                                    }
+
+                                    break;
+                                }
+                            }
                         }
+                    }
 
-                        break;
+                    if found {
+                        SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_HAND as *const i8));
+                    } else {
+                        SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8));
                     }
                 }
-            }
-        }
-
-        if found {
-            SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_HAND as *const i8));
-        } else {
-            SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8));
-        }
+            },
+        )
     } else if msg == WM_DEVICECHANGE {
         println!("Device change!");
     } else if msg == WM_LBUTTONDOWN {
         let mut point = POINT::default();
         GetCursorPos(&mut point);
 
-        let bar = get_bar_by_hwnd(hwnd.into()).unwrap();
-        let display = get_display_by_hmonitor(bar.hmonitor);
-        let x = point.x - display.left;
+        with_bar_by(
+            |b| b.window.id == hwnd,
+            |b| {
+                if let Some(bar) = b {
+                    let x = point.x - bar.display.rect.left;
 
-        for section in vec![bar.left, bar.center, bar.right] {
-            if section.left <= x && x <= section.right {
-                for item in section.items.iter() {
-                    if item.left <= x && x <= item.right {
-                        if item.component.is_clickable {
-                            for (i, width) in item.widths.iter().enumerate() {
-                                if width.0 <= x && x <= width.1 {
-                                    item.component.on_click(&display, i);
+                    for section in vec![&bar.left, &bar.center, &bar.right] {
+                        if section.left <= x && x <= section.right {
+                            for item in section.items.iter() {
+                                if item.left <= x && x <= item.right {
+                                    if item.component.is_clickable {
+                                        for (i, width) in item.widths.iter().enumerate() {
+                                            if width.0 <= x && x <= width.1 {
+                                                item.component.on_click(&bar.display, i);
+                                            }
+                                        }
+                                    }
+
+                                    break;
                                 }
                             }
                         }
-
-                        break;
                     }
                 }
-            }
-        }
+            },
+        );
     } else if msg == WM_CREATE {
         info!("loading font");
         load_font();
@@ -286,90 +285,99 @@ unsafe extern "system" fn window_cb(
         let bar_config = CONFIG.lock().bar.clone();
         let mut paint = PAINTSTRUCT::default();
 
-        let mut bar = get_bar_by_hwnd(hwnd.into()).unwrap();
-        let display = get_display_by_hmonitor(bar.hmonitor);
-
         BeginPaint(hwnd, &mut paint);
 
-        let hdc = GetDC(hwnd);
+        with_bar_by(
+            |b| b.window.id == hwnd,
+            |b| {
+                if let Some(bar) = b {
+                    let hdc = GetDC(hwnd);
 
-        font::set_font(hdc);
+                    font::set_font(hdc);
 
-        let left = components_to_section(hdc, &display, &bar_config.components.left);
+                    let left =
+                        components_to_section(hdc, &bar.display, &bar_config.components.left);
 
-        let mut center = components_to_section(hdc, &display, &bar_config.components.center);
-        center.left = display.working_area_width() / 2 - center.right / 2;
-        center.right += center.left;
+                    let mut center =
+                        components_to_section(hdc, &bar.display, &bar_config.components.center);
+                    center.left = bar.display.working_area_width() / 2 - center.right / 2;
+                    center.right += center.left;
 
-        let mut right = components_to_section(hdc, &display, &bar_config.components.right);
-        right.left = display.working_area_width() - right.right;
-        right.right += right.left;
+                    let mut right =
+                        components_to_section(hdc, &bar.display, &bar_config.components.right);
+                    right.left = bar.display.working_area_width() - right.right;
+                    right.right += right.left;
 
-        draw_components(
-            hdc,
-            &display,
-            bar_config.height,
-            left.left,
-            &bar_config.components.left,
+                    draw_components(
+                        hdc,
+                        &bar.display,
+                        bar_config.height,
+                        left.left,
+                        &bar_config.components.left,
+                    );
+                    draw_components(
+                        hdc,
+                        &bar.display,
+                        bar_config.height,
+                        center.left,
+                        &bar_config.components.center,
+                    );
+                    draw_components(
+                        hdc,
+                        &bar.display,
+                        bar_config.height,
+                        right.left,
+                        &bar_config.components.right,
+                    );
+
+                    if bar.left.width() > left.width() {
+                        clear_section(hdc, bar_config.height, left.right, bar.left.right);
+                    }
+
+                    if bar.center.width() > center.width() {
+                        let delta = (bar.center.right - center.right) / 2;
+                        clear_section(
+                            hdc,
+                            bar_config.height,
+                            bar.center.left,
+                            bar.center.left + delta,
+                        );
+                        clear_section(
+                            hdc,
+                            bar_config.height,
+                            bar.center.right - delta,
+                            bar.center.right,
+                        );
+                    }
+
+                    if bar.right.width() > right.width() {
+                        clear_section(hdc, bar_config.height, bar.right.left, right.left);
+                    }
+
+                    bar.left = left;
+                    bar.center = center;
+                    bar.right = right;
+
+                    ReleaseDC(hwnd, hdc);
+                }
+            },
         );
-        draw_components(
-            hdc,
-            &display,
-            bar_config.height,
-            center.left,
-            &bar_config.components.center,
-        );
-        draw_components(
-            hdc,
-            &display,
-            bar_config.height,
-            right.left,
-            &bar_config.components.right,
-        );
-
-        if bar.left.width() > left.width() {
-            clear_section(hdc, bar_config.height, left.right, bar.left.right);
-        }
-
-        if bar.center.width() > center.width() {
-            let delta = (bar.center.right - center.right) / 2;
-            clear_section(
-                hdc,
-                bar_config.height,
-                bar.center.left,
-                bar.center.left + delta,
-            );
-            clear_section(
-                hdc,
-                bar_config.height,
-                bar.center.right - delta,
-                bar.center.right,
-            );
-        }
-
-        if bar.right.width() > right.width() {
-            clear_section(hdc, bar_config.height, bar.right.left, right.left);
-        }
-
-        bar.left = left;
-        bar.center = center;
-        bar.right = right;
-
-        update_bar(bar);
-
-        ReleaseDC(hwnd, hdc);
         EndPaint(hwnd, &paint);
     }
 
     DefWindowProcA(hwnd, msg, w_param, l_param)
 }
 
-pub fn get_bar_by_hwnd(hwnd: WindowId) -> Option<Bar> {
-    BARS.lock().iter().cloned().find(|b| b.window.id == hwnd)
+pub fn get_bar_by_win_id(id: WindowId) -> Option<Bar> {
+    with_bar_by(|b| b.window.id == id, |b| b.cloned())
 }
 
-pub fn get_bar_by_hmonitor(hmonitor: i32) -> Option<Bar> {
-    BARS.lock().iter().cloned().find(|b| b.hmonitor == hmonitor)
+pub fn with_bar_by<TF, TCb, TReturn>(f: TF, cb: TCb) -> TReturn
+where
+    TF: Fn(&&mut Bar) -> bool,
+    TCb: Fn(Option<&mut Bar>) -> TReturn,
+{
+    cb(BARS.lock().iter_mut().find(f))
 }
 
 pub fn get_windows() -> Vec<NativeWindow> {

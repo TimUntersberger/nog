@@ -1,15 +1,17 @@
-use crate::{display::get_primary_display, system::WindowId};
-use crate::display::Display;
-use crate::system::NativeWindow;
-use crate::system::SystemError;
-use crate::system::SystemResult;
-use crate::tile::Tile;
-use crate::{direction::Direction, split_direction::SplitDirection, CONFIG};
-use log::debug;
+use crate::{
+    direction::Direction,
+    display::{get_primary_display, Display},
+    split_direction::SplitDirection,
+    system::NativeWindow,
+    system::SystemError,
+    system::SystemResult,
+    system::WindowId,
+    tile::Tile,
+    CONFIG,
+};
+use log::{debug, error};
 use std::collections::HashMap;
-use winapi::shared::windef::RECT;
-use winapi::um::winuser::SWP_NOSENDCHANGING;
-use log::error;
+use winapi::{shared::windef::RECT, um::winuser::SWP_NOSENDCHANGING};
 
 #[derive(Clone)]
 pub struct TileGrid {
@@ -46,17 +48,17 @@ impl TileGrid {
             columns: 0,
         }
     }
-    pub fn hide(&self) -> SystemResult {
+    pub fn hide(&self) {
         for tile in &self.tiles {
-            tile.window.hide()?;
+            tile.window.hide();
         }
-
-        Ok(())
     }
     pub fn show(&self) -> SystemResult {
         for tile in &self.tiles {
-            tile.window.show()?;
-            tile.window.to_foreground(true).map_err(SystemError::ShowWindow)?;
+            tile.window.show();
+            tile.window
+                .to_foreground(true)
+                .map_err(SystemError::ShowWindow)?;
             if let Err(e) = tile.window.remove_topmost() {
                 error!("{}", e);
             }
@@ -170,18 +172,14 @@ impl TileGrid {
             //if the focus stack is not empty, then some tile must have focus
             let focused_id = self.focused_window_id.unwrap();
             self.swap_tiles(tile.window.id, focused_id);
-        }
-        else if let Some(next_id) = self.get_next_tile_id(direction) {
+        } else if let Some(next_id) = self.get_next_tile_id(direction) {
             //if we get a next tile we can assume that a tile is focused
             let focused_id = self.focused_window_id.unwrap();
             self.swap_tiles(next_id, focused_id);
             self.focus_stack.push((direction, next_id));
         }
     }
-    fn check_focus_stack(
-        &mut self,
-        direction: Direction,
-    ) -> Option<Tile> {
+    fn check_focus_stack(&mut self, direction: Direction) -> Option<Tile> {
         if let Some(prev) = self.focus_stack.pop() {
             // This variable says that the action cancels the previous action.
             // Example: Left -> Right
@@ -596,13 +594,11 @@ impl TileGrid {
     }
 
     fn draw_tile(&self, tile: &Tile) -> SystemResult {
-        let rect = self.calculate_tile_data(tile);
+        let rect = self.calculate_tile_data(tile).into();
 
-        tile.window.set_window_pos(
-            crate::system::win::Rectangle::from_winapi_rect(rect), 
-            None, 
-            Some(SWP_NOSENDCHANGING)
-        ).map_err(SystemError::DrawTile)
+        tile.window
+            .set_window_pos(rect, None, Some(SWP_NOSENDCHANGING))
+            .map_err(SystemError::DrawTile)
     }
 
     #[allow(dead_code)]

@@ -17,8 +17,7 @@ fn render(_: &Component, display: &Display) -> Vec<ComponentText> {
         .lock()
         .iter()
         .filter(|g| {
-            (!g.tiles.is_empty() || is_visible_workspace(g.id))
-                && g.display.hmonitor == display.hmonitor
+            (!g.tiles.is_empty() || is_visible_workspace(g.id)) && g.display.id == display.id
         })
         .map(|grid| {
             let bg = if light_theme {
@@ -58,8 +57,7 @@ fn on_click(_: &Component, display: &Display, idx: usize) {
             .lock()
             .iter()
             .filter(|g| {
-                (!g.tiles.is_empty() || is_visible_workspace(g.id))
-                    && g.display.hmonitor == display.hmonitor
+                (!g.tiles.is_empty() || is_visible_workspace(g.id)) && g.display.id == display.id
             })
             .map(|g| g.id)
             .skip(idx)
