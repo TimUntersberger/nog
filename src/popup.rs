@@ -1,23 +1,8 @@
-use crate::{bar, display::get_primary_display, message_loop, system::NativeWindow, util, CONFIG};
-use lazy_static::lazy_static;
+use crate::{system::Rectangle, window::Window, window::WindowEvent, CONFIG};
 use parking_lot::Mutex;
-use std::{ffi::CString, sync::Arc, thread};
-use winapi::{
-    shared::minwindef::{HINSTANCE, LPARAM, LRESULT, UINT, WPARAM},
-    shared::windef::{HWND, RECT},
-    um::wingdi::CreateSolidBrush,
-    um::wingdi::SetBkColor,
-    um::wingdi::SetTextColor,
-    um::winuser::{
-        BeginPaint, DefWindowProcA, EndPaint, GetDC, LoadCursorA, RegisterClassA, ReleaseDC,
-        SetCursor, ShowWindow, IDC_ARROW, PAINTSTRUCT, SW_SHOW, WM_PAINT, WM_SETCURSOR,
-    },
-    um::winuser::{DrawTextW, SetWindowPos, UnregisterClassA, DT_CALCRECT, WM_CLOSE, WNDCLASSA},
-};
+use std::sync::Arc;
 
-lazy_static! {
-    static ref POPUP: Mutex<Option<Popup>> = Mutex::new(None);
-}
+static POPUP: Mutex<Option<Popup>> = Mutex::new(None);
 
 pub type PopupActionCallback = Arc<dyn Fn() -> () + Sync + Send>;
 #[derive(Default, Clone)]
@@ -28,10 +13,8 @@ pub struct PopupAction {
 
 #[derive(Clone)]
 pub struct Popup {
-    window: NativeWindow,
-    width: i32,
+    window: Option<Window>,
     padding: i32,
-    height: i32,
     text: Vec<String>,
     pub actions: Vec<PopupAction>,
 }
@@ -39,21 +22,19 @@ pub struct Popup {
 impl Popup {
     pub fn new() -> Self {
         Self {
-            window: NativeWindow::new(),
-            width: 0,
-            height: 0,
+            window: None,
             padding: 5,
             text: Vec::new(),
             actions: Vec::new(),
         }
     }
 
-    pub fn with_text(&mut self, text: &[&str]) -> &mut Self {
+    pub fn with_text(mut self, text: &[&str]) -> Self {
         self.text = text.iter().map(|x| x.to_string()).collect();
         self
     }
 
-    pub fn with_padding(&mut self, padding: i32) -> &mut Self {
+    pub fn with_padding(mut self, padding: i32) -> Self {
         self.padding = padding + 5;
         self
     }
@@ -61,151 +42,71 @@ impl Popup {
     /// Creates the window for the popup with the configured parameters.
     ///
     /// This function closes a popup that is currently visible.
-    pub fn create(&self) {
+    pub fn create(&mut self) {
         if is_visible() {
             close();
         }
 
-        let mut popup = self.clone();
+        let text = self.text.join("\n");
+        let padding = self.padding;
 
-        unsafe {
-            thread::spawn(move || {
-                let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
-                let name = CString::new("NogPopup").unwrap();
-                let display = get_primary_display();
+        let (font, font_size, color) = {
+            let config = CONFIG.lock();
 
-                let window_handle = winapi::um::winuser::CreateWindowExA(
-                    winapi::um::winuser::WS_EX_NOACTIVATE | winapi::um::winuser::WS_EX_TOPMOST,
-                    name.as_ptr(),
-                    name.as_ptr(),
-                    winapi::um::winuser::WS_POPUPWINDOW,
-                    0,
-                    0,
-                    0,
-                    0,
-                    std::ptr::null_mut(),
-                    std::ptr::null_mut(),
-                    instance as HINSTANCE,
-                    std::ptr::null_mut(),
-                );
-
-                let mut rect = RECT::default();
-                let hdc = GetDC(window_handle);
-                let c_text = util::to_widestring(&popup.text.join("\n"));
-
-                bar::font::set_font(hdc);
-                DrawTextW(hdc, c_text.as_ptr(), -1, &mut rect, DT_CALCRECT);
-
-                let width = rect.right - rect.left;
-                let height = rect.bottom - rect.top;
-
-                let x = display.width() / 2 - width / 2 - popup.padding;
-                let y = display.height() / 2 - height / 2 - popup.padding;
-
-                SetWindowPos(
-                    window_handle,
-                    std::ptr::null_mut(),
-                    x,
-                    y,
-                    width + popup.padding * 2,
-                    height + popup.padding * 2,
-                    0,
-                );
-
-                popup.width = width;
-                popup.height = height;
-                popup.window = window_handle.into();
-                popup.window.title = "NogPopup".into();
-
-                *POPUP.lock() = Some(popup);
-
-                ShowWindow(window_handle, SW_SHOW);
-
-                message_loop::start(|_| true);
-            });
-        }
-    }
-}
-
-pub fn init() {
-    bar::font::load_font();
-    unsafe {
-        let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
-        let brush = CreateSolidBrush(CONFIG.lock().bar.color as u32);
-        let name = CString::new("NogPopup").unwrap();
-
-        let class = WNDCLASSA {
-            hInstance: instance as HINSTANCE,
-            lpszClassName: name.as_ptr(),
-            lpfnWndProc: Some(window_cb),
-            hbrBackground: brush,
-            ..WNDCLASSA::default()
+            (
+                config.bar.font.clone(),
+                config.bar.font_size,
+                config.bar.color,
+            )
         };
 
-        RegisterClassA(&class);
+        let mut window = Window::new()
+            .with_title("NogPopup")
+            .with_font(&font)
+            .with_size(10, 10)
+            .with_font_size(font_size)
+            .with_is_popup(true)
+            .with_background_color(color as u32);
+
+        window.create(move |event| match event {
+            WindowEvent::Draw { api, .. } => {
+                let rect = api.calculate_text_rect(&text);
+
+                let height = rect.height();
+                let width = rect.width();
+
+                let x = api.display.width() / 2 - width / 2 - padding;
+                let y = api.display.height() / 2 - height / 2 - padding;
+
+                api.window.set_window_pos(
+                    Rectangle {
+                        left: x,
+                        right: x + width + padding * 2,
+                        top: y,
+                        bottom: y + height + padding * 2,
+                    },
+                    None,
+                    None,
+                );
+
+                api.set_text_color(0xffffff);
+                api.write_text(&text, padding, padding, false, false);
+            }
+            _ => {}
+        });
+
+        self.window = Some(window);
+        *POPUP.lock() = Some(self.clone());
     }
 }
 
 pub fn cleanup() {
     close();
-    let name = CString::new("NogPopup").unwrap();
-    unsafe {
-        UnregisterClassA(
-            name.as_ptr(),
-            winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut()),
-        );
-    }
-}
-
-unsafe extern "system" fn window_cb(
-    hwnd: HWND,
-    msg: UINT,
-    w_param: WPARAM,
-    l_param: LPARAM,
-) -> LRESULT {
-    if msg == WM_CLOSE {
-        let popup = POPUP.lock().clone().unwrap();
-        for action in popup.actions {
-            let cb = action.cb.unwrap().clone();
-            cb();
-        }
-        *POPUP.lock() = None;
-    } else if msg == WM_SETCURSOR {
-        SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8));
-    } else if msg == WM_PAINT {
-        let popup = POPUP.lock().clone().unwrap();
-        let mut rect = RECT::default();
-
-        rect.right = popup.width;
-        rect.bottom = popup.height;
-
-        rect.left += popup.padding;
-        rect.top += popup.padding;
-        rect.right += popup.padding;
-        rect.bottom += popup.padding;
-
-        let mut paint = PAINTSTRUCT::default();
-        BeginPaint(hwnd, &mut paint);
-
-        let hdc = GetDC(hwnd);
-        bar::font::set_font(hdc);
-        SetTextColor(hdc, 0x00ffffff);
-        SetBkColor(hdc, CONFIG.lock().bar.color as u32);
-
-        let c_text = util::to_widestring(&popup.text.join("\n"));
-        DrawTextW(hdc, c_text.as_ptr(), -1, &mut rect, 0);
-
-        ReleaseDC(hwnd, hdc);
-
-        EndPaint(hwnd, &paint);
-    }
-    DefWindowProcA(hwnd, msg, w_param, l_param)
 }
 
 /// Close the current popup, if there is one.
 pub fn close() {
-    let maybe_window = POPUP.lock().clone().map(|p| p.window);
-    if let Some(window) = maybe_window {
+    if let Some(window) = POPUP.lock().clone().and_then(|p| p.window) {
         window.close();
     }
 }
@@ -213,4 +114,13 @@ pub fn close() {
 /// Is there a popup currently visible?
 pub fn is_visible() -> bool {
     POPUP.lock().is_some()
+}
+
+#[test]
+pub fn test() {
+    Popup::new().with_text(&vec!["hello", "world"]).create();
+
+    loop {
+        std::thread::sleep_ms(1000);
+    }
 }

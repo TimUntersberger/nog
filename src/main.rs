@@ -4,6 +4,8 @@
 extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
+#[macro_use]
+extern crate derivative;
 
 use config::{rule::Rule, Config};
 use crossbeam_channel::select;
@@ -60,8 +62,6 @@ lazy_static! {
     pub static ref WIN_EVENT_LISTENER: WinEventListener = WinEventListener::default();
     pub static ref GRIDS: Mutex<Vec<TileGrid>> =
         Mutex::new((1..11).map(TileGrid::new).collect::<Vec<TileGrid>>());
-    pub static ref WORKSPACES: Mutex<Vec<Workspace>> =
-        Mutex::new((1..11).map(Workspace::new).collect::<Vec<Workspace>>());
     pub static ref VISIBLE_WORKSPACES: Mutex<HashMap<DisplayId, i32>> = Mutex::new(HashMap::new());
     pub static ref WORKSPACE_ID: Mutex<i32> = Mutex::new(1);
 }
@@ -114,6 +114,12 @@ fn on_quit() -> SystemResult {
     std::process::exit(0);
 }
 
+#[cfg(target_os="windows")]
+fn os_specific_setup() {
+    info!("Creating tray icon");
+    tray::create();
+}
+
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let receiver = CHANNEL.receiver.clone();
 
@@ -123,9 +129,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing displays");
     display::init();
 
-    info!("Initializing popups");
-    popup::init();
-
     for display in DISPLAYS.lock().iter() {
         VISIBLE_WORKSPACES.lock().insert(display.id, 0);
     }
@@ -133,13 +136,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting hot reloading of config");
     config::hot_reloading::start();
 
-    startup::set_launch_on_startup(CONFIG.lock().launch_on_startup)?;
+    startup::set_launch_on_startup(CONFIG.lock().launch_on_startup);
 
-    info!("Creating tray icon");
-    tray::create()?;
-
-    info!("Initializing workspaces");
-    lazy_static::initialize(&WORKSPACES);
+    os_specific_setup();
 
     toggle_work_mode::initialize()?;
 

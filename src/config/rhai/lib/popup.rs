@@ -17,7 +17,7 @@ pub fn init(engine: &mut Engine) {
             let mut p = Popup::new();
 
             for (key, val) in options {
-                match key.as_str() {
+                p = match key.as_str() {
                     "text" => p.with_text(
                         val.cast::<Array>()
                             .iter()
@@ -49,9 +49,10 @@ pub fn init(engine: &mut Engine) {
 
                             p.actions.push(action);
                         }
-                        &mut p
+
+                        p
                     }
-                    _ => &mut p,
+                    _ => p,
                 };
             }
 

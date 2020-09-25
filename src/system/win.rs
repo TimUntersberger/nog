@@ -13,6 +13,8 @@ use winapi::{
 pub mod api;
 pub mod win_event_listener;
 
+pub const BIN_NAME: &'static str = "nog.exe";
+
 impl From<HWND> for WindowId {
     fn from(val: HWND) -> Self {
         Self(val as i32)
@@ -72,6 +74,17 @@ impl From<RECT> for Rectangle {
             right: rect.right,
             top: rect.top,
             bottom: rect.bottom,
+        }
+    }
+}
+
+impl Into<RECT> for Rectangle {
+    fn into(self) -> RECT {
+        RECT {
+            left: self.left,
+            right: self.right,
+            top: self.top,
+            bottom: self.bottom,
         }
     }
 }

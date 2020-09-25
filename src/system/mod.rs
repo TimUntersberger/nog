@@ -5,6 +5,7 @@ pub mod win;
 pub use win::api;
 pub use win::win_event_listener::WinEventListener;
 pub use win::Window as NativeWindow;
+pub use win::BIN_NAME as BIN_NAME;
 
 pub type SpecificError = win::WinError;
 

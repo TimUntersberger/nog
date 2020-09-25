@@ -1,4 +1,4 @@
-use super::{get_windows, FONT};
+use super::get_windows;
 use log::{debug, info};
 use std::ffi::CString;
 use winapi::um::winuser::UnregisterClassA;
@@ -19,7 +19,5 @@ pub fn close() {
             name.as_ptr(),
             winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut()),
         );
-
-        *FONT.lock() = 0;
     }
 }

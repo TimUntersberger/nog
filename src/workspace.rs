@@ -4,17 +4,6 @@ use crate::{
 };
 use log::debug;
 
-pub struct Workspace {
-    pub id: i32,
-    pub visible: bool,
-}
-
-impl Workspace {
-    pub fn new(id: i32) -> Self {
-        Self { id, visible: false }
-    }
-}
-
 pub fn is_visible_workspace(id: i32) -> bool {
     VISIBLE_WORKSPACES.lock().values().any(|v| *v == id)
 }
