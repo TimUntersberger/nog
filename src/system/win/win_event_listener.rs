@@ -44,6 +44,7 @@ unsafe extern "system" fn handler(
     CHANNEL.sender.clone().send(event).unwrap();
 }
 
+#[derive(Debug)]
 pub struct WinEventListener {
     stopped: Arc<AtomicBool>,
     hook: Arc<AtomicPtr<HWINEVENTHOOK__>>,

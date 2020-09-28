@@ -1,27 +1,25 @@
 use super::{
-    component::Component, component::ComponentText, get_windows, item::Item,
-    item_section::ItemSection, with_bar_by, Bar, BARS,
+    component::Component, component::ComponentText, item::Item, item_section::ItemSection, Bar,
 };
 use crate::{
-    config::Config, display::Display, event::Event, keybindings::KbManager, system::Rectangle,
-    system::WindowId, tile_grid::TileGrid, window::Api, window::WindowEvent, CHANNEL, CONFIG,
-    DISPLAYS, GRIDS, WORKSPACE_ID,
+    config::Config, display::Display, event::Event, event::EventChannel, keybindings::KbManager,
+    system::Rectangle, window::Api, window::WindowEvent,
+    AppState,
 };
 use log::{debug, error, info};
 use parking_lot::Mutex;
 use std::{sync::Arc, thread, time::Duration};
 
-fn spawn_refresh_thread() {
-    thread::spawn(|| loop {
+fn spawn_refresh_thread(chan: &EventChannel) {
+    let sender = chan.sender.clone();
+    thread::spawn(move || loop {
         thread::sleep(Duration::from_millis(200));
 
-        if get_windows().is_empty() {
-            break;
-        }
+        // TODO: Somehow get notified when nog leaves work mode
+        // Maybe just close the channel when we leave work mode and then check if the send failed
+        // without panicking.
 
-        CHANNEL
-            .sender
-            .clone()
+        sender
             .send(Event::RedrawAppBar)
             .expect("Failed to send redraw-app-bar event");
     });
@@ -55,16 +53,13 @@ fn draw_component_text(
 fn draw_components(
     api: &Api,
     display: &Display,
+    state: &AppState,
     kb_manager: &KbManager,
-    grids: &Vec<TileGrid>,
-    config: &Config,
-    workspace_id: i32,
-    height: i32,
     mut offset: i32,
     components: &[Component],
 ) {
     for component in components {
-        let component_texts = component.render(kb_manager, display, grids, workspace_id, config);
+        let component_texts = component.render(display, state, kb_manager);
 
         for (_i, component_text) in component_texts.iter().enumerate() {
             let width = api.calculate_text_rect(&component_text.get_text()).width();
@@ -72,13 +67,13 @@ fn draw_components(
             let rect = Rectangle {
                 left: offset,
                 right: offset + width,
-                bottom: height,
+                bottom: state.config.bar.height,
                 top: 0,
             };
 
             offset = rect.right;
 
-            draw_component_text(api, &rect, config, &component_text);
+            draw_component_text(api, &rect, &state.config, &component_text);
         }
     }
 }
@@ -86,10 +81,8 @@ fn draw_components(
 fn components_to_section(
     api: &Api,
     display: &Display,
+    state: &AppState,
     kb_manager: &KbManager,
-    grids: &Vec<TileGrid>,
-    config: &Config,
-    workspace_id: i32,
     components: &[Component],
 ) -> ItemSection {
     let mut section = ItemSection::default();
@@ -100,7 +93,7 @@ fn components_to_section(
         let mut component_text_offset = 0;
         let mut component_width = 0;
 
-        for component_text in component.render(kb_manager, display, grids, workspace_id, config) {
+        for component_text in component.render(display, state, kb_manager) {
             let width = api.calculate_text_rect(&component_text.get_text()).width();
             let left = component_text_offset;
             let right = component_text_offset + width;
@@ -125,237 +118,180 @@ fn components_to_section(
     section
 }
 
-fn clear_section(api: &Api, height: i32, left: i32, right: i32) {
-    api.fill_rect(
-        left,
-        0,
-        right - left,
-        height,
-        CONFIG.lock().bar.color as u32,
-    )
+fn clear_section(api: &Api, config: &Config, left: i32, right: i32) {
+    api.fill_rect(left, 0, right - left, config.bar.height, config.bar.color)
 }
 
-fn with_item_at_pos<T: Fn(Option<&Item>) -> ()>(id: WindowId, x: i32, cb: T) {
-    with_bar_by(
-        |b| b.window.id == id,
-        |b| {
-            let mut result = None;
-            if let Some(bar) = b {
-                for section in vec![&bar.left, &bar.center, &bar.right] {
-                    if section.left <= x && x <= section.right {
-                        for item in section.items.iter() {
-                            if item.left <= x && x <= item.right {
-                                result = Some(item);
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            cb(result);
-        },
-    )
-}
-
-pub fn create(kb_manager: Arc<Mutex<KbManager>>) {
+pub fn create(state: &AppState, kb_manager: Arc<Mutex<KbManager>>) {
     info!("Creating appbar");
 
     let name = "nog_bar";
-    let (color, height, font) = {
-        let config = CONFIG.lock();
 
-        (config.bar.color, config.bar.height, config.bar.font.clone())
-    };
+    spawn_refresh_thread(&state.event_channel);
 
-    spawn_refresh_thread();
-
-    for display in DISPLAYS.lock().clone() {
-        if with_bar_by(|b| b.display.id == display.id, |b| b.is_some()) {
+    for display in state.displays {
+        if display.appbar.is_some() {
             error!(
                 "Appbar for monitor {:?} already exists. Aborting",
                 display.id
             );
-        } else {
-            debug!("Creating appbar for display {:?}", display.id);
-            let mut bar = Bar::default();
+            continue;
+        }
 
-            bar.display = display;
+        debug!("Creating appbar for display {:?}", display.id);
+        let mut bar = Bar::default();
 
-            let left = bar.display.working_area_left();
-            let top = bar.display.working_area_top() - height;
-            let width = bar.display.working_area_width();
+        bar.display_id = display.id;
 
-            bar.window = bar
-                .window
-                .with_is_popup(true)
-                .with_border(false)
-                .with_title(name)
-                .with_font(&font)
-                .with_background_color(color as u32)
-                .with_pos(left, top)
-                .with_size(width, height);
+        let left = display.working_area_left();
+        let top = display.working_area_top() - state.config.bar.height;
+        let width = display.working_area_width();
 
-            let kb_manager = kb_manager.clone();
+        bar.window = bar
+            .window
+            .with_is_popup(true)
+            .with_border(false)
+            .with_title(name)
+            .with_font(&state.config.bar.font)
+            .with_background_color(state.config.bar.color as u32)
+            .with_pos(left, top)
+            .with_size(width, state.config.bar.height);
 
-            bar.window.create(move |event| match event {
-                WindowEvent::Close { id, .. } => {
-                    let mut bars = BARS.lock();
-                    let idx = bars.iter().position(|b| b.window.id == *id).unwrap();
-                    bars.remove(idx);
-                }
-                WindowEvent::Click { id, x, display, .. } => with_item_at_pos(*id, *x, |item| {
-                    if let Some(item) = item {
-                        if item.component.is_clickable {
-                            for (i, width) in item.widths.iter().enumerate() {
-                                if width.0 <= *x && *x <= width.1 {
-                                    item.component.on_click(display, i);
-                                }
+        let kb_manager = kb_manager.clone();
+
+        bar.window.create(move |event| match event {
+            WindowEvent::Click { id, x, display, state, .. } => {
+                display.appbar.and_then(|b| b.item_at_pos(*x)).map(|item| {
+                    if item.component.is_clickable {
+                        for (i, width) in item.widths.iter().enumerate() {
+                            if width.0 <= *x && *x <= width.1 {
+                                item.component.on_click(display, state, i);
                             }
                         }
                     }
-                }),
-                WindowEvent::MouseMove { x, api, id, .. } => with_item_at_pos(*id, *x, |item| {
-                    if let Some(item) = item {
+                });
+            }
+            WindowEvent::MouseMove {
+                x,
+                api,
+                id,
+                display,
+                ..
+            } => {
+                display
+                    .appbar
+                    .and_then(|b| b.item_at_pos(*x))
+                    .map(|item| {
                         if item.component.is_clickable {
                             api.set_clickable_cursor();
-                            return;
+                        } else {
+                            api.set_default_cursor();
                         }
+                    })
+                    .or_else(|| {
+                        api.set_default_cursor();
+                        None
+                    });
+            }
+            WindowEvent::Draw {
+                api,
+                id,
+                display,
+                state,
+            } => {
+                if let Some(bar) = display.appbar {
+                    let working_area_width = display.working_area_width();
+                    let kb_manager = kb_manager.lock();
+                    let left = components_to_section(
+                        api,
+                        &display,
+                        state,
+                        &kb_manager,
+                        &state.config.bar.components.left,
+                    );
+
+                    let mut center = components_to_section(
+                        api,
+                        &display,
+                        state,
+                        &kb_manager,
+                        &state.config.bar.components.center,
+                    );
+
+                    center.left = working_area_width / 2 - center.right / 2;
+                    center.right += center.left;
+
+                    let mut right = components_to_section(
+                        api,
+                        &display,
+                        state,
+                        &kb_manager,
+                        &state.config.bar.components.right,
+                    );
+                    right.left = working_area_width - right.right;
+                    right.right += right.left;
+
+                    draw_components(
+                        api,
+                        &display,
+                        state,
+                        &kb_manager,
+                        left.left,
+                        &state.config.bar.components.left,
+                    );
+                    draw_components(
+                        api,
+                        &display,
+                        state,
+                        &kb_manager,
+                        left.left,
+                        &state.config.bar.components.center,
+                    );
+                    draw_components(
+                        api,
+                        &display,
+                        state,
+                        &kb_manager,
+                        left.left,
+                        &state.config.bar.components.right,
+                    );
+
+                    if bar.left.width() > left.width() {
+                        clear_section(api, &state.config, left.right, bar.left.right);
                     }
 
-                    api.set_default_cursor();
-                }),
-                WindowEvent::Draw { api, id, .. } => {
-                    with_bar_by(
-                        |b| b.window.id == *id,
-                        |b| {
-                            if let Some(bar) = b {
-                                let grids = GRIDS.lock();
-                                let workspace_id = *WORKSPACE_ID.lock();
-                                let working_area_width = bar.display.working_area_width();
-                                let config = CONFIG.lock();
-                                let kb_manager = kb_manager.lock();
-                                let left = components_to_section(
-                                    api,
-                                    &bar.display,
-                                    &kb_manager,
-                                    &grids,
-                                    &config,
-                                    workspace_id,
-                                    &config.bar.components.left,
-                                );
+                    if bar.center.width() > center.width() {
+                        let delta = (bar.center.right - center.right) / 2;
+                        clear_section(api, &state.config, bar.center.left, bar.center.left + delta);
+                        clear_section(
+                            api,
+                            &state.config,
+                            bar.center.right - delta,
+                            bar.center.right,
+                        );
+                    }
 
-                                let mut center = components_to_section(
-                                    api,
-                                    &bar.display,
-                                    &kb_manager,
-                                    &grids,
-                                    &config,
-                                    workspace_id,
-                                    &config.bar.components.center,
-                                );
-                                center.left = working_area_width / 2 - center.right / 2;
-                                center.right += center.left;
+                    if bar.right.width() > right.width() {
+                        clear_section(api, &state.config, bar.right.left, right.left);
+                    }
 
-                                let mut right = components_to_section(
-                                    api,
-                                    &bar.display,
-                                    &kb_manager,
-                                    &grids,
-                                    &config,
-                                    workspace_id,
-                                    &config.bar.components.right,
-                                );
-                                right.left = working_area_width - right.right;
-                                right.right += right.left;
-
-                                draw_components(
-                                    api,
-                                    &bar.display,
-                                    &kb_manager,
-                                    &grids,
-                                    &config,
-                                    workspace_id,
-                                    config.bar.height,
-                                    left.left,
-                                    &config.bar.components.left,
-                                );
-                                draw_components(
-                                    api,
-                                    &bar.display,
-                                    &kb_manager,
-                                    &grids,
-                                    &config,
-                                    workspace_id,
-                                    config.bar.height,
-                                    center.left,
-                                    &config.bar.components.center,
-                                );
-                                draw_components(
-                                    api,
-                                    &bar.display,
-                                    &kb_manager,
-                                    &grids,
-                                    &config,
-                                    workspace_id,
-                                    config.bar.height,
-                                    right.left,
-                                    &config.bar.components.right,
-                                );
-
-                                if bar.left.width() > left.width() {
-                                    clear_section(
-                                        api,
-                                        config.bar.height,
-                                        left.right,
-                                        bar.left.right,
-                                    );
-                                }
-
-                                if bar.center.width() > center.width() {
-                                    let delta = (bar.center.right - center.right) / 2;
-                                    clear_section(
-                                        api,
-                                        config.bar.height,
-                                        bar.center.left,
-                                        bar.center.left + delta,
-                                    );
-                                    clear_section(
-                                        api,
-                                        config.bar.height,
-                                        bar.center.right - delta,
-                                        bar.center.right,
-                                    );
-                                }
-
-                                if bar.right.width() > right.width() {
-                                    clear_section(
-                                        api,
-                                        config.bar.height,
-                                        bar.right.left,
-                                        right.left,
-                                    );
-                                }
-
-                                bar.left = left;
-                                bar.center = center;
-                                bar.right = right;
-                            }
-                        },
-                    );
+                    bar.left = left;
+                    bar.center = center;
+                    bar.right = right;
                 }
-                _ => {}
-            });
+            }
+            _ => {}
+        });
 
-            BARS.lock().push(bar.clone());
-        }
+        display.appbar = Some(bar);
     }
 }
 
 #[test]
 pub fn test() {
-    crate::display::init();
     crate::logging::setup();
-    // create();
+    // let state = AppState::new();
+    // create(state);
 
     loop {
         thread::sleep(Duration::from_millis(1000));

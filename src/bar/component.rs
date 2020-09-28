@@ -1,4 +1,6 @@
-use crate::{config::Config, display::Display, keybindings::KbManager, tile_grid::TileGrid};
+use crate::{
+    config::Config, display::Display, keybindings::KbManager, tile_grid::TileGrid, AppState,
+};
 use std::{fmt::Debug, sync::Arc};
 
 pub mod active_mode;
@@ -40,7 +42,7 @@ impl ComponentText {
 
 pub type RenderFn = Arc<dyn Fn(RenderContext) -> Vec<ComponentText> + Send + Sync>;
 /// Receives the Component, the display and the idx of ComponentText which got clicked
-pub type OnClickFn = Arc<dyn Fn(&Component, &Display, usize) -> () + Send + Sync>;
+pub type OnClickFn = Arc<dyn Fn(OnClickContext) -> () + Send + Sync>;
 
 #[derive(Clone)]
 pub struct Component {
@@ -62,20 +64,15 @@ impl Default for Component {
 }
 
 pub struct RenderContext<'a> {
-    display: &'a Display,
-    workspace_id: i32,
-    grids: &'a Vec<TileGrid>,
-    kb_manager: &'a KbManager,
-    config: &'a Config,
+    pub display: &'a Display,
+    pub state: &'a AppState,
+    pub kb_manager: &'a KbManager,
 }
 
-impl<'a> RenderContext<'a> {
-    pub fn get_current_grid(&self) -> &TileGrid {
-        self.grids
-            .iter()
-            .find(|g| g.id == self.workspace_id)
-            .unwrap()
-    }
+pub struct OnClickContext<'a> {
+    pub display: &'a Display,
+    pub state: &'a AppState,
+    pub idx: usize,
 }
 
 impl Component {
@@ -88,28 +85,28 @@ impl Component {
         }
     }
 
-    pub fn on_click(&self, display: &Display, idx: usize) {
-        if let Some(fun) = self.on_click_fn.clone() {
-            fun(self, display, idx);
+    pub fn on_click(&self, display: &Display, state: &AppState, idx: usize) {
+        if let Some(f) = self.on_click_fn.clone() {
+            f(OnClickContext {
+                display,
+                state,
+                idx
+            });
         }
     }
 
     pub fn render(
         &self,
-        kb_manager: &KbManager,
         display: &Display,
-        grids: &Vec<TileGrid>,
-        workspace_id: i32,
-        config: &Config,
+        state: &AppState,
+        kb_manager: &KbManager,
     ) -> Vec<ComponentText> {
         let f = self.render_fn.clone();
 
         f(RenderContext {
             display,
+            state,
             kb_manager,
-            grids,
-            workspace_id,
-            config,
         })
     }
 

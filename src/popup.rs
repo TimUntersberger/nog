@@ -1,17 +1,26 @@
-use crate::{system::Rectangle, window::Window, window::WindowEvent, CONFIG};
+use crate::{
+    config::Config, system::Rectangle, window::Window, window::WindowEvent, AppState, CONFIG,
+};
 use parking_lot::Mutex;
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 static POPUP: Mutex<Option<Popup>> = Mutex::new(None);
 
 pub type PopupActionCallback = Arc<dyn Fn() -> () + Sync + Send>;
+
 #[derive(Default, Clone)]
 pub struct PopupAction {
     pub text: String,
     pub cb: Option<PopupActionCallback>,
 }
 
-#[derive(Clone)]
+impl Debug for PopupAction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!("PopupAction {{ text = {} }}", self.text))
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Popup {
     window: Option<Window>,
     padding: i32,
@@ -42,7 +51,7 @@ impl Popup {
     /// Creates the window for the popup with the configured parameters.
     ///
     /// This function closes a popup that is currently visible.
-    pub fn create(&mut self) {
+    pub fn create(&mut self, config: &Config) {
         if is_visible() {
             close();
         }
@@ -50,23 +59,13 @@ impl Popup {
         let text = self.text.join("\n");
         let padding = self.padding;
 
-        let (font, font_size, color) = {
-            let config = CONFIG.lock();
-
-            (
-                config.bar.font.clone(),
-                config.bar.font_size,
-                config.bar.color,
-            )
-        };
-
         let mut window = Window::new()
             .with_title("NogPopup")
-            .with_font(&font)
+            .with_font(&config.bar.font)
             .with_size(10, 10)
-            .with_font_size(font_size)
+            .with_font_size(config.bar.font_size)
             .with_is_popup(true)
-            .with_background_color(color as u32);
+            .with_background_color(config.bar.color as u32);
 
         window.create(move |event| match event {
             WindowEvent::Draw { api, .. } => {
@@ -118,7 +117,10 @@ pub fn is_visible() -> bool {
 
 #[test]
 pub fn test() {
-    Popup::new().with_text(&vec!["hello", "world"]).create();
+    let state = AppState::new();
+    Popup::new()
+        .with_text(&vec!["hello", "world"])
+        .create(&state.config);
 
     loop {
         std::thread::sleep_ms(1000);

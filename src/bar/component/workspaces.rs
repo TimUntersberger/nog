@@ -1,8 +1,6 @@
 use super::{Component, ComponentText};
 use crate::{
     util,
-    workspace::{change_workspace, is_visible_workspace},
-    GRIDS,
 };
 use std::sync::Arc;
 
@@ -10,25 +8,26 @@ pub fn create() -> Component {
     Component::new(
         "Workspaces",
         Arc::new(|ctx| {
-            let light_theme = ctx.config.light_theme;
-            let workspace_settings = ctx.config.workspace_settings.clone();
-            let bar_color = ctx.config.bar.color;
+            let light_theme = ctx.state.config.light_theme;
+            let workspace_settings = ctx.state.config.workspace_settings.clone();
+            let bar_color = ctx.state.config.bar.color;
 
-            ctx.grids
+            // TODO: Extract this into a function of Display
+            ctx.state.grids
                 .iter()
                 .filter(|g| {
-                    (!g.tiles.is_empty() || is_visible_workspace(g.id))
+                    (!g.tiles.is_empty() || ctx.state.is_workspace_visible(g.id))
                         && g.display.id == ctx.display.id
                 })
                 .map(|grid| {
                     let bg = if light_theme {
-                        if ctx.workspace_id == grid.id {
+                        if ctx.state.workspace_id == grid.id {
                             util::scale_color(bar_color, 0.75) as u32
                         } else {
                             util::scale_color(bar_color, 0.9) as u32
                         }
                     } else {
-                        if ctx.workspace_id == grid.id {
+                        if ctx.state.workspace_id == grid.id {
                             util::scale_color(bar_color, 2.0) as u32
                         } else {
                             util::scale_color(bar_color, 1.5) as u32

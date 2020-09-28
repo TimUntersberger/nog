@@ -2,7 +2,7 @@ use super::Renderer;
 use crate::{system::SystemError, system::SystemResult, tile::Tile, tile_grid::TileGrid, CONFIG};
 use winapi::{shared::windef::*, um::winuser::*};
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, Debug)]
 pub struct WinRenderer;
 
 impl Renderer for WinRenderer {

@@ -55,16 +55,16 @@ fn create_component(name: ImmutableString, render_fn: FnPtr, options: Map) -> Co
                 let f = val.clone().cast::<FnPtr>();
                 let fn_name = f.fn_name().to_string();
 
-                component.with_on_click(Arc::new(move |component, display, idx| {
+                component.with_on_click(Arc::new(move |ctx| {
                     let engine = ENGINE.lock();
                     let mut scope = SCOPE.lock();
                     let ast = AST.lock();
                     let _ = engine
-                        .call_fn::<(Component, Display, i32), ()>(
+                        .call_fn::<(Display, usize), ()>(
                             &mut *scope,
                             &*ast,
                             &fn_name,
-                            (component.clone(), display.clone(), idx as i32),
+                            (ctx.display.clone(), ctx.idx),
                         )
                         .map_err(|e| error!("{}", e.to_string()));
                 }));

@@ -5,7 +5,7 @@ extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
 
-use config::{rule::Rule, Config};
+use config::{rhai::engine::parse_config, rule::Rule, workspace_setting::WorkspaceSetting, Config};
 use crossbeam_channel::select;
 use display::Display;
 use event::Event;
@@ -17,9 +17,10 @@ use lazy_static::lazy_static;
 use log::debug;
 use log::{error, info};
 use parking_lot::{deadlock, Mutex};
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, process, sync::Arc};
 use std::{thread, time::Duration};
 use system::{DisplayId, SystemResult, WinEventListener};
+use task_bar::Taskbar;
 use tile_grid::TileGrid;
 
 mod bar;
@@ -45,86 +46,166 @@ mod update;
 mod util;
 mod win_event_handler;
 mod window;
-mod workspace;
 
+#[derive(Debug)]
 pub struct AppState {
+    pub config: Config,
+    pub work_mode: bool,
+    pub displays: Vec<Display>,
+    pub event_channel: EventChannel,
+    pub additonal_rules: Vec<Rule>,
+    pub window_event_listener: WinEventListener,
+    pub grids: Vec<TileGrid>,
+    pub visible_workspaces: HashMap<DisplayId, i32>,
+    pub workspace_id: i32,
 }
 
-impl Default for AppState {
-    fn default() -> Self {
-        todo!()
+impl AppState {
+    pub fn new() -> Self {
+        let event_channel = EventChannel::default();
+        let config = parse_config(&event_channel)
+            .map_err(|e| error!("{}", e))
+            .expect("Failed to load config");
+
+        info!("Initializing displays");
+        let displays = display::init(config.multi_monitor);
+
+        let mut visible_workspaces = HashMap::new();
+
+        for display in displays.iter() {
+            visible_workspaces.insert(display.id, 0);
+        }
+
+        Self {
+            work_mode: config.work_mode,
+            displays,
+            event_channel,
+            additonal_rules: Vec::new(),
+            window_event_listener: WinEventListener::default(),
+            grids: (1..11)
+                .map(|i| TileGrid::new(i, renderer::NativeRenderer::default()))
+                .collect(),
+            visible_workspaces,
+            workspace_id: 1,
+            config,
+        }
+    }
+
+    /// TODO: maybe rename this function
+    pub fn cleanup(&self) -> SystemResult {
+        for grid in self.grids.iter_mut() {
+            for tile in grid.tiles {
+                grid.close_tile_by_window_id(tile.window.id);
+                tile.window.cleanup()?;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn get_workspace_settings(&self, id: i32) -> Option<&WorkspaceSetting> {
+        self.config.workspace_settings.iter().find(|s| s.id == id)
+    }
+
+    pub fn is_workspace_visible(&self, id: i32) -> bool {
+        self.visible_workspaces.values().any(|v| *v == id)
+    }
+
+    pub fn change_workspace(&self, id: i32, force: bool) {
+        let workspace_settings = self.config.workspace_settings;
+
+        let grid = self.get_grid_by_id(id);
+
+        if !force && grid.tiles.is_empty() {
+            if let Some(settings) = self.get_workspace_settings(id) {
+                if settings.monitor != -1 {
+                    if let Some(display) = self.get_display_by_idx(settings.monitor) {
+                        grid.display = display.clone();
+                    } else {
+                        error!("Invalid monitor {}. Workspace configuration for workspace {} is invalid!", settings.monitor, id);
+                    }
+                }
+            }
+        }
+
+        debug!("Drawing the workspace");
+        grid.draw_grid();
+        debug!("Showing the workspace");
+        grid.show();
+
+        self.visible_workspaces.insert(grid.display.id, grid.id);
+        self.workspace_id = id;
+        self.redraw_app_bars();
+    }
+
+    pub fn redraw_app_bars(&self) {
+        debug!("Sending redraw-app-bar event");
+        self.event_channel
+            .sender
+            .send(Event::RedrawAppBar)
+            .expect("Failed to send redraw-app-bar event");
+    }
+
+    pub fn get_display_by_idx(&self, idx: i32) -> Option<&Display> {
+        let x: usize = if idx == -1 {
+            0
+        } else {
+            std::cmp::max(self.displays.len() - (idx as usize), 0)
+        };
+
+        self.displays.get(x)
+    }
+
+    pub fn get_taskbars(&self) -> Vec<Taskbar> {
+        self.displays
+            .iter()
+            .map(|d| d.taskbar)
+            .filter(|x| x.is_some())
+            .map(|x| x.unwrap())
+            .collect()
+    }
+
+    pub fn show_taskbars(&self) {
+        for tb in self.get_taskbars() {
+            tb.window.show();
+        }
+    }
+
+    pub fn hide_taskbars(&self) {
+        for tb in self.get_taskbars() {
+            tb.window.hide();
+        }
+    }
+
+    pub fn get_current_grid(&mut self) -> &mut TileGrid {
+        self.get_grid_by_id(self.workspace_id)
+    }
+
+    pub fn get_grid_by_id(&mut self, id: i32) -> &mut TileGrid {
+        self.grids.iter_mut().find(|g| g.id == id).unwrap()
     }
 }
 
 lazy_static! {
-    pub static ref STATE: Mutex<AppState> = Mutex::new(AppState::default());
-    pub static ref WORK_MODE: Mutex<bool> = Mutex::new(CONFIG.lock().work_mode);
-    pub static ref CONFIG: Mutex<Config> = Mutex::new(
-        config::rhai::engine::parse_config()
-            .map_err(|e| error!("{}", e))
-            .expect("Failed to load config")
-    );
-    pub static ref DISPLAYS: Mutex<Vec<Display>> = Mutex::new(Vec::new());
-    pub static ref CHANNEL: EventChannel = EventChannel::default();
-    pub static ref ADDITIONAL_RULES: Mutex<Vec<Rule>> = Mutex::new(Vec::new());
-    pub static ref WIN_EVENT_LISTENER: WinEventListener = WinEventListener::default();
-    pub static ref GRIDS: Mutex<Vec<TileGrid>> = Mutex::new(
-        (1..11)
-            .map(|i| TileGrid::new(i, renderer::NativeRenderer::default()))
-            .collect::<Vec<TileGrid>>()
-    );
-    pub static ref VISIBLE_WORKSPACES: Mutex<HashMap<DisplayId, i32>> = Mutex::new(HashMap::new());
-    pub static ref WORKSPACE_ID: Mutex<i32> = Mutex::new(1);
-}
-
-fn unmanage_everything() -> SystemResult {
-    let mut grids = GRIDS.lock();
-
-    for grid in grids.iter_mut() {
-        for tile in &mut grid.tiles.clone() {
-            grid.close_tile_by_window_id(tile.window.id);
-            tile.window.cleanup()?;
-        }
-    }
-
-    Ok(())
-}
-
-pub fn with_current_grid<TFunction, TReturn>(f: TFunction) -> TReturn
-where
-    TFunction: Fn(&mut TileGrid) -> TReturn,
-{
-    with_grid_by_id(*WORKSPACE_ID.lock(), f)
-}
-
-pub fn with_grid_by_id<TFunction, TReturn>(id: i32, f: TFunction) -> TReturn
-where
-    TFunction: Fn(&mut TileGrid) -> TReturn,
-{
-    let mut grids = GRIDS.lock();
-    let mut grid = grids.iter_mut().find(|g| g.id == id).unwrap();
-
-    f(&mut grid)
+    pub static ref STATE: Mutex<AppState> = Mutex::new(AppState::new());
 }
 
 fn on_quit() -> SystemResult {
+    let mut state = STATE.lock();
+
     os_specific_cleanup();
 
-    unmanage_everything()?;
+    state.cleanup()?;
 
     popup::cleanup();
-    let remove_task_bar = {
-        let config = CONFIG.lock();
-        config.remove_task_bar
-    };
 
-    if remove_task_bar {
-        task_bar::show_taskbars();
+    if state.config.remove_task_bar {
+        state.show_taskbars();
     }
 
-    WIN_EVENT_LISTENER.stop();
+    state.window_event_listener.stop();
 
-    std::process::exit(0);
+    process::exit(0);
 }
 
 #[cfg(target_os = "windows")]
@@ -140,26 +221,21 @@ fn os_specific_setup() {
 }
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let receiver = CHANNEL.receiver.clone();
+    let receiver = STATE.lock().event_channel.receiver.clone();
     let kb_manager = Arc::new(Mutex::new(KbManager::new(
-        CONFIG.lock().keybindings.clone(),
+        STATE.lock().config.keybindings.clone(),
     )));
-
-    info!("Initializing displays");
-    display::init();
-
-    for display in DISPLAYS.lock().iter() {
-        VISIBLE_WORKSPACES.lock().insert(display.id, 0);
-    }
 
     info!("Starting hot reloading of config");
     config::hot_reloading::start();
 
-    startup::set_launch_on_startup(CONFIG.lock().launch_on_startup);
+    let state = STATE.lock();
+
+    startup::set_launch_on_startup(state.config.launch_on_startup);
 
     os_specific_setup();
 
-    toggle_work_mode::initialize(kb_manager.clone())?;
+    toggle_work_mode::initialize(&state, kb_manager.clone())?;
 
     info!("Listening for keybindings");
     kb_manager.clone().lock().start();
@@ -169,7 +245,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             recv(receiver) -> maybe_msg => {
                 let msg = maybe_msg.unwrap();
                 let _ = match msg {
-                    Event::Keybinding(kb) => event_handler::keybinding::handle(kb_manager.clone(), kb),
+                    Event::NewPopup(p) => Ok(p.create(&state.config)),
+                    Event::Keybinding(kb) => event_handler::keybinding::handle(&mut *state, kb_manager.clone(), kb),
                     Event::RedrawAppBar => Ok(bar::redraw::redraw()),
                     Event::WinEvent(ev) => event_handler::winevent::handle(ev),
                     Event::Exit => {
@@ -178,7 +255,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     },
                     Event::ReloadConfig => {
                         info!("Reloading Config");
-                        update_config(kb_manager.clone(), config::rhai::engine::parse_config().expect("Failed to load config"))
+                        let new_config = parse_config(&state.event_channel)
+                            .map_err(|e| error!("{}", e))
+                            .expect("Failed to load config");
+                        update_config(&state, kb_manager.clone(), new_config)
                     }
                 }.map_err(|e| {
                     error!("{:?}", e);

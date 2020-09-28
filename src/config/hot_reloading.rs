@@ -1,5 +1,5 @@
 use crate::event::Event;
-use crate::CHANNEL;
+use crate::STATE;
 use log::{debug, error};
 use notify::watcher;
 use notify::DebouncedEvent;
@@ -28,7 +28,9 @@ pub fn start() {
                 Ok(ev) => match ev {
                     DebouncedEvent::Write(_) => {
                         debug!("detected config change");
-                        CHANNEL
+                        STATE
+                            .lock()
+                            .event_channel
                             .sender
                             .clone()
                             .send(Event::ReloadConfig)

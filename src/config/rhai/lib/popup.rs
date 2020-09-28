@@ -1,13 +1,15 @@
 use crate::{
     config::rhai::engine,
+    event::Event,
+    event::EventChannel,
     popup::{Popup, PopupAction},
-    DISPLAYS,
 };
 
 use rhai::{Array, Engine, FnPtr, Map};
 use std::sync::Arc;
 
-pub fn init(engine: &mut Engine) {
+pub fn init(engine: &mut Engine, chan: &EventChannel) {
+    let sender = chan.sender.clone();
     #[allow(deprecated)]
     engine.register_raw_fn(
         "popup_new",
@@ -56,15 +58,7 @@ pub fn init(engine: &mut Engine) {
                 };
             }
 
-            std::thread::spawn(move || {
-                loop {
-                    std::thread::sleep_ms(20);
-                    if DISPLAYS.lock().len() > 0 {
-                        break;
-                    }
-                }
-                p.create();
-            });
+            sender.send(Event::NewPopup(p));
 
             Ok(())
         },

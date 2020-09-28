@@ -1,4 +1,6 @@
-use crate::{keybindings::keybinding::Keybinding, win_event_handler::win_event::WinEvent};
+use crate::{
+    keybindings::keybinding::Keybinding, popup::Popup, win_event_handler::win_event::WinEvent,
+};
 use crossbeam_channel::unbounded;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
@@ -7,6 +9,7 @@ use crossbeam_channel::Sender;
 pub enum Event {
     Keybinding(Keybinding),
     WinEvent(WinEvent),
+    NewPopup(Popup),
     RedrawAppBar,
     ReloadConfig,
     Exit,
@@ -15,6 +18,7 @@ pub enum Event {
 pub type EventSender = Sender<Event>;
 pub type EventReceiver = Receiver<Event>;
 
+#[derive(Debug)]
 pub struct EventChannel {
     pub sender: EventSender,
     pub receiver: EventReceiver,

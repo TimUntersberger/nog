@@ -2,80 +2,70 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 
-use crate::info;
-use crate::task_bar;
-use crate::unmanage_everything;
 use crate::workspace::change_workspace;
-use crate::CONFIG;
-use crate::WIN_EVENT_LISTENER;
-use crate::{bar, keybindings::KbManager};
-use crate::{popup, WORK_MODE};
+use crate::{bar, keybindings::KbManager, popup};
+use crate::{info, AppState};
 
-pub fn initialize(kb_manager: Arc<Mutex<KbManager>>) -> Result<(), Box<dyn std::error::Error>> {
-    if *WORK_MODE.lock() {
-        let display_app_bar = CONFIG.lock().display_app_bar;
-        let remove_task_bar = CONFIG.lock().remove_task_bar;
-        turn_work_mode_on(display_app_bar, remove_task_bar, kb_manager)?;
+pub fn initialize(
+    state: &AppState,
+    kb_manager: Arc<Mutex<KbManager>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if state.work_mode {
+        turn_work_mode_on(state, kb_manager)?;
     }
 
     Ok(())
 }
 
-pub fn turn_work_mode_off(
-    display_app_bar: bool,
-    remove_task_bar: bool,
-) -> Result<(), Box<dyn std::error::Error>> {
-    WIN_EVENT_LISTENER.stop();
+pub fn turn_work_mode_off(state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
+    state.window_event_listener.stop();
 
-    popup::close();
+    popup::cleanup();
 
-    if display_app_bar {
+    if state.config.display_app_bar {
         bar::close::close();
     }
 
-    if remove_task_bar {
-        task_bar::show_taskbars();
+    if state.config.remove_task_bar {
+        state.show_taskbars();
     }
 
-    unmanage_everything()?;
+    state.cleanup()?;
+
     Ok(())
 }
 
 pub fn turn_work_mode_on(
-    display_app_bar: bool,
-    remove_task_bar: bool,
+    state: &AppState,
     kb_manager: Arc<Mutex<KbManager>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if remove_task_bar {
+    if state.config.remove_task_bar {
         info!("Hiding taskbar");
-        task_bar::hide_taskbars();
+        state.hide_taskbars();
     }
-    if display_app_bar {
-        bar::create::create(kb_manager);
+    if state.config.display_app_bar {
+        bar::create::create(state, kb_manager);
     }
 
     info!("Registering windows event handler");
-    WIN_EVENT_LISTENER.start();
-
-    info!("Initializing bars");
+    state.window_event_listener.start();
 
     change_workspace(1, false);
 
     Ok(())
 }
 
-pub fn handle(kb_manager: Arc<Mutex<KbManager>>) -> Result<(), Box<dyn std::error::Error>> {
-    let work_mode = *WORK_MODE.lock();
-    let display_app_bar = CONFIG.lock().display_app_bar;
-    let remove_task_bar = CONFIG.lock().remove_task_bar;
-
-    if work_mode {
-        turn_work_mode_off(display_app_bar, remove_task_bar)?;
+pub fn handle(
+    state: &mut AppState,
+    kb_manager: Arc<Mutex<KbManager>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if state.work_mode {
+        turn_work_mode_off(state)?;
     } else {
-        turn_work_mode_on(display_app_bar, remove_task_bar, kb_manager)?;
+        turn_work_mode_on(state, kb_manager)?;
     }
 
-    *WORK_MODE.lock() = !work_mode;
+    state.work_mode = !state.work_mode;
 
     Ok(())
 }

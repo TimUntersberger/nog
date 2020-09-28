@@ -1,6 +1,5 @@
 use crate::{
-    display::with_display_by, system::api, system::NativeWindow, system::Rectangle, CONFIG,
-    DISPLAYS,
+    display::with_display_by, system::api, system::NativeWindow, system::Rectangle
 };
 use log::{debug, info};
 
@@ -26,11 +25,12 @@ pub struct Taskbar {
 }
 
 impl Taskbar {
-    pub fn get_taskbar_position(&self) -> TaskbarPosition {
+    pub fn get_position(&self) -> TaskbarPosition {
         let tb_rect = self
             .window
             .get_rect()
             .expect("Failed to get rect of taskbar window");
+
         let display_rect = self
             .window
             .get_display()
@@ -60,7 +60,7 @@ impl Taskbar {
     }
 }
 
-pub fn show_taskbars() {
+pub fn show_taskbars(state: &mut ) {
     foreach_taskbar(|tb| {
         info!("Showing taskbar {:?}", tb);
         tb.window.show();
@@ -96,9 +96,10 @@ pub fn update_task_bars() {
             .window
             .get_display()
             .expect("Failed to get display of taskbar");
+
         if (!multi_monitor && display.is_primary()) || multi_monitor {
             debug!("Initialized {:?})", tb);
-            tb.position = tb.get_taskbar_position();
+            tb.position = tb.get_position();
             with_display_by(
                 |d| d.id == display.id,
                 |d| d.unwrap().taskbar = Some(tb.clone()),

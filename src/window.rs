@@ -23,7 +23,7 @@ use winapi::{
 
 use crate::{
     display::Display, message_loop, system::NativeWindow, system::Rectangle, system::WindowId, util,
-};
+AppState};
 
 pub mod gwl_ex_style;
 pub mod gwl_style;
@@ -140,12 +140,13 @@ impl Api {
 }
 
 #[derive(Debug, Clone)]
-pub enum WindowEvent {
+pub enum WindowEvent<'a> {
     Click {
         display: Display,
         id: WindowId,
         x: i32,
         y: i32,
+        state: &'a AppState
     },
     Create {
         display: Display,
@@ -158,6 +159,7 @@ pub enum WindowEvent {
     Draw {
         display: Display,
         id: WindowId,
+        state: &'a AppState,
         api: Api,
     },
     MouseMove {
@@ -367,6 +369,7 @@ impl Window {
                             event_handler(&WindowEvent::Draw {
                                 display: display.clone(),
                                 id: window.id,
+                                state,
                                 api,
                             });
 
@@ -381,6 +384,7 @@ impl Window {
                                 id: window.id,
                                 x: point.x - win_rect.left,
                                 y: point.y - win_rect.top,
+                                state,
                                 display,
                             });
                         } else if msg.code == WM_CLOSE {

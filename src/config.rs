@@ -72,47 +72,53 @@ impl Config {
         Self::default()
     }
 
-    pub fn increment_field(self: &mut Self, field: &str, value: i32) {
-        self.alter_numerical_field(field, value);
+    pub fn increment_field(&self, field: &str, value: i32) -> Config {
+        self.alter_numerical_field(field, value)
     }
 
-    pub fn decrement_field(self: &mut Self, field: &str, value: i32) {
-        self.alter_numerical_field(field, -value);
+    pub fn decrement_field(&self, field: &str, value: i32) -> Config {
+        self.alter_numerical_field(field, -value)
     }
 
-    fn alter_numerical_field(self: &mut Self, field: &str, value: i32) {
+    fn alter_numerical_field(&self, field: &str, value: i32) -> Config {
+        let config = self.clone();
         match field {
-            "bar.height" => self.bar.height += value,
-            "bar.color" => self.bar.color += value as u32,
-            "bar.font_size" => self.bar.font_size += value,
-            "outer_gap" => self.outer_gap += value,
-            "inner_gap" => self.inner_gap += value,
+            "bar.height" => config.bar.height += value,
+            "bar.color" => config.bar.color += value as u32,
+            "bar.font_size" => config.bar.font_size += value,
+            "outer_gap" => config.outer_gap += value,
+            "inner_gap" => config.inner_gap += value,
             _ => error!("Attempt to alter unknown field: {} by {}", field, value),
         }
+        config
     }
 
-    pub fn toggle_field(self: &mut Self, field: &str) {
+    pub fn toggle_field(&self, field: &str) -> Config {
+        let config = self.clone();
         match field {
-            "use_border" => self.use_border = !self.use_border,
-            "light_theme" => self.light_theme = !self.light_theme,
-            "launch_on_startup" => self.launch_on_startup = !self.launch_on_startup,
-            "remove_title_bar" => self.remove_title_bar = !self.remove_title_bar,
-            "remove_task_bar" => self.remove_task_bar = !self.remove_task_bar,
-            "display_app_bar" => self.display_app_bar = !self.display_app_bar,
+            "use_border" => config.use_border = !config.use_border,
+            "light_theme" => config.light_theme = !config.light_theme,
+            "launch_on_startup" => config.launch_on_startup = !config.launch_on_startup,
+            "remove_title_bar" => config.remove_title_bar = !config.remove_title_bar,
+            "remove_task_bar" => config.remove_task_bar = !config.remove_task_bar,
+            "display_app_bar" => config.display_app_bar = !config.display_app_bar,
             _ => error!("Attempt to toggle unknown field: {}", field),
         }
+        config
     }
 
-    pub fn set_bool_field(self: &mut Self, field: &str, value: bool) {
+    pub fn set_bool_field(&self, field: &str, value: bool) -> Config {
+        let config = self.clone();
         match field {
-            "use_border" => self.use_border = value,
-            "light_theme" => self.light_theme = value,
-            "launch_on_startup" => self.launch_on_startup = value,
-            "remove_title_bar" => self.remove_title_bar = value,
-            "remove_task_bar" => self.remove_task_bar = value,
-            "display_app_bar" => self.display_app_bar = value,
+            "use_border" => config.use_border = value,
+            "light_theme" => config.light_theme = value,
+            "launch_on_startup" => config.launch_on_startup = value,
+            "remove_title_bar" => config.remove_title_bar = value,
+            "remove_task_bar" => config.remove_task_bar = value,
+            "display_app_bar" => config.display_app_bar = value,
             _ => error!("Attempt to set unknown field: {}", field),
         }
+        config
     }
 
     pub fn get_update_channel(&self) -> Option<&UpdateChannel> {

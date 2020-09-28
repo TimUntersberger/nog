@@ -12,7 +12,7 @@ use crate::{
 use log::{debug, error};
 use std::collections::HashMap;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TileGrid<TRenderer: Renderer = NativeRenderer> {
     pub display: Display,
     pub renderer: TRenderer,
@@ -52,6 +52,12 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     pub fn hide(&self) {
         for tile in &self.tiles {
             tile.window.hide();
+        }
+    }
+    pub fn toggle_fullscreen(&mut self) {
+        if self.fullscreen || !self.tiles.is_empty() {
+            self.fullscreen = !self.fullscreen;
+            self.draw_grid();
         }
     }
     pub fn show(&self) -> SystemResult {

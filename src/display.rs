@@ -1,19 +1,19 @@
-use task_bar::TaskbarPosition;
-
-use crate::DISPLAYS;
-use crate::{system::DisplayId, CONFIG};
 use crate::{
+    bar::Bar,
+    system::DisplayId,
     system::{api, Rectangle},
     task_bar,
 };
 use std::cmp::Ordering;
+use task_bar::{Taskbar, TaskbarPosition};
 
 #[derive(Default, Debug, Clone)]
 pub struct Display {
     pub id: DisplayId,
     pub dpi: u32,
     pub rect: Rectangle,
-    pub taskbar: Option<task_bar::Taskbar>,
+    pub taskbar: Option<Taskbar>,
+    pub appbar: Option<Bar>,
 }
 
 impl Display {
@@ -139,10 +139,10 @@ impl Display {
     }
 }
 
-pub fn init() {
+pub fn init(multi_monitor: bool) -> Vec<Display> {
     let mut displays = api::get_displays();
 
-    if !CONFIG.lock().multi_monitor {
+    if multi_monitor {
         displays = displays
             .iter_mut()
             .filter(|d| d.is_primary())
@@ -160,9 +160,9 @@ pub fn init() {
         ordering
     });
 
-    *DISPLAYS.lock() = displays;
+    displays
 
-    task_bar::update_task_bars();
+    // task_bar::update_task_bars();
 }
 
 pub fn with_display_by<TF, TCb, TReturn>(f: TF, cb: TCb) -> TReturn

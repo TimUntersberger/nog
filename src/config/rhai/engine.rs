@@ -1,5 +1,5 @@
 use super::{functions, lib, modules, syntax, types};
-use crate::config::Config;
+use crate::{config::Config, event::EventChannel};
 use lazy_static::lazy_static;
 use log::{debug, error};
 use parking_lot::Mutex;
@@ -37,7 +37,7 @@ fn build_relative_resolver(config_path: &PathBuf) -> FileModuleResolver {
     FileModuleResolver::new_with_path_and_extension(config_path.clone(), "nog")
 }
 
-pub fn parse_config() -> Result<Config, String> {
+pub fn parse_config(chan: &EventChannel) -> Result<Config, String> {
     let mut engine = Engine::new();
     let mut scope = Scope::new();
     let mut config = Arc::new(Mutex::new(Config::default()));
@@ -45,7 +45,7 @@ pub fn parse_config() -> Result<Config, String> {
     syntax::init(&mut engine, &mut config).unwrap();
     types::init(&mut engine);
     functions::init(&mut engine);
-    lib::init(&mut engine);
+    lib::init(&mut engine, chan);
 
     *CALLBACKS.lock() = Vec::new();
 
