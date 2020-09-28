@@ -1,21 +1,21 @@
 use crate::{
     direction::Direction,
     display::{get_primary_display, Display},
+    renderer::{NativeRenderer, Renderer},
     split_direction::SplitDirection,
     system::NativeWindow,
     system::SystemError,
     system::SystemResult,
     system::WindowId,
     tile::Tile,
-    CONFIG,
 };
 use log::{debug, error};
 use std::collections::HashMap;
-use winapi::{shared::windef::RECT, um::winuser::SWP_NOSENDCHANGING};
 
 #[derive(Clone)]
-pub struct TileGrid {
+pub struct TileGrid<TRenderer: Renderer = NativeRenderer> {
     pub display: Display,
+    pub renderer: TRenderer,
     pub id: i32,
     pub fullscreen: bool,
     pub focus_stack: Vec<(Direction, WindowId)>,
@@ -32,11 +32,12 @@ pub struct TileGrid {
     pub columns: i32,
 }
 
-impl TileGrid {
-    pub fn new(id: i32) -> Self {
+impl<TRenderer: Renderer> TileGrid<TRenderer> {
+    pub fn new(id: i32, renderer: TRenderer) -> TileGrid<TRenderer> {
         Self {
             id,
             display: get_primary_display(),
+            renderer,
             fullscreen: false,
             tiles: Vec::new(),
             focus_stack: Vec::with_capacity(5),
@@ -445,122 +446,24 @@ impl TileGrid {
         }
     }
 
-    fn get_row_modifications(&self, row: Option<i32>) -> Option<(i32, i32)> {
+    pub fn get_row_modifications(&self, row: Option<i32>) -> Option<(i32, i32)> {
         row.and_then(|value| self.row_modifications.get(&value))
             .copied()
     }
-    fn get_column_modifications(&self, column: Option<i32>) -> Option<(i32, i32)> {
+    pub fn get_column_modifications(&self, column: Option<i32>) -> Option<(i32, i32)> {
         column
             .and_then(|value| self.column_modifications.get(&value))
             .copied()
     }
-    fn get_modifications(&self, tile: &Tile) -> (Option<(i32, i32)>, Option<(i32, i32)>) {
+    pub fn get_modifications(&self, tile: &Tile) -> (Option<(i32, i32)>, Option<(i32, i32)>) {
         (
             self.get_column_modifications(tile.column),
             self.get_row_modifications(tile.row),
         )
     }
     /// Converts the percentage to the real pixel value of the current display
-    fn percentage_to_real(&self, p: i32) -> i32 {
+    pub fn percentage_to_real(&self, p: i32) -> i32 {
         self.display.working_area_height() / 100 * p
-    }
-    /// Calculates all the data required for drawing the tile
-    fn calculate_tile_data(&self, tile: &Tile) -> RECT {
-        let (padding, margin) = {
-            let config = CONFIG.lock();
-
-            (config.inner_gap, config.outer_gap)
-        };
-        let display_height = self.display.working_area_height() - margin * 2 - padding * 2;
-        let display_width = self.display.working_area_width() - margin * 2 - padding * 2;
-        let column_width = display_width / self.columns;
-        let row_height = display_height / self.rows;
-        let mut x = self.display.working_area_left();
-        let mut y = self.display.working_area_top();
-        let mut height = display_height;
-        let mut width = display_width;
-
-        if !self.fullscreen {
-            if let Some(column) = tile.column {
-                width = column_width;
-                x += column_width * (column - 1);
-
-                if column > 1 {
-                    width -= padding;
-                    x += padding;
-                }
-            }
-
-            if let Some(row) = tile.row {
-                height = row_height;
-                y = row_height * (row - 1);
-
-                if row > 1 {
-                    height -= padding;
-                    y += padding;
-                }
-            }
-
-            x += margin;
-            x += padding;
-            y += margin;
-            y += padding;
-
-            let (column_modifications, row_modifications) = self.get_modifications(tile);
-
-            if let Some(modifications) = column_modifications {
-                let real_left = self.percentage_to_real(modifications.0);
-                let real_right = self.percentage_to_real(modifications.1);
-
-                x -= real_left;
-                width += real_right + real_left;
-            }
-            if let Some(modifications) = row_modifications {
-                let real_top = self.percentage_to_real(modifications.0);
-                let real_bottom = self.percentage_to_real(modifications.1);
-
-                y -= real_top;
-                height += real_bottom + real_top;
-            }
-
-            // column to the right
-            if let Some(modifications) = self.get_column_modifications(tile.column.map(|x| x + 1)) {
-                let real_left = self.percentage_to_real(modifications.0);
-
-                width -= real_left;
-            }
-
-            // row below
-            if let Some(modifications) = self.get_row_modifications(tile.row.map(|x| x + 1)) {
-                let real_top = self.percentage_to_real(modifications.0);
-
-                height -= real_top;
-            }
-
-            // column to the left
-            if let Some(modifications) = self.get_column_modifications(tile.column.map(|x| x - 1)) {
-                let real_right = self.percentage_to_real(modifications.1);
-
-                x += real_right;
-                width -= real_right;
-            }
-
-            // row above
-            if let Some(modifications) = self.get_row_modifications(tile.row.map(|x| x - 1)) {
-                let real_bottom = self.percentage_to_real(modifications.1);
-
-                y += real_bottom;
-                height -= real_bottom;
-            }
-        } else {
-            x += margin;
-            x += padding;
-            y += margin;
-            y += padding;
-        }
-
-        tile.window
-            .calculate_window_rect(&self.display, x, y, width, height)
     }
 
     pub fn resize_column(&mut self, column: i32, direction: Direction, amount: i32) {
@@ -591,14 +494,6 @@ impl TileGrid {
 
             self.row_modifications.insert(row, modification);
         }
-    }
-
-    fn draw_tile(&self, tile: &Tile) -> SystemResult {
-        let rect = self.calculate_tile_data(tile).into();
-
-        tile.window
-            .set_window_pos(rect, None, Some(SWP_NOSENDCHANGING))
-            .map_err(SystemError::DrawTile)
     }
 
     #[allow(dead_code)]
@@ -664,13 +559,13 @@ impl TileGrid {
 
         if self.fullscreen {
             if let Some(tile) = self.get_focused_tile() {
-                self.draw_tile(tile)?;
+                self.renderer.render(self, tile)?;
             }
         } else {
             for tile in &self.tiles {
                 debug!("{:?}", tile);
 
-                self.draw_tile(tile)?;
+                self.renderer.render(self, tile)?;
             }
 
             // self.print_grid();

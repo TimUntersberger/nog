@@ -1,5 +1,5 @@
 use crate::{
-    display::with_display_by_idx, event::Event, util, CHANNEL, CONFIG, GRIDS, VISIBLE_WORKSPACES,
+    display::with_display_by_idx, event::Event, CHANNEL, CONFIG, GRIDS, VISIBLE_WORKSPACES,
     WORKSPACE_ID,
 };
 use log::debug;
@@ -8,10 +8,7 @@ pub fn is_visible_workspace(id: i32) -> bool {
     VISIBLE_WORKSPACES.lock().values().any(|v| *v == id)
 }
 
-pub fn change_workspace(
-    id: i32,
-    ignore_monitor_setting: bool,
-) -> Result<(), util::WinApiResultError> {
+pub fn change_workspace(id: i32, ignore_monitor_setting: bool) {
     let mut grids = GRIDS.lock();
 
     let workspace_settings = CONFIG.lock().workspace_settings.clone();
@@ -63,6 +60,4 @@ pub fn change_workspace(
         .clone()
         .send(Event::RedrawAppBar)
         .expect("Failed to send redraw-app-bar event");
-
-    Ok(())
 }

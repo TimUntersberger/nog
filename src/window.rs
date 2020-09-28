@@ -1,8 +1,5 @@
 use parking_lot::Mutex;
-use std::{
-    ffi::c_void, ffi::CString, sync::atomic::AtomicPtr, sync::atomic::Ordering,
-    sync::mpsc::channel, sync::Arc, thread,
-};
+use std::{ffi::c_void, ffi::CString, sync::mpsc::channel, sync::Arc, thread};
 use winapi::um::wingdi::SelectObject;
 use winapi::um::wingdi::LOGFONTA;
 use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
@@ -20,8 +17,8 @@ use winapi::{
     um::winuser::IDC_ARROW, um::winuser::PAINTSTRUCT, um::winuser::WM_APP, um::winuser::WM_CLOSE,
     um::winuser::WM_CREATE, um::winuser::WM_LBUTTONDOWN, um::winuser::WM_PAINT,
     um::winuser::WM_SETCURSOR, um::winuser::WNDCLASSA, um::winuser::WS_BORDER,
-    um::winuser::WS_CAPTION, um::winuser::WS_EX_NOACTIVATE, um::winuser::WS_EX_TOPMOST,
-    um::winuser::WS_OVERLAPPEDWINDOW, um::winuser::WS_POPUPWINDOW,
+    um::winuser::WS_EX_NOACTIVATE, um::winuser::WS_EX_TOPMOST, um::winuser::WS_OVERLAPPEDWINDOW,
+    um::winuser::WS_POPUPWINDOW,
 };
 
 use crate::{
@@ -62,7 +59,7 @@ unsafe extern "system" fn window_cb(
 }
 
 fn convert_color_to_winapi(color: u32) -> u32 {
-    RGB(GetBValue(color), GetGValue(color), GetRValue(color))
+    RGB(GetRValue(color), GetGValue(color), GetBValue(color))
 }
 
 #[derive(Debug, Clone)]
@@ -86,22 +83,20 @@ impl Api {
     }
     pub fn set_text_color(&self, color: u32) {
         unsafe {
-            SetTextColor(self.hdc as HDC, color);
+            SetTextColor(self.hdc as HDC, convert_color_to_winapi(color));
         }
     }
     pub fn set_background_color(&self, color: u32) {
         unsafe {
-            SetBkColor(self.hdc as HDC, color);
+            SetBkColor(self.hdc as HDC, convert_color_to_winapi(color));
         }
     }
     pub fn reset_background_color(&self) {
-        unsafe {
-            SetBkColor(self.hdc as HDC, self.background_color);
-        }
+        self.set_background_color(self.background_color)
     }
     pub fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32, color: u32) {
         unsafe {
-            let brush = CreateSolidBrush(color);
+            let brush = CreateSolidBrush(convert_color_to_winapi(color));
             let mut rect = RECT {
                 left: x,
                 right: x + width,
@@ -331,7 +326,7 @@ impl Window {
             message_loop::start(move |msg| {
                 if let Some(msg) = msg {
                     if msg.message == WM_IDENT {
-                        let mut inner = inner_arc.try_lock().unwrap();
+                        let inner = inner_arc.try_lock().unwrap();
                         let window: NativeWindow = hwnd.into();
                         let display = window.get_display().unwrap();
                         let background_color = inner.background_color;

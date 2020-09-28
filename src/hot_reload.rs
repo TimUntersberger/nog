@@ -1,10 +1,18 @@
+use std::sync::Arc;
+
+use keybindings::KbManager;
+use parking_lot::Mutex;
+
 use crate::{
     bar, config::Config, keybindings, startup, task_bar, with_current_grid, CONFIG, GRIDS,
     WORK_MODE,
 };
 
-pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error>> {
-    keybindings::unregister();
+pub fn update_config(
+    kb_manager: Arc<Mutex<KbManager>>,
+    new_config: Config,
+) -> Result<(), Box<dyn std::error::Error>> {
+    //TODO: unregister keybindings
 
     let config = CONFIG.lock().clone();
     let work_mode = *WORK_MODE.lock();
@@ -54,17 +62,17 @@ pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error
     }
 
     if config.launch_on_startup != new_config.launch_on_startup {
-        startup::set_launch_on_startup(new_config.launch_on_startup)?;
+        startup::set_launch_on_startup(new_config.launch_on_startup);
     }
 
     *CONFIG.lock() = new_config;
 
     if draw_app_bar {
-        bar::create::create()?;
+        bar::create::create(kb_manager);
         bar::visibility::show();
     }
 
-    keybindings::register()?;
+    //TODO: register keybindings
 
     with_current_grid(|grid| {
         grid.draw_grid();

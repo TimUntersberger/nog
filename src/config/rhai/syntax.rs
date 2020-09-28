@@ -140,7 +140,7 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
                         }
                     }
                 } else {
-                    set!(i32, bar_config, color, key, val);
+                    set!(u32, bar_config, color, key, val);
                     set!(i32, bar_config, height, key, val);
                     set!(String, bar_config, font, key, val);
                     set!(i32, bar_config, font_size, key, val);

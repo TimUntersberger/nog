@@ -1,4 +1,4 @@
-use crate::display::Display;
+use crate::{config::Config, display::Display, keybindings::KbManager, tile_grid::TileGrid};
 use std::{fmt::Debug, sync::Arc};
 
 pub mod active_mode;
@@ -38,7 +38,7 @@ impl ComponentText {
     }
 }
 
-pub type RenderFn = Arc<dyn Fn(&Component, &Display) -> Vec<ComponentText> + Send + Sync>;
+pub type RenderFn = Arc<dyn Fn(RenderContext) -> Vec<ComponentText> + Send + Sync>;
 /// Receives the Component, the display and the idx of ComponentText which got clicked
 pub type OnClickFn = Arc<dyn Fn(&Component, &Display, usize) -> () + Send + Sync>;
 
@@ -55,9 +55,26 @@ impl Default for Component {
         Self {
             name: "Default".into(),
             is_clickable: false,
-            render_fn: Arc::new(|_, _| vec![ComponentText::Basic("Hello World".into())]),
+            render_fn: Arc::new(|_| vec![ComponentText::Basic("Hello World".into())]),
             on_click_fn: None,
         }
+    }
+}
+
+pub struct RenderContext<'a> {
+    display: &'a Display,
+    workspace_id: i32,
+    grids: &'a Vec<TileGrid>,
+    kb_manager: &'a KbManager,
+    config: &'a Config,
+}
+
+impl<'a> RenderContext<'a> {
+    pub fn get_current_grid(&self) -> &TileGrid {
+        self.grids
+            .iter()
+            .find(|g| g.id == self.workspace_id)
+            .unwrap()
     }
 }
 
@@ -77,10 +94,23 @@ impl Component {
         }
     }
 
-    pub fn render(&self, display: &Display) -> Vec<ComponentText> {
+    pub fn render(
+        &self,
+        kb_manager: &KbManager,
+        display: &Display,
+        grids: &Vec<TileGrid>,
+        workspace_id: i32,
+        config: &Config,
+    ) -> Vec<ComponentText> {
         let f = self.render_fn.clone();
 
-        f(self, display)
+        f(RenderContext {
+            display,
+            kb_manager,
+            grids,
+            workspace_id,
+            config,
+        })
     }
 
     pub fn with_on_click(&mut self, f: OnClickFn) -> &mut Self {

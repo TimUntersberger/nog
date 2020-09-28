@@ -46,7 +46,7 @@ pub fn handle(mut window: NativeWindow, force: bool) -> Result<(), Box<dyn std::
 
         if rule.workspace_id != -1 {
             workspace_id = rule.workspace_id;
-            change_workspace(workspace_id, false)?;
+            change_workspace(workspace_id, false);
         }
 
         if CONFIG.lock().remove_title_bar {

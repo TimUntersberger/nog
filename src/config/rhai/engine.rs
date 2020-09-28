@@ -8,7 +8,6 @@ use rhai::{
     Engine, FnPtr, Scope,
 };
 use std::{io::Write, path::PathBuf, sync::Arc};
-use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
 
 lazy_static! {
     pub static ref MODE: Mutex<Option<String>> = Mutex::new(None);
@@ -97,12 +96,6 @@ pub fn parse_config() -> Result<Config, String> {
     *AST.lock() = ast;
 
     let mut config = config.lock().clone();
-
-    config.bar.color = RGB(
-        GetBValue(config.bar.color as u32),
-        GetGValue(config.bar.color as u32),
-        GetRValue(config.bar.color as u32),
-    ) as i32;
 
     Ok(config)
 }

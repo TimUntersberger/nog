@@ -97,7 +97,7 @@ unsafe extern "system" fn window_cb(
     DefWindowProcW(hwnd, msg, w_param, l_param)
 }
 
-pub fn create() -> Result<(), util::WinApiResultError> {
+pub fn create() {
     let name = util::to_widestring("WWM Tray");
     let config = CONFIG.lock();
     let app_bar_bg = config.bar.color;
@@ -135,8 +135,6 @@ pub fn create() -> Result<(), util::WinApiResultError> {
 
         message_loop::start(|_| true);
     });
-
-    Ok(())
 }
 
 pub fn add_icon(hwnd: HWND) {

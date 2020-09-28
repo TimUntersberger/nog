@@ -1,167 +1,181 @@
-use crate::{event::Event, message_loop, util, CHANNEL, CONFIG, WORK_MODE};
+use crate::{event::Event, message_loop, system, system::api, util, CHANNEL, CONFIG, WORK_MODE};
 use key::Key;
 use keybinding::Keybinding;
 use keybinding_type::KeybindingType;
-use lazy_static::lazy_static;
 use log::{debug, error, info};
 use modifier::Modifier;
 use num_traits::FromPrimitive;
 use parking_lot::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
-use winapi::um::winuser::{RegisterHotKey, UnregisterHotKey, WM_HOTKEY};
+use std::{
+    sync::atomic::{AtomicBool, Ordering},
+    sync::mpsc::channel,
+    sync::mpsc::Receiver,
+    sync::mpsc::Sender,
+    sync::Arc,
+    thread,
+};
 
 pub mod key;
 pub mod keybinding;
 pub mod keybinding_type;
 pub mod modifier;
 
-lazy_static! {
-    static ref UNREGISTER: AtomicBool = AtomicBool::new(false);
-    static ref PREV_MODE: Mutex<Option<String>> = Mutex::new(None);
-    pub static ref MODE: Mutex<Option<String>> = Mutex::new(None);
+pub type Mode = Option<String>;
+
+#[derive(Debug, Clone)]
+enum ChanMessage {
+    Stop,
+    ChangeMode(Mode),
 }
 
-fn unregister_keybindings<'a>(keybindings: impl Iterator<Item = &'a Keybinding>) {
-    for kb in keybindings {
-        info!("Unregistering {:?}", kb);
+struct KbManagerInner {
+    running: AtomicBool,
+    stopped: AtomicBool,
+    keybindings: Vec<Keybinding>,
+    mode: Mutex<Mode>,
+}
 
-        unsafe {
-            UnregisterHotKey(std::ptr::null_mut(), kb.get_id());
+impl KbManagerInner {
+    pub fn new(kbs: Vec<Keybinding>) -> Self {
+        Self {
+            running: AtomicBool::new(false),
+            stopped: AtomicBool::new(false),
+            mode: Mutex::new(None),
+            keybindings: kbs,
         }
+    }
+
+    pub fn get_keybinding(&self, key: Key, modifier: Modifier) -> Option<&Keybinding> {
+        self.keybindings
+            .iter()
+            .find(|kb| kb.key == key && kb.modifier == modifier)
+    }
+
+    pub fn get_keybindings_by<T: Fn(&&Keybinding) -> bool>(&self, f: T) -> Vec<&Keybinding> {
+        self.keybindings.iter().filter(f).collect()
+    }
+
+    pub fn get_keybindings_by_mode(&self, mode: Mode) -> Vec<&Keybinding> {
+        self.get_keybindings_by(|kb| kb.mode == mode)
     }
 }
 
-fn register_keybindings<'a>(keybindings: impl Iterator<Item = &'a Keybinding>) {
-    for kb in keybindings {
-        info!("Registering {:?}", kb);
+pub struct KbManager {
+    inner: Arc<KbManagerInner>,
+    sender: Sender<ChanMessage>,
+    receiver: Arc<Mutex<Receiver<ChanMessage>>>,
+}
 
-        unsafe {
-            util::winapi_nullable_to_result(RegisterHotKey(
-                std::ptr::null_mut(),
-                kb.get_id(),
-                kb.modifier.bits(),
-                kb.key as u32,
-            ))
-            .expect("Failed to register keybinding");
+impl KbManager {
+    pub fn new(kbs: Vec<Keybinding>) -> Self {
+        let (sender, receiver) = channel();
+        Self {
+            inner: Arc::new(KbManagerInner::new(kbs)),
+            sender,
+            receiver: Arc::new(Mutex::new(receiver)),
         }
     }
-}
+    fn change_mode(&mut self, mode: Mode) {
+        *self.inner.mode.lock() = mode.clone();
+        self.sender.send(ChanMessage::ChangeMode(mode));
+    }
+    pub fn enter_mode(&mut self, mode: &str) {
+        self.change_mode(Some(mode.into()));
+    }
+    pub fn leave_mode(&mut self) {
+        self.change_mode(None);
+    }
+    pub fn get_mode(&self) -> Mode {
+        self.inner.clone().mode.lock().clone()
+    }
+    pub fn start(&self) {
+        let inner = self.inner.clone();
+        let receiver = self.receiver.clone();
 
-fn get_keybinding(keybindings: &[Keybinding], key: Key, modifier: Modifier) -> Option<Keybinding> {
-    keybindings
-        .iter()
-        .find(|kb| kb.key == key && kb.modifier == modifier)
-        .cloned()
-}
+        thread::spawn(move || {
+            let receiver = receiver.lock();
 
-pub fn register() -> Result<(), Box<dyn std::error::Error>> {
-    std::thread::spawn(|| {
-        let keybindings = CONFIG.lock().keybindings.clone();
-
-        while UNREGISTER.load(Ordering::SeqCst) {
-            debug!("Waiting for the other thread to get cleaned up");
-            // as long as another thread gets unregistered we cant start a new one
-            std::thread::sleep(std::time::Duration::from_millis(10))
-        }
-
-        register_keybindings(keybindings.iter().filter(|kb| kb.mode == None));
-
-        message_loop::start(|maybe_msg| {
-            if UNREGISTER.load(Ordering::SeqCst) {
-                debug!("Unregistering hot key manager");
-                unregister_keybindings(keybindings.iter().filter(|kb| kb.mode == None));
-                UNREGISTER.store(false, Ordering::SeqCst);
-                return false;
+            for kb in inner.get_keybindings_by_mode(None) {
+                info!("Registering {:?}", kb);
+                api::register_keybinding(&kb);
             }
 
-            let mut prev_mode = PREV_MODE.lock();
-            let mode = MODE.lock().clone();
+            loop {
+                if let Ok(msg) = receiver.try_recv() {
+                    debug!("KbManager received {:?}", msg);
+                    let keep_running = match msg {
+                        ChanMessage::Stop => false,
+                        ChanMessage::ChangeMode(new_mode) => {
+                            // Unregister all keybindings to ensure a clean state
+                            inner
+                                .keybindings
+                                .iter()
+                                .for_each(api::unregister_keybinding);
 
-            if *prev_mode != mode {
-                if let Some(mode) = prev_mode.clone() {
-                    unregister_keybindings(
-                        keybindings
-                            .iter()
-                            .filter(|kb| kb.mode == Some(mode.clone())),
-                    );
-                    register_keybindings(keybindings.iter().filter(|kb| {
-                        kb.mode == None && kb.typ != KeybindingType::ToggleMode(mode.clone())
-                    }));
+                            // Register all keybinding that belong to the new mode and some
+                            // exceptions like ToggleMode keybindings for this mode
+                            inner
+                                .keybindings
+                                .iter()
+                                .filter(|kb| {
+                                    kb.mode == new_mode
+                                        || kb.typ
+                                            == KeybindingType::ToggleMode(
+                                                new_mode.clone().unwrap_or_default(),
+                                            )
+                                })
+                                .for_each(api::register_keybinding);
+
+                            true
+                        }
+                    };
+
+                    if !keep_running {
+                        debug!("Stopping KbManager");
+                        inner.running.store(false, Ordering::SeqCst);
+                        //TODO: Unregister all keybindings except toggle work mode
+                        break;
+                    }
                 }
 
-                if let Some(mode) = mode.clone() {
-                    unregister_keybindings(keybindings.iter().filter(|kb| {
-                        kb.mode == None && kb.typ != KeybindingType::ToggleMode(mode.clone())
-                    }));
-                    register_keybindings(
-                        keybindings
-                            .iter()
-                            .filter(|kb| kb.mode == Some(mode.clone())),
-                    );
-                }
-
-                *prev_mode = mode;
-            }
-
-            if let Some(msg) = maybe_msg {
-                if msg.message != WM_HOTKEY {
-                    return true;
-                }
-
-                let work_mode = *WORK_MODE.lock();
-                let modifier = Modifier::from_bits((msg.lParam & 0xffff) as u32).unwrap();
-
-                if let Some(key) = Key::from_isize(msg.lParam >> 16) {
-                    let kb = get_keybinding(&keybindings, key, modifier)
-                        .expect("Couldn't find keybinding");
-
-                    if work_mode || kb.typ == KeybindingType::ToggleWorkMode {
+                if let Some(kb) = do_loop(&inner) {
+                    if *WORK_MODE.lock() || kb.typ == KeybindingType::ToggleWorkMode {
                         CHANNEL
                             .sender
                             .clone()
-                            .send(Event::Keybinding(kb))
+                            .send(Event::Keybinding(kb.clone()))
                             .expect("Failed to send key event");
                     }
                 }
             }
-
-            true
         });
-    });
-
-    Ok(())
+    }
+    pub fn stop(&mut self) {
+        self.inner.clone().stopped.store(true, Ordering::SeqCst);
+        self.sender.send(ChanMessage::Stop);
+    }
 }
 
-pub fn unregister() {
-    disable_mode();
-    UNREGISTER.store(true, Ordering::SeqCst);
+#[cfg(not(any(target_os = "windows", target_os = "linux")))]
+fn do_loop(inner: &Arc<KbManagerInner>) -> Option<&Keybinding> {
+    todo!();
 }
 
-pub fn enable_mode(mode: &str) -> bool {
-    let mut mode_guard = MODE.lock();
-    let mode = Some(mode.to_string());
+#[cfg(target_os = "windows")]
+fn do_loop(inner: &Arc<KbManagerInner>) -> Option<&Keybinding> {
+    use winapi::um::winuser::WM_HOTKEY;
 
-    if *mode_guard == mode {
-        return false;
+    if let Some(msg) = system::win::api::get_current_window_msg() {
+        if msg.message != WM_HOTKEY {
+            return None;
+        }
+
+        let modifier = Modifier::from_bits((msg.lParam & 0xffff) as u32).unwrap();
+
+        if let Some(key) = Key::from_isize(msg.lParam >> 16) {
+            return inner.get_keybinding(key, modifier);
+        }
     }
 
-    *mode_guard = mode;
-
-    let sender = CHANNEL.sender.clone();
-
-    let _ = sender
-        .send(Event::RedrawAppBar)
-        .map_err(|e| error!("{:?}", e));
-
-    true
-}
-
-pub fn disable_mode() {
-    *MODE.lock() = None;
-
-    let sender = CHANNEL.sender.clone();
-
-    let _ = sender
-        .send(Event::RedrawAppBar)
-        .map_err(|e| error!("{:?}", e));
+    None
 }

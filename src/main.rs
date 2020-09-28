@@ -4,8 +4,6 @@
 extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
-#[macro_use]
-extern crate derivative;
 
 use config::{rule::Rule, Config};
 use crossbeam_channel::select;
@@ -14,16 +12,15 @@ use event::Event;
 use event::EventChannel;
 use event_handler::keybinding::toggle_work_mode;
 use hot_reload::update_config;
+use keybindings::KbManager;
 use lazy_static::lazy_static;
 use log::debug;
 use log::{error, info};
 use parking_lot::{deadlock, Mutex};
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 use std::{thread, time::Duration};
 use system::{DisplayId, SystemResult, WinEventListener};
 use tile_grid::TileGrid;
-use winapi::shared::windef::HWND;
-use workspace::Workspace;
 
 mod bar;
 mod config;
@@ -36,6 +33,7 @@ mod keybindings;
 mod logging;
 mod message_loop;
 mod popup;
+mod renderer;
 mod split_direction;
 mod startup;
 mod system;
@@ -49,7 +47,17 @@ mod win_event_handler;
 mod window;
 mod workspace;
 
+pub struct AppState {
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        todo!()
+    }
+}
+
 lazy_static! {
+    pub static ref STATE: Mutex<AppState> = Mutex::new(AppState::default());
     pub static ref WORK_MODE: Mutex<bool> = Mutex::new(CONFIG.lock().work_mode);
     pub static ref CONFIG: Mutex<Config> = Mutex::new(
         config::rhai::engine::parse_config()
@@ -60,8 +68,11 @@ lazy_static! {
     pub static ref CHANNEL: EventChannel = EventChannel::default();
     pub static ref ADDITIONAL_RULES: Mutex<Vec<Rule>> = Mutex::new(Vec::new());
     pub static ref WIN_EVENT_LISTENER: WinEventListener = WinEventListener::default();
-    pub static ref GRIDS: Mutex<Vec<TileGrid>> =
-        Mutex::new((1..11).map(TileGrid::new).collect::<Vec<TileGrid>>());
+    pub static ref GRIDS: Mutex<Vec<TileGrid>> = Mutex::new(
+        (1..11)
+            .map(|i| TileGrid::new(i, renderer::NativeRenderer::default()))
+            .collect::<Vec<TileGrid>>()
+    );
     pub static ref VISIBLE_WORKSPACES: Mutex<HashMap<DisplayId, i32>> = Mutex::new(HashMap::new());
     pub static ref WORKSPACE_ID: Mutex<i32> = Mutex::new(1);
 }
@@ -97,6 +108,8 @@ where
 }
 
 fn on_quit() -> SystemResult {
+    os_specific_cleanup();
+
     unmanage_everything()?;
 
     popup::cleanup();
@@ -114,7 +127,13 @@ fn on_quit() -> SystemResult {
     std::process::exit(0);
 }
 
-#[cfg(target_os="windows")]
+#[cfg(target_os = "windows")]
+fn os_specific_cleanup() {
+    use winapi::shared::windef::HWND;
+    tray::remove_icon(*tray::WINDOW.lock() as HWND);
+}
+
+#[cfg(target_os = "windows")]
 fn os_specific_setup() {
     info!("Creating tray icon");
     tray::create();
@@ -122,9 +141,9 @@ fn os_specific_setup() {
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let receiver = CHANNEL.receiver.clone();
-
-    info!("Initializing config");
-    lazy_static::initialize(&CONFIG);
+    let kb_manager = Arc::new(Mutex::new(KbManager::new(
+        CONFIG.lock().keybindings.clone(),
+    )));
 
     info!("Initializing displays");
     display::init();
@@ -140,28 +159,26 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     os_specific_setup();
 
-    toggle_work_mode::initialize()?;
+    toggle_work_mode::initialize(kb_manager.clone())?;
 
     info!("Listening for keybindings");
-    keybindings::register()?;
+    kb_manager.clone().lock().start();
 
     loop {
         select! {
             recv(receiver) -> maybe_msg => {
                 let msg = maybe_msg.unwrap();
                 let _ = match msg {
-                    Event::Keybinding(kb) => event_handler::keybinding::handle(kb),
+                    Event::Keybinding(kb) => event_handler::keybinding::handle(kb_manager.clone(), kb),
                     Event::RedrawAppBar => Ok(bar::redraw::redraw()),
                     Event::WinEvent(ev) => event_handler::winevent::handle(ev),
                     Event::Exit => {
-                        tray::remove_icon(*tray::WINDOW.lock() as HWND);
                         on_quit()?;
                         break;
                     },
                     Event::ReloadConfig => {
                         info!("Reloading Config");
-
-                        update_config(config::rhai::engine::parse_config().expect("Failed to load config"))
+                        update_config(kb_manager.clone(), config::rhai::engine::parse_config().expect("Failed to load config"))
                     }
                 }.map_err(|e| {
                     error!("{:?}", e);

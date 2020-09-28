@@ -14,7 +14,7 @@ fn create_component(name: ImmutableString, render_fn: FnPtr, options: Map) -> Co
     let render_fn_name = render_fn.fn_name().to_string();
     let mut component = Component::new(
         &name,
-        Arc::new(move |_, _| {
+        Arc::new(move |_| {
             let engine = ENGINE.lock();
             let mut scope = SCOPE.lock();
             let ast = AST.lock();

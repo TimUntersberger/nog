@@ -1,16 +1,19 @@
 use std::ptr;
 
 use crate::{
-    display::Display, system::DisplayId, system::Rectangle, task_bar::Taskbar,
-    task_bar::TaskbarPosition, util,
+    display::Display, keybindings::keybinding::Keybinding, system::DisplayId, system::Rectangle,
+    system::SystemError, system::SystemResult, task_bar::Taskbar, task_bar::TaskbarPosition, util,
 };
-use log::{error, debug};
+use log::{debug, error};
 use winapi::{
     shared::{minwindef::*, windef::*},
-    um::{errhandlingapi::*, shellscalingapi::*, winbase::*, winuser::*, winreg::*, winnt::*},
+    um::{
+        errhandlingapi::*, processthreadsapi::*, shellscalingapi::*, winbase::*, winnt::*,
+        winreg::*, winuser::*,
+    },
 };
 
-use super::{bool_to_result, Window};
+use super::{bool_to_result, nullable_to_result, Window};
 
 unsafe extern "system" fn monitor_cb(
     hmonitor: HMONITOR,
@@ -123,7 +126,8 @@ pub fn add_launch_on_startup() {
         }
 
         let mut key: HKEY = std::mem::zeroed();
-        let mut key_name: Vec<u16> = util::to_widestring("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
+        let mut key_name: Vec<u16> =
+            util::to_widestring("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
         let mut value_name = util::to_widestring("nog");
         let mut app_path = util::to_widestring(target_path.to_str().unwrap());
 
@@ -153,7 +157,8 @@ pub fn add_launch_on_startup() {
 
 pub fn remove_launch_on_startup() {
     unsafe {
-        let mut key_name: Vec<u16> = util::to_widestring("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
+        let mut key_name: Vec<u16> =
+            util::to_widestring("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
         let mut value_name = util::to_widestring("nog");
 
         RegDeleteKeyValueW(
@@ -161,5 +166,65 @@ pub fn remove_launch_on_startup() {
             key_name.as_mut_ptr(),
             value_name.as_mut_ptr(),
         );
+    }
+}
+
+pub fn register_keybinding(kb: &Keybinding) {
+    unsafe {
+        nullable_to_result(RegisterHotKey(
+            std::ptr::null_mut(),
+            kb.get_id(),
+            kb.modifier.bits(),
+            kb.key as u32,
+        ))
+        .expect("Failed to register keybinding");
+    }
+}
+
+pub fn unregister_keybinding(kb: &Keybinding) {
+    unsafe {
+        UnregisterHotKey(std::ptr::null_mut(), kb.get_id());
+    }
+}
+
+pub fn get_current_window_msg() -> Option<MSG> {
+    let mut msg: MSG = MSG::default();
+
+    return unsafe {
+        if PeekMessageW(&mut msg, std::ptr::null_mut(), 0, 0, PM_REMOVE) != 0 {
+            TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+
+            Some(msg)
+        } else {
+            None
+        }
+    };
+}
+
+pub fn launch_program(cmd: String) -> SystemResult {
+    let mut si = STARTUPINFOA::default();
+    let mut pi = PROCESS_INFORMATION::default();
+    let mut cmd_bytes: Vec<u8> = cmd.bytes().chain(std::iter::once(0)).collect();
+
+    unsafe {
+        let x = CreateProcessA(
+            std::ptr::null_mut(),
+            cmd_bytes.as_mut_ptr() as *mut i8,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            0,
+            0,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut si,
+            &mut pi,
+        );
+
+        if x != 1 {
+            Err(SystemError::LaunchProgram(cmd))
+        } else {
+            Ok(())
+        }
     }
 }

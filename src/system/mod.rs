@@ -5,7 +5,7 @@ pub mod win;
 pub use win::api;
 pub use win::win_event_listener::WinEventListener;
 pub use win::Window as NativeWindow;
-pub use win::BIN_NAME as BIN_NAME;
+pub use win::BIN_NAME;
 
 pub type SpecificError = win::WinError;
 
@@ -84,6 +84,8 @@ pub enum SystemError {
     MaximizeWindow(SpecificError),
     #[error("Failed to draw tile")]
     DrawTile(SpecificError),
+    #[error("Failed to launch a program")]
+    LaunchProgram(String),
     #[error("An unknown error occured")]
     Unknown(SpecificError),
 }

@@ -1,15 +1,19 @@
+use std::sync::Arc;
+
 use crate::{
     config::{rhai::engine, rule::Rule},
     display::with_display_by_idx,
     event::Event,
     hot_reload::update_config,
     keybindings::{self, keybinding::Keybinding, keybinding_type::KeybindingType},
+    system::api,
     with_current_grid, with_grid_by_id,
     workspace::change_workspace,
     ADDITIONAL_RULES, CHANNEL, CONFIG, VISIBLE_WORKSPACES,
 };
-use log::{debug, error, info};
-use winapi::um::processthreadsapi::{CreateProcessA, PROCESS_INFORMATION, STARTUPINFOA};
+use keybindings::KbManager;
+use log::{debug, info};
+use parking_lot::Mutex;
 
 mod close_tile;
 mod focus;
@@ -19,7 +23,10 @@ mod swap;
 mod toggle_floating_mode;
 pub mod toggle_work_mode;
 
-pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
+pub fn handle(
+    kb_manager: Arc<Mutex<KbManager>>,
+    kb: Keybinding,
+) -> Result<(), Box<dyn std::error::Error>> {
     if let KeybindingType::MoveWorkspaceToMonitor(_) = kb.typ {
         if !CONFIG.lock().multi_monitor {
             return Ok(());
@@ -30,31 +37,7 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
     let sender = CHANNEL.sender.clone();
     match kb.typ {
         KeybindingType::Launch(cmd) => {
-            let mut si = STARTUPINFOA::default();
-            let mut pi = PROCESS_INFORMATION::default();
-            let mut cmd_bytes: Vec<u8> = cmd.bytes().chain(std::iter::once(0)).collect();
-
-            unsafe {
-                let x = CreateProcessA(
-                    std::ptr::null_mut(),
-                    cmd_bytes.as_mut_ptr() as *mut i8,
-                    std::ptr::null_mut(),
-                    std::ptr::null_mut(),
-                    0,
-                    0,
-                    std::ptr::null_mut(),
-                    std::ptr::null_mut(),
-                    &mut si,
-                    &mut pi,
-                );
-
-                if x != 1 {
-                    error!(
-                        "Error launching program: {}",
-                        winapi::um::errhandlingapi::GetLastError()
-                    );
-                }
-            }
+            api::launch_program(cmd)?;
         }
         KeybindingType::MoveWorkspaceToMonitor(monitor) => {
             let (grid_id, grid_old_monitor) = with_current_grid(|grid| {
@@ -67,8 +50,7 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
 
             VISIBLE_WORKSPACES.lock().insert(grid_old_monitor, 0);
 
-            change_workspace(grid_id, true)
-                .expect("Failed to change workspace after moving workspace to different monitor");
+            change_workspace(grid_id, true);
         }
         KeybindingType::CloseTile => close_tile::handle()?,
         KeybindingType::MinimizeTile => {
@@ -93,10 +75,10 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
                 with_grid_by_id(id, |grid| {
                     grid.split(tile.window.clone());
                 });
-                change_workspace(id, false)?;
+                change_workspace(id, false);
             }
         }
-        KeybindingType::ChangeWorkspace(id) => change_workspace(id, false)?,
+        KeybindingType::ChangeWorkspace(id) => change_workspace(id, false),
         KeybindingType::ToggleFloatingMode => toggle_floating_mode::handle()?,
         KeybindingType::ToggleFullscreen => {
             with_current_grid(|grid| {
@@ -108,28 +90,29 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
             });
         }
         KeybindingType::ToggleMode(mode) => {
-            if keybindings::enable_mode(&mode) {
-                info!("Enabling {} mode", mode);
-            } else {
-                keybindings::disable_mode();
+            if kb_manager.lock().get_mode() == Some(mode.clone()) {
                 info!("Disabling {} mode", mode);
+                kb_manager.lock().leave_mode();
+            } else {
+                info!("Enabling {} mode", mode);
+                kb_manager.lock().enter_mode(&mode);
             }
         }
-        KeybindingType::ToggleWorkMode => toggle_work_mode::handle()?,
+        KeybindingType::ToggleWorkMode => toggle_work_mode::handle(kb_manager)?,
         KeybindingType::IncrementConfig(field, value) => {
             let mut current_config = CONFIG.lock().clone();
             current_config.increment_field(&field, value);
-            update_config(current_config)?;
+            update_config(kb_manager, current_config)?;
         }
         KeybindingType::DecrementConfig(field, value) => {
             let mut current_config = CONFIG.lock().clone();
             current_config.decrement_field(&field, value);
-            update_config(current_config)?;
+            update_config(kb_manager, current_config)?;
         }
         KeybindingType::ToggleConfig(field) => {
             let mut current_config = CONFIG.lock().clone();
             current_config.toggle_field(&field);
-            update_config(current_config)?;
+            update_config(kb_manager, current_config)?;
         }
         KeybindingType::Resize(direction, amount) => resize::handle(direction, amount)?,
         KeybindingType::Focus(direction) => focus::handle(direction)?,

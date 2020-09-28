@@ -83,7 +83,7 @@ impl Config {
     fn alter_numerical_field(self: &mut Self, field: &str, value: i32) {
         match field {
             "bar.height" => self.bar.height += value,
-            "bar.bg" => self.bar.color += value,
+            "bar.color" => self.bar.color += value as u32,
             "bar.font_size" => self.bar.font_size += value,
             "outer_gap" => self.outer_gap += value,
             "inner_gap" => self.inner_gap += value,
