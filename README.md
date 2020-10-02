@@ -1,6 +1,12 @@
 
 # Nog
 
+## Status
+
+I have very litte free time in October 2020, so the development will slow down until at least November. Hopefully I'll have more free time this November and onwards.
+
+(I currently have to work a lot)
+
 ## [WIP] Documentation
 
 https://timuntersberger.github.io/nog
