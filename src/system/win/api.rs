@@ -228,3 +228,10 @@ pub fn launch_program(cmd: String) -> SystemResult {
         }
     }
 }
+
+pub fn get_taskbar_for_display(id: DisplayId) -> Taskbar {
+    *get_taskbars()
+        .iter()
+        .find(|tb| tb.window.get_display().unwrap().id == id)
+        .unwrap()
+}

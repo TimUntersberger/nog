@@ -22,8 +22,9 @@ use winapi::{
 };
 
 use crate::{
-    display::Display, message_loop, system::NativeWindow, system::Rectangle, system::WindowId, util,
-AppState};
+    display::Display, message_loop, system::NativeWindow, system::Rectangle, system::WindowId,
+    util, AppState,
+};
 
 pub mod gwl_ex_style;
 pub mod gwl_style;
@@ -146,7 +147,7 @@ pub enum WindowEvent<'a> {
         id: WindowId,
         x: i32,
         y: i32,
-        state: &'a AppState
+        state: &'a AppState,
     },
     Create {
         display: Display,
@@ -330,6 +331,7 @@ impl Window {
                     if msg.message == WM_IDENT {
                         let inner = inner_arc.try_lock().unwrap();
                         let window: NativeWindow = hwnd.into();
+                        // TODO: get display of state instead of generating a new one
                         let display = window.get_display().unwrap();
                         let background_color = inner.background_color;
                         let hdc = GetDC(hwnd);

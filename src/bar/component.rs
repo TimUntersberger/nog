@@ -90,7 +90,7 @@ impl Component {
             f(OnClickContext {
                 display,
                 state,
-                idx
+                idx,
             });
         }
     }

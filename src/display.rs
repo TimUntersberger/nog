@@ -1,8 +1,12 @@
 use crate::{
     bar::Bar,
+    config::Config,
+    renderer, system,
     system::DisplayId,
     system::{api, Rectangle},
     task_bar,
+    tile_grid::TileGrid,
+    AppState,
 };
 use std::cmp::Ordering;
 use task_bar::{Taskbar, TaskbarPosition};
@@ -10,6 +14,8 @@ use task_bar::{Taskbar, TaskbarPosition};
 #[derive(Default, Debug, Clone)]
 pub struct Display {
     pub id: DisplayId,
+    pub grids: Vec<TileGrid>,
+    pub focused_grid_id: Option<i32>,
     pub dpi: u32,
     pub rect: Rectangle,
     pub taskbar: Option<Taskbar>,
@@ -29,7 +35,7 @@ impl Display {
     pub fn get_rect(&self) -> Rectangle {
         api::get_display_rect(self.id)
     }
-    pub fn working_area_height(&self) -> i32 {
+    pub fn working_area_height(&self, config: &Config) -> i32 {
         let tb_height = self
             .taskbar
             .clone()
@@ -43,13 +49,9 @@ impl Display {
             .unwrap_or(0);
 
         self.height()
-            - if CONFIG.lock().remove_task_bar {
-                0
-            } else {
-                tb_height
-            }
-            - if CONFIG.lock().display_app_bar {
-                CONFIG.lock().bar.height
+            - if config.remove_task_bar { 0 } else { tb_height }
+            - if config.display_app_bar {
+                config.bar.height
             } else {
                 0
             }
@@ -76,7 +78,7 @@ impl Display {
             TaskbarPosition::Bottom
         }
     }
-    pub fn working_area_width(&self) -> i32 {
+    pub fn working_area_width(&self, config: &Config) -> i32 {
         let tb_width = self
             .taskbar
             .clone()
@@ -89,14 +91,9 @@ impl Display {
             })
             .unwrap_or(0);
 
-        self.width()
-            - if CONFIG.lock().remove_task_bar {
-                0
-            } else {
-                tb_width
-            }
+        self.width() - if config.remove_task_bar { 0 } else { tb_width }
     }
-    pub fn working_area_top(&self) -> i32 {
+    pub fn working_area_top(&self, config: &Config) -> i32 {
         let mut offset = self
             .taskbar
             .clone()
@@ -107,13 +104,12 @@ impl Display {
             })
             .unwrap_or(0);
 
-        let config = CONFIG.lock();
-
-        if config.display_app_bar {
-            offset += config.bar.height;
-        }
-
-        self.rect.top + offset
+        self.rect.top
+            + if config.display_app_bar {
+                config.bar.height
+            } else {
+                0
+            }
     }
     pub fn working_area_left(&self) -> i32 {
         let offset = self
@@ -128,10 +124,46 @@ impl Display {
 
         self.rect.left + offset
     }
+    pub fn get_grid_by_id(&self, id: i32) -> Option<&TileGrid> {
+        self.grids.iter().find(|g| g.id == id)
+    }
+    pub fn get_focused_grid(&self) -> Option<&TileGrid> {
+        self.focused_grid_id.and_then(|id| self.get_grid_by_id(id))
+    }
+    pub fn refresh_grid(&self, state: &AppState) {
+        if let Some(g) = self.get_focused_grid() {
+            g.draw_grid(self, state);
+        }
+    }
+
+    pub fn remove_grid_by_id(&mut self, id: i32) -> Option<TileGrid> {
+        self.grids
+            .iter()
+            .enumerate()
+            .find(|(_, g)| g.id == id)
+            .map(|(i, _)| self.grids.remove(i))
+    }
+
+    /// Returns true if the workspace was found and false if it wasn't
+    pub fn focus_workspace(&mut self, state: &AppState, id: i32) -> bool {
+        if let Some(grid) = self.get_grid_by_id(id) {
+            grid.draw_grid(self, state);
+            grid.show();
+        } else {
+            return false;
+        }
+
+        if let Some(grid) = self.get_focused_grid() {
+            grid.hide();
+        }
+
+        true
+    }
     pub fn new(id: DisplayId) -> Self {
         let mut display = Display::default();
 
         display.dpi = api::get_display_dpi(id);
+        display.taskbar = Some(api::get_taskbar_for_display(id));
         display.id = id;
         display.rect = display.get_rect();
 
@@ -139,10 +171,10 @@ impl Display {
     }
 }
 
-pub fn init(multi_monitor: bool) -> Vec<Display> {
+pub fn init(config: &Config) -> Vec<Display> {
     let mut displays = api::get_displays();
 
-    if multi_monitor {
+    if config.multi_monitor {
         displays = displays
             .iter_mut()
             .filter(|d| d.is_primary())
@@ -160,34 +192,24 @@ pub fn init(multi_monitor: bool) -> Vec<Display> {
         ordering
     });
 
+    for i in 1..11 {
+        let monitor = config
+            .workspace_settings
+            .iter()
+            .find(|s| s.id == i)
+            .map(|s| if s.monitor == -1 { 1 } else { s.monitor })
+            .unwrap_or(1);
+
+        displays
+            .get_mut((monitor - 1) as usize)
+            .expect("Couldn't find monitor")
+            .grids
+            .push(TileGrid::new(i, renderer::NativeRenderer));
+    }
+
+    dbg!(&displays);
+
     displays
 
     // task_bar::update_task_bars();
-}
-
-pub fn with_display_by<TF, TCb, TReturn>(f: TF, cb: TCb) -> TReturn
-where
-    TF: Fn(&&mut Display) -> bool,
-    TCb: Fn(Option<&mut Display>) -> TReturn,
-{
-    cb(DISPLAYS.lock().iter_mut().find(f))
-}
-
-pub fn get_primary_display() -> Display {
-    with_display_by(|d| d.is_primary(), |d| d.unwrap().clone())
-}
-
-pub fn with_display_by_idx<TCb, TReturn>(idx: i32, cb: TCb) -> TReturn
-where
-    TCb: Fn(Option<&mut Display>) -> TReturn,
-{
-    let mut displays = DISPLAYS.lock();
-
-    let x: usize = if idx == -1 {
-        0
-    } else {
-        std::cmp::max(displays.len() - (idx as usize), 0)
-    };
-
-    cb(displays.get_mut(x))
 }

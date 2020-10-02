@@ -6,6 +6,7 @@ pub fn create() -> Component {
         "ActiveMode",
         Arc::new(|ctx| {
             vec![ctx
+                .state
                 .get_current_grid()
                 .get_focused_tile()
                 .map(|t| ComponentText::Basic(t.window.title.clone()))

@@ -1,5 +1,5 @@
 use crate::{
-    display::with_display_by, system::api, system::NativeWindow, system::Rectangle
+    display::with_display_by, system::api, system::NativeWindow, system::Rectangle, AppState,
 };
 use log::{debug, info};
 
@@ -60,56 +60,47 @@ impl Taskbar {
     }
 }
 
-pub fn show_taskbars(state: &mut ) {
-    foreach_taskbar(|tb| {
+pub fn show_taskbars(state: &mut AppState) {
+    for tb in state.get_taskbars() {
         info!("Showing taskbar {:?}", tb);
         tb.window.show();
-    });
+    }
 
-    update_task_bars();
+    // update_task_bars();
 }
-pub fn hide_taskbars() {
-    foreach_taskbar(|tb| {
+pub fn hide_taskbars(state: &mut AppState) {
+    for tb in state.get_taskbars() {
         info!("Hiding taskbar {:?}", tb);
         tb.window.hide();
-    });
-
-    update_task_bars();
-}
-fn foreach_taskbar(cb: fn(&mut Taskbar) -> ()) {
-    let mut displays = DISPLAYS.lock();
-    displays.sort_by(|x, y| y.is_primary().cmp(&x.is_primary()));
-
-    let displays = displays.iter_mut().filter(|x| x.taskbar.is_some());
-
-    for display in displays {
-        cb(display.taskbar.as_mut().unwrap());
     }
+
+    // update_task_bars();
 }
 
-pub fn update_task_bars() {
-    let taskbars = api::get_taskbars();
-    let multi_monitor = CONFIG.lock().multi_monitor;
+// TODO: Find out whether this is still needed
+// pub fn update_task_bars() {
+//     let taskbars = api::get_taskbars();
+//     let multi_monitor = CONFIG.lock().multi_monitor;
 
-    for mut tb in taskbars {
-        let display = tb
-            .window
-            .get_display()
-            .expect("Failed to get display of taskbar");
+//     for mut tb in taskbars {
+//         let display = tb
+//             .window
+//             .get_display()
+//             .expect("Failed to get display of taskbar");
 
-        if (!multi_monitor && display.is_primary()) || multi_monitor {
-            debug!("Initialized {:?})", tb);
-            tb.position = tb.get_position();
-            with_display_by(
-                |d| d.id == display.id,
-                |d| d.unwrap().taskbar = Some(tb.clone()),
-            );
-            if multi_monitor {
-                break;
-            }
-        }
-    }
-}
+//         if (!multi_monitor && display.is_primary()) || multi_monitor {
+//             debug!("Initialized {:?})", tb);
+//             tb.position = tb.get_position();
+//             with_display_by(
+//                 |d| d.id == display.id,
+//                 |d| d.unwrap().taskbar = Some(tb.clone()),
+//             );
+//             if multi_monitor {
+//                 break;
+//             }
+//         }
+//     }
+// }
 
 // fn get_taskbar_position(rect: RECT, hwnd: HWND, hmonitor: i32) -> TaskBarPosition {
 //     let is_window_visible = unsafe { IsWindowVisible(hwnd) == 1 };

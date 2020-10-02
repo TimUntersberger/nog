@@ -33,22 +33,25 @@ pub fn handle(
 
     info!("Received keybinding of type {:?}", kb.typ);
     let sender = state.event_channel.sender.clone();
+    let display = state.get_current_display();
+
     match kb.typ {
         KeybindingType::Launch(cmd) => {
             api::launch_program(cmd)?;
         }
         KeybindingType::MoveWorkspaceToMonitor(monitor) => {
-            let old_grid = state.get_current_grid();
-            let new_grid = old_grid.clone();
-            new_grid.display = state
-                .get_display_by_idx(monitor)
-                .expect("Failed to find display")
-                .clone();
+            let mut display = state.get_current_display();
+            if let Some(id) = display.focused_grid_id {
+                let grid = display.remove_grid_by_id(id).unwrap();
+                let new_display = state
+                    .get_display_by_idx(monitor)
+                    .expect("Monitor with specified idx doesn't exist");
 
-            state.visible_workspaces.insert(old_grid.display.id, 0);
-            state.change_workspace(new_grid.id, true);
+                new_display.grids.push(grid);
 
-            // change_workspace(new_grid.id, true);
+                new_display.focus_workspace(state, id);
+                state.workspace_id = id;
+            }
         }
         KeybindingType::CloseTile => close_tile::handle()?,
         KeybindingType::MinimizeTile => {
@@ -73,7 +76,9 @@ pub fn handle(
         }
         KeybindingType::ChangeWorkspace(id) => state.change_workspace(id, false),
         KeybindingType::ToggleFloatingMode => toggle_floating_mode::handle()?,
-        KeybindingType::ToggleFullscreen => state.get_current_grid().toggle_fullscreen(),
+        KeybindingType::ToggleFullscreen => {
+            state.get_current_grid().toggle_fullscreen(display, state)
+        }
         KeybindingType::ToggleMode(mode) => {
             if kb_manager.lock().get_mode() == Some(mode.clone()) {
                 info!("Disabling {} mode", mode);
@@ -107,26 +112,18 @@ pub fn handle(
         KeybindingType::Quit => sender.send(Event::Exit)?,
         KeybindingType::Split(direction) => split::handle(direction)?,
         KeybindingType::ResetColumn => {
-            let grid = state.get_current_grid();
-            grid.get_focused_tile()
-                .and_then(|t| t.column)
-                .and_then(|c| grid.column_modifications.get_mut(&c))
-                .map(|m| {
-                    m.0 = 0;
-                    m.1 = 0;
-                    grid.draw_grid();
-                });
+            let display = state.get_current_display();
+
+            if let Some(g) = display.get_focused_grid() {
+                g.reset_column();
+                g.draw_grid(display, state);
+            }
         }
         KeybindingType::ResetRow => {
-            let grid = state.get_current_grid();
-            grid.get_focused_tile()
-                .and_then(|t| t.row)
-                .and_then(|c| grid.row_modifications.get_mut(&c))
-                .map(|m| {
-                    m.0 = 0;
-                    m.1 = 0;
-                    grid.draw_grid();
-                });
+            if let Some(g) = display.get_focused_grid() {
+                g.reset_row();
+                g.draw_grid(display, state);
+            }
         }
         KeybindingType::Callback(idx) => engine::call(idx),
         KeybindingType::IgnoreTile => {

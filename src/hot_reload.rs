@@ -39,14 +39,14 @@ pub fn update_config(
     }
 
     if config.remove_title_bar && !new_config.remove_title_bar {
-        for grid in state.grids.iter_mut() {
+        for grid in state.get_grids().iter_mut() {
             for tile in &mut grid.tiles {
                 tile.window.reset_style();
                 tile.window.update_style();
             }
         }
     } else if !config.remove_title_bar && new_config.remove_title_bar {
-        for grid in state.grids.iter_mut() {
+        for grid in state.get_grids().iter_mut() {
             for tile in &mut grid.tiles {
                 tile.window.remove_title_bar();
                 tile.window.update_style();
@@ -67,7 +67,9 @@ pub fn update_config(
 
     //TODO: register keybindings
 
-    state.get_current_grid().draw_grid();
+    for d in state.displays {
+        // TODO: redraw visible grids
+    }
 
     Ok(())
 }

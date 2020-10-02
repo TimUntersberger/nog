@@ -1,6 +1,6 @@
 use crate::{
     direction::Direction,
-    display::{get_primary_display, Display},
+    display::Display,
     renderer::{NativeRenderer, Renderer},
     split_direction::SplitDirection,
     system::NativeWindow,
@@ -8,13 +8,14 @@ use crate::{
     system::SystemResult,
     system::WindowId,
     tile::Tile,
+    AppState,
 };
 use log::{debug, error};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct TileGrid<TRenderer: Renderer = NativeRenderer> {
-    pub display: Display,
+    // pub display: Display,
     pub renderer: TRenderer,
     pub id: i32,
     pub fullscreen: bool,
@@ -36,7 +37,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     pub fn new(id: i32, renderer: TRenderer) -> TileGrid<TRenderer> {
         Self {
             id,
-            display: get_primary_display(),
+            // display: get_primary_display(),
             renderer,
             fullscreen: false,
             tiles: Vec::new(),
@@ -54,10 +55,29 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             tile.window.hide();
         }
     }
-    pub fn toggle_fullscreen(&mut self) {
+    pub fn toggle_fullscreen(&mut self, display: &Display, state: &AppState) {
         if self.fullscreen || !self.tiles.is_empty() {
             self.fullscreen = !self.fullscreen;
-            self.draw_grid();
+            self.draw_grid(display, state);
+        }
+    }
+    pub fn reset_row(&mut self) {
+        if let Some(tile) = self.get_focused_tile() {
+            if let Some(m) = tile.row.and_then(|c| self.row_modifications.get_mut(&c)) {
+                m.0 = 0;
+                m.1 = 0;
+            }
+        }
+    }
+    pub fn reset_column(&mut self) {
+        if let Some(tile) = self.get_focused_tile() {
+            if let Some(m) = tile
+                .column
+                .and_then(|c| self.column_modifications.get_mut(&c))
+            {
+                m.0 = 0;
+                m.1 = 0;
+            }
         }
     }
     pub fn show(&self) -> SystemResult {
@@ -467,10 +487,6 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             self.get_row_modifications(tile.row),
         )
     }
-    /// Converts the percentage to the real pixel value of the current display
-    pub fn percentage_to_real(&self, p: i32) -> i32 {
-        self.display.working_area_height() / 100 * p
-    }
 
     pub fn resize_column(&mut self, column: i32, direction: Direction, amount: i32) {
         if amount != 0 {
@@ -560,18 +576,18 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
         println!();
     }
 
-    pub fn draw_grid(&self) -> SystemResult {
+    pub fn draw_grid(&self, display: &Display, state: &AppState) -> SystemResult {
         debug!("Drawing grid");
 
         if self.fullscreen {
             if let Some(tile) = self.get_focused_tile() {
-                self.renderer.render(self, tile)?;
+                self.renderer.render(self, tile, &state.config, display)?;
             }
         } else {
             for tile in &self.tiles {
                 debug!("{:?}", tile);
 
-                self.renderer.render(self, tile)?;
+                self.renderer.render(self, tile, &state.config, display)?;
             }
 
             // self.print_grid();

@@ -1,7 +1,5 @@
 use super::{Component, ComponentText};
-use crate::{
-    util,
-};
+use crate::util;
 use std::sync::Arc;
 
 pub fn create() -> Component {
@@ -13,12 +11,9 @@ pub fn create() -> Component {
             let bar_color = ctx.state.config.bar.color;
 
             // TODO: Extract this into a function of Display
-            ctx.state.grids
+            ctx.display
+                .grids
                 .iter()
-                .filter(|g| {
-                    (!g.tiles.is_empty() || ctx.state.is_workspace_visible(g.id))
-                        && g.display.id == ctx.display.id
-                })
                 .map(|grid| {
                     let bg = if light_theme {
                         if ctx.state.workspace_id == grid.id {
@@ -47,27 +42,12 @@ pub fn create() -> Component {
                 .collect()
         }),
     )
-    .with_on_click(Arc::new(|_, display, idx| {
-        let display = display.clone();
-
+    .with_on_click(Arc::new(|ctx| {
         //Note: have to run this in a new thread, because locking a mutex twice on a thread causes a
         //deadlock.
-        std::thread::spawn(move || {
-            let maybe_id = GRIDS
-                .lock()
-                .iter()
-                .filter(|g| {
-                    (!g.tiles.is_empty() || is_visible_workspace(g.id))
-                        && g.display.id == display.id
-                })
-                .map(|g| g.id)
-                .skip(idx)
-                .next();
-
-            if let Some(id) = maybe_id {
-                let _ = change_workspace(id, true);
-            }
-        });
+        //NOTE: Might have to run this in a new thread
+        ctx.state
+            .change_workspace(ctx.display.grids.get(ctx.idx).unwrap().id, true)
     }))
     .to_owned()
 }

@@ -3,8 +3,7 @@ use super::{
 };
 use crate::{
     config::Config, display::Display, event::Event, event::EventChannel, keybindings::KbManager,
-    system::Rectangle, window::Api, window::WindowEvent,
-    AppState,
+    system::Rectangle, window::Api, window::WindowEvent, AppState,
 };
 use log::{debug, error, info};
 use parking_lot::Mutex;
@@ -144,8 +143,8 @@ pub fn create(state: &AppState, kb_manager: Arc<Mutex<KbManager>>) {
         bar.display_id = display.id;
 
         let left = display.working_area_left();
-        let top = display.working_area_top() - state.config.bar.height;
-        let width = display.working_area_width();
+        let top = display.working_area_top(&state.config) - state.config.bar.height;
+        let width = display.working_area_width(&state.config);
 
         bar.window = bar
             .window
@@ -160,7 +159,13 @@ pub fn create(state: &AppState, kb_manager: Arc<Mutex<KbManager>>) {
         let kb_manager = kb_manager.clone();
 
         bar.window.create(move |event| match event {
-            WindowEvent::Click { id, x, display, state, .. } => {
+            WindowEvent::Click {
+                id,
+                x,
+                display,
+                state,
+                ..
+            } => {
                 display.appbar.and_then(|b| b.item_at_pos(*x)).map(|item| {
                     if item.component.is_clickable {
                         for (i, width) in item.widths.iter().enumerate() {
@@ -200,7 +205,7 @@ pub fn create(state: &AppState, kb_manager: Arc<Mutex<KbManager>>) {
                 state,
             } => {
                 if let Some(bar) = display.appbar {
-                    let working_area_width = display.working_area_width();
+                    let working_area_width = display.working_area_width(&state.config);
                     let kb_manager = kb_manager.lock();
                     let left = components_to_section(
                         api,

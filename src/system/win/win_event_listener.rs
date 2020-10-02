@@ -1,6 +1,6 @@
 use crate::{
-    bar::get_bar_by_win_id, event::Event, message_loop, win_event_handler::win_event::WinEvent,
-    win_event_handler::win_event_type::WinEventType, CHANNEL,
+    event::Event, message_loop, win_event_handler::win_event::WinEvent,
+    win_event_handler::win_event_type::WinEventType, 
 };
 use log::debug;
 use std::{

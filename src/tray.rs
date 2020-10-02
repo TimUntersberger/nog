@@ -1,7 +1,6 @@
 use crate::event::Event;
 use crate::util;
-use crate::CHANNEL;
-use crate::{message_loop, CONFIG};
+use crate::message_loop;
 use lazy_static::lazy_static;
 use num_traits::FromPrimitive;
 use parking_lot::Mutex;

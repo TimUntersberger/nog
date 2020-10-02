@@ -17,9 +17,9 @@ use lazy_static::lazy_static;
 use log::debug;
 use log::{error, info};
 use parking_lot::{deadlock, Mutex};
-use std::{collections::HashMap, process, sync::Arc};
+use std::{process, sync::Arc};
 use std::{thread, time::Duration};
-use system::{DisplayId, SystemResult, WinEventListener};
+use system::{SystemResult, WinEventListener};
 use task_bar::Taskbar;
 use tile_grid::TileGrid;
 
@@ -55,8 +55,6 @@ pub struct AppState {
     pub event_channel: EventChannel,
     pub additonal_rules: Vec<Rule>,
     pub window_event_listener: WinEventListener,
-    pub grids: Vec<TileGrid>,
-    pub visible_workspaces: HashMap<DisplayId, i32>,
     pub workspace_id: i32,
 }
 
@@ -68,13 +66,7 @@ impl AppState {
             .expect("Failed to load config");
 
         info!("Initializing displays");
-        let displays = display::init(config.multi_monitor);
-
-        let mut visible_workspaces = HashMap::new();
-
-        for display in displays.iter() {
-            visible_workspaces.insert(display.id, 0);
-        }
+        let displays = display::init(&config);
 
         Self {
             work_mode: config.work_mode,
@@ -82,10 +74,6 @@ impl AppState {
             event_channel,
             additonal_rules: Vec::new(),
             window_event_listener: WinEventListener::default(),
-            grids: (1..11)
-                .map(|i| TileGrid::new(i, renderer::NativeRenderer::default()))
-                .collect(),
-            visible_workspaces,
             workspace_id: 1,
             config,
         }
@@ -93,10 +81,12 @@ impl AppState {
 
     /// TODO: maybe rename this function
     pub fn cleanup(&self) -> SystemResult {
-        for grid in self.grids.iter_mut() {
-            for tile in grid.tiles {
-                grid.close_tile_by_window_id(tile.window.id);
-                tile.window.cleanup()?;
+        for d in self.displays {
+            for grid in d.grids.iter_mut() {
+                for tile in grid.tiles {
+                    grid.close_tile_by_window_id(tile.window.id);
+                    tile.window.cleanup()?;
+                }
             }
         }
 
@@ -108,32 +98,21 @@ impl AppState {
     }
 
     pub fn is_workspace_visible(&self, id: i32) -> bool {
-        self.visible_workspaces.values().any(|v| *v == id)
+        self.displays
+            .iter()
+            .find(|d| d.focused_grid_id == Some(id))
+            .is_some()
     }
 
     pub fn change_workspace(&self, id: i32, force: bool) {
-        let workspace_settings = self.config.workspace_settings;
-
-        let grid = self.get_grid_by_id(id);
-
-        if !force && grid.tiles.is_empty() {
-            if let Some(settings) = self.get_workspace_settings(id) {
-                if settings.monitor != -1 {
-                    if let Some(display) = self.get_display_by_idx(settings.monitor) {
-                        grid.display = display.clone();
-                    } else {
-                        error!("Invalid monitor {}. Workspace configuration for workspace {} is invalid!", settings.monitor, id);
-                    }
+        for d in self.displays.iter_mut() {
+            for g in d.grids {
+                if g.id == id {
+                    d.focus_workspace(self, id);
                 }
             }
         }
 
-        debug!("Drawing the workspace");
-        grid.draw_grid();
-        debug!("Showing the workspace");
-        grid.show();
-
-        self.visible_workspaces.insert(grid.display.id, grid.id);
         self.workspace_id = id;
         self.redraw_app_bars();
     }
@@ -156,10 +135,19 @@ impl AppState {
         self.displays.get(x)
     }
 
-    pub fn get_taskbars(&self) -> Vec<Taskbar> {
+    pub fn get_taskbars(&self) -> Vec<&Taskbar> {
         self.displays
             .iter()
-            .map(|d| d.taskbar)
+            .map(|d| d.taskbar.as_ref())
+            .filter(|x| x.is_some())
+            .map(|x| x.unwrap())
+            .collect()
+    }
+
+    pub fn get_taskbars_mut(&self) -> Vec<&mut Taskbar> {
+        self.displays
+            .iter_mut()
+            .map(|d| d.taskbar.as_mut())
             .filter(|x| x.is_some())
             .map(|x| x.unwrap())
             .collect()
@@ -177,12 +165,27 @@ impl AppState {
         }
     }
 
+    pub fn get_current_display(&mut self) -> &mut Display {
+        self.displays
+            .iter_mut()
+            .find(|d| d.grids.iter().any(|g| g.id == self.workspace_id))
+            .unwrap()
+    }
+
     pub fn get_current_grid(&mut self) -> &mut TileGrid {
         self.get_grid_by_id(self.workspace_id)
     }
 
+    pub fn get_grids(&mut self) -> Vec<&mut TileGrid> {
+        self.displays
+            .iter_mut()
+            .map(|d| d.grids.iter_mut())
+            .flatten()
+            .collect()
+    }
+
     pub fn get_grid_by_id(&mut self, id: i32) -> &mut TileGrid {
-        self.grids.iter_mut().find(|g| g.id == id).unwrap()
+        self.get_grids().iter_mut().find(|g| g.id == id).unwrap()
     }
 }
 
