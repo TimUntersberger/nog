@@ -1,7 +1,7 @@
 use crate::{
     bar::Bar,
     config::Config,
-    renderer, system,
+    renderer,
     system::DisplayId,
     system::{api, Rectangle},
     task_bar,
@@ -94,7 +94,7 @@ impl Display {
         self.width() - if config.remove_task_bar { 0 } else { tb_width }
     }
     pub fn working_area_top(&self, config: &Config) -> i32 {
-        let mut offset = self
+        let offset = self
             .taskbar
             .clone()
             .map(|t| match t.position {
@@ -110,6 +110,7 @@ impl Display {
             } else {
                 0
             }
+            + offset
     }
     pub fn working_area_left(&self) -> i32 {
         let offset = self
@@ -127,12 +128,19 @@ impl Display {
     pub fn get_grid_by_id(&self, id: i32) -> Option<&TileGrid> {
         self.grids.iter().find(|g| g.id == id)
     }
+    pub fn get_grid_by_id_mut(&mut self, id: i32) -> Option<&mut TileGrid> {
+        self.grids.iter_mut().find(|g| g.id == id)
+    }
     pub fn get_focused_grid(&self) -> Option<&TileGrid> {
         self.focused_grid_id.and_then(|id| self.get_grid_by_id(id))
     }
-    pub fn refresh_grid(&self, state: &AppState) {
+    pub fn get_focused_grid_mut(&mut self) -> Option<&mut TileGrid> {
+        self.focused_grid_id
+            .and_then(move |id| self.get_grid_by_id_mut(id))
+    }
+    pub fn refresh_grid(&self, config: &Config) {
         if let Some(g) = self.get_focused_grid() {
-            g.draw_grid(self, state);
+            g.draw_grid(self, config);
         }
     }
 
@@ -141,13 +149,14 @@ impl Display {
             .iter()
             .enumerate()
             .find(|(_, g)| g.id == id)
-            .map(|(i, _)| self.grids.remove(i))
+            .map(|(i, _)| i)
+            .map(|i| self.grids.remove(i))
     }
 
     /// Returns true if the workspace was found and false if it wasn't
     pub fn focus_workspace(&mut self, state: &AppState, id: i32) -> bool {
         if let Some(grid) = self.get_grid_by_id(id) {
-            grid.draw_grid(self, state);
+            grid.draw_grid(self, &state.config);
             grid.show();
         } else {
             return false;

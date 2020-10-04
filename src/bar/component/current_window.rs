@@ -8,6 +8,7 @@ pub fn create() -> Component {
             vec![ctx
                 .state
                 .get_current_grid()
+                .unwrap()
                 .get_focused_tile()
                 .map(|t| ComponentText::Basic(t.window.title.clone()))
                 .unwrap_or(ComponentText::Basic("".into()))]

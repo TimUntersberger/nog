@@ -1,15 +1,15 @@
-use crate::WORKSPACE_ID;
-use crate::{system::NativeWindow, with_grid_by_id};
+use crate::{system::NativeWindow, AppState};
 
 pub fn handle(
+    state: &AppState,
     window: NativeWindow,
     grid_id: Option<i32>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    with_grid_by_id(grid_id.unwrap_or(*WORKSPACE_ID.lock()), |grid| {
+    let display = state.get_current_display_mut();
+    if let Some(grid) = display.get_focused_grid() {
         if grid.close_tile_by_window_id(window.id).is_some() {
-            grid.draw_grid();
+            display.refresh_grid(&state.config);
         }
-
-        Ok(())
-    })
+    }
+    Ok(())
 }

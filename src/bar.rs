@@ -3,14 +3,10 @@ use item::Item;
 use item_section::ItemSection;
 use parking_lot::Mutex;
 
-pub mod close;
 pub mod component;
 pub mod create;
-pub mod font;
 pub mod item;
 pub mod item_section;
-pub mod redraw;
-pub mod visibility;
 
 #[derive(Clone, Debug)]
 pub struct Bar {

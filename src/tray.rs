@@ -1,6 +1,8 @@
-use crate::event::Event;
-use crate::util;
+use std::sync::Arc;
+
 use crate::message_loop;
+use crate::util;
+use crate::{event::Event, window::Window, window::WindowEvent, AppState};
 use lazy_static::lazy_static;
 use num_traits::FromPrimitive;
 use parking_lot::Mutex;
@@ -48,9 +50,7 @@ use winapi::um::winuser::WM_INITMENUPOPUP;
 use winapi::um::winuser::WM_RBUTTONUP;
 use winapi::um::winuser::WNDCLASSA;
 
-lazy_static! {
-    pub static ref WINDOW: Mutex<i32> = Mutex::new(0);
-}
+pub static WINDOW: Mutex<Option<Window>> = Mutex::new(None);
 
 #[derive(FromPrimitive, Debug, Copy, Clone)]
 enum PopupId {
@@ -58,82 +58,61 @@ enum PopupId {
     Reload = 1001,
 }
 
-unsafe extern "system" fn window_cb(
-    hwnd: HWND,
-    msg: UINT,
-    w_param: WPARAM,
-    l_param: LPARAM,
-) -> LRESULT {
-    if msg == WM_CREATE {
-        add_icon(hwnd);
-    } else if msg == WM_CLOSE {
-        CHANNEL
-            .sender
-            .clone()
-            .send(Event::Exit)
-            .expect("Failed to send exit event");
-    } else if msg == WM_COMMAND {
-        if let Some(id) = PopupId::from_u16(LOWORD(w_param as u32)) {
-            match id {
-                PopupId::Exit => {
-                    PostMessageW(hwnd, WM_CLOSE, 0, 0);
-                }
-                PopupId::Reload => {
-                    CHANNEL
-                        .sender
-                        .clone()
-                        .send(Event::ReloadConfig)
-                        .expect("Failed to send event");
-                }
-            }
+// unsafe extern "system" fn window_cb(
+//     hwnd: HWND,
+//     msg: UINT,
+//     w_param: WPARAM,
+//     l_param: LPARAM,
+// ) -> LRESULT {
+//     } else if msg == WM_COMMAND {
+//         if let Some(id) = PopupId::from_u16(LOWORD(w_param as u32)) {
+//             match id {
+//                 PopupId::Exit => {
+//                     PostMessageW(hwnd, WM_CLOSE, 0, 0);
+//                 }
+//                 PopupId::Reload => {
+//                     CHANNEL
+//                         .sender
+//                         .clone()
+//                         .send(Event::ReloadConfig)
+//                         .expect("Failed to send event");
+//                 }
+//             }
+//         }
+//     } else if msg == WM_APP && l_param as u32 == WM_RBUTTONUP {
+//         SetForegroundWindow(hwnd);
+//         show_popup_menu(hwnd);
+//         PostMessageW(hwnd, WM_APP + 1, 0, 0);
+//     }
+
+//     DefWindowProcW(hwnd, msg, w_param, l_param)
+// }
+
+// TODO: use Window struct instead
+pub fn create(state: Arc<Mutex<AppState>>) {
+    let state_arc = state.clone();
+    let state = state_arc.lock();
+
+    let mut window = Window::new()
+        .with_title("Nog Tray")
+        .with_background_color(state.config.bar.color);
+
+    let sender = state.event_channel.sender.clone();
+
+    drop(state);
+
+    window.create(state_arc, move |event| match event {
+        WindowEvent::Create { id, .. } => {
+            add_icon(id.to_owned().into());
         }
-    } else if msg == WM_APP && l_param as u32 == WM_RBUTTONUP {
-        SetForegroundWindow(hwnd);
-        show_popup_menu(hwnd);
-        PostMessageW(hwnd, WM_APP + 1, 0, 0);
-    }
-
-    DefWindowProcW(hwnd, msg, w_param, l_param)
-}
-
-pub fn create() {
-    let name = util::to_widestring("WWM Tray");
-    let config = CONFIG.lock();
-    let app_bar_bg = config.bar.color;
-
-    std::thread::spawn(move || unsafe {
-        let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
-        let background_brush = CreateSolidBrush(app_bar_bg as u32);
-
-        let class = WNDCLASSA {
-            hInstance: instance as HINSTANCE,
-            lpszClassName: name.as_ptr() as *const i8,
-            lpfnWndProc: Some(window_cb),
-            hbrBackground: background_brush,
-            ..WNDCLASSA::default()
-        };
-
-        RegisterClassA(&class);
-
-        let hwnd = winapi::um::winuser::CreateWindowExA(
-            winapi::um::winuser::WS_EX_NOACTIVATE,
-            name.as_ptr() as *const i8,
-            std::ptr::null(),
-            0,
-            0,
-            0,
-            0,
-            0,
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            instance,
-            std::ptr::null_mut(),
-        );
-
-        *WINDOW.lock() = hwnd as i32;
-
-        message_loop::start(|_| true);
+        WindowEvent::Close { .. } => {
+            sender.send(Event::Exit).expect("Failed to send exit event");
+        }
+        WindowEvent::Native(_) => {}
+        _ => {}
     });
+
+    *WINDOW.lock() = Some(window);
 }
 
 pub fn add_icon(hwnd: HWND) {

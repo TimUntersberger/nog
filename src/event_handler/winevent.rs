@@ -1,7 +1,6 @@
-use crate::util;
 use crate::{
     win_event_handler::{win_event::WinEvent, win_event_type::WinEventType},
-    GRIDS,
+    AppState,
 };
 use log::debug;
 
@@ -9,8 +8,8 @@ mod destroy;
 mod focus_change;
 mod show;
 
-pub fn handle(ev: WinEvent) -> Result<(), Box<dyn std::error::Error>> {
-    let grids = GRIDS.lock();
+pub fn handle(state: &mut AppState, ev: WinEvent) -> Result<(), Box<dyn std::error::Error>> {
+    let grids = state.get_grids_mut();
     let mut title: Option<String> = None;
     let mut grid_id: Option<i32> = None;
 
@@ -38,12 +37,10 @@ pub fn handle(ev: WinEvent) -> Result<(), Box<dyn std::error::Error>> {
         debug!("{:?}: '{}' | {}", ev.typ, title.unwrap(), ev.window.id);
     }
 
-    drop(grids);
-
     match ev.typ {
-        WinEventType::Destroy => destroy::handle(ev.window, grid_id)?,
-        WinEventType::Show(ignore) => show::handle(ev.window, ignore)?,
-        WinEventType::FocusChange => focus_change::handle(ev.window)?,
+        WinEventType::Destroy => destroy::handle(state, ev.window, grid_id)?,
+        WinEventType::Show(ignore) => show::handle(state, ev.window, ignore)?,
+        WinEventType::FocusChange => focus_change::handle(state, ev.window)?,
         WinEventType::Hide => {}
     };
 

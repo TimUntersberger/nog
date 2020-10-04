@@ -1,8 +1,8 @@
-use crate::{event::Event, message_loop, system, system::api, util, CHANNEL, CONFIG, WORK_MODE};
+use crate::{event::Event, system, system::api, AppState};
 use key::Key;
 use keybinding::Keybinding;
 use keybinding_type::KeybindingType;
-use log::{debug, error, info};
+use log::{debug, info};
 use modifier::Modifier;
 use num_traits::FromPrimitive;
 use parking_lot::Mutex;
@@ -88,9 +88,10 @@ impl KbManager {
     pub fn get_mode(&self) -> Mode {
         self.inner.clone().mode.lock().clone()
     }
-    pub fn start(&self) {
+    pub fn start(&self, state_arc: Arc<Mutex<AppState>>) {
         let inner = self.inner.clone();
         let receiver = self.receiver.clone();
+        let state = state_arc.clone();
 
         thread::spawn(move || {
             let receiver = receiver.lock();
@@ -139,8 +140,10 @@ impl KbManager {
                 }
 
                 if let Some(kb) = do_loop(&inner) {
-                    if *WORK_MODE.lock() || kb.typ == KeybindingType::ToggleWorkMode {
-                        CHANNEL
+                    if state.lock().work_mode || kb.typ == KeybindingType::ToggleWorkMode {
+                        state
+                            .lock()
+                            .event_channel
                             .sender
                             .clone()
                             .send(Event::Keybinding(kb.clone()))

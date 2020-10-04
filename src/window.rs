@@ -170,6 +170,7 @@ pub enum WindowEvent<'a> {
         x: i32,
         y: i32,
     },
+    Native(WindowMsg),
 }
 
 #[derive(Default, Debug)]
@@ -269,8 +270,10 @@ impl Window {
     }
     pub fn create<TEventHandler: Fn(&WindowEvent) -> () + Sync + Send + 'static>(
         &mut self,
+        state_arc: Arc<Mutex<AppState>>,
         event_handler: TEventHandler,
     ) {
+        let state = state_arc.clone();
         let inner_arc = self.inner.clone();
         let (sender, receiver) = channel();
 
@@ -333,6 +336,7 @@ impl Window {
                         let window: NativeWindow = hwnd.into();
                         // TODO: get display of state instead of generating a new one
                         let display = window.get_display().unwrap();
+                        let state = state.lock();
                         let background_color = inner.background_color;
                         let hdc = GetDC(hwnd);
                         let api = Api {
@@ -371,7 +375,7 @@ impl Window {
                             event_handler(&WindowEvent::Draw {
                                 display: display.clone(),
                                 id: window.id,
-                                state,
+                                state: &state,
                                 api,
                             });
 
@@ -386,7 +390,7 @@ impl Window {
                                 id: window.id,
                                 x: point.x - win_rect.left,
                                 y: point.y - win_rect.top,
-                                state,
+                                state: &state,
                                 display,
                             });
                         } else if msg.code == WM_CLOSE {
@@ -418,6 +422,8 @@ impl Window {
                                 x: point.x - win_rect.left,
                                 y: point.y - win_rect.top,
                             });
+                        } else {
+                            dbg!(msg);
                         }
 
                         ReleaseDC(hwnd, hdc);

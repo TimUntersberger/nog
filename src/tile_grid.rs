@@ -9,7 +9,7 @@ use crate::{
     system::WindowId,
     tile::Tile,
     AppState,
-};
+config::Config};
 use log::{debug, error};
 use std::collections::HashMap;
 
@@ -55,10 +55,10 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             tile.window.hide();
         }
     }
-    pub fn toggle_fullscreen(&mut self, display: &Display, state: &AppState) {
+    pub fn toggle_fullscreen(&mut self, display: &Display, config: &Config) {
         if self.fullscreen || !self.tiles.is_empty() {
             self.fullscreen = !self.fullscreen;
-            self.draw_grid(display, state);
+            self.draw_grid(display, config);
         }
     }
     pub fn reset_row(&mut self) {
@@ -576,18 +576,18 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
         println!();
     }
 
-    pub fn draw_grid(&self, display: &Display, state: &AppState) -> SystemResult {
+    pub fn draw_grid(&self, display: &Display, config: &Config) -> SystemResult {
         debug!("Drawing grid");
 
         if self.fullscreen {
             if let Some(tile) = self.get_focused_tile() {
-                self.renderer.render(self, tile, &state.config, display)?;
+                self.renderer.render(self, tile, config, display)?;
             }
         } else {
             for tile in &self.tiles {
                 debug!("{:?}", tile);
 
-                self.renderer.render(self, tile, &state.config, display)?;
+                self.renderer.render(self, tile, config, display)?;
             }
 
             // self.print_grid();

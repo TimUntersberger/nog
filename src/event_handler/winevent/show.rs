@@ -1,13 +1,15 @@
-use crate::{
-    system::NativeWindow, workspace::change_workspace, ADDITIONAL_RULES, CONFIG, GRIDS,
-    WORKSPACE_ID,
-};
+use crate::{system::NativeWindow, AppState};
 use log::debug;
 
-pub fn handle(mut window: NativeWindow, force: bool) -> Result<(), Box<dyn std::error::Error>> {
-    let min_width = CONFIG.lock().min_width;
-    let min_height = CONFIG.lock().min_height;
+pub fn handle(
+    state: &mut AppState,
+    mut window: NativeWindow,
+    force: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let min_width = state.config.min_width;
+    let min_height = state.config.min_height;
 
+    let config = state.config.clone();
     let rect = window.get_rect()?;
 
     if !force && (rect.right - rect.left < min_width || rect.bottom - rect.top < min_height) {
@@ -18,9 +20,11 @@ pub fn handle(mut window: NativeWindow, force: bool) -> Result<(), Box<dyn std::
 
     let parent = window.get_parent_window();
 
-    let additional_rules = ADDITIONAL_RULES.lock();
-
-    for rule in CONFIG.lock().rules.iter().chain(additional_rules.iter()) {
+    for rule in config
+        .rules
+        .iter()
+        .chain(state.additonal_rules.iter())
+    {
         // checks for path
         let process_name = if rule.pattern.to_string().contains('\\') {
             window.get_process_path()
@@ -42,23 +46,19 @@ pub fn handle(mut window: NativeWindow, force: bool) -> Result<(), Box<dyn std::
 
     if should_manage {
         debug!("Managing window");
-        let mut workspace_id = *WORKSPACE_ID.lock();
-
         if rule.workspace_id != -1 {
-            workspace_id = rule.workspace_id;
-            change_workspace(workspace_id, false);
+            state.change_workspace(rule.workspace_id, false);
         }
 
-        if CONFIG.lock().remove_title_bar {
-            window.remove_title_bar()?;
+        if config.remove_title_bar {
+            window.remove_title_bar(config.use_border)?;
         }
 
-        let mut grids = GRIDS.lock();
-        let grid = grids.iter_mut().find(|g| g.id == workspace_id).unwrap();
-
-        grid.split(window);
-
-        grid.draw_grid()?;
+        let display = state.get_current_display_mut();
+        if let Some(grid) = display.get_focused_grid_mut() {
+            grid.split(window);
+        }
+        display.refresh_grid(&config);
     }
 
     Ok(())

@@ -1,6 +1,6 @@
 use crate::{
     event::Event, message_loop, win_event_handler::win_event::WinEvent,
-    win_event_handler::win_event_type::WinEventType, 
+    win_event_handler::win_event_type::WinEventType,
 };
 use log::debug;
 use std::{
@@ -27,9 +27,10 @@ unsafe extern "system" fn handler(
         return;
     }
 
-    if get_bar_by_win_id(window_handle.into()).is_some() {
-        return;
-    }
+    // TODO: fix
+    // if get_bar_by_win_id(window_handle.into()).is_some() {
+    //     return;
+    // }
 
     let win_event_type = match WinEventType::from_u32(event_code) {
         Some(event) => event,
@@ -41,7 +42,8 @@ unsafe extern "system" fn handler(
         window: window_handle.into(),
     });
 
-    CHANNEL.sender.clone().send(event).unwrap();
+    // TODO: fix
+    // CHANNEL.sender.clone().send(event).unwrap();
 }
 
 #[derive(Debug)]

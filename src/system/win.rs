@@ -1,7 +1,6 @@
 use super::{DisplayId, Rectangle, SystemError, SystemResult, WindowId};
 use crate::{
     display::Display, util, window::gwl_ex_style::GwlExStyle, window::gwl_style::GwlStyle, Rule,
-    CONFIG,
 };
 use log::error;
 use thiserror::Error;
@@ -154,13 +153,13 @@ impl Window {
         self.original_style.contains(GwlStyle::CAPTION)
             && !self.exstyle.contains(GwlExStyle::DLGMODALFRAME)
     }
-    pub fn remove_title_bar(&mut self) -> SystemResult {
+    pub fn remove_title_bar(&mut self, use_border: bool) -> SystemResult {
         let rule = self.rule.clone().unwrap_or_default();
         if !rule.chromium && !rule.firefox {
             self.style.remove(GwlStyle::CAPTION);
             self.style.remove(GwlStyle::THICKFRAME);
         }
-        if CONFIG.lock().use_border {
+        if use_border {
             self.style.insert(GwlStyle::BORDER);
         }
         self.update_style()

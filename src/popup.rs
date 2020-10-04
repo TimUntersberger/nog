@@ -1,6 +1,4 @@
-use crate::{
-    config::Config, system::Rectangle, window::Window, window::WindowEvent, AppState, CONFIG,
-};
+use crate::{config::Config, system::Rectangle, window::Window, window::WindowEvent, AppState};
 use parking_lot::Mutex;
 use std::{fmt::Debug, sync::Arc};
 
@@ -51,23 +49,28 @@ impl Popup {
     /// Creates the window for the popup with the configured parameters.
     ///
     /// This function closes a popup that is currently visible.
-    pub fn create(&mut self, config: &Config) {
+    pub fn create(&mut self, state_arc: Arc<Mutex<AppState>>) {
         if is_visible() {
             close();
         }
+
+        let state_arc = state_arc.clone();
+        let state = state_arc.lock();
 
         let text = self.text.join("\n");
         let padding = self.padding;
 
         let mut window = Window::new()
             .with_title("NogPopup")
-            .with_font(&config.bar.font)
+            .with_font(&state.config.bar.font)
             .with_size(10, 10)
-            .with_font_size(config.bar.font_size)
+            .with_font_size(state.config.bar.font_size)
             .with_is_popup(true)
-            .with_background_color(config.bar.color as u32);
+            .with_background_color(state.config.bar.color as u32);
 
-        window.create(move |event| match event {
+        drop(state);
+
+        window.create(state_arc, move |event| match event {
             WindowEvent::Draw { api, .. } => {
                 let rect = api.calculate_text_rect(&text);
 
@@ -117,6 +120,8 @@ pub fn is_visible() -> bool {
 
 #[test]
 pub fn test() {
+    use crate::AppState;
+
     let state = AppState::new();
     Popup::new()
         .with_text(&vec!["hello", "world"])

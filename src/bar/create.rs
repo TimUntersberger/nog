@@ -121,10 +121,13 @@ fn clear_section(api: &Api, config: &Config, left: i32, right: i32) {
     api.fill_rect(left, 0, right - left, config.bar.height, config.bar.color)
 }
 
-pub fn create(state: &AppState, kb_manager: Arc<Mutex<KbManager>>) {
+pub fn create(state_arc: Arc<Mutex<AppState>>, kb_manager: Arc<Mutex<KbManager>>) {
     info!("Creating appbar");
 
     let name = "nog_bar";
+
+    let state_arc = state_arc.clone();
+    let state = state_arc.lock();
 
     spawn_refresh_thread(&state.event_channel);
 
@@ -158,135 +161,141 @@ pub fn create(state: &AppState, kb_manager: Arc<Mutex<KbManager>>) {
 
         let kb_manager = kb_manager.clone();
 
-        bar.window.create(move |event| match event {
-            WindowEvent::Click {
-                id,
-                x,
-                display,
-                state,
-                ..
-            } => {
-                display.appbar.and_then(|b| b.item_at_pos(*x)).map(|item| {
-                    if item.component.is_clickable {
-                        for (i, width) in item.widths.iter().enumerate() {
-                            if width.0 <= *x && *x <= width.1 {
-                                item.component.on_click(display, state, i);
+        bar.window
+            .create(state_arc.clone(), move |event| match event {
+                WindowEvent::Click {
+                    id,
+                    x,
+                    display,
+                    state,
+                    ..
+                } => {
+                    display.appbar.and_then(|b| b.item_at_pos(*x)).map(|item| {
+                        if item.component.is_clickable {
+                            for (i, width) in item.widths.iter().enumerate() {
+                                if width.0 <= *x && *x <= width.1 {
+                                    item.component.on_click(display, state, i);
+                                }
                             }
                         }
-                    }
-                });
-            }
-            WindowEvent::MouseMove {
-                x,
-                api,
-                id,
-                display,
-                ..
-            } => {
-                display
-                    .appbar
-                    .and_then(|b| b.item_at_pos(*x))
-                    .map(|item| {
-                        if item.component.is_clickable {
-                            api.set_clickable_cursor();
-                        } else {
-                            api.set_default_cursor();
-                        }
-                    })
-                    .or_else(|| {
-                        api.set_default_cursor();
-                        None
                     });
-            }
-            WindowEvent::Draw {
-                api,
-                id,
-                display,
-                state,
-            } => {
-                if let Some(bar) = display.appbar {
-                    let working_area_width = display.working_area_width(&state.config);
-                    let kb_manager = kb_manager.lock();
-                    let left = components_to_section(
-                        api,
-                        &display,
-                        state,
-                        &kb_manager,
-                        &state.config.bar.components.left,
-                    );
-
-                    let mut center = components_to_section(
-                        api,
-                        &display,
-                        state,
-                        &kb_manager,
-                        &state.config.bar.components.center,
-                    );
-
-                    center.left = working_area_width / 2 - center.right / 2;
-                    center.right += center.left;
-
-                    let mut right = components_to_section(
-                        api,
-                        &display,
-                        state,
-                        &kb_manager,
-                        &state.config.bar.components.right,
-                    );
-                    right.left = working_area_width - right.right;
-                    right.right += right.left;
-
-                    draw_components(
-                        api,
-                        &display,
-                        state,
-                        &kb_manager,
-                        left.left,
-                        &state.config.bar.components.left,
-                    );
-                    draw_components(
-                        api,
-                        &display,
-                        state,
-                        &kb_manager,
-                        left.left,
-                        &state.config.bar.components.center,
-                    );
-                    draw_components(
-                        api,
-                        &display,
-                        state,
-                        &kb_manager,
-                        left.left,
-                        &state.config.bar.components.right,
-                    );
-
-                    if bar.left.width() > left.width() {
-                        clear_section(api, &state.config, left.right, bar.left.right);
-                    }
-
-                    if bar.center.width() > center.width() {
-                        let delta = (bar.center.right - center.right) / 2;
-                        clear_section(api, &state.config, bar.center.left, bar.center.left + delta);
-                        clear_section(
-                            api,
-                            &state.config,
-                            bar.center.right - delta,
-                            bar.center.right,
-                        );
-                    }
-
-                    if bar.right.width() > right.width() {
-                        clear_section(api, &state.config, bar.right.left, right.left);
-                    }
-
-                    bar.left = left;
-                    bar.center = center;
-                    bar.right = right;
                 }
-            }
-            _ => {}
-        });
+                WindowEvent::MouseMove {
+                    x,
+                    api,
+                    id,
+                    display,
+                    ..
+                } => {
+                    display
+                        .appbar
+                        .and_then(|b| b.item_at_pos(*x))
+                        .map(|item| {
+                            if item.component.is_clickable {
+                                api.set_clickable_cursor();
+                            } else {
+                                api.set_default_cursor();
+                            }
+                        })
+                        .or_else(|| {
+                            api.set_default_cursor();
+                            None
+                        });
+                }
+                WindowEvent::Draw {
+                    api,
+                    id,
+                    display,
+                    state,
+                } => {
+                    if let Some(bar) = display.appbar {
+                        let working_area_width = display.working_area_width(&state.config);
+                        let kb_manager = kb_manager.lock();
+                        let left = components_to_section(
+                            api,
+                            &display,
+                            state,
+                            &kb_manager,
+                            &state.config.bar.components.left,
+                        );
+
+                        let mut center = components_to_section(
+                            api,
+                            &display,
+                            state,
+                            &kb_manager,
+                            &state.config.bar.components.center,
+                        );
+
+                        center.left = working_area_width / 2 - center.right / 2;
+                        center.right += center.left;
+
+                        let mut right = components_to_section(
+                            api,
+                            &display,
+                            state,
+                            &kb_manager,
+                            &state.config.bar.components.right,
+                        );
+                        right.left = working_area_width - right.right;
+                        right.right += right.left;
+
+                        draw_components(
+                            api,
+                            &display,
+                            state,
+                            &kb_manager,
+                            left.left,
+                            &state.config.bar.components.left,
+                        );
+                        draw_components(
+                            api,
+                            &display,
+                            state,
+                            &kb_manager,
+                            left.left,
+                            &state.config.bar.components.center,
+                        );
+                        draw_components(
+                            api,
+                            &display,
+                            state,
+                            &kb_manager,
+                            left.left,
+                            &state.config.bar.components.right,
+                        );
+
+                        if bar.left.width() > left.width() {
+                            clear_section(api, &state.config, left.right, bar.left.right);
+                        }
+
+                        if bar.center.width() > center.width() {
+                            let delta = (bar.center.right - center.right) / 2;
+                            clear_section(
+                                api,
+                                &state.config,
+                                bar.center.left,
+                                bar.center.left + delta,
+                            );
+                            clear_section(
+                                api,
+                                &state.config,
+                                bar.center.right - delta,
+                                bar.center.right,
+                            );
+                        }
+
+                        if bar.right.width() > right.width() {
+                            clear_section(api, &state.config, bar.right.left, right.left);
+                        }
+
+                        bar.left = left;
+                        bar.center = center;
+                        bar.right = right;
+                    }
+                }
+                _ => {}
+            });
 
         display.appbar = Some(bar);
     }

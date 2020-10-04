@@ -1,7 +1,5 @@
-use crate::{
-    display::with_display_by, system::api, system::NativeWindow, system::Rectangle, AppState,
-};
-use log::{debug, info};
+use crate::{system::NativeWindow, AppState};
+use log::info;
 
 #[derive(Debug, Clone, Copy)]
 pub enum TaskbarPosition {

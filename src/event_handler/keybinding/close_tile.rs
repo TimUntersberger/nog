@@ -1,19 +1,19 @@
-use crate::{popup, with_current_grid};
+use crate::{popup, AppState};
 
-pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
+pub fn handle(state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
     if popup::is_visible() {
         popup::close();
         return Ok(());
     }
 
-    with_current_grid(|grid| {
+    let display = state.get_current_display_mut();
+    if let Some(grid) = display.get_focused_grid() {
         if let Some(tile) = grid.get_focused_tile() {
-            tile.window.close();
-            let id = tile.window.id; //need this variable because of borrow checker
-            grid.close_tile_by_window_id(id);
-            grid.draw_grid();
+            tile.window.close()?;
+            grid.close_tile_by_window_id(tile.window.id);
+            display.refresh_grid(&state.config);
         }
-    });
+    }
 
     Ok(())
 }

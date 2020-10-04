@@ -13,14 +13,14 @@ use event::EventChannel;
 use event_handler::keybinding::toggle_work_mode;
 use hot_reload::update_config;
 use keybindings::KbManager;
-use lazy_static::lazy_static;
 use log::debug;
 use log::{error, info};
 use parking_lot::{deadlock, Mutex};
 use std::{process, sync::Arc};
 use std::{thread, time::Duration};
-use system::{SystemResult, WinEventListener};
+use system::{SystemResult, WinEventListener, WindowId};
 use task_bar::Taskbar;
+use tile::Tile;
 use tile_grid::TileGrid;
 
 mod bar;
@@ -104,17 +104,12 @@ impl AppState {
             .is_some()
     }
 
-    pub fn change_workspace(&self, id: i32, force: bool) {
-        for d in self.displays.iter_mut() {
-            for g in d.grids {
-                if g.id == id {
-                    d.focus_workspace(self, id);
-                }
-            }
+    pub fn change_workspace(&mut self, id: i32, _force: bool) {
+        if let Some((d, _)) = self.find_grid(id) {
+            d.focus_workspace(self, id);
+            self.workspace_id = id;
+            self.redraw_app_bars();
         }
-
-        self.workspace_id = id;
-        self.redraw_app_bars();
     }
 
     pub fn redraw_app_bars(&self) {
@@ -144,7 +139,30 @@ impl AppState {
             .collect()
     }
 
-    pub fn get_taskbars_mut(&self) -> Vec<&mut Taskbar> {
+    /// Returns the display containing the grid and the grid
+    /// TODO: only return display
+    pub fn find_grid(&mut self, id: i32) -> Option<(&mut Display, TileGrid)> {
+        for d in self.displays.iter_mut() {
+            let grid = d.grids.iter().find(|g| g.id == id).unwrap().clone();
+            return Some((d, grid));
+        }
+        None
+    }
+
+    /// Returns the grid containing the window and its corresponding tile
+    /// TODO: only return grid
+    pub fn find_window(&mut self, id: WindowId) -> Option<(&mut TileGrid, Tile)> {
+        for d in self.displays.iter_mut() {
+            for g in d.grids.iter_mut() {
+                let tile = g.tiles.iter().find(|t| t.window.id == id).unwrap().clone();
+                return Some((g, tile));
+            }
+        }
+
+        None
+    }
+
+    pub fn get_taskbars_mut(&mut self) -> Vec<&mut Taskbar> {
         self.displays
             .iter_mut()
             .map(|d| d.taskbar.as_mut())
@@ -165,18 +183,22 @@ impl AppState {
         }
     }
 
-    pub fn get_current_display(&mut self) -> &mut Display {
+    pub fn get_current_display_mut(&mut self) -> &mut Display {
         self.displays
             .iter_mut()
             .find(|d| d.grids.iter().any(|g| g.id == self.workspace_id))
             .unwrap()
     }
 
-    pub fn get_current_grid(&mut self) -> &mut TileGrid {
+    pub fn get_current_grid_mut(&mut self) -> Option<&mut TileGrid> {
+        self.get_grid_by_id_mut(self.workspace_id)
+    }
+
+    pub fn get_current_grid(&self) -> Option<&TileGrid> {
         self.get_grid_by_id(self.workspace_id)
     }
 
-    pub fn get_grids(&mut self) -> Vec<&mut TileGrid> {
+    pub fn get_grids_mut(&mut self) -> Vec<&mut TileGrid> {
         self.displays
             .iter_mut()
             .map(|d| d.grids.iter_mut())
@@ -184,18 +206,24 @@ impl AppState {
             .collect()
     }
 
-    pub fn get_grid_by_id(&mut self, id: i32) -> &mut TileGrid {
-        self.get_grids().iter_mut().find(|g| g.id == id).unwrap()
+    pub fn get_grids(&self) -> Vec<&TileGrid> {
+        self.displays
+            .iter()
+            .map(|d| d.grids.iter())
+            .flatten()
+            .collect()
+    }
+
+    pub fn get_grid_by_id_mut(&mut self, id: i32) -> Option<&mut TileGrid> {
+        self.get_grids_mut().into_iter().find(|g| g.id == id)
+    }
+
+    pub fn get_grid_by_id(&self, id: i32) -> Option<&TileGrid> {
+        self.get_grids().into_iter().find(|g| g.id == id)
     }
 }
 
-lazy_static! {
-    pub static ref STATE: Mutex<AppState> = Mutex::new(AppState::new());
-}
-
-fn on_quit() -> SystemResult {
-    let mut state = STATE.lock();
-
+fn on_quit(state: &AppState) -> SystemResult {
     os_specific_cleanup();
 
     state.cleanup()?;
@@ -213,47 +241,51 @@ fn on_quit() -> SystemResult {
 
 #[cfg(target_os = "windows")]
 fn os_specific_cleanup() {
-    use winapi::shared::windef::HWND;
-    tray::remove_icon(*tray::WINDOW.lock() as HWND);
+    if let Some(window) = *tray::WINDOW.lock() {
+        tray::remove_icon(window.id.into());
+    }
 }
 
 #[cfg(target_os = "windows")]
-fn os_specific_setup() {
+fn os_specific_setup(state: Arc<Mutex<AppState>>) {
     info!("Creating tray icon");
-    tray::create();
+    tray::create(state);
 }
 
-fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let receiver = STATE.lock().event_channel.receiver.clone();
+fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>> {
+    let receiver = state_arc.lock().event_channel.receiver.clone();
     let kb_manager = Arc::new(Mutex::new(KbManager::new(
-        STATE.lock().config.keybindings.clone(),
+        state_arc.lock().config.keybindings.clone(),
     )));
 
     info!("Starting hot reloading of config");
-    config::hot_reloading::start();
+    config::hot_reloading::start(state_arc.clone());
 
-    let state = STATE.lock();
+    startup::set_launch_on_startup(state_arc.lock().config.launch_on_startup);
 
-    startup::set_launch_on_startup(state.config.launch_on_startup);
+    os_specific_setup(state_arc.clone());
 
-    os_specific_setup();
-
-    toggle_work_mode::initialize(&state, kb_manager.clone())?;
+    toggle_work_mode::initialize(state_arc.clone(), kb_manager.clone())?;
 
     info!("Listening for keybindings");
-    kb_manager.clone().lock().start();
+    kb_manager.clone().lock().start(state_arc);
+
+    let state = state_arc.lock();
 
     loop {
         select! {
             recv(receiver) -> maybe_msg => {
                 let msg = maybe_msg.unwrap();
                 let _ = match msg {
-                    Event::NewPopup(p) => Ok(p.create(&state.config)),
-                    Event::Keybinding(kb) => event_handler::keybinding::handle(&mut *state, kb_manager.clone(), kb),
-                    Event::RedrawAppBar => Ok(bar::redraw::redraw()),
-                    Event::WinEvent(ev) => event_handler::winevent::handle(ev),
+                    Event::NewPopup(p) => Ok(p.create(state_arc.clone())),
+                    Event::Keybinding(kb) => {
+                        drop(state);
+                        event_handler::keybinding::handle(state_arc, kb_manager.clone(), kb)
+                    },
+                    Event::RedrawAppBar => Ok(()), // TODO: redraw appbars
+                    Event::WinEvent(ev) => event_handler::winevent::handle(&mut state, ev),
                     Event::Exit => {
-                        on_quit()?;
+                        on_quit(&state)?;
                         break;
                     },
                     Event::ReloadConfig => {
@@ -261,7 +293,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         let new_config = parse_config(&state.event_channel)
                             .map_err(|e| error!("{}", e))
                             .expect("Failed to load config");
-                        update_config(&state, kb_manager.clone(), new_config)
+                        drop(state);
+                        update_config(state_arc, kb_manager.clone(), new_config)
                     }
                 }.map_err(|e| {
                     error!("{:?}", e);
@@ -278,7 +311,9 @@ fn main() {
     std::env::set_var("RUST_BACKTRACE", "full");
     logging::setup().expect("Failed to setup logging");
 
-    thread::spawn(|| loop {
+    let state_arc = Arc::new(Mutex::new(AppState::new()));
+
+    thread::spawn(move || loop {
         std::thread::sleep(Duration::from_secs(5));
         let deadlocks = deadlock::check_deadlock();
         if deadlocks.is_empty() {
@@ -291,35 +326,22 @@ fn main() {
             deadlocks.first().unwrap().first().unwrap().backtrace()
         );
 
-        on_quit();
+        on_quit(&state_arc.lock());
     });
 
-    let panic = std::panic::catch_unwind(|| {
-        info!("");
+    info!("");
 
-        #[cfg(not(debug_assertions))]
-        update::start().expect("Failed to start update job");
-
-        ctrlc::set_handler(|| {
-            if let Err(e) = on_quit() {
-                error!("Something happend when cleaning up. {}", e);
-            }
-        })
-        .unwrap();
-
-        if let Err(e) = run() {
-            error!("An error occured {:?}", e);
-            if let Err(e) = on_quit() {
-                error!("Something happend when cleaning up. {}", e);
-            }
+    ctrlc::set_handler(|| {
+        if let Err(e) = on_quit(&state_arc.lock()) {
+            error!("Something happend when cleaning up. {}", e);
         }
-    });
+    })
+    .unwrap();
 
-    if let Err(err) = panic {
-        if let Ok(msg) = err.downcast::<&'static str>() {
-            error!("PANIC: {}", msg);
-        } else {
-            error!("PANIC: unknown");
+    if let Err(e) = run(state_arc) {
+        error!("An error occured {:?}", e);
+        if let Err(e) = on_quit(&state_arc.lock()) {
+            error!("Something happend when cleaning up. {}", e);
         }
     }
 }
