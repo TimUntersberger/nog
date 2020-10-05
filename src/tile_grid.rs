@@ -1,4 +1,5 @@
 use crate::{
+    config::Config,
     direction::Direction,
     display::Display,
     renderer::{NativeRenderer, Renderer},
@@ -9,7 +10,7 @@ use crate::{
     system::WindowId,
     tile::Tile,
     AppState,
-config::Config};
+};
 use log::{debug, error};
 use std::collections::HashMap;
 

@@ -154,9 +154,9 @@ impl Display {
     }
 
     /// Returns true if the workspace was found and false if it wasn't
-    pub fn focus_workspace(&mut self, state: &AppState, id: i32) -> bool {
+    pub fn focus_workspace(&mut self, config: &Config, id: i32) -> bool {
         if let Some(grid) = self.get_grid_by_id(id) {
-            grid.draw_grid(self, &state.config);
+            grid.draw_grid(self, config);
             grid.show();
         } else {
             return false;
@@ -165,6 +165,8 @@ impl Display {
         if let Some(grid) = self.get_focused_grid() {
             grid.hide();
         }
+
+        self.focused_grid_id = Some(id);
 
         true
     }

@@ -5,27 +5,22 @@ use crate::{
     win_event_handler::win_event_type::WinEventType, AppState,
 };
 
-pub fn handle(state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
+pub fn handle(state: &mut AppState) -> Result<(), Box<dyn std::error::Error>> {
     let window = NativeWindow::get_foreground_window()?;
+    let config = state.config.clone();
+    // The id of the grid that contains the window
+    let maybe_grid_id = state
+        .find_window(window.id)
+        .and_then(|(g, _)| g.close_tile_by_window_id(window.id).map(|t| (g.id, t)))
+        .map(|(id, mut t)| {
+            debug!("Unmanaging window '{}' | {}", t.window.title, t.window.id);
+            t.window.cleanup();
 
-    if let Some((grid, tile)) = state.find_window(window.id) {
-        let display = state.get_current_display_mut();
-        if display.focused_grid_id == Some(grid.id) {
-            debug!(
-                "Reseting window '{}' | {}",
-                tile.window.title, tile.window.id
-            );
+            id
+        });
 
-            tile.window.cleanup();
-
-            debug!(
-                "Unmanaging window '{}' | {}",
-                tile.window.title, tile.window.id
-            );
-
-            grid.close_tile_by_window_id(tile.window.id);
-            display.refresh_grid(&state.config);
-        }
+    if let Some((d, _)) = maybe_grid_id.and_then(|id| state.find_grid(id)) {
+        d.refresh_grid(&config);
     } else {
         state
             .event_channel
@@ -36,6 +31,30 @@ pub fn handle(state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
                 window,
             }))?;
     }
+    // if let Some((grid, _)) =  {
+    //     let mut tile = grid.close_tile_by_window_id(window.id).unwrap();
+
+    //     tile.window.cleanup();
+
+    //     let display = state.get_current_display();
+
+    //     debug!(
+    //         "Unmanaging window '{}' | {}",
+    //         tile.window.title, tile.window.id
+    //     );
+
+    //     grid.draw_grid(display, &state.config);
+    //     display.refresh_grid(&state.config);
+    // } else {
+    //     state
+    //         .event_channel
+    //         .sender
+    //         .clone()
+    //         .send(Event::WinEvent(WinEvent {
+    //             typ: WinEventType::Show(true),
+    //             window,
+    //         }))?;
+    // }
 
     Ok(())
 }

@@ -41,20 +41,21 @@ pub fn handle(
             api::launch_program(cmd)?;
         }
         KeybindingType::MoveWorkspaceToMonitor(monitor) => {
-            let mut display = state.get_current_display_mut();
-            if let Some(id) = display.focused_grid_id {
-                let grid = display.remove_grid_by_id(id).unwrap();
+            let display = state.get_current_display_mut();
+            if let Some(grid) = display
+                .focused_grid_id
+                .and_then(|id| display.remove_grid_by_id(id))
+            {
                 let new_display = state
-                    .get_display_by_idx(monitor)
+                    .get_display_by_idx_mut(monitor)
                     .expect("Monitor with specified idx doesn't exist");
 
                 new_display.grids.push(grid);
-
-                new_display.focus_workspace(&state, id);
-                state.workspace_id = id;
+                new_display.focus_workspace(&state.config, grid.id);
+                state.workspace_id = grid.id;
             }
         }
-        KeybindingType::CloseTile => close_tile::handle(&state)?,
+        KeybindingType::CloseTile => close_tile::handle(&mut state)?,
         KeybindingType::MinimizeTile => {
             let grid = state.get_current_grid_mut().unwrap();
             if let Some(tile) = grid.get_focused_tile_mut() {
@@ -76,7 +77,7 @@ pub fn handle(
                 });
         }
         KeybindingType::ChangeWorkspace(id) => state.change_workspace(id, false),
-        KeybindingType::ToggleFloatingMode => toggle_floating_mode::handle(&state)?,
+        KeybindingType::ToggleFloatingMode => toggle_floating_mode::handle(&mut state)?,
         KeybindingType::ToggleFullscreen => state
             .get_current_grid()
             .unwrap()
@@ -108,7 +109,7 @@ pub fn handle(
         }
         KeybindingType::Resize(direction, amount) => resize::handle(&mut state, direction, amount)?,
         KeybindingType::Focus(direction) => focus::handle(&state, direction)?,
-        KeybindingType::Swap(direction) => swap::handle(&state, direction)?,
+        KeybindingType::Swap(direction) => swap::handle(&mut state, direction)?,
         KeybindingType::Quit => sender.send(Event::Exit)?,
         KeybindingType::Split(direction) => split::handle(&state, direction)?,
         KeybindingType::ResetColumn => {
@@ -140,7 +141,7 @@ pub fn handle(
 
                 state.additonal_rules.push(rule);
 
-                toggle_floating_mode::handle(&state)?;
+                toggle_floating_mode::handle(&mut state)?;
             }
         }
     };

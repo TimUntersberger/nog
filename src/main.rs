@@ -80,11 +80,10 @@ impl AppState {
     }
 
     /// TODO: maybe rename this function
-    pub fn cleanup(&self) -> SystemResult {
-        for d in self.displays {
+    pub fn cleanup(&mut self) -> SystemResult {
+        for d in self.displays.iter_mut() {
             for grid in d.grids.iter_mut() {
-                for tile in grid.tiles {
-                    grid.close_tile_by_window_id(tile.window.id);
+                for tile in grid.tiles.iter_mut() {
                     tile.window.cleanup()?;
                 }
             }
@@ -105,8 +104,9 @@ impl AppState {
     }
 
     pub fn change_workspace(&mut self, id: i32, _force: bool) {
+        let config = self.config.clone();
         if let Some((d, _)) = self.find_grid(id) {
-            d.focus_workspace(self, id);
+            d.focus_workspace(&config, id);
             self.workspace_id = id;
             self.redraw_app_bars();
         }
@@ -128,6 +128,16 @@ impl AppState {
         };
 
         self.displays.get(x)
+    }
+
+    pub fn get_display_by_idx_mut(&mut self, idx: i32) -> Option<&mut Display> {
+        let x: usize = if idx == -1 {
+            0
+        } else {
+            std::cmp::max(self.displays.len() - (idx as usize), 0)
+        };
+
+        self.displays.get_mut(x)
     }
 
     pub fn get_taskbars(&self) -> Vec<&Taskbar> {
@@ -186,6 +196,13 @@ impl AppState {
     pub fn get_current_display_mut(&mut self) -> &mut Display {
         self.displays
             .iter_mut()
+            .find(|d| d.grids.iter().any(|g| g.id == self.workspace_id))
+            .unwrap()
+    }
+
+    pub fn get_current_display(&self) -> &Display {
+        self.displays
+            .iter()
             .find(|d| d.grids.iter().any(|g| g.id == self.workspace_id))
             .unwrap()
     }

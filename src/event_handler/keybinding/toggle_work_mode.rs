@@ -14,7 +14,7 @@ pub fn initialize(
     Ok(())
 }
 
-pub fn turn_work_mode_off(state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
+pub fn turn_work_mode_off(state: &mut AppState) -> Result<(), Box<dyn std::error::Error>> {
     state.window_event_listener.stop();
 
     popup::cleanup();
@@ -36,7 +36,7 @@ pub fn turn_work_mode_on(
     state_arc: Arc<Mutex<AppState>>,
     kb_manager: Arc<Mutex<KbManager>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let state = state_arc.lock();
+    let mut state = state_arc.lock();
 
     if state.config.remove_task_bar {
         info!("Hiding taskbar");
@@ -45,10 +45,9 @@ pub fn turn_work_mode_on(
 
     if state.config.display_app_bar {
         drop(state);
-        bar::create::create(state_arc, kb_manager);
+        bar::create::create(state_arc.clone(), kb_manager);
+        state = state_arc.lock();
     }
-
-    let state = state_arc.lock();
 
     info!("Registering windows event handler");
     state.window_event_listener.start();
@@ -67,7 +66,7 @@ pub fn handle(
     state.work_mode = !state.work_mode;
 
     if !state.work_mode {
-        turn_work_mode_off(&state)?;
+        turn_work_mode_off(&mut state)?;
     } else {
         drop(state);
         turn_work_mode_on(state_arc, kb_manager)?;

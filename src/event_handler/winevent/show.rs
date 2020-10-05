@@ -20,11 +20,7 @@ pub fn handle(
 
     let parent = window.get_parent_window();
 
-    for rule in config
-        .rules
-        .iter()
-        .chain(state.additonal_rules.iter())
-    {
+    for rule in config.rules.iter().chain(state.additonal_rules.iter()) {
         // checks for path
         let process_name = if rule.pattern.to_string().contains('\\') {
             window.get_process_path()

@@ -1,15 +1,15 @@
 use crate::{system::NativeWindow, AppState};
 
 pub fn handle(
-    state: &AppState,
+    state: &mut AppState,
     window: NativeWindow,
-    grid_id: Option<i32>,
+    grid_id: Option<i32>, // TODO: maybe remove this? IDK
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let display = state.get_current_display_mut();
-    if let Some(grid) = display.get_focused_grid() {
-        if grid.close_tile_by_window_id(window.id).is_some() {
-            display.refresh_grid(&state.config);
-        }
+    if let Some(_) = state
+        .find_window(window.id)
+        .map(|(g, _)| g.close_tile_by_window_id(window.id))
+    {
+        state.get_current_display().refresh_grid(&state.config);
     }
     Ok(())
 }
