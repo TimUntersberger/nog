@@ -56,11 +56,12 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             tile.window.hide();
         }
     }
-    pub fn toggle_fullscreen(&mut self, display: &Display, config: &Config) {
+    pub fn toggle_fullscreen(&mut self) -> bool {
         if self.fullscreen || !self.tiles.is_empty() {
             self.fullscreen = !self.fullscreen;
-            self.draw_grid(display, config);
         }
+
+        self.fullscreen
     }
     pub fn reset_row(&mut self) {
         if let Some(tile) = self.get_focused_tile() {

@@ -26,6 +26,7 @@ pub fn handle(
     kb: Keybinding,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut state = state_arc.lock();
+    let config = state.config.clone();
     if let KeybindingType::MoveWorkspaceToMonitor(_) = kb.typ {
         if !state.config.multi_monitor {
             return Ok(());
@@ -41,7 +42,6 @@ pub fn handle(
             api::launch_program(cmd)?;
         }
         KeybindingType::MoveWorkspaceToMonitor(monitor) => {
-            let display = state.get_current_display_mut();
             if let Some(grid) = display
                 .focused_grid_id
                 .and_then(|id| display.remove_grid_by_id(id))
@@ -50,9 +50,11 @@ pub fn handle(
                     .get_display_by_idx_mut(monitor)
                     .expect("Monitor with specified idx doesn't exist");
 
+                let id = grid.id;
+
                 new_display.grids.push(grid);
-                new_display.focus_workspace(&state.config, grid.id);
-                state.workspace_id = grid.id;
+                new_display.focus_workspace(&config, id);
+                state.workspace_id = id;
             }
         }
         KeybindingType::CloseTile => close_tile::handle(&mut state)?,
@@ -68,7 +70,7 @@ pub fn handle(
             }
         }
         KeybindingType::MoveToWorkspace(id) => {
-            let grid = state.get_current_grid().unwrap();
+            let grid = state.get_current_grid_mut().unwrap();
             grid.focused_window_id
                 .and_then(|id| grid.close_tile_by_window_id(id))
                 .map(|tile| {
@@ -78,10 +80,10 @@ pub fn handle(
         }
         KeybindingType::ChangeWorkspace(id) => state.change_workspace(id, false),
         KeybindingType::ToggleFloatingMode => toggle_floating_mode::handle(&mut state)?,
-        KeybindingType::ToggleFullscreen => state
-            .get_current_grid()
-            .unwrap()
-            .toggle_fullscreen(display, &state.config),
+        KeybindingType::ToggleFullscreen => {
+            display.get_focused_grid_mut().unwrap().toggle_fullscreen();
+            display.refresh_grid(&config);
+        }
         KeybindingType::ToggleMode(mode) => {
             if kb_manager.lock().get_mode() == Some(mode.clone()) {
                 info!("Disabling {} mode", mode);
@@ -91,7 +93,7 @@ pub fn handle(
                 kb_manager.lock().enter_mode(&mode);
             }
         }
-        KeybindingType::ToggleWorkMode => toggle_work_mode::handle(state_arc, kb_manager)?,
+        KeybindingType::ToggleWorkMode => toggle_work_mode::handle(state_arc.clone(), kb_manager)?,
         KeybindingType::IncrementConfig(field, value) => {
             let new_config = state.config.increment_field(&field, value);
             drop(state);
@@ -108,23 +110,21 @@ pub fn handle(
             update_config(state_arc.clone(), kb_manager, new_config)?;
         }
         KeybindingType::Resize(direction, amount) => resize::handle(&mut state, direction, amount)?,
-        KeybindingType::Focus(direction) => focus::handle(&state, direction)?,
+        KeybindingType::Focus(direction) => focus::handle(&mut state, direction)?,
         KeybindingType::Swap(direction) => swap::handle(&mut state, direction)?,
         KeybindingType::Quit => sender.send(Event::Exit)?,
-        KeybindingType::Split(direction) => split::handle(&state, direction)?,
+        KeybindingType::Split(direction) => split::handle(&mut state, direction)?,
         KeybindingType::ResetColumn => {
-            let display = state.get_current_display_mut();
-
-            if let Some(g) = display.get_focused_grid() {
+            if let Some(g) = display.get_focused_grid_mut() {
                 g.reset_column();
-                g.draw_grid(display, &state.config);
             }
+            display.refresh_grid(&config);
         }
         KeybindingType::ResetRow => {
-            if let Some(g) = display.get_focused_grid() {
+            if let Some(g) = display.get_focused_grid_mut() {
                 g.reset_row();
-                g.draw_grid(display, &state.config);
             }
+            display.refresh_grid(&config);
         }
         KeybindingType::Callback(idx) => engine::call(idx),
         KeybindingType::IgnoreTile => {

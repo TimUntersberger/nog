@@ -1,5 +1,6 @@
 use crate::{
-    keybindings::keybinding::Keybinding, popup::Popup, win_event_handler::win_event::WinEvent,
+    bar::item_section::ItemSection, keybindings::keybinding::Keybinding, popup::Popup,
+    system::DisplayId, win_event_handler::win_event::WinEvent,
 };
 use crossbeam_channel::unbounded;
 use crossbeam_channel::Receiver;
@@ -10,6 +11,8 @@ pub enum Event {
     Keybinding(Keybinding),
     WinEvent(WinEvent),
     NewPopup(Popup),
+    UpdateBarSections(DisplayId, ItemSection, ItemSection, ItemSection),
+    ChangeWorkspace(i32, bool),
     RedrawAppBar,
     ReloadConfig,
     Exit,

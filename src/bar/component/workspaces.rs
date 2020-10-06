@@ -1,5 +1,5 @@
 use super::{Component, ComponentText};
-use crate::util;
+use crate::{util, Event};
 use std::sync::Arc;
 
 pub fn create() -> Component {
@@ -43,11 +43,17 @@ pub fn create() -> Component {
         }),
     )
     .with_on_click(Arc::new(|ctx| {
-        //Note: have to run this in a new thread, because locking a mutex twice on a thread causes a
+        //Note: might have to run this in a new thread, because locking a mutex twice on a thread causes a
         //deadlock.
         //NOTE: Might have to run this in a new thread
         ctx.state
-            .change_workspace(ctx.display.grids.get(ctx.idx).unwrap().id, true)
+            .event_channel
+            .sender
+            .clone()
+            .send(Event::ChangeWorkspace(
+                ctx.display.grids.get(ctx.idx).unwrap().id,
+                true,
+            ));
     }))
     .to_owned()
 }

@@ -15,7 +15,7 @@ use hot_reload::update_config;
 use keybindings::KbManager;
 use log::debug;
 use log::{error, info};
-use parking_lot::{deadlock, Mutex};
+use parking_lot::{deadlock, lock_api::MutexGuard, Mutex};
 use std::{process, sync::Arc};
 use std::{thread, time::Duration};
 use system::{SystemResult, WinEventListener, WindowId};
@@ -194,9 +194,10 @@ impl AppState {
     }
 
     pub fn get_current_display_mut(&mut self) -> &mut Display {
+        let workspace_id = self.workspace_id;
         self.displays
             .iter_mut()
-            .find(|d| d.grids.iter().any(|g| g.id == self.workspace_id))
+            .find(|d| d.grids.iter().any(|g| g.id == workspace_id))
             .unwrap()
     }
 
@@ -240,7 +241,7 @@ impl AppState {
     }
 }
 
-fn on_quit(state: &AppState) -> SystemResult {
+fn on_quit(state: &mut AppState) -> SystemResult {
     os_specific_cleanup();
 
     state.cleanup()?;
@@ -258,7 +259,7 @@ fn on_quit(state: &AppState) -> SystemResult {
 
 #[cfg(target_os = "windows")]
 fn os_specific_cleanup() {
-    if let Some(window) = *tray::WINDOW.lock() {
+    if let Some(window) = tray::WINDOW.lock().as_ref() {
         tray::remove_icon(window.id.into());
     }
 }
@@ -285,33 +286,37 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
     toggle_work_mode::initialize(state_arc.clone(), kb_manager.clone())?;
 
     info!("Listening for keybindings");
-    kb_manager.clone().lock().start(state_arc);
-
-    let state = state_arc.lock();
+    kb_manager.clone().lock().start(state_arc.clone());
 
     loop {
         select! {
             recv(receiver) -> maybe_msg => {
                 let msg = maybe_msg.unwrap();
                 let _ = match msg {
-                    Event::NewPopup(p) => Ok(p.create(state_arc.clone())),
+                    Event::NewPopup(mut p) => Ok(p.create(state_arc.clone())),
                     Event::Keybinding(kb) => {
-                        drop(state);
-                        event_handler::keybinding::handle(state_arc, kb_manager.clone(), kb)
+                        event_handler::keybinding::handle(state_arc.clone(), kb_manager.clone(), kb)
                     },
                     Event::RedrawAppBar => Ok(()), // TODO: redraw appbars
-                    Event::WinEvent(ev) => event_handler::winevent::handle(&mut state, ev),
+                    Event::WinEvent(ev) => event_handler::winevent::handle(&mut state_arc.lock(), ev),
                     Event::Exit => {
-                        on_quit(&state)?;
+                        on_quit(&mut state_arc.lock())?;
                         break;
                     },
                     Event::ReloadConfig => {
                         info!("Reloading Config");
-                        let new_config = parse_config(&state.event_channel)
+                        let new_config = parse_config(&state_arc.lock().event_channel)
                             .map_err(|e| error!("{}", e))
                             .expect("Failed to load config");
-                        drop(state);
-                        update_config(state_arc, kb_manager.clone(), new_config)
+                        update_config(state_arc.clone(), kb_manager.clone(), new_config)
+                    },
+                    Event::UpdateBarSections(display_id, left, center, right) => {
+                        // TODO: implement
+                        Ok(())
+                    },
+                    Event::ChangeWorkspace(id, force) => {
+                        state_arc.lock().change_workspace(id, force);
+                        Ok(())
                     }
                 }.map_err(|e| {
                     error!("{:?}", e);
@@ -329,6 +334,7 @@ fn main() {
     logging::setup().expect("Failed to setup logging");
 
     let state_arc = Arc::new(Mutex::new(AppState::new()));
+    let arc = state_arc.clone();
 
     thread::spawn(move || loop {
         std::thread::sleep(Duration::from_secs(5));
@@ -343,21 +349,23 @@ fn main() {
             deadlocks.first().unwrap().first().unwrap().backtrace()
         );
 
-        on_quit(&state_arc.lock());
+        on_quit(&mut arc.lock());
     });
 
     info!("");
 
-    ctrlc::set_handler(|| {
-        if let Err(e) = on_quit(&state_arc.lock()) {
+    let arc = state_arc.clone();
+    ctrlc::set_handler(move || {
+        if let Err(e) = on_quit(&mut arc.lock()) {
             error!("Something happend when cleaning up. {}", e);
         }
     })
     .unwrap();
 
-    if let Err(e) = run(state_arc) {
+    let arc = state_arc.clone();
+    if let Err(e) = run(state_arc.clone()) {
         error!("An error occured {:?}", e);
-        if let Err(e) = on_quit(&state_arc.lock()) {
+        if let Err(e) = on_quit(&mut arc.lock()) {
             error!("Something happend when cleaning up. {}", e);
         }
     }

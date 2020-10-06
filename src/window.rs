@@ -32,7 +32,7 @@ pub mod gwl_style;
 const WM_IDENT: u32 = WM_APP + 80;
 
 #[derive(Debug, Copy, Clone)]
-struct WindowMsg {
+pub struct WindowMsg {
     code: u32,
     params: (usize, isize),
 }
@@ -140,31 +140,31 @@ impl Api {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum WindowEvent<'a> {
     Click {
-        display: Display,
+        display: &'a Display,
         id: WindowId,
         x: i32,
         y: i32,
         state: &'a AppState,
     },
     Create {
-        display: Display,
+        display: &'a Display,
         id: WindowId,
     },
     Close {
-        display: Display,
+        display: &'a Display,
         id: WindowId,
     },
     Draw {
-        display: Display,
+        display: &'a Display,
         id: WindowId,
         state: &'a AppState,
         api: Api,
     },
     MouseMove {
-        display: Display,
+        display: &'a Display,
         id: WindowId,
         api: Api,
         x: i32,
@@ -211,37 +211,37 @@ impl Window {
             inner: Arc::new(Mutex::new(WindowInner::new())),
         }
     }
-    pub fn with_size(mut self, width: i32, height: i32) -> Self {
+    pub fn with_size(self, width: i32, height: i32) -> Self {
         self.inner.lock().height = height;
         self.inner.lock().width = width;
         self
     }
-    pub fn with_background_color(mut self, color: u32) -> Self {
+    pub fn with_background_color(self, color: u32) -> Self {
         self.inner.lock().background_color = color;
         self
     }
-    pub fn with_font(mut self, font: &str) -> Self {
+    pub fn with_font(self, font: &str) -> Self {
         self.inner.lock().font = font.into();
         self
     }
-    pub fn with_title(mut self, title: &str) -> Self {
+    pub fn with_title(self, title: &str) -> Self {
         self.inner.lock().title = title.into();
         self
     }
-    pub fn with_font_size(mut self, font_size: i32) -> Self {
+    pub fn with_font_size(self, font_size: i32) -> Self {
         self.inner.lock().font_size = font_size;
         self
     }
-    pub fn with_pos(mut self, x: i32, y: i32) -> Self {
+    pub fn with_pos(self, x: i32, y: i32) -> Self {
         self.inner.lock().x = x;
         self.inner.lock().y = y;
         self
     }
-    pub fn with_is_popup(mut self, val: bool) -> Self {
+    pub fn with_is_popup(self, val: bool) -> Self {
         self.inner.lock().is_popup = val;
         self
     }
-    pub fn with_border(mut self, val: bool) -> Self {
+    pub fn with_border(self, val: bool) -> Self {
         self.inner.lock().border = val;
         self
     }
@@ -335,8 +335,17 @@ impl Window {
                         let inner = inner_arc.try_lock().unwrap();
                         let window: NativeWindow = hwnd.into();
                         // TODO: get display of state instead of generating a new one
-                        let display = window.get_display().unwrap();
                         let state = state.lock();
+                        let display = state
+                            .displays
+                            .iter()
+                            .find(|d| {
+                                d.grids
+                                    .iter()
+                                    .any(|g| g.tiles.iter().any(|t| t.window.id == window.id))
+                            })
+                            .unwrap();
+
                         let background_color = inner.background_color;
                         let hdc = GetDC(hwnd);
                         let api = Api {
@@ -373,7 +382,7 @@ impl Window {
                             SetBkColor(hdc, inner.background_color);
 
                             event_handler(&WindowEvent::Draw {
-                                display: display.clone(),
+                                display: &display,
                                 id: window.id,
                                 state: &state,
                                 api,
@@ -391,7 +400,7 @@ impl Window {
                                 x: point.x - win_rect.left,
                                 y: point.y - win_rect.top,
                                 state: &state,
-                                display,
+                                display: &display,
                             });
                         } else if msg.code == WM_CLOSE {
                             let name = CString::new(inner.title.clone()).unwrap();
@@ -403,12 +412,12 @@ impl Window {
 
                             event_handler(&WindowEvent::Close {
                                 id: window.id,
-                                display,
+                                display: &display,
                             });
                         } else if msg.code == WM_CREATE {
                             event_handler(&WindowEvent::Create {
                                 id: window.id,
-                                display,
+                                display: &display,
                             });
                         } else if msg.code == WM_MOUSEMOVE {
                             let mut point = POINT::default();
@@ -417,7 +426,7 @@ impl Window {
 
                             event_handler(&WindowEvent::MouseMove {
                                 id: window.id,
-                                display,
+                                display: &display,
                                 api,
                                 x: point.x - win_rect.left,
                                 y: point.y - win_rect.top,

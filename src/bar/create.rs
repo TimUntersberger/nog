@@ -127,11 +127,13 @@ pub fn create(state_arc: Arc<Mutex<AppState>>, kb_manager: Arc<Mutex<KbManager>>
     let name = "nog_bar";
 
     let state_arc = state_arc.clone();
-    let state = state_arc.lock();
+    let mut state = state_arc.lock();
+    let config = state.config.clone();
 
     spawn_refresh_thread(&state.event_channel);
+    let sender = state.event_channel.sender.clone();
 
-    for display in state.displays {
+    for display in state.displays.iter_mut() {
         if display.appbar.is_some() {
             error!(
                 "Appbar for monitor {:?} already exists. Aborting",
@@ -146,49 +148,47 @@ pub fn create(state_arc: Arc<Mutex<AppState>>, kb_manager: Arc<Mutex<KbManager>>
         bar.display_id = display.id;
 
         let left = display.working_area_left();
-        let top = display.working_area_top(&state.config) - state.config.bar.height;
-        let width = display.working_area_width(&state.config);
+        let top = display.working_area_top(&config) - config.bar.height;
+        let width = display.working_area_width(&config);
 
         bar.window = bar
             .window
             .with_is_popup(true)
             .with_border(false)
             .with_title(name)
-            .with_font(&state.config.bar.font)
-            .with_background_color(state.config.bar.color as u32)
+            .with_font(&config.bar.font)
+            .with_background_color(config.bar.color as u32)
             .with_pos(left, top)
-            .with_size(width, state.config.bar.height);
+            .with_size(width, config.bar.height);
 
         let kb_manager = kb_manager.clone();
+        let sender = sender.clone();
 
         bar.window
             .create(state_arc.clone(), move |event| match event {
                 WindowEvent::Click {
-                    id,
-                    x,
-                    display,
-                    state,
-                    ..
-                } => {
-                    display.appbar.and_then(|b| b.item_at_pos(*x)).map(|item| {
-                        if item.component.is_clickable {
-                            for (i, width) in item.widths.iter().enumerate() {
-                                if width.0 <= *x && *x <= width.1 {
-                                    item.component.on_click(display, state, i);
-                                }
-                            }
-                        }
-                    });
-                }
-                WindowEvent::MouseMove {
-                    x,
-                    api,
-                    id,
-                    display,
-                    ..
+                    x, display, state, ..
                 } => {
                     display
                         .appbar
+                        .as_ref()
+                        .and_then(|b| b.item_at_pos(*x).cloned())
+                        .map(|item| {
+                            if item.component.is_clickable {
+                                for (i, width) in item.widths.iter().enumerate() {
+                                    if width.0 <= *x && *x <= width.1 {
+                                        item.component.on_click(display, state, i);
+                                    }
+                                }
+                            }
+                        });
+                }
+                WindowEvent::MouseMove {
+                    x, api, display, ..
+                } => {
+                    display
+                        .appbar
+                        .as_ref()
                         .and_then(|b| b.item_at_pos(*x))
                         .map(|item| {
                             if item.component.is_clickable {
@@ -204,11 +204,11 @@ pub fn create(state_arc: Arc<Mutex<AppState>>, kb_manager: Arc<Mutex<KbManager>>
                 }
                 WindowEvent::Draw {
                     api,
-                    id,
                     display,
                     state,
+                    ..
                 } => {
-                    if let Some(bar) = display.appbar {
+                    if let Some(bar) = display.appbar.as_ref() {
                         let working_area_width = display.working_area_width(&state.config);
                         let kb_manager = kb_manager.lock();
                         let left = components_to_section(
@@ -289,9 +289,7 @@ pub fn create(state_arc: Arc<Mutex<AppState>>, kb_manager: Arc<Mutex<KbManager>>
                             clear_section(api, &state.config, bar.right.left, right.left);
                         }
 
-                        bar.left = left;
-                        bar.center = center;
-                        bar.right = right;
+                        sender.send(Event::UpdateBarSections(display.id, left, center, right));
                     }
                 }
                 _ => {}

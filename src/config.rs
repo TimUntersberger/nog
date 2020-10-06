@@ -81,7 +81,7 @@ impl Config {
     }
 
     fn alter_numerical_field(&self, field: &str, value: i32) -> Config {
-        let config = self.clone();
+        let mut config = self.clone();
         match field {
             "bar.height" => config.bar.height += value,
             "bar.color" => config.bar.color += value as u32,
@@ -94,7 +94,7 @@ impl Config {
     }
 
     pub fn toggle_field(&self, field: &str) -> Config {
-        let config = self.clone();
+        let mut config = self.clone();
         match field {
             "use_border" => config.use_border = !config.use_border,
             "light_theme" => config.light_theme = !config.light_theme,
@@ -108,7 +108,7 @@ impl Config {
     }
 
     pub fn set_bool_field(&self, field: &str, value: bool) -> Config {
-        let config = self.clone();
+        let mut config = self.clone();
         match field {
             "use_border" => config.use_border = value,
             "light_theme" => config.light_theme = value,
