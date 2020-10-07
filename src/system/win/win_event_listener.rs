@@ -1,23 +1,30 @@
 use crate::{
     event::Event, message_loop, win_event_handler::win_event::WinEvent,
     win_event_handler::win_event_type::WinEventType,
-};
+window::WindowMsg, AppState, event::EventChannel};
+use parking_lot::Mutex;
 use log::debug;
 use std::{
     ptr, sync::atomic::AtomicBool, sync::atomic::AtomicPtr, sync::atomic::Ordering, sync::Arc,
     thread, time::Duration,
-};
+sync::mpsc::Sender, sync::mpsc::Receiver, sync::mpsc::channel};
 use winapi::{
     shared::{minwindef::*, ntdef::*, windef::*},
     um::winuser::*,
 };
-
+use lazy_static::lazy_static;
 use super::nullable_to_result;
+
+const WM_IDENT: u32 = WM_APP + 30;
+
+lazy_static! {
+    static ref CHAN: Arc<Mutex<(Sender<Event>, Receiver<Event>)>> = Arc::new(Mutex::new(channel()));
+}
 
 unsafe extern "system" fn handler(
     _: HWINEVENTHOOK,
     event_code: DWORD,
-    window_handle: HWND,
+    hwnd: HWND,
     object_type: LONG,
     _: LONG,
     _: DWORD,
@@ -27,11 +34,6 @@ unsafe extern "system" fn handler(
         return;
     }
 
-    // TODO: fix
-    // if get_bar_by_win_id(window_handle.into()).is_some() {
-    //     return;
-    // }
-
     let win_event_type = match WinEventType::from_u32(event_code) {
         Some(event) => event,
         None => return,
@@ -39,11 +41,10 @@ unsafe extern "system" fn handler(
 
     let event = Event::WinEvent(WinEvent {
         typ: win_event_type,
-        window: window_handle.into(),
+        window: hwnd.into(),
     });
 
-    // TODO: fix
-    // CHANNEL.sender.clone().send(event).unwrap();
+    CHAN.lock().0.send(event);
 }
 
 #[derive(Debug)]
@@ -62,9 +63,10 @@ impl Default for WinEventListener {
 }
 
 impl WinEventListener {
-    pub fn start(&self) {
+    pub fn start(&self, channel: &EventChannel) {
         let hook = self.hook.clone();
         let stopped = self.stopped.clone();
+        let sender = channel.sender.clone();
 
         thread::spawn(move || unsafe {
             debug!("Registering win event hook");
@@ -83,13 +85,14 @@ impl WinEventListener {
             hook.store(hook_ptr as HWINEVENTHOOK, Ordering::SeqCst);
 
             message_loop::start(|msg| {
-                if let Some(msg) = msg {
-                    dbg!(msg.lParam);
-                }
                 if stopped.load(Ordering::SeqCst) {
                     debug!("Win event hook unregistered");
                     stopped.store(false, Ordering::SeqCst);
                     return false;
+                }
+
+                if let Ok(event) = CHAN.lock().1.try_recv() {
+                    sender.send(event);
                 }
 
                 thread::sleep(Duration::from_millis(5));

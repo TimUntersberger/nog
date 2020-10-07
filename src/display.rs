@@ -128,6 +128,13 @@ impl Display {
     pub fn get_grid_by_id(&self, id: i32) -> Option<&TileGrid> {
         self.grids.iter().find(|g| g.id == id)
     }
+    /// A grid is considered being active when it either has focus or contains one or more tiles
+    pub fn get_active_grids(&self) -> Vec<&TileGrid> {
+        self.grids
+            .iter()
+            .filter(|g| self.focused_grid_id == Some(g.id) || !g.tiles.is_empty())
+            .collect()
+    }
     pub fn get_grid_by_id_mut(&mut self, id: i32) -> Option<&mut TileGrid> {
         self.grids.iter_mut().find(|g| g.id == id)
     }
@@ -174,7 +181,6 @@ impl Display {
         let mut display = Display::default();
 
         display.dpi = api::get_display_dpi(id);
-        display.taskbar = Some(api::get_taskbar_for_display(id));
         display.id = id;
         display.rect = display.get_rect();
 
@@ -185,7 +191,16 @@ impl Display {
 pub fn init(config: &Config) -> Vec<Display> {
     let mut displays = api::get_displays();
 
-    if config.multi_monitor {
+    for d in displays.iter_mut() {
+        for tb in api::get_taskbars() {
+            let display = tb.window.get_display().unwrap();
+            if display.id == d.id {
+                d.taskbar = Some(tb);
+            }
+        }
+    }
+
+    if !config.multi_monitor {
         displays = displays
             .iter_mut()
             .filter(|d| d.is_primary())
@@ -194,10 +209,10 @@ pub fn init(config: &Config) -> Vec<Display> {
     }
 
     displays.sort_by(|x, y| {
-        let ordering = y.rect.left.cmp(&x.rect.left);
+        let ordering = x.rect.left.cmp(&y.rect.left);
 
         if ordering == Ordering::Equal {
-            return y.rect.top.cmp(&x.rect.top);
+            return x.rect.top.cmp(&y.rect.top);
         }
 
         ordering
@@ -208,17 +223,22 @@ pub fn init(config: &Config) -> Vec<Display> {
             .workspace_settings
             .iter()
             .find(|s| s.id == i)
-            .map(|s| if s.monitor == -1 { 1 } else { s.monitor })
-            .unwrap_or(1);
+            .map(|s| s.monitor)
+            .unwrap_or(-1);
 
-        displays
-            .get_mut((monitor - 1) as usize)
-            .expect("Couldn't find monitor")
-            .grids
-            .push(TileGrid::new(i, renderer::NativeRenderer));
+        let grid = TileGrid::new(i, renderer::NativeRenderer);
+
+        if let Some(d) = displays.get_mut((monitor - 1) as usize) {
+            d.grids.push(grid);
+        } else {
+            for d in displays.iter_mut() {
+                if d.is_primary() {
+                    d.grids.push(grid);
+                    break;
+                }
+            }
+        }
     }
-
-    dbg!(&displays);
 
     displays
 

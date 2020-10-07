@@ -10,9 +10,8 @@ pub fn create() -> Component {
             let workspace_settings = ctx.state.config.workspace_settings.clone();
             let bar_color = ctx.state.config.bar.color;
 
-            // TODO: Extract this into a function of Display
             ctx.display
-                .grids
+                .get_active_grids()
                 .iter()
                 .map(|grid| {
                     let bg = if light_theme {
@@ -43,9 +42,6 @@ pub fn create() -> Component {
         }),
     )
     .with_on_click(Arc::new(|ctx| {
-        //Note: might have to run this in a new thread, because locking a mutex twice on a thread causes a
-        //deadlock.
-        //NOTE: Might have to run this in a new thread
         ctx.state
             .event_channel
             .sender

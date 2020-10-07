@@ -1,54 +1,40 @@
 use std::sync::Arc;
 
-use crate::message_loop;
-use crate::util;
-use crate::{event::Event, window::Window, window::WindowEvent, AppState};
-use lazy_static::lazy_static;
+use crate::{event::Event, util, window::Window, window::WindowEvent, AppState};
 use num_traits::FromPrimitive;
 use parking_lot::Mutex;
-use winapi::shared::minwindef::HINSTANCE;
-use winapi::shared::minwindef::LOWORD;
-use winapi::shared::minwindef::LPARAM;
-use winapi::shared::minwindef::LRESULT;
-use winapi::shared::minwindef::UINT;
-use winapi::shared::minwindef::WPARAM;
-use winapi::shared::windef::HWND;
-use winapi::shared::windef::POINT;
-use winapi::um::shellapi::Shell_NotifyIconW;
-use winapi::um::shellapi::NIF_ICON;
-use winapi::um::shellapi::NIF_MESSAGE;
-use winapi::um::shellapi::NIF_TIP;
-use winapi::um::shellapi::NIM_ADD;
-use winapi::um::shellapi::NIM_DELETE;
-use winapi::um::shellapi::NOTIFYICONDATAW;
-use winapi::um::wingdi::CreateSolidBrush;
-use winapi::um::winuser::CreateIconFromResourceEx;
-use winapi::um::winuser::CreatePopupMenu;
-use winapi::um::winuser::DefWindowProcW;
-use winapi::um::winuser::DestroyMenu;
-use winapi::um::winuser::GetCursorPos;
-use winapi::um::winuser::InsertMenuW;
-use winapi::um::winuser::PostMessageW;
-use winapi::um::winuser::RegisterClassA;
-use winapi::um::winuser::SendMessageW;
-use winapi::um::winuser::SetFocus;
-use winapi::um::winuser::SetForegroundWindow;
-use winapi::um::winuser::SetMenuItemBitmaps;
-use winapi::um::winuser::TrackPopupMenu;
-use winapi::um::winuser::LR_DEFAULTCOLOR;
-use winapi::um::winuser::MF_BYPOSITION;
-use winapi::um::winuser::MF_STRING;
-use winapi::um::winuser::TPM_LEFTALIGN;
-use winapi::um::winuser::TPM_NONOTIFY;
-use winapi::um::winuser::TPM_RETURNCMD;
-use winapi::um::winuser::TPM_RIGHTBUTTON;
-use winapi::um::winuser::WM_APP;
-use winapi::um::winuser::WM_CLOSE;
-use winapi::um::winuser::WM_COMMAND;
-use winapi::um::winuser::WM_CREATE;
-use winapi::um::winuser::WM_INITMENUPOPUP;
-use winapi::um::winuser::WM_RBUTTONUP;
-use winapi::um::winuser::WNDCLASSA;
+use winapi::{
+    shared::{minwindef::LOWORD, windef::HWND, windef::POINT},
+    um::shellapi::Shell_NotifyIconW,
+    um::shellapi::NIF_ICON,
+    um::shellapi::NIF_MESSAGE,
+    um::shellapi::NIF_TIP,
+    um::shellapi::NIM_ADD,
+    um::shellapi::{NIM_DELETE, NOTIFYICONDATAW},
+    um::winuser::CreateIconFromResourceEx,
+    um::winuser::CreatePopupMenu,
+    um::winuser::DestroyMenu,
+    um::winuser::GetCursorPos,
+    um::winuser::InsertMenuW,
+    um::winuser::PostMessageW,
+    um::winuser::SendMessageW,
+    um::winuser::SetFocus,
+    um::winuser::SetForegroundWindow,
+    um::winuser::SetMenuItemBitmaps,
+    um::winuser::TrackPopupMenu,
+    um::winuser::LR_DEFAULTCOLOR,
+    um::winuser::MF_BYPOSITION,
+    um::winuser::MF_STRING,
+    um::winuser::TPM_LEFTALIGN,
+    um::winuser::TPM_NONOTIFY,
+    um::winuser::TPM_RETURNCMD,
+    um::winuser::TPM_RIGHTBUTTON,
+    um::winuser::WM_APP,
+    um::winuser::WM_CLOSE,
+    um::winuser::WM_COMMAND,
+    um::winuser::WM_INITMENUPOPUP,
+    um::winuser::WM_RBUTTONUP,
+};
 
 pub static WINDOW: Mutex<Option<Window>> = Mutex::new(None);
 
@@ -58,37 +44,6 @@ enum PopupId {
     Reload = 1001,
 }
 
-// unsafe extern "system" fn window_cb(
-//     hwnd: HWND,
-//     msg: UINT,
-//     w_param: WPARAM,
-//     l_param: LPARAM,
-// ) -> LRESULT {
-//     } else if msg == WM_COMMAND {
-//         if let Some(id) = PopupId::from_u16(LOWORD(w_param as u32)) {
-//             match id {
-//                 PopupId::Exit => {
-//                     PostMessageW(hwnd, WM_CLOSE, 0, 0);
-//                 }
-//                 PopupId::Reload => {
-//                     CHANNEL
-//                         .sender
-//                         .clone()
-//                         .send(Event::ReloadConfig)
-//                         .expect("Failed to send event");
-//                 }
-//             }
-//         }
-//     } else if msg == WM_APP && l_param as u32 == WM_RBUTTONUP {
-//         SetForegroundWindow(hwnd);
-//         show_popup_menu(hwnd);
-//         PostMessageW(hwnd, WM_APP + 1, 0, 0);
-//     }
-
-//     DefWindowProcW(hwnd, msg, w_param, l_param)
-// }
-
-// TODO: use Window struct instead
 pub fn create(state: Arc<Mutex<AppState>>) {
     let state_arc = state.clone();
     let state = state_arc.lock();
@@ -101,14 +56,35 @@ pub fn create(state: Arc<Mutex<AppState>>) {
 
     drop(state);
 
-    window.create(state_arc, move |event| match event {
+    window.create(state_arc, false, move |event| match event {
         WindowEvent::Create { id, .. } => {
             add_icon(id.to_owned().into());
         }
         WindowEvent::Close { .. } => {
             sender.send(Event::Exit).expect("Failed to send exit event");
         }
-        WindowEvent::Native(_) => {}
+        WindowEvent::Native(msg) => {
+            if msg.code == WM_COMMAND {
+                if let Some(id) = PopupId::from_u16(LOWORD(msg.params.0 as u32)) {
+                    match id {
+                        PopupId::Exit => unsafe {
+                            PostMessageW(msg.hwnd, WM_CLOSE, 0, 0);
+                        },
+                        PopupId::Reload => {
+                            sender
+                                .send(Event::ReloadConfig)
+                                .expect("Failed to send event");
+                        }
+                    }
+                }
+            } else if msg.code == WM_APP && msg.params.1 as u32 == WM_RBUTTONUP {
+                unsafe {
+                    SetForegroundWindow(msg.hwnd);
+                    show_popup_menu(msg.hwnd);
+                    PostMessageW(msg.hwnd, WM_APP + 1, 0, 0);
+                }
+            }
+        }
         _ => {}
     });
 

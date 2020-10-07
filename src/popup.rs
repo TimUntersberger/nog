@@ -70,7 +70,7 @@ impl Popup {
 
         drop(state);
 
-        window.create(state_arc, move |event| match event {
+        window.create(state_arc, true, move |event| match event {
             WindowEvent::Draw { api, .. } => {
                 let rect = api.calculate_text_rect(&text);
 

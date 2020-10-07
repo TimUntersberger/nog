@@ -20,7 +20,11 @@ pub fn turn_work_mode_off(state: &mut AppState) -> Result<(), Box<dyn std::error
     popup::cleanup();
 
     if state.config.display_app_bar {
-        // TODO: close bar
+        for d in state.displays.iter() {
+            if let Some(b) = d.appbar.as_ref() {
+                b.window.close();
+            }
+        }
     }
 
     if state.config.remove_task_bar {
@@ -49,10 +53,10 @@ pub fn turn_work_mode_on(
         state = state_arc.lock();
     }
 
-    info!("Registering windows event handler");
-    state.window_event_listener.start();
-
     state.change_workspace(1, false);
+
+    info!("Registering windows event handler");
+    state.window_event_listener.start(&state.event_channel);
 
     Ok(())
 }

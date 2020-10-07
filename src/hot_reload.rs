@@ -18,11 +18,19 @@ pub fn update_config(
     if work_mode {
         if state.config.remove_task_bar && !new_config.remove_task_bar {
             state.show_taskbars();
-            //TODO: close bars
+            for d in state.displays.iter() {
+                if let Some(b) = d.appbar.as_ref() {
+                    b.window.close();
+                }
+            }
             draw_app_bar = new_config.display_app_bar;
         } else if !state.config.remove_task_bar && new_config.remove_task_bar {
             task_bar::hide_taskbars(&mut state);
-            //TODO: close bars
+            for d in state.displays.iter() {
+                if let Some(b) = d.appbar.as_ref() {
+                    b.window.close();
+                }
+            }
             draw_app_bar = new_config.display_app_bar;
         }
 
@@ -30,11 +38,19 @@ pub fn update_config(
             if state.config.bar != new_config.bar
                 || state.config.light_theme != new_config.light_theme
             {
-                //TODO: close bars
+                for d in state.displays.iter() {
+                    if let Some(b) = d.appbar.as_ref() {
+                        b.window.close();
+                    }
+                }
                 draw_app_bar = true;
             }
         } else if state.config.display_app_bar && !new_config.display_app_bar {
-            //TODO: close bars
+            for d in state.displays.iter() {
+                if let Some(b) = d.appbar.as_ref() {
+                    b.window.close();
+                }
+            }
         } else if !state.config.display_app_bar && new_config.display_app_bar {
             draw_app_bar = true;
         }
@@ -61,18 +77,19 @@ pub fn update_config(
         startup::set_launch_on_startup(new_config.launch_on_startup);
     }
 
+    //TODO: register keybindings
+
+    for d in state.displays.iter() {
+        if let Some(grid) = d.get_focused_grid() {
+            grid.draw_grid(d, &state.config);
+        }
+    }
+
     state.config = new_config;
 
     if draw_app_bar {
         drop(state);
         bar::create::create(state_arc.clone(), kb_manager);
-        state = state_arc.lock();
-    }
-
-    //TODO: register keybindings
-
-    for _d in state.displays.iter() {
-        // TODO: redraw visible grids
     }
 
     Ok(())

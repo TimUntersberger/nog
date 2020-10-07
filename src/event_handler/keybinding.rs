@@ -93,7 +93,10 @@ pub fn handle(
                 kb_manager.lock().enter_mode(&mode);
             }
         }
-        KeybindingType::ToggleWorkMode => toggle_work_mode::handle(state_arc.clone(), kb_manager)?,
+        KeybindingType::ToggleWorkMode => {
+            drop(state);
+            toggle_work_mode::handle(state_arc.clone(), kb_manager)?
+        }
         KeybindingType::IncrementConfig(field, value) => {
             let new_config = state.config.increment_field(&field, value);
             drop(state);

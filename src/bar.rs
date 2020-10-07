@@ -10,11 +10,11 @@ pub mod item_section;
 
 #[derive(Clone, Debug)]
 pub struct Bar {
-    window: Window,
-    display_id: DisplayId,
-    left: ItemSection,
-    center: ItemSection,
-    right: ItemSection,
+    pub window: Window,
+    pub display_id: DisplayId,
+    pub left: ItemSection,
+    pub center: ItemSection,
+    pub right: ItemSection,
 }
 
 impl Default for Bar {

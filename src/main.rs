@@ -22,6 +22,7 @@ use system::{SystemResult, WinEventListener, WindowId};
 use task_bar::Taskbar;
 use tile::Tile;
 use tile_grid::TileGrid;
+use window::Window;
 
 mod bar;
 mod config;
@@ -153,8 +154,9 @@ impl AppState {
     /// TODO: only return display
     pub fn find_grid(&mut self, id: i32) -> Option<(&mut Display, TileGrid)> {
         for d in self.displays.iter_mut() {
-            let grid = d.grids.iter().find(|g| g.id == id).unwrap().clone();
-            return Some((d, grid));
+            if let Some(grid) = d.grids.iter().find(|g| g.id == id).cloned() {
+                return Some((d, grid));
+            }
         }
         None
     }
@@ -164,8 +166,9 @@ impl AppState {
     pub fn find_window(&mut self, id: WindowId) -> Option<(&mut TileGrid, Tile)> {
         for d in self.displays.iter_mut() {
             for g in d.grids.iter_mut() {
-                let tile = g.tiles.iter().find(|t| t.window.id == id).unwrap().clone();
-                return Some((g, tile));
+                if let Some(tile) = g.tiles.iter().find(|t| t.window.id == id).cloned() {
+                    return Some((g, tile));
+                }
             }
         }
 
@@ -297,7 +300,15 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
                     Event::Keybinding(kb) => {
                         event_handler::keybinding::handle(state_arc.clone(), kb_manager.clone(), kb)
                     },
-                    Event::RedrawAppBar => Ok(()), // TODO: redraw appbars
+                    Event::RedrawAppBar => {
+                        let windows = state_arc.lock().displays.iter().map(|d| d.appbar.as_ref()).flatten().map(|b| b.window.clone()).collect::<Vec<Window>>();
+
+                        for window in windows {
+                            window.redraw();
+                        }
+
+                        Ok(())
+                    },
                     Event::WinEvent(ev) => event_handler::winevent::handle(&mut state_arc.lock(), ev),
                     Event::Exit => {
                         on_quit(&mut state_arc.lock())?;
@@ -311,7 +322,17 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
                         update_config(state_arc.clone(), kb_manager.clone(), new_config)
                     },
                     Event::UpdateBarSections(display_id, left, center, right) => {
-                        // TODO: implement
+                        let mut state = state_arc.lock();
+                        for d in state.displays.iter_mut() {
+                            if d.id == display_id {
+                                if let Some(bar) = d.appbar.as_mut() {
+                                    bar.left = left;
+                                    bar.center = center;
+                                    bar.right = right;
+                                    break;
+                                }
+                            }
+                        }
                         Ok(())
                     },
                     Event::ChangeWorkspace(id, force) => {

@@ -165,7 +165,7 @@ pub fn create(state_arc: Arc<Mutex<AppState>>, kb_manager: Arc<Mutex<KbManager>>
         let sender = sender.clone();
 
         bar.window
-            .create(state_arc.clone(), move |event| match event {
+            .create(state_arc.clone(), true, move |event| match event {
                 WindowEvent::Click {
                     x, display, state, ..
                 } => {
@@ -253,7 +253,7 @@ pub fn create(state_arc: Arc<Mutex<AppState>>, kb_manager: Arc<Mutex<KbManager>>
                             &display,
                             state,
                             &kb_manager,
-                            left.left,
+                            center.left,
                             &state.config.bar.components.center,
                         );
                         draw_components(
@@ -261,7 +261,7 @@ pub fn create(state_arc: Arc<Mutex<AppState>>, kb_manager: Arc<Mutex<KbManager>>
                             &display,
                             state,
                             &kb_manager,
-                            left.left,
+                            right.left,
                             &state.config.bar.components.right,
                         );
 

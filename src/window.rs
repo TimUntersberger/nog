@@ -33,8 +33,9 @@ const WM_IDENT: u32 = WM_APP + 80;
 
 #[derive(Debug, Copy, Clone)]
 pub struct WindowMsg {
-    code: u32,
-    params: (usize, isize),
+    pub hwnd: HWND,
+    pub code: u32,
+    pub params: (usize, isize),
 }
 
 unsafe extern "system" fn window_cb(
@@ -48,6 +49,7 @@ unsafe extern "system" fn window_cb(
     } else if msg != WM_IDENT {
         let payload = WindowMsg {
             code: msg,
+            hwnd,
             params: (w_param, l_param),
         };
 
@@ -271,6 +273,7 @@ impl Window {
     pub fn create<TEventHandler: Fn(&WindowEvent) -> () + Sync + Send + 'static>(
         &mut self,
         state_arc: Arc<Mutex<AppState>>,
+        show: bool,
         event_handler: TEventHandler,
     ) {
         let state = state_arc.clone();
@@ -323,7 +326,9 @@ impl Window {
 
             let win: NativeWindow = hwnd.into();
 
-            win.show();
+            if show {
+                win.show();
+            }
 
             inner.native_window = Some(win);
 
@@ -334,17 +339,9 @@ impl Window {
                     if msg.message == WM_IDENT {
                         let inner = inner_arc.try_lock().unwrap();
                         let window: NativeWindow = hwnd.into();
-                        // TODO: get display of state instead of generating a new one
                         let state = state.lock();
-                        let display = state
-                            .displays
-                            .iter()
-                            .find(|d| {
-                                d.grids
-                                    .iter()
-                                    .any(|g| g.tiles.iter().any(|t| t.window.id == window.id))
-                            })
-                            .unwrap();
+                        let display_id = window.get_display().unwrap().id;
+                        let display = state.displays.iter().find(|d| d.id == display_id).unwrap();
 
                         let background_color = inner.background_color;
                         let hdc = GetDC(hwnd);
@@ -432,7 +429,7 @@ impl Window {
                                 y: point.y - win_rect.top,
                             });
                         } else {
-                            dbg!(msg);
+                            event_handler(&WindowEvent::Native(msg));
                         }
 
                         ReleaseDC(hwnd, hdc);
