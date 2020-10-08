@@ -6,7 +6,8 @@ pub fn create() -> Component {
         "ActiveMode",
         Arc::new(|ctx| {
             vec![ComponentText::Basic(
-                ctx.kb_manager
+                ctx.state
+                    .keybindings_manager
                     .get_mode()
                     .map(|m| format!("{} is active", m))
                     .unwrap_or_default(),

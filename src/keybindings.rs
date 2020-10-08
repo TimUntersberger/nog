@@ -7,6 +7,7 @@ use modifier::Modifier;
 use num_traits::FromPrimitive;
 use parking_lot::Mutex;
 use std::{
+    fmt::Debug,
     sync::atomic::{AtomicBool, Ordering},
     sync::mpsc::channel,
     sync::mpsc::Receiver,
@@ -45,6 +46,10 @@ impl KbManagerInner {
         }
     }
 
+    pub fn unregister_all(&self) {
+        self.keybindings.iter().for_each(api::unregister_keybinding);
+    }
+
     pub fn get_keybinding(&self, key: Key, modifier: Modifier) -> Option<&Keybinding> {
         self.keybindings
             .iter()
@@ -64,6 +69,12 @@ pub struct KbManager {
     inner: Arc<KbManagerInner>,
     sender: Sender<ChanMessage>,
     receiver: Arc<Mutex<Receiver<ChanMessage>>>,
+}
+
+impl Debug for KbManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("KbManager { }")
+    }
 }
 
 impl KbManager {
@@ -104,14 +115,16 @@ impl KbManager {
             loop {
                 if let Ok(msg) = receiver.try_recv() {
                     debug!("KbManager received {:?}", msg);
-                    let keep_running = match msg {
-                        ChanMessage::Stop => false,
+                    match msg {
+                        ChanMessage::Stop => {
+                            debug!("Stopping KbManager");
+                            inner.unregister_all();
+                            inner.running.store(false, Ordering::SeqCst);
+                            break;
+                        }
                         ChanMessage::ChangeMode(new_mode) => {
                             // Unregister all keybindings to ensure a clean state
-                            inner
-                                .keybindings
-                                .iter()
-                                .for_each(api::unregister_keybinding);
+                            inner.unregister_all();
 
                             // Register all keybinding that belong to the new mode and some
                             // exceptions like ToggleMode keybindings for this mode
@@ -126,17 +139,8 @@ impl KbManager {
                                             )
                                 })
                                 .for_each(api::register_keybinding);
-
-                            true
                         }
                     };
-
-                    if !keep_running {
-                        debug!("Stopping KbManager");
-                        inner.running.store(false, Ordering::SeqCst);
-                        //TODO: Unregister all keybindings except toggle work mode
-                        break;
-                    }
                 }
 
                 if let Some(kb) = do_loop(&inner) {

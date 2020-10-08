@@ -54,6 +54,7 @@ pub struct AppState {
     pub work_mode: bool,
     pub displays: Vec<Display>,
     pub event_channel: EventChannel,
+    pub keybindings_manager: KbManager,
     pub additonal_rules: Vec<Rule>,
     pub window_event_listener: WinEventListener,
     pub workspace_id: i32,
@@ -72,6 +73,7 @@ impl AppState {
         Self {
             work_mode: config.work_mode,
             displays,
+            keybindings_manager: KbManager::new(config.keybindings.clone()),
             event_channel,
             additonal_rules: Vec::new(),
             window_event_listener: WinEventListener::default(),
@@ -196,6 +198,15 @@ impl AppState {
         }
     }
 
+    pub fn close_appbars(&mut self) {
+        for d in self.displays.iter_mut() {
+            if let Some(b) = d.appbar.as_ref() {
+                b.window.close();
+            }
+            d.appbar = None;
+        }
+    }
+
     pub fn get_current_display_mut(&mut self) -> &mut Display {
         let workspace_id = self.workspace_id;
         self.displays
@@ -275,9 +286,6 @@ fn os_specific_setup(state: Arc<Mutex<AppState>>) {
 
 fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>> {
     let receiver = state_arc.lock().event_channel.receiver.clone();
-    let kb_manager = Arc::new(Mutex::new(KbManager::new(
-        state_arc.lock().config.keybindings.clone(),
-    )));
 
     info!("Starting hot reloading of config");
     config::hot_reloading::start(state_arc.clone());
@@ -286,10 +294,13 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
 
     os_specific_setup(state_arc.clone());
 
-    toggle_work_mode::initialize(state_arc.clone(), kb_manager.clone())?;
+    toggle_work_mode::initialize(state_arc.clone())?;
 
     info!("Listening for keybindings");
-    kb_manager.clone().lock().start(state_arc.clone());
+    state_arc
+        .lock()
+        .keybindings_manager
+        .start(state_arc.clone());
 
     loop {
         select! {
@@ -298,7 +309,7 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
                 let _ = match msg {
                     Event::NewPopup(mut p) => Ok(p.create(state_arc.clone())),
                     Event::Keybinding(kb) => {
-                        event_handler::keybinding::handle(state_arc.clone(), kb_manager.clone(), kb)
+                        event_handler::keybinding::handle(state_arc.clone(), kb)
                     },
                     Event::RedrawAppBar => {
                         let windows = state_arc.lock().displays.iter().map(|d| d.appbar.as_ref()).flatten().map(|b| b.window.clone()).collect::<Vec<Window>>();
@@ -319,7 +330,7 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
                         let new_config = parse_config(&state_arc.lock().event_channel)
                             .map_err(|e| error!("{}", e))
                             .expect("Failed to load config");
-                        update_config(state_arc.clone(), kb_manager.clone(), new_config)
+                        update_config(state_arc.clone(), new_config)
                     },
                     Event::UpdateBarSections(display_id, left, center, right) => {
                         let mut state = state_arc.lock();

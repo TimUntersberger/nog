@@ -3,12 +3,9 @@ use crate::{info, AppState};
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-pub fn initialize(
-    state_arc: Arc<Mutex<AppState>>,
-    kb_manager: Arc<Mutex<KbManager>>,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub fn initialize(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>> {
     if state_arc.lock().work_mode {
-        turn_work_mode_on(state_arc, kb_manager)?;
+        turn_work_mode_on(state_arc)?;
     }
 
     Ok(())
@@ -20,11 +17,7 @@ pub fn turn_work_mode_off(state: &mut AppState) -> Result<(), Box<dyn std::error
     popup::cleanup();
 
     if state.config.display_app_bar {
-        for d in state.displays.iter() {
-            if let Some(b) = d.appbar.as_ref() {
-                b.window.close();
-            }
-        }
+        state.close_appbars();
     }
 
     if state.config.remove_task_bar {
@@ -38,7 +31,6 @@ pub fn turn_work_mode_off(state: &mut AppState) -> Result<(), Box<dyn std::error
 
 pub fn turn_work_mode_on(
     state_arc: Arc<Mutex<AppState>>,
-    kb_manager: Arc<Mutex<KbManager>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut state = state_arc.lock();
 
@@ -49,7 +41,7 @@ pub fn turn_work_mode_on(
 
     if state.config.display_app_bar {
         drop(state);
-        bar::create::create(state_arc.clone(), kb_manager);
+        bar::create::create(state_arc.clone());
         state = state_arc.lock();
     }
 
@@ -61,10 +53,7 @@ pub fn turn_work_mode_on(
     Ok(())
 }
 
-pub fn handle(
-    state_arc: Arc<Mutex<AppState>>,
-    kb_manager: Arc<Mutex<KbManager>>,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub fn handle(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>> {
     let mut state = state_arc.lock();
 
     state.work_mode = !state.work_mode;
@@ -73,7 +62,7 @@ pub fn handle(
         turn_work_mode_off(&mut state)?;
     } else {
         drop(state);
-        turn_work_mode_on(state_arc, kb_manager)?;
+        turn_work_mode_on(state_arc)?;
     }
 
     Ok(())

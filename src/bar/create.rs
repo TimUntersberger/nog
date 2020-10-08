@@ -12,7 +12,7 @@ use std::{sync::Arc, thread, time::Duration};
 fn spawn_refresh_thread(chan: &EventChannel) {
     let sender = chan.sender.clone();
     thread::spawn(move || loop {
-        thread::sleep(Duration::from_millis(200));
+        thread::sleep(Duration::from_millis(100));
 
         // TODO: Somehow get notified when nog leaves work mode
         // Maybe just close the channel when we leave work mode and then check if the send failed
@@ -53,12 +53,11 @@ fn draw_components(
     api: &Api,
     display: &Display,
     state: &AppState,
-    kb_manager: &KbManager,
     mut offset: i32,
     components: &[Component],
 ) {
     for component in components {
-        let component_texts = component.render(display, state, kb_manager);
+        let component_texts = component.render(display, state);
 
         for (_i, component_text) in component_texts.iter().enumerate() {
             let width = api.calculate_text_rect(&component_text.get_text()).width();
@@ -81,7 +80,6 @@ fn components_to_section(
     api: &Api,
     display: &Display,
     state: &AppState,
-    kb_manager: &KbManager,
     components: &[Component],
 ) -> ItemSection {
     let mut section = ItemSection::default();
@@ -92,7 +90,7 @@ fn components_to_section(
         let mut component_text_offset = 0;
         let mut component_width = 0;
 
-        for component_text in component.render(display, state, kb_manager) {
+        for component_text in component.render(display, state) {
             let width = api.calculate_text_rect(&component_text.get_text()).width();
             let left = component_text_offset;
             let right = component_text_offset + width;
@@ -121,7 +119,7 @@ fn clear_section(api: &Api, config: &Config, left: i32, right: i32) {
     api.fill_rect(left, 0, right - left, config.bar.height, config.bar.color)
 }
 
-pub fn create(state_arc: Arc<Mutex<AppState>>, kb_manager: Arc<Mutex<KbManager>>) {
+pub fn create(state_arc: Arc<Mutex<AppState>>) {
     info!("Creating appbar");
 
     let name = "nog_bar";
@@ -161,7 +159,6 @@ pub fn create(state_arc: Arc<Mutex<AppState>>, kb_manager: Arc<Mutex<KbManager>>
             .with_pos(left, top)
             .with_size(width, config.bar.height);
 
-        let kb_manager = kb_manager.clone();
         let sender = sender.clone();
 
         bar.window
@@ -210,12 +207,10 @@ pub fn create(state_arc: Arc<Mutex<AppState>>, kb_manager: Arc<Mutex<KbManager>>
                 } => {
                     if let Some(bar) = display.appbar.as_ref() {
                         let working_area_width = display.working_area_width(&state.config);
-                        let kb_manager = kb_manager.lock();
                         let left = components_to_section(
                             api,
                             &display,
                             state,
-                            &kb_manager,
                             &state.config.bar.components.left,
                         );
 
@@ -223,7 +218,6 @@ pub fn create(state_arc: Arc<Mutex<AppState>>, kb_manager: Arc<Mutex<KbManager>>
                             api,
                             &display,
                             state,
-                            &kb_manager,
                             &state.config.bar.components.center,
                         );
 
@@ -234,7 +228,6 @@ pub fn create(state_arc: Arc<Mutex<AppState>>, kb_manager: Arc<Mutex<KbManager>>
                             api,
                             &display,
                             state,
-                            &kb_manager,
                             &state.config.bar.components.right,
                         );
                         right.left = working_area_width - right.right;
@@ -244,7 +237,6 @@ pub fn create(state_arc: Arc<Mutex<AppState>>, kb_manager: Arc<Mutex<KbManager>>
                             api,
                             &display,
                             state,
-                            &kb_manager,
                             left.left,
                             &state.config.bar.components.left,
                         );
@@ -252,7 +244,6 @@ pub fn create(state_arc: Arc<Mutex<AppState>>, kb_manager: Arc<Mutex<KbManager>>
                             api,
                             &display,
                             state,
-                            &kb_manager,
                             center.left,
                             &state.config.bar.components.center,
                         );
@@ -260,7 +251,6 @@ pub fn create(state_arc: Arc<Mutex<AppState>>, kb_manager: Arc<Mutex<KbManager>>
                             api,
                             &display,
                             state,
-                            &kb_manager,
                             right.left,
                             &state.config.bar.components.right,
                         );

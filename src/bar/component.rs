@@ -66,7 +66,6 @@ impl Default for Component {
 pub struct RenderContext<'a> {
     pub display: &'a Display,
     pub state: &'a AppState,
-    pub kb_manager: &'a KbManager,
 }
 
 pub struct OnClickContext<'a> {
@@ -95,19 +94,10 @@ impl Component {
         }
     }
 
-    pub fn render(
-        &self,
-        display: &Display,
-        state: &AppState,
-        kb_manager: &KbManager,
-    ) -> Vec<ComponentText> {
+    pub fn render(&self, display: &Display, state: &AppState) -> Vec<ComponentText> {
         let f = self.render_fn.clone();
 
-        f(RenderContext {
-            display,
-            state,
-            kb_manager,
-        })
+        f(RenderContext { display, state })
     }
 
     pub fn with_on_click(&mut self, f: OnClickFn) -> &mut Self {

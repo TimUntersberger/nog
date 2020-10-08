@@ -1,19 +1,20 @@
+use super::nullable_to_result;
 use crate::{
-    event::Event, message_loop, win_event_handler::win_event::WinEvent,
-    win_event_handler::win_event_type::WinEventType,
-window::WindowMsg, AppState, event::EventChannel};
-use parking_lot::Mutex;
+    event::Event, event::EventChannel, message_loop, win_event_handler::win_event::WinEvent,
+    win_event_handler::win_event_type::WinEventType, window::WindowMsg, AppState,
+};
+use lazy_static::lazy_static;
 use log::debug;
+use parking_lot::Mutex;
 use std::{
-    ptr, sync::atomic::AtomicBool, sync::atomic::AtomicPtr, sync::atomic::Ordering, sync::Arc,
-    thread, time::Duration,
-sync::mpsc::Sender, sync::mpsc::Receiver, sync::mpsc::channel};
+    ptr, sync::atomic::AtomicBool, sync::atomic::AtomicPtr, sync::atomic::Ordering,
+    sync::mpsc::channel, sync::mpsc::Receiver, sync::mpsc::Sender, sync::Arc, thread,
+    time::Duration,
+};
 use winapi::{
     shared::{minwindef::*, ntdef::*, windef::*},
     um::winuser::*,
 };
-use lazy_static::lazy_static;
-use super::nullable_to_result;
 
 const WM_IDENT: u32 = WM_APP + 30;
 

@@ -22,7 +22,6 @@ pub mod toggle_work_mode;
 
 pub fn handle(
     state_arc: Arc<Mutex<AppState>>,
-    kb_manager: Arc<Mutex<KbManager>>,
     kb: Keybinding,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut state = state_arc.lock();
@@ -85,32 +84,32 @@ pub fn handle(
             display.refresh_grid(&config);
         }
         KeybindingType::ToggleMode(mode) => {
-            if kb_manager.lock().get_mode() == Some(mode.clone()) {
+            if state.keybindings_manager.get_mode() == Some(mode.clone()) {
                 info!("Disabling {} mode", mode);
-                kb_manager.lock().leave_mode();
+                state.keybindings_manager.leave_mode();
             } else {
                 info!("Enabling {} mode", mode);
-                kb_manager.lock().enter_mode(&mode);
+                state.keybindings_manager.enter_mode(&mode);
             }
         }
         KeybindingType::ToggleWorkMode => {
             drop(state);
-            toggle_work_mode::handle(state_arc.clone(), kb_manager)?
+            toggle_work_mode::handle(state_arc.clone())?
         }
         KeybindingType::IncrementConfig(field, value) => {
             let new_config = state.config.increment_field(&field, value);
             drop(state);
-            update_config(state_arc.clone(), kb_manager, new_config)?;
+            update_config(state_arc.clone(), new_config)?;
         }
         KeybindingType::DecrementConfig(field, value) => {
             let new_config = state.config.decrement_field(&field, value);
             drop(state);
-            update_config(state_arc.clone(), kb_manager, new_config)?;
+            update_config(state_arc.clone(), new_config)?;
         }
         KeybindingType::ToggleConfig(field) => {
             let new_config = state.config.toggle_field(&field);
             drop(state);
-            update_config(state_arc.clone(), kb_manager, new_config)?;
+            update_config(state_arc.clone(), new_config)?;
         }
         KeybindingType::Resize(direction, amount) => resize::handle(&mut state, direction, amount)?,
         KeybindingType::Focus(direction) => focus::handle(&mut state, direction)?,
