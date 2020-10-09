@@ -4,7 +4,7 @@ use crate::{display::Display, CONFIG};
 use gwl_ex_style::GwlExStyle;
 use gwl_style::GwlStyle;
 use log::error;
-use winapi::shared::windef::HWND;
+use winapi::{shared::windef::HWND, um::winuser::IsWindowVisible};
 use winapi::shared::windef::RECT;
 use winapi::um::errhandlingapi::GetLastError;
 use winapi::um::winuser::AdjustWindowRectEx;
@@ -142,6 +142,11 @@ impl Window {
     pub fn hide(&self) {
         unsafe {
             ShowWindow(self.id as HWND, SW_HIDE);
+        }
+    }
+    pub fn is_hidden(&self) -> bool {
+        unsafe {
+            IsWindowVisible(self.id as HWND) == 0
         }
     }
     pub fn calculate_window_rect(

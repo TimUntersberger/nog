@@ -1,11 +1,14 @@
-use super::{get_bar_by_hmonitor, redraw::redraw, window_cb, Bar, BARS, get_windows};
-use crate::{message_loop, util, CONFIG, DISPLAYS, CHANNEL, event::Event};
+use super::{get_bar_by_hmonitor, get_windows, redraw::redraw, window_cb, Bar, BARS};
+use crate::{event::Event, message_loop, util, CHANNEL, CONFIG, DISPLAYS};
 use log::{debug, error, info};
-use winapi::shared::windef::HBRUSH;
+use winapi::{shared::minwindef::HINSTANCE, um::shellapi::ABM_SETAUTOHIDEBAR, um::winuser::WM_APP};
+use winapi::shared::windef::{HBRUSH, HWND, RECT};
+use winapi::um::shellapi::{
+    SHAppBarMessage, ABE_TOP, ABM_NEW, ABM_QUERYPOS, ABM_SETPOS, APPBARDATA,
+};
 use winapi::um::wingdi::CreateSolidBrush;
-use winapi::{
-    shared::minwindef::HINSTANCE,
-    um::winuser::{RegisterClassA, ShowWindow, SW_SHOW, WNDCLASSA},
+use winapi::um::winuser::{
+    GetWindowRect, MoveWindow, RegisterClassA, ShowWindow, SW_SHOW, WNDCLASSA,
 };
 
 pub fn create() -> Result<(), util::WinApiResultError> {
@@ -81,6 +84,16 @@ pub fn create() -> Result<(), util::WinApiResultError> {
 
             ShowWindow(window_handle, SW_SHOW);
             redraw();
+
+            let mut appbar_data: APPBARDATA = APPBARDATA {
+                cbSize: 4 + 4 + 4 + 4 + 16 + 4,
+                hWnd: window_handle as HWND,
+                uCallbackMessage: WM_APP + 1,
+                uEdge: ABE_TOP,
+                ..Default::default()
+            };
+
+            SHAppBarMessage(ABM_NEW, &mut appbar_data as *mut APPBARDATA);
 
             message_loop::start(|_| true);
         });
