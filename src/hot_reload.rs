@@ -12,17 +12,18 @@ pub fn update_config(
     let mut state = state_arc.lock();
     let work_mode = state.work_mode;
     let mut draw_app_bar = false;
+    let mut close_app_bars = false;
 
     state.keybindings_manager.stop();
 
     if work_mode {
         if state.config.remove_task_bar && !new_config.remove_task_bar {
             state.show_taskbars();
-            state.close_appbars();
+            close_app_bars = true;
             draw_app_bar = new_config.display_app_bar;
         } else if !state.config.remove_task_bar && new_config.remove_task_bar {
             task_bar::hide_taskbars(&mut state);
-            state.close_appbars();
+            close_app_bars = true;
             draw_app_bar = new_config.display_app_bar;
         }
 
@@ -30,11 +31,11 @@ pub fn update_config(
             if state.config.bar != new_config.bar
                 || state.config.light_theme != new_config.light_theme
             {
-                state.close_appbars();
+                close_app_bars = true;
                 draw_app_bar = true;
             }
         } else if state.config.display_app_bar && !new_config.display_app_bar {
-            state.close_appbars();
+            close_app_bars = true;
         } else if !state.config.display_app_bar && new_config.display_app_bar {
             draw_app_bar = true;
         }
@@ -61,6 +62,18 @@ pub fn update_config(
         startup::set_launch_on_startup(new_config.launch_on_startup);
     }
 
+    if close_app_bars {
+        drop(state);
+        bar::close_all(state_arc.clone());
+        state = state_arc.lock();
+    }
+
+    if draw_app_bar {
+        drop(state);
+        bar::create::create(state_arc.clone());
+        state = state_arc.lock();
+    }
+
     state.keybindings_manager.start(state_arc.clone());
 
     for d in state.displays.iter() {
@@ -70,11 +83,6 @@ pub fn update_config(
     }
 
     state.config = new_config;
-
-    if draw_app_bar {
-        drop(state);
-        bar::create::create(state_arc.clone());
-    }
 
     Ok(())
 }

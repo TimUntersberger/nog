@@ -11,13 +11,16 @@ pub fn initialize(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::er
     Ok(())
 }
 
-pub fn turn_work_mode_off(state: &mut AppState) -> Result<(), Box<dyn std::error::Error>> {
+pub fn turn_work_mode_off(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>> {
+    let mut state = state_arc.lock();
     state.window_event_listener.stop();
 
     popup::cleanup();
 
     if state.config.display_app_bar {
-        state.close_appbars();
+        drop(state);
+        bar::close_all(state_arc.clone());
+        state = state_arc.lock();
     }
 
     if state.config.remove_task_bar {
@@ -58,10 +61,13 @@ pub fn handle(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error:
 
     state.work_mode = !state.work_mode;
 
-    if !state.work_mode {
-        turn_work_mode_off(&mut state)?;
+    let work_mode = state.work_mode;
+
+    drop(state);
+
+    if !work_mode {
+        turn_work_mode_off(state_arc)?;
     } else {
-        drop(state);
         turn_work_mode_on(state_arc)?;
     }
 

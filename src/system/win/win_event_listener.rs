@@ -1,8 +1,8 @@
 use super::nullable_to_result;
 use crate::{
     event::Event, event::EventChannel, message_loop, win_event_handler::win_event::WinEvent,
-    win_event_handler::win_event_type::WinEventType, window::WindowMsg, AppState,
-};
+    win_event_handler::win_event_type::WinEventType, window::WindowMsg, AppState, system::NativeWindow
+, bar::create::NOG_BAR_NAME};
 use lazy_static::lazy_static;
 use log::debug;
 use parking_lot::Mutex;
@@ -35,6 +35,14 @@ unsafe extern "system" fn handler(
         return;
     }
 
+    let window: NativeWindow = hwnd.into();
+
+    if let Ok(title) = window.get_title() {
+        if title == NOG_BAR_NAME {
+            return;
+        }
+    }
+
     let win_event_type = match WinEventType::from_u32(event_code) {
         Some(event) => event,
         None => return,
@@ -42,7 +50,7 @@ unsafe extern "system" fn handler(
 
     let event = Event::WinEvent(WinEvent {
         typ: win_event_type,
-        window: hwnd.into(),
+        window,
     });
 
     CHAN.lock().0.send(event);

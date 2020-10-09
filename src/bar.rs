@@ -1,4 +1,6 @@
-use crate::{display::Display, system::DisplayId, system::WindowId, window::Window};
+use std::sync::Arc;
+
+use crate::{display::Display, system::DisplayId, system::WindowId, window::Window, AppState};
 use item::Item;
 use item_section::ItemSection;
 use parking_lot::Mutex;
@@ -44,3 +46,19 @@ impl Bar {
         None
     }
 }
+
+pub fn close_all(state_arc: Arc<Mutex<AppState>>) {
+    let mut windows = Vec::new();
+
+    for d in state_arc.lock().displays.iter_mut() {
+        if let Some(b) = d.appbar.as_ref() {
+            windows.push(b.window.clone())
+        }
+        d.appbar = None;
+    }
+
+    for w in windows {
+        w.close();
+    }
+}
+

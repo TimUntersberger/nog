@@ -247,28 +247,20 @@ impl Window {
         self.inner.lock().border = val;
         self
     }
-    fn get_native_window(&self) -> Option<NativeWindow> {
-        self.inner.lock().native_window.clone()
+    fn get_native_window(&self) -> NativeWindow {
+        self.id.into()
     }
     pub fn redraw(&self) {
-        if let Some(window) = self.get_native_window() {
-            window.redraw();
-        }
+        self.get_native_window().redraw();
     }
     pub fn hide(&self) {
-        if let Some(window) = self.get_native_window() {
-            window.hide();
-        }
+        self.get_native_window().hide();
     }
     pub fn show(&self) {
-        if let Some(window) = self.get_native_window() {
-            window.show();
-        }
+        self.get_native_window().show();
     }
     pub fn close(&self) {
-        if let Some(window) = self.get_native_window() {
-            window.close();
-        }
+        self.get_native_window().close();
     }
     pub fn create<TEventHandler: Fn(&WindowEvent) -> () + Sync + Send + 'static>(
         &mut self,
@@ -332,109 +324,111 @@ impl Window {
 
             inner.native_window = Some(win);
 
+            let font = inner.font.clone();
+            let title = inner.title.clone();
+            let font_size = inner.font_size;
+            let background_color = inner.background_color;
+
             drop(inner);
 
             message_loop::start(move |msg| {
                 if let Some(msg) = msg {
                     if msg.message == WM_IDENT {
-                        if let Some(inner) = inner_arc.try_lock() {
-                            let window: NativeWindow = hwnd.into();
-                            let state = state.lock();
-                            let display_id = window.get_display().unwrap().id;
-                            let display =
-                                state.displays.iter().find(|d| d.id == display_id).unwrap();
+                        let window: NativeWindow = hwnd.into();
+                        let state = state.lock();
+                        let display_id = window.get_display().unwrap().id;
+                        let display =
+                            state.displays.iter().find(|d| d.id == display_id).unwrap();
 
-                            let background_color = inner.background_color;
-                            let hdc = GetDC(hwnd);
-                            let api = Api {
-                                hdc: hdc as i32,
-                                window: window.clone(),
-                                display: display.clone(),
-                                background_color,
-                            };
-                            let msg = *(msg.wParam as *const WindowMsg);
+                        let hdc = GetDC(hwnd);
+                        let api = Api {
+                            hdc: hdc as i32,
+                            window: window.clone(),
+                            display: display.clone(),
+                            background_color,
+                        };
+                        let msg = *(msg.wParam as *const WindowMsg);
 
-                            if msg.code == WM_PAINT {
-                                let mut paint = PAINTSTRUCT::default();
+                        if msg.code == WM_PAINT {
+                            let mut paint = PAINTSTRUCT::default();
 
-                                BeginPaint(hwnd, &mut paint);
+                            BeginPaint(hwnd, &mut paint);
 
-                                let mut logfont = LOGFONTA::default();
-                                let mut font_name: [i8; 32] = [0; 32];
+                            let mut logfont = LOGFONTA::default();
+                            let mut font_name: [i8; 32] = [0; 32];
 
-                                for (i, byte) in CString::new(inner.font.as_str())
-                                    .unwrap()
-                                    .as_bytes()
-                                    .iter()
-                                    .enumerate()
-                                {
-                                    font_name[i] = *byte as i8;
-                                }
-
-                                logfont.lfHeight = inner.font_size;
-                                logfont.lfFaceName = font_name;
-
-                                let font = CreateFontIndirectA(&logfont);
-                                SelectObject(hdc, font as *mut c_void);
-
-                                SetBkColor(hdc, inner.background_color);
-
-                                event_handler(&WindowEvent::Draw {
-                                    display: &display,
-                                    id: window.id,
-                                    state: &state,
-                                    api,
-                                });
-
-                                DeleteObject(font as *mut c_void);
-                                EndPaint(hwnd, &paint);
-                            } else if msg.code == WM_LBUTTONDOWN {
-                                let mut point = POINT::default();
-                                GetCursorPos(&mut point);
-                                let win_rect = window.get_rect().unwrap();
-
-                                event_handler(&WindowEvent::Click {
-                                    id: window.id,
-                                    x: point.x - win_rect.left,
-                                    y: point.y - win_rect.top,
-                                    state: &state,
-                                    display: &display,
-                                });
-                            } else if msg.code == WM_CLOSE {
-                                let name = CString::new(inner.title.clone()).unwrap();
-
-                                UnregisterClassA(
-                                    name.as_ptr(),
-                                    winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut()),
-                                );
-
-                                event_handler(&WindowEvent::Close {
-                                    id: window.id,
-                                    display: &display,
-                                });
-                            } else if msg.code == WM_CREATE {
-                                event_handler(&WindowEvent::Create {
-                                    id: window.id,
-                                    display: &display,
-                                });
-                            } else if msg.code == WM_MOUSEMOVE {
-                                let mut point = POINT::default();
-                                GetCursorPos(&mut point);
-                                let win_rect = window.get_rect().unwrap();
-
-                                event_handler(&WindowEvent::MouseMove {
-                                    id: window.id,
-                                    display: &display,
-                                    api,
-                                    x: point.x - win_rect.left,
-                                    y: point.y - win_rect.top,
-                                });
-                            } else {
-                                event_handler(&WindowEvent::Native(msg));
+                            for (i, byte) in CString::new(font.as_str())
+                                .unwrap()
+                                .as_bytes()
+                                .iter()
+                                .enumerate()
+                            {
+                                font_name[i] = *byte as i8;
                             }
 
-                            ReleaseDC(hwnd, hdc);
+                            logfont.lfHeight = font_size;
+                            logfont.lfFaceName = font_name;
+
+                            let font = CreateFontIndirectA(&logfont);
+                            SelectObject(hdc, font as *mut c_void);
+
+                            SetBkColor(hdc, background_color);
+
+                            event_handler(&WindowEvent::Draw {
+                                display: &display,
+                                id: window.id,
+                                state: &state,
+                                api,
+                            });
+
+                            DeleteObject(font as *mut c_void);
+                            EndPaint(hwnd, &paint);
+                        } else if msg.code == WM_LBUTTONDOWN {
+                            let mut point = POINT::default();
+                            GetCursorPos(&mut point);
+                            let win_rect = window.get_rect().unwrap();
+
+                            event_handler(&WindowEvent::Click {
+                                id: window.id,
+                                x: point.x - win_rect.left,
+                                y: point.y - win_rect.top,
+                                state: &state,
+                                display: &display,
+                            });
+                        } else if msg.code == WM_CLOSE {
+                            let name = CString::new(title.clone()).unwrap();
+
+                            UnregisterClassA(
+                                name.as_ptr(),
+                                winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut()),
+                            );
+
+                            event_handler(&WindowEvent::Close {
+                                id: window.id,
+                                display: &display,
+                            });
+                        } else if msg.code == WM_CREATE {
+                            event_handler(&WindowEvent::Create {
+                                id: window.id,
+                                display: &display,
+                            });
+                        } else if msg.code == WM_MOUSEMOVE {
+                            let mut point = POINT::default();
+                            GetCursorPos(&mut point);
+                            let win_rect = window.get_rect().unwrap();
+
+                            event_handler(&WindowEvent::MouseMove {
+                                id: window.id,
+                                display: &display,
+                                api,
+                                x: point.x - win_rect.left,
+                                y: point.y - win_rect.top,
+                            });
+                        } else {
+                            event_handler(&WindowEvent::Native(msg));
                         }
+
+                        ReleaseDC(hwnd, hdc);
                     }
                 }
 
@@ -459,7 +453,6 @@ fn test() {
             WindowEvent::Draw { api, .. } => {
                 api.set_text_color(0xffffff);
                 api.write_text("Text", 0, 0, false, false);
-                println!("draw");
             }
             WindowEvent::Click { x, y, .. } => {
                 println!("click {} {}", x, y);

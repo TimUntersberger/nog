@@ -5,6 +5,7 @@ extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
 
+use bar::Bar;
 use config::{rhai::engine::parse_config, rule::Rule, workspace_setting::WorkspaceSetting, Config};
 use crossbeam_channel::select;
 use display::Display;
@@ -195,15 +196,6 @@ impl AppState {
     pub fn hide_taskbars(&self) {
         for tb in self.get_taskbars() {
             tb.window.hide();
-        }
-    }
-
-    pub fn close_appbars(&mut self) {
-        for d in self.displays.iter_mut() {
-            if let Some(b) = d.appbar.as_ref() {
-                b.window.close();
-            }
-            d.appbar = None;
         }
     }
 

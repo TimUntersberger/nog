@@ -9,6 +9,8 @@ use log::{debug, error, info};
 use parking_lot::Mutex;
 use std::{sync::Arc, thread, time::Duration};
 
+pub const NOG_BAR_NAME: &'static str = "nog_bar";
+
 fn spawn_refresh_thread(chan: &EventChannel) {
     let sender = chan.sender.clone();
     thread::spawn(move || loop {
@@ -17,7 +19,7 @@ fn spawn_refresh_thread(chan: &EventChannel) {
         // TODO: Somehow get notified when nog leaves work mode
         // Maybe just close the channel when we leave work mode and then check if the send failed
         // without panicking.
-
+        
         sender
             .send(Event::RedrawAppBar)
             .expect("Failed to send redraw-app-bar event");
@@ -122,8 +124,6 @@ fn clear_section(api: &Api, config: &Config, left: i32, right: i32) {
 pub fn create(state_arc: Arc<Mutex<AppState>>) {
     info!("Creating appbar");
 
-    let name = "nog_bar";
-
     let state_arc = state_arc.clone();
     let mut state = state_arc.lock();
     let config = state.config.clone();
@@ -153,7 +153,7 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
             .window
             .with_is_popup(true)
             .with_border(false)
-            .with_title(name)
+            .with_title(NOG_BAR_NAME)
             .with_font(&config.bar.font)
             .with_background_color(config.bar.color as u32)
             .with_pos(left, top)
