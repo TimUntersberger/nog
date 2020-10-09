@@ -58,7 +58,7 @@ pub fn init(engine: &mut Engine) {
             std::thread::spawn(move || {
                 loop {
                     std::thread::sleep_ms(20);
-                    if DISPLAYS.lock().unwrap().len() > 0 {
+                    if DISPLAYS.lock().len() > 0 {
                         break;
                     }
                 }

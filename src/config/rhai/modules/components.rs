@@ -15,9 +15,9 @@ fn create_component(name: ImmutableString, render_fn: FnPtr, options: Map) -> Co
     let mut component = Component::new(
         &name,
         Arc::new(move |_, _| {
-            let engine = ENGINE.lock().unwrap();
-            let mut scope = SCOPE.lock().unwrap();
-            let ast = AST.lock().unwrap();
+            let engine = ENGINE.lock();
+            let mut scope = SCOPE.lock();
+            let ast = AST.lock();
             let result = engine
                 .call_fn::<(), Vec<Dynamic>>(&mut *scope, &*ast, &render_fn_name, ())
                 .map_err(|e| error!("{}", e.to_string()))
@@ -56,9 +56,9 @@ fn create_component(name: ImmutableString, render_fn: FnPtr, options: Map) -> Co
                 let fn_name = f.fn_name().to_string();
 
                 component.with_on_click(Arc::new(move |component, display, idx| {
-                    let engine = ENGINE.lock().unwrap();
-                    let mut scope = SCOPE.lock().unwrap();
-                    let ast = AST.lock().unwrap();
+                    let engine = ENGINE.lock();
+                    let mut scope = SCOPE.lock();
+                    let ast = AST.lock();
                     let _ = engine
                         .call_fn::<(Component, Display, i32), ()>(
                             &mut *scope,

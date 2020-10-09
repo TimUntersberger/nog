@@ -14,10 +14,19 @@ use hot_reload::update_config;
 use lazy_static::lazy_static;
 use log::{error, info};
 use std::collections::HashMap;
-use std::sync::Mutex;
+use parking_lot::{
+    Mutex,
+    deadlock
+};
 use tile_grid::TileGrid;
+use event_handler::keybinding::toggle_work_mode;
 use winapi::shared::windef::HWND;
-use workspace::{change_workspace, Workspace};
+use log::debug;
+use std::{
+    thread,
+    time::Duration,
+};
+use workspace::Workspace;
 
 mod bar;
 mod config;
@@ -43,7 +52,7 @@ mod window;
 mod workspace;
 
 lazy_static! {
-    pub static ref WORK_MODE: Mutex<bool> = Mutex::new(CONFIG.lock().unwrap().work_mode);
+    pub static ref WORK_MODE: Mutex<bool> = Mutex::new(CONFIG.lock().work_mode);
     pub static ref CONFIG: Mutex<Config> = Mutex::new(
         config::rhai::engine::parse_config()
             .map_err(|e| error!("{}", e))
@@ -61,7 +70,7 @@ lazy_static! {
 }
 
 fn unmanage_everything() -> Result<(), util::WinApiResultError> {
-    let mut grids = GRIDS.lock().unwrap();
+    let mut grids = GRIDS.lock();
 
     for grid in grids.iter_mut() {
         for tile in &mut grid.tiles.clone() {
@@ -77,14 +86,14 @@ pub fn with_current_grid<TFunction, TReturn>(f: TFunction) -> TReturn
 where
     TFunction: Fn(&mut TileGrid) -> TReturn,
 {
-    with_grid_by_id(*WORKSPACE_ID.lock().unwrap(), f)
+    with_grid_by_id(*WORKSPACE_ID.lock(), f)
 }
 
 pub fn with_grid_by_id<TFunction, TReturn>(id: i32, f: TFunction) -> TReturn
 where
     TFunction: Fn(&mut TileGrid) -> TReturn,
 {
-    let mut grids = GRIDS.lock().unwrap();
+    let mut grids = GRIDS.lock();
     let mut grid = grids.iter_mut().find(|g| g.id == id).unwrap();
 
     f(&mut grid)
@@ -94,10 +103,12 @@ fn on_quit() -> Result<(), util::WinApiResultError> {
     unmanage_everything()?;
 
     popup::cleanup();
-    let remove_task_bar = {
-        let config = CONFIG.lock().unwrap();
-        config.remove_task_bar
-    };
+    let display_app_bar = CONFIG.lock().display_app_bar;
+    let remove_task_bar = CONFIG.lock().remove_task_bar;
+
+    if display_app_bar {
+        bar::close::close();
+    }
 
     if remove_task_bar {
         task_bar::show_taskbars();
@@ -120,17 +131,17 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing popups");
     popup::init();
 
-    for display in DISPLAYS.lock().unwrap().iter() {
+    for display in DISPLAYS.lock().iter() {
         VISIBLE_WORKSPACES
             .lock()
-            .unwrap()
+            
             .insert(display.hmonitor, 0);
     }
 
     info!("Starting hot reloading of config");
     config::hot_reloading::start();
 
-    startup::set_launch_on_startup(CONFIG.lock().unwrap().launch_on_startup)?;
+    startup::set_launch_on_startup(CONFIG.lock().launch_on_startup)?;
 
     info!("Creating tray icon");
     tray::create()?;
@@ -138,23 +149,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing workspaces");
     lazy_static::initialize(&WORKSPACES);
 
-    if *WORK_MODE.lock().unwrap() {
-        if CONFIG.lock().unwrap().remove_task_bar {
-            info!("Hiding taskbar");
-            task_bar::hide_taskbars();
-        }
-
-        if CONFIG.lock().unwrap().display_app_bar {
-            bar::create::create()?;
-        }
-
-        info!("Registering windows event handler");
-        win_event_handler::register()?;
-    }
-
-    info!("Initializing bars");
-
-    change_workspace(1, false).expect("Failed to change workspace to ID@1");
+    toggle_work_mode::initialize()?;
 
     info!("Listening for keybindings");
     keybindings::register()?;
@@ -168,7 +163,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     Event::RedrawAppBar => Ok(bar::redraw::redraw()),
                     Event::WinEvent(ev) => event_handler::winevent::handle(ev),
                     Event::Exit => {
-                        tray::remove_icon(*tray::WINDOW.lock().unwrap() as HWND);
+                        tray::remove_icon(*tray::WINDOW.lock() as HWND);
                         on_quit()?;
                         break;
                     },
@@ -188,7 +183,23 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn main() {
+    std::env::set_var("RUST_BACKTRACE", "full");
     logging::setup().expect("Failed to setup logging");
+
+    thread::spawn(|| {
+        loop {
+            std::thread::sleep(Duration::from_secs(5));
+            let deadlocks = deadlock::check_deadlock();
+            if deadlocks.is_empty() {
+                continue;
+            }
+
+	    debug!("deadlock detected");
+            debug!("backtrace: \n{:?}", deadlocks.first().unwrap().first().unwrap().backtrace());
+
+            on_quit();
+        }
+    });
 
     let panic = std::panic::catch_unwind(|| {
         info!("");

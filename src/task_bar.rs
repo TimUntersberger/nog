@@ -56,7 +56,7 @@ pub fn hide_taskbars() {
     update_task_bars();
 }
 fn foreach_taskbar(cb: fn(i32) -> ()) {
-    let mut displays = DISPLAYS.lock().unwrap();
+    let mut displays = DISPLAYS.lock();
     displays.sort_by(|x, y| y.is_primary.cmp(&x.is_primary));
 
     let displays = displays.iter().filter(|x| x.task_bar.is_some());
@@ -95,7 +95,7 @@ unsafe extern "system" fn enum_windows_cb(hwnd: HWND, _: LPARAM) -> BOOL {
 
         let is_display_primary = match DISPLAYS
             .lock()
-            .unwrap()
+            
             .iter_mut()
             .find(|d| d.hmonitor == hmonitor)
         {
@@ -106,7 +106,7 @@ unsafe extern "system" fn enum_windows_cb(hwnd: HWND, _: LPARAM) -> BOOL {
             _ => false,
         };
 
-        if !CONFIG.lock().unwrap().multi_monitor && is_display_primary {
+        if !CONFIG.lock().multi_monitor && is_display_primary {
             return 0;
         }
     }

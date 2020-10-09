@@ -21,7 +21,7 @@ pub mod toggle_work_mode;
 
 pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
     if let KeybindingType::MoveWorkspaceToMonitor(_) = kb.typ {
-        if !CONFIG.lock().unwrap().multi_monitor {
+        if !CONFIG.lock().multi_monitor {
             return Ok(());
         }
     }
@@ -67,7 +67,6 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
 
             VISIBLE_WORKSPACES
                 .lock()
-                .unwrap()
                 .insert(grid_old_monitor, 0);
 
             change_workspace(grid_id, true)
@@ -120,17 +119,17 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
         }
         KeybindingType::ToggleWorkMode => toggle_work_mode::handle()?,
         KeybindingType::IncrementConfig(field, value) => {
-            let mut current_config = CONFIG.lock().unwrap().clone();
+            let mut current_config = CONFIG.lock().clone();
             current_config.increment_field(&field, value);
             update_config(current_config)?;
         }
         KeybindingType::DecrementConfig(field, value) => {
-            let mut current_config = CONFIG.lock().unwrap().clone();
+            let mut current_config = CONFIG.lock().clone();
             current_config.decrement_field(&field, value);
             update_config(current_config)?;
         }
         KeybindingType::ToggleConfig(field) => {
-            let mut current_config = CONFIG.lock().unwrap().clone();
+            let mut current_config = CONFIG.lock().clone();
             current_config.toggle_field(&field);
             update_config(current_config)?;
         }
@@ -172,7 +171,7 @@ pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
             with_current_grid(|grid| {
                 if let Some(tile) = grid.get_focused_tile() {
                     let process_name = tile.window.get_process_name();
-                    let mut rules = ADDITIONAL_RULES.lock().unwrap();
+                    let mut rules = ADDITIONAL_RULES.lock();
                     let mut rule = Rule::default();
                     let pattern = format!("^{}$", process_name);
 

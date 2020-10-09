@@ -4,7 +4,7 @@ use crate::CHANNEL;
 use crate::{message_loop, CONFIG};
 use lazy_static::lazy_static;
 use num_traits::FromPrimitive;
-use std::sync::Mutex;
+use parking_lot::Mutex;
 use winapi::shared::minwindef::HINSTANCE;
 use winapi::shared::minwindef::LOWORD;
 use winapi::shared::minwindef::LPARAM;
@@ -99,7 +99,7 @@ unsafe extern "system" fn window_cb(
 
 pub fn create() -> Result<(), util::WinApiResultError> {
     let name = util::to_widestring("WWM Tray");
-    let config = CONFIG.lock().unwrap();
+    let config = CONFIG.lock();
     let app_bar_bg = config.bar.color;
 
     std::thread::spawn(move || unsafe {
@@ -131,7 +131,7 @@ pub fn create() -> Result<(), util::WinApiResultError> {
             std::ptr::null_mut(),
         );
 
-        *WINDOW.lock().unwrap() = hwnd as i32;
+        *WINDOW.lock() = hwnd as i32;
 
         message_loop::start(|_| true);
     });

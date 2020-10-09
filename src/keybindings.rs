@@ -8,8 +8,8 @@ use modifier::Modifier;
 use num_traits::FromPrimitive;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    Mutex,
 };
+use parking_lot::Mutex;
 use winapi::um::winuser::{RegisterHotKey, UnregisterHotKey, WM_HOTKEY};
 
 pub mod key;
@@ -58,7 +58,7 @@ fn get_keybinding(keybindings: &[Keybinding], key: Key, modifier: Modifier) -> O
 
 pub fn register() -> Result<(), Box<dyn std::error::Error>> {
     std::thread::spawn(|| {
-        let keybindings = CONFIG.lock().unwrap().keybindings.clone();
+        let keybindings = CONFIG.lock().keybindings.clone();
 
         while UNREGISTER.load(Ordering::SeqCst) {
             debug!("Waiting for the other thread to get cleaned up");
@@ -76,8 +76,8 @@ pub fn register() -> Result<(), Box<dyn std::error::Error>> {
                 return false;
             }
 
-            let mut prev_mode = PREV_MODE.lock().unwrap();
-            let mode = MODE.lock().unwrap().clone();
+            let mut prev_mode = PREV_MODE.lock();
+            let mode = MODE.lock().clone();
 
             if *prev_mode != mode {
                 if let Some(mode) = prev_mode.clone() {
@@ -110,7 +110,7 @@ pub fn register() -> Result<(), Box<dyn std::error::Error>> {
                     return true;
                 }
 
-                let work_mode = *WORK_MODE.lock().unwrap();
+                let work_mode = *WORK_MODE.lock();
                 let modifier = Modifier::from_bits((msg.lParam & 0xffff) as u32).unwrap();
 
                 if let Some(key) = Key::from_isize(msg.lParam >> 16) {
@@ -140,7 +140,7 @@ pub fn unregister() {
 }
 
 pub fn enable_mode(mode: &str) -> bool {
-    let mut mode_guard = MODE.lock().unwrap();
+    let mut mode_guard = MODE.lock();
     let mode = Some(mode.to_string());
 
     if *mode_guard == mode {
@@ -159,7 +159,7 @@ pub fn enable_mode(mode: &str) -> bool {
 }
 
 pub fn disable_mode() {
-    *MODE.lock().unwrap() = None;
+    *MODE.lock() = None;
 
     let sender = CHANNEL.sender.clone();
 

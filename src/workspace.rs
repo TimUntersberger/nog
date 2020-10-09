@@ -18,7 +18,6 @@ impl Workspace {
 pub fn is_visible_workspace(id: i32) -> bool {
     VISIBLE_WORKSPACES
         .lock()
-        .unwrap()
         .values()
         .any(|v| *v == id)
 }
@@ -27,9 +26,9 @@ pub fn change_workspace(
     id: i32,
     ignore_monitor_setting: bool,
 ) -> Result<(), util::WinApiResultError> {
-    let mut grids = GRIDS.lock().unwrap();
+    let mut grids = GRIDS.lock();
 
-    let workspace_settings = CONFIG.lock().unwrap().workspace_settings.clone();
+    let workspace_settings = CONFIG.lock().workspace_settings.clone();
 
     let (new_grid_idx, mut new_grid) = grids
         .iter_mut()
@@ -48,7 +47,7 @@ pub fn change_workspace(
         }
     }
 
-    let mut visible_workspaces = VISIBLE_WORKSPACES.lock().unwrap();
+    let mut visible_workspaces = VISIBLE_WORKSPACES.lock();
 
     debug!("Drawing the workspace");
     new_grid.draw_grid();
@@ -70,7 +69,7 @@ pub fn change_workspace(
     grids.remove(new_grid_idx);
     grids.insert(new_grid_idx, new_grid);
 
-    *WORKSPACE_ID.lock().unwrap() = id;
+    *WORKSPACE_ID.lock() = id;
 
     debug!("Sending redraw-app-bar event");
     CHANNEL

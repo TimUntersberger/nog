@@ -9,9 +9,10 @@ use rhai::{
 use std::{
     io::Write,
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{Arc},
 };
 use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
+use parking_lot::Mutex;
 
 lazy_static! {
     pub static ref MODE: Mutex<Option<String>> = Mutex::new(None);
@@ -22,16 +23,16 @@ lazy_static! {
 }
 
 pub fn add_callback(fp: FnPtr) -> usize {
-    let mut callbacks = CALLBACKS.lock().unwrap();
+    let mut callbacks = CALLBACKS.lock();
     let idx = callbacks.len();
     callbacks.push(fp);
     idx
 }
 
 pub fn call(idx: usize) {
-    let engine = ENGINE.lock().unwrap();
-    let ast = AST.lock().unwrap();
-    let callbacks = CALLBACKS.lock().unwrap();
+    let engine = ENGINE.lock();
+    let ast = AST.lock();
+    let callbacks = CALLBACKS.lock();
     let _ = callbacks[idx]
         .call_dynamic(&*engine, &*ast, None, [])
         .map_err(|e| error!("{}", e.to_string()));
@@ -51,7 +52,7 @@ pub fn parse_config() -> Result<Config, String> {
     functions::init(&mut engine);
     lib::init(&mut engine);
 
-    *CALLBACKS.lock().unwrap() = Vec::new();
+    *CALLBACKS.lock() = Vec::new();
 
     let mut resolver_collection = ModuleResolversCollection::new();
 
@@ -95,11 +96,11 @@ pub fn parse_config() -> Result<Config, String> {
         .consume_ast_with_scope(&mut scope, &ast)
         .map_err(|e| e.to_string())?;
 
-    *ENGINE.lock().unwrap() = engine;
-    *SCOPE.lock().unwrap() = scope;
-    *AST.lock().unwrap() = ast;
+    *ENGINE.lock() = engine;
+    *SCOPE.lock() = scope;
+    *AST.lock() = ast;
 
-    let mut config = config.lock().unwrap().clone();
+    let mut config = config.lock().clone();
 
     config.bar.color = RGB(
         GetBValue(config.bar.color as u32),

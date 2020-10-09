@@ -472,7 +472,7 @@ impl TileGrid {
     /// Calculates all the data required for drawing the tile
     fn calculate_tile_data(&self, tile: &Tile) -> RECT {
         let (padding, margin) = {
-            let config = CONFIG.lock().unwrap();
+            let config = CONFIG.lock();
 
             (config.inner_gap, config.outer_gap)
         };

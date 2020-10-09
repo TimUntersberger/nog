@@ -7,8 +7,8 @@ use winapi::shared::windef::HWND;
 
 pub fn handle(hwnd: HWND, force: bool) -> Result<(), Box<dyn std::error::Error>> {
     let title = util::get_title_of_window(hwnd);
-    let min_width = CONFIG.lock().unwrap().min_width;
-    let min_height = CONFIG.lock().unwrap().min_height;
+    let min_width = CONFIG.lock().min_width;
+    let min_height = CONFIG.lock().min_height;
 
     if title.is_err() {
         return Ok(());
@@ -41,11 +41,10 @@ pub fn handle(hwnd: HWND, force: bool) -> Result<(), Box<dyn std::error::Error>>
         || (window.original_style.contains(GwlStyle::CAPTION)
             && !window.exstyle.contains(GwlExStyle::DLGMODALFRAME));
 
-    let additional_rules = ADDITIONAL_RULES.lock().unwrap();
+    let additional_rules = ADDITIONAL_RULES.lock();
 
     for rule in CONFIG
         .lock()
-        .unwrap()
         .rules
         .iter()
         .chain(additional_rules.iter())
@@ -71,19 +70,19 @@ pub fn handle(hwnd: HWND, force: bool) -> Result<(), Box<dyn std::error::Error>>
 
     if should_manage {
         debug!("Managing window");
-        let mut workspace_id = *WORKSPACE_ID.lock().unwrap();
+        let mut workspace_id = *WORKSPACE_ID.lock();
 
         if rule.workspace_id != -1 {
             workspace_id = rule.workspace_id;
             change_workspace(workspace_id, false)?;
         }
 
-        if CONFIG.lock().unwrap().remove_title_bar {
+        if CONFIG.lock().remove_title_bar {
             window.remove_title_bar();
             window.update_style();
         }
 
-        let mut grids = GRIDS.lock().unwrap();
+        let mut grids = GRIDS.lock();
         let grid = grids.iter_mut().find(|g| g.id == workspace_id).unwrap();
 
         window.original_rect = window.get_rect()?;

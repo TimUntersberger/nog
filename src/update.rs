@@ -10,9 +10,9 @@ use std::{
 const STOP: AtomicBool = AtomicBool::new(false);
 
 pub fn start() -> Result<(), ()> {
-    let update_channel = CONFIG.lock().unwrap().get_update_channel().cloned();
+    let update_channel = CONFIG.lock().get_update_channel().cloned();
     if let Some(_update_channel) = update_channel {
-        let update_interval = CONFIG.lock().unwrap().update_interval;
+        let update_interval = CONFIG.lock().update_interval;
 
         thread::spawn(move || {
             while !STOP.load(Ordering::SeqCst) {

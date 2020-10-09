@@ -1,4 +1,4 @@
-use super::engine::MODE;
+use super::engine::{MODE, ENGINE, self};
 use crate::{
     bar::component::Component,
     config::{
@@ -8,12 +8,13 @@ use crate::{
 };
 use log::error;
 use regex::Regex;
-use rhai::{Array, Dynamic, Engine, Map, ParseError};
+use rhai::{Array, Dynamic, Engine, Map, ParseError, AST, FnPtr};
 use std::{
     str::FromStr,
-    sync::{Arc, Mutex},
+    sync::{Arc},
     time::Duration,
-};
+thread};
+use parking_lot::Mutex;
 
 #[macro_use]
 mod macros;
@@ -68,9 +69,9 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
             let mut kb = Keybinding::from_str(&key).unwrap();
 
             kb.typ = binding;
-            kb.mode = MODE.lock().unwrap().clone();
+            kb.mode = MODE.lock().clone();
 
-            cfg.lock().unwrap().keybindings.push(kb);
+            cfg.lock().keybindings.push(kb);
 
             Ok(().into())
         },
@@ -103,9 +104,9 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
                 let mut kb = Keybinding::from_str(&key).unwrap();
 
                 kb.typ = binding;
-                kb.mode = MODE.lock().unwrap().clone();
+                kb.mode = MODE.lock().clone();
 
-                cfg.lock().unwrap().keybindings.push(kb);
+                cfg.lock().keybindings.push(kb);
             }
 
             Ok(().into())
@@ -150,7 +151,7 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
                 }
             }
 
-            cfg.lock().unwrap().bar = bar_config;
+            cfg.lock().bar = bar_config;
 
             Ok(().into())
         },
@@ -163,9 +164,38 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
         move |engine, ctx, scope, inputs| {
             let key = get_variable_name!(inputs, 0);
             let value = get_dynamic!(engine, ctx, scope, inputs, 1);
-            let mut config = cfg.lock().unwrap();
+            let mut config = cfg.lock();
 
             set_config(&mut config, key, value);
+
+            Ok(().into())
+        },
+    )?;
+
+    engine.register_custom_syntax(
+        &["sleep", "$expr$"], // the custom syntax
+        0, // the number of new variables declared within this custom syntax
+        move |engine, ctx, scope, inputs| {
+            let ms = get_int!(engine, ctx, scope, inputs, 0);
+
+            thread::sleep(Duration::from_millis(ms as u64));
+
+            Ok(().into())
+        },
+    )?;
+
+    engine.register_custom_syntax(
+        &["async", "$expr$"], // the custom syntax
+        0, // the number of new variables declared within this custom syntax
+        move |engine, ctx, scope, inputs| {
+            let fp = get_type!(engine, ctx, scope, inputs, 0, FnPtr);
+            let idx = engine::add_callback(fp);
+
+            // TODO: make this stoppable
+            thread::spawn(move || {
+                println!("test");
+                engine::call(idx);
+            });
 
             Ok(().into())
         },
@@ -177,7 +207,7 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
         0,                      // the number of new variables declared within this custom syntax
         move |_engine, _ctx, _scope, inputs| {
             let key = get_variable_name!(inputs, 0);
-            let mut config = cfg.lock().unwrap();
+            let mut config = cfg.lock();
 
             set_config(&mut config, key, true.into());
 
@@ -191,7 +221,7 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
         0,                       // the number of new variables declared within this custom syntax
         move |_engine, _ctx, _scope, inputs| {
             let key = get_variable_name!(inputs, 0);
-            let mut config = cfg.lock().unwrap();
+            let mut config = cfg.lock();
 
             set_config(&mut config, key, false.into());
 
@@ -218,7 +248,7 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
 
             rule.pattern = Regex::new(&format!("^{}$", pattern)).map_err(|e| e.to_string())?;
 
-            cfg.lock().unwrap().rules.push(rule);
+            cfg.lock().rules.push(rule);
 
             Ok(().into())
         },
@@ -241,7 +271,7 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
                 set!(String, update_channel, version, key, value);
             }
 
-            cfg.lock().unwrap().update_channels.push(update_channel);
+            cfg.lock().update_channels.push(update_channel);
 
             Ok(().into())
         },
@@ -258,7 +288,7 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
             rule.pattern = Regex::new(&format!("^{}$", pattern)).map_err(|e| e.to_string())?;
             rule.manage = false;
 
-            cfg.lock().unwrap().rules.push(rule);
+            cfg.lock().rules.push(rule);
 
             Ok(().into())
         },
@@ -280,7 +310,7 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
                 set!(String, workspace, text, key, value);
             }
 
-            cfg.lock().unwrap().workspace_settings.push(workspace);
+            cfg.lock().workspace_settings.push(workspace);
 
             Ok(().into())
         },
@@ -297,13 +327,13 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
             let mut kb = Keybinding::from_str(&key).unwrap();
             kb.typ = KeybindingType::ToggleMode(name.clone());
 
-            cfg.lock().unwrap().keybindings.push(kb);
+            cfg.lock().keybindings.push(kb);
 
-            *MODE.lock().unwrap() = Some(name);
+            *MODE.lock() = Some(name);
 
             engine.eval_expression_tree(ctx, scope, inputs.get(2).unwrap())?;
 
-            *MODE.lock().unwrap() = None;
+            *MODE.lock() = None;
 
             Ok(().into())
         },

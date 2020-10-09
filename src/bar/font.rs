@@ -9,19 +9,19 @@ use winapi::um::wingdi::LOGFONTA;
 
 pub fn set_font(dc: HDC) {
     unsafe {
-        SelectObject(dc, *FONT.lock().unwrap() as *mut std::ffi::c_void);
+        SelectObject(dc, *FONT.lock() as *mut std::ffi::c_void);
     }
 }
 
 pub fn load_font() {
-    if *FONT.lock().unwrap() != 0 {
+    if *FONT.lock() != 0 {
         return;
     }
     unsafe {
         let mut logfont = LOGFONTA::default();
         let mut font_name: [i8; 32] = [0; 32];
-        let app_bar_font = CONFIG.lock().unwrap().bar.font.clone();
-        let app_bar_font_size = CONFIG.lock().unwrap().bar.font_size;
+        let app_bar_font = CONFIG.lock().bar.font.clone();
+        let app_bar_font_size = CONFIG.lock().bar.font_size;
 
         for (i, byte) in CString::new(app_bar_font.as_str())
             .unwrap()
@@ -39,6 +39,6 @@ pub fn load_font() {
 
         debug!("Using font {}", font);
 
-        *FONT.lock().unwrap() = font;
+        *FONT.lock() = font;
     }
 }

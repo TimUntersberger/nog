@@ -4,7 +4,7 @@ use crate::{display::Display, CONFIG};
 use gwl_ex_style::GwlExStyle;
 use gwl_style::GwlStyle;
 use log::error;
-use winapi::shared::windef::HWND;
+use winapi::{shared::windef::HWND, um::winuser::IsWindowVisible};
 use winapi::shared::windef::RECT;
 use winapi::um::errhandlingapi::GetLastError;
 use winapi::um::winuser::AdjustWindowRectEx;
@@ -144,6 +144,11 @@ impl Window {
             ShowWindow(self.id as HWND, SW_HIDE);
         }
     }
+    pub fn is_hidden(&self) -> bool {
+        unsafe {
+            IsWindowVisible(self.id as HWND) == 0
+        }
+    }
     pub fn calculate_window_rect(
         &self,
         display: &Display,
@@ -154,7 +159,7 @@ impl Window {
     ) -> RECT {
         let rule = self.rule.clone().unwrap_or_default();
         let (display_app_bar, remove_title_bar, bar_height, use_border) = {
-            let config = CONFIG.lock().unwrap();
+            let config = CONFIG.lock();
 
             (
                 config.display_app_bar,
@@ -327,7 +332,7 @@ impl Window {
             self.style.remove(GwlStyle::CAPTION);
             self.style.remove(GwlStyle::THICKFRAME);
         }
-        if CONFIG.lock().unwrap().use_border {
+        if CONFIG.lock().use_border {
             self.style.insert(GwlStyle::BORDER);
         }
     }
