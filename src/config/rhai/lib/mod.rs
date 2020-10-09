@@ -1,9 +1,14 @@
+use std::sync::Arc;
+
+use parking_lot::Mutex;
 use rhai::Engine;
 
-use crate::event::EventChannel;
+use crate::{event::EventChannel, AppState};
 
+mod core;
 mod popup;
 
-pub fn init(engine: &mut Engine, chan: &EventChannel) {
-    popup::init(engine, chan);
+pub fn init(engine: &mut Engine, state_arc: Arc<Mutex<AppState>>) {
+    popup::init(engine, &state_arc.lock().event_channel);
+    core::init(engine, state_arc.clone());
 }

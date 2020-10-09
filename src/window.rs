@@ -337,8 +337,7 @@ impl Window {
                         let window: NativeWindow = hwnd.into();
                         let state = state.lock();
                         let display_id = window.get_display().unwrap().id;
-                        let display =
-                            state.displays.iter().find(|d| d.id == display_id).unwrap();
+                        let display = state.displays.iter().find(|d| d.id == display_id).unwrap();
 
                         let hdc = GetDC(hwnd);
                         let api = Api {

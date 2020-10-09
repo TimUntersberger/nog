@@ -1,8 +1,9 @@
 use super::nullable_to_result;
 use crate::{
-    event::Event, event::EventChannel, message_loop, win_event_handler::win_event::WinEvent,
-    win_event_handler::win_event_type::WinEventType, window::WindowMsg, AppState, system::NativeWindow
-, bar::create::NOG_BAR_NAME};
+    bar::create::NOG_BAR_NAME, event::Event, event::EventChannel, message_loop,
+    system::NativeWindow, win_event_handler::win_event::WinEvent,
+    win_event_handler::win_event_type::WinEventType, window::WindowMsg, AppState,
+};
 use lazy_static::lazy_static;
 use log::debug;
 use parking_lot::Mutex;

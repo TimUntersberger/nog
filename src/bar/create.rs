@@ -19,7 +19,7 @@ fn spawn_refresh_thread(chan: &EventChannel) {
         // TODO: Somehow get notified when nog leaves work mode
         // Maybe just close the channel when we leave work mode and then check if the send failed
         // without panicking.
-        
+
         sender
             .send(Event::RedrawAppBar)
             .expect("Failed to send redraw-app-bar event");

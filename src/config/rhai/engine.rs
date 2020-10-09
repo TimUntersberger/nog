@@ -37,7 +37,7 @@ fn build_relative_resolver(config_path: &PathBuf) -> FileModuleResolver {
     FileModuleResolver::new_with_path_and_extension(config_path.clone(), "nog")
 }
 
-pub fn parse_config(chan: &EventChannel) -> Result<Config, String> {
+pub fn parse_config(state_arc: Arc<Mutex<AppState>>) -> Result<Config, String> {
     let mut engine = Engine::new();
     let mut scope = Scope::new();
     let mut config = Arc::new(Mutex::new(Config::default()));
@@ -45,7 +45,7 @@ pub fn parse_config(chan: &EventChannel) -> Result<Config, String> {
     syntax::init(&mut engine, &mut config).unwrap();
     types::init(&mut engine);
     functions::init(&mut engine);
-    lib::init(&mut engine, chan);
+    lib::init(&mut engine, state_arc);
 
     *CALLBACKS.lock() = Vec::new();
 

@@ -11,7 +11,9 @@ pub fn initialize(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::er
     Ok(())
 }
 
-pub fn turn_work_mode_off(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn turn_work_mode_off(
+    state_arc: Arc<Mutex<AppState>>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut state = state_arc.lock();
     state.window_event_listener.stop();
 
