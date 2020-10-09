@@ -19,7 +19,7 @@ use log::{error, info};
 use parking_lot::{deadlock, lock_api::MutexGuard, Mutex};
 use std::{process, sync::Arc};
 use std::{thread, time::Duration};
-use system::{SystemResult, WinEventListener, WindowId};
+use system::{SystemResult, WinEventListener, WindowId, DisplayId};
 use task_bar::Taskbar;
 use tile::Tile;
 use tile_grid::TileGrid;
@@ -122,6 +122,10 @@ impl AppState {
             .sender
             .send(Event::RedrawAppBar)
             .expect("Failed to send redraw-app-bar event");
+    }
+
+    pub fn get_display_by_id(&self, id: DisplayId) -> Option<&Display> {
+        self.displays.iter().find(|d| d.id == id)
     }
 
     pub fn get_display_by_idx(&self, idx: i32) -> Option<&Display> {
