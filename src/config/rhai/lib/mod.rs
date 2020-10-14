@@ -9,6 +9,6 @@ mod core;
 mod popup;
 
 pub fn init(engine: &mut Engine, state_arc: Arc<Mutex<AppState>>) {
-    popup::init(engine, &state_arc.lock().event_channel);
+    popup::init(engine, state_arc.clone());
     core::init(engine, state_arc.clone());
 }

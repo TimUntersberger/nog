@@ -63,24 +63,22 @@ pub struct AppState {
 
 impl AppState {
     pub fn new() -> Self {
-        let event_channel = EventChannel::default();
-        let config = parse_config(&event_channel)
-            .map_err(|e| error!("{}", e))
-            .expect("Failed to load config");
-
-        info!("Initializing displays");
-        let displays = display::init(&config);
-
         Self {
-            work_mode: config.work_mode,
-            displays,
-            keybindings_manager: KbManager::new(config.keybindings.clone()),
-            event_channel,
+            work_mode: false,
+            displays: Vec::new(),
+            keybindings_manager: KbManager::new(vec![]),
+            event_channel: EventChannel::default(),
             additonal_rules: Vec::new(),
             window_event_listener: WinEventListener::default(),
             workspace_id: 1,
-            config,
+            config: Config::new(),
         }
+    }
+    pub fn init(&mut self, config: Config) {
+        self.config = config;
+        self.work_mode = self.config.work_mode;
+        self.displays = display::init(&self.config);
+        self.keybindings_manager = KbManager::new(self.config.keybindings.clone());
     }
 
     /// TODO: maybe rename this function
@@ -319,7 +317,7 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
                     },
                     Event::ReloadConfig => {
                         info!("Reloading Config");
-                        let new_config = parse_config(&state_arc.lock().event_channel)
+                        let new_config = parse_config(state_arc.clone())
                             .map_err(|e| error!("{}", e))
                             .expect("Failed to load config");
                         update_config(state_arc.clone(), new_config)
@@ -354,10 +352,14 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
 }
 
 fn main() {
-    std::env::set_var("RUST_BACKTRACE", "full");
+    std::env::set_var("RUST_BACKTRACE", "1");
     logging::setup().expect("Failed to setup logging");
 
     let state_arc = Arc::new(Mutex::new(AppState::new()));
+    let config = parse_config(state_arc.clone())
+        .map_err(|e| error!("{}", e))
+        .expect("Failed to load config");
+    state_arc.lock().init(config);
     let arc = state_arc.clone();
 
     thread::spawn(move || loop {

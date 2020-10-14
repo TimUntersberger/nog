@@ -1,5 +1,5 @@
 use super::{functions, lib, modules, syntax, types};
-use crate::{config::Config, event::EventChannel};
+use crate::{config::Config, event::EventChannel, AppState};
 use lazy_static::lazy_static;
 use log::{debug, error};
 use parking_lot::Mutex;
@@ -42,10 +42,10 @@ pub fn parse_config(state_arc: Arc<Mutex<AppState>>) -> Result<Config, String> {
     let mut scope = Scope::new();
     let mut config = Arc::new(Mutex::new(Config::default()));
 
-    syntax::init(&mut engine, &mut config).unwrap();
+    syntax::init(&mut engine, state_arc.clone(), &mut config).unwrap();
     types::init(&mut engine);
     functions::init(&mut engine);
-    lib::init(&mut engine, state_arc);
+    lib::init(&mut engine, state_arc.clone());
 
     *CALLBACKS.lock() = Vec::new();
 

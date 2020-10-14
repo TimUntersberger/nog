@@ -3,13 +3,14 @@ use crate::{
     event::Event,
     event::EventChannel,
     popup::{Popup, PopupAction},
+    AppState,
 };
 
+use parking_lot::Mutex;
 use rhai::{Array, Engine, FnPtr, Map};
 use std::sync::Arc;
 
-pub fn init(engine: &mut Engine, chan: &EventChannel) {
-    let sender = chan.sender.clone();
+pub fn init(engine: &mut Engine, state: Arc<Mutex<AppState>>) {
     #[allow(deprecated)]
     engine.register_raw_fn(
         "popup_new",
@@ -17,6 +18,7 @@ pub fn init(engine: &mut Engine, chan: &EventChannel) {
         move |_engine, _module, args| {
             let options = args[0].clone().cast::<Map>();
             let mut p = Popup::new();
+            let sender = state.lock().event_channel.sender.clone();
 
             for (key, val) in options {
                 p = match key.as_str() {
