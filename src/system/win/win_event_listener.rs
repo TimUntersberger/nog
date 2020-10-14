@@ -1,7 +1,7 @@
 use super::nullable_to_result;
 use crate::{
     event::Event, event::EventChannel, message_loop, win_event_handler::win_event::WinEvent,
-    win_event_handler::win_event_type::WinEventType, window::WindowMsg, AppState, system::NativeWindow
+    win_event_handler::win_event_type::WinEventType, system::NativeWindow
 , bar::create::NOG_BAR_NAME};
 use lazy_static::lazy_static;
 use log::debug;
@@ -15,8 +15,6 @@ use winapi::{
     shared::{minwindef::*, ntdef::*, windef::*},
     um::winuser::*,
 };
-
-const WM_IDENT: u32 = WM_APP + 30;
 
 lazy_static! {
     static ref CHAN: Arc<Mutex<(Sender<Event>, Receiver<Event>)>> = Arc::new(Mutex::new(channel()));
@@ -53,7 +51,7 @@ unsafe extern "system" fn handler(
         window,
     });
 
-    CHAN.lock().0.send(event);
+    CHAN.lock().0.send(event).expect("Failed to forward WinEvent");
 }
 
 #[derive(Debug)]
@@ -93,7 +91,7 @@ impl WinEventListener {
 
             hook.store(hook_ptr as HWINEVENTHOOK, Ordering::SeqCst);
 
-            message_loop::start(|msg| {
+            message_loop::start(|_| {
                 if stopped.load(Ordering::SeqCst) {
                     debug!("Win event hook unregistered");
                     stopped.store(false, Ordering::SeqCst);
@@ -101,7 +99,7 @@ impl WinEventListener {
                 }
 
                 if let Ok(event) = CHAN.lock().1.try_recv() {
-                    sender.send(event);
+                    sender.send(event).expect("Failed to send WinEvent");
                 }
 
                 thread::sleep(Duration::from_millis(5));

@@ -1,4 +1,4 @@
-use crate::{bar, keybindings::KbManager, popup};
+use crate::{bar, popup, system::SystemResult};
 use crate::{info, AppState};
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -11,11 +11,11 @@ pub fn initialize(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::er
     Ok(())
 }
 
-pub fn turn_work_mode_off(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn turn_work_mode_off(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
     let mut state = state_arc.lock();
     state.window_event_listener.stop();
 
-    popup::cleanup();
+    popup::cleanup()?;
 
     if state.config.display_app_bar {
         drop(state);
@@ -34,7 +34,7 @@ pub fn turn_work_mode_off(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn
 
 pub fn turn_work_mode_on(
     state_arc: Arc<Mutex<AppState>>,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> SystemResult {
     let mut state = state_arc.lock();
 
     if state.config.remove_task_bar {
@@ -56,7 +56,7 @@ pub fn turn_work_mode_on(
     Ok(())
 }
 
-pub fn handle(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn handle(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
     let mut state = state_arc.lock();
 
     state.work_mode = !state.work_mode;

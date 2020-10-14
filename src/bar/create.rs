@@ -2,7 +2,7 @@ use super::{
     component::Component, component::ComponentText, item::Item, item_section::ItemSection, Bar,
 };
 use crate::{
-    config::Config, display::Display, event::Event, event::EventChannel, keybindings::KbManager,
+    config::Config, display::Display, event::Event, 
     system::Rectangle, window::Api, window::WindowEvent, AppState,
 };
 use log::{debug, error, info};
@@ -11,17 +11,18 @@ use std::{sync::Arc, thread, time::Duration};
 
 pub const NOG_BAR_NAME: &'static str = "nog_bar";
 
-fn spawn_refresh_thread(chan: &EventChannel) {
-    let sender = chan.sender.clone();
+fn spawn_refresh_thread(state_arc: Arc<Mutex<AppState>>) {
+    let state = state_arc.clone();
+    let sender = state.lock().event_channel.sender.clone();
     thread::spawn(move || loop {
         thread::sleep(Duration::from_millis(100));
 
-        // TODO: Somehow get notified when nog leaves work mode
-        // Maybe just close the channel when we leave work mode and then check if the send failed
-        // without panicking.
+        if !state.lock().work_mode {
+            break;
+        }
         
         sender
-            .send(Event::RedrawAppBar)
+            .send_timeout(Event::RedrawAppBar, Duration::from_millis(100))
             .expect("Failed to send redraw-app-bar event");
     });
 }
@@ -124,11 +125,11 @@ fn clear_section(api: &Api, config: &Config, left: i32, right: i32) {
 pub fn create(state_arc: Arc<Mutex<AppState>>) {
     info!("Creating appbar");
 
-    let state_arc = state_arc.clone();
+    spawn_refresh_thread(state_arc.clone());
+
     let mut state = state_arc.lock();
     let config = state.config.clone();
 
-    spawn_refresh_thread(&state.event_channel);
     let sender = state.event_channel.sender.clone();
 
     for display in state.displays.iter_mut() {
@@ -279,7 +280,7 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
                             clear_section(api, &state.config, bar.right.left, right.left);
                         }
 
-                        sender.send(Event::UpdateBarSections(display.id, left, center, right));
+                        sender.send(Event::UpdateBarSections(display.id, left, center, right)).expect("Failed to send UpdateBarSections event");
                     }
                 }
                 _ => {}

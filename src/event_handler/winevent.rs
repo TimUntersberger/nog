@@ -1,14 +1,14 @@
 use crate::{
     win_event_handler::{win_event::WinEvent, win_event_type::WinEventType},
     AppState,
-};
+system::SystemResult};
 use log::debug;
 
 mod destroy;
 mod focus_change;
 mod show;
 
-pub fn handle(state: &mut AppState, ev: WinEvent) -> Result<(), Box<dyn std::error::Error>> {
+pub fn handle(state: &mut AppState, ev: WinEvent) -> SystemResult {
     let grids = state.get_grids_mut();
     let mut title: Option<String> = None;
     let mut grid_id: Option<i32> = None;

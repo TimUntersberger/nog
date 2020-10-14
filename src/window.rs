@@ -24,7 +24,7 @@ use winapi::{
 use crate::{
     display::Display, message_loop, system::NativeWindow, system::Rectangle, system::WindowId,
     util, AppState,
-};
+system::SystemResult};
 
 pub mod gwl_ex_style;
 pub mod gwl_style;
@@ -120,7 +120,7 @@ impl Api {
         }
         rect.into()
     }
-    pub fn write_text(&self, text: &str, x: i32, y: i32, vcenter: bool, hcenter: bool) {
+    pub fn write_text(&self, text: &str, x: i32, y: i32, vcenter: bool, _hcenter: bool) {
         let c_text = util::to_widestring(&text);
         let mut rect = self.calculate_text_rect(text);
 
@@ -250,8 +250,8 @@ impl Window {
     fn get_native_window(&self) -> NativeWindow {
         self.id.into()
     }
-    pub fn redraw(&self) {
-        self.get_native_window().redraw();
+    pub fn redraw(&self) -> SystemResult {
+        self.get_native_window().redraw()
     }
     pub fn hide(&self) {
         self.get_native_window().hide();
@@ -259,8 +259,8 @@ impl Window {
     pub fn show(&self) {
         self.get_native_window().show();
     }
-    pub fn close(&self) {
-        self.get_native_window().close();
+    pub fn close(&self) -> SystemResult {
+        self.get_native_window().close()
     }
     pub fn create<TEventHandler: Fn(&WindowEvent) -> () + Sync + Send + 'static>(
         &mut self,
@@ -437,30 +437,5 @@ impl Window {
         });
 
         self.id = receiver.recv().unwrap();
-    }
-}
-
-#[test]
-fn test() {
-    Window::new()
-        .with_is_popup(true)
-        .with_border(false)
-        .with_size(1920, 50)
-        .with_pos(0, 0)
-        .with_background_color(0x000000)
-        .with_font("CaskaydiaCove NF")
-        .create(|event| match event {
-            WindowEvent::Draw { api, .. } => {
-                api.set_text_color(0xffffff);
-                api.write_text("Text", 0, 0, false, false);
-            }
-            WindowEvent::Click { x, y, .. } => {
-                println!("click {} {}", x, y);
-            }
-            _ => {}
-        });
-
-    loop {
-        thread::sleep_ms(1000);
     }
 }

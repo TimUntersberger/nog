@@ -7,7 +7,7 @@ use rhai::{
     module_resolvers::{FileModuleResolver, ModuleResolversCollection},
     Engine, FnPtr, Scope,
 };
-use std::{io::Write, path::PathBuf, sync::Arc};
+use std::{io::Write, path::PathBuf, sync::Arc, thread};
 
 lazy_static! {
     pub static ref MODE: Mutex<Option<String>> = Mutex::new(None);
@@ -25,12 +25,14 @@ pub fn add_callback(fp: FnPtr) -> usize {
 }
 
 pub fn call(idx: usize) {
-    let engine = ENGINE.lock();
-    let ast = AST.lock();
-    let callbacks = CALLBACKS.lock();
-    let _ = callbacks[idx]
-        .call_dynamic(&*engine, &*ast, None, [])
-        .map_err(|e| error!("{}", e.to_string()));
+    thread::spawn(move || {
+        let engine = ENGINE.lock();
+        let ast = AST.lock();
+        let callbacks = CALLBACKS.lock();
+        let _ = callbacks[idx]
+            .call_dynamic(&*engine, &*ast, None, [])
+            .map_err(|e| error!("{}", e.to_string()));
+    });
 }
 
 fn build_relative_resolver(config_path: &PathBuf) -> FileModuleResolver {

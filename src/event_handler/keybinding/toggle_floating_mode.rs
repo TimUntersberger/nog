@@ -3,10 +3,10 @@ use log::debug;
 use crate::{
     event::Event, system::NativeWindow, win_event_handler::win_event::WinEvent,
     win_event_handler::win_event_type::WinEventType, AppState,
-};
+system::SystemResult};
 
-pub fn handle(state: &mut AppState) -> Result<(), Box<dyn std::error::Error>> {
-    let window = NativeWindow::get_foreground_window()?;
+pub fn handle(state: &mut AppState) -> SystemResult {
+    let window = NativeWindow::get_foreground_window().expect("Failed to get foreground window");
     let config = state.config.clone();
     // The id of the grid that contains the window
     let maybe_grid_id = state
@@ -29,7 +29,7 @@ pub fn handle(state: &mut AppState) -> Result<(), Box<dyn std::error::Error>> {
             .send(Event::WinEvent(WinEvent {
                 typ: WinEventType::Show(true),
                 window,
-            }))?;
+            })).expect("Failed to send WinEvent");
     }
     // if let Some((grid, _)) =  {
     //     let mut tile = grid.close_tile_by_window_id(window.id).unwrap();

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{display::Display, system::DisplayId, system::WindowId, window::Window, AppState};
+use crate::{system::DisplayId, window::Window, AppState};
 use item::Item;
 use item_section::ItemSection;
 use parking_lot::Mutex;

@@ -1,16 +1,16 @@
-use crate::{system::NativeWindow, AppState};
+use crate::{system::NativeWindow, AppState, system::SystemResult};
 use log::debug;
 
 pub fn handle(
     state: &mut AppState,
     mut window: NativeWindow,
     force: bool,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> SystemResult {
     let min_width = state.config.min_width;
     let min_height = state.config.min_height;
 
     let config = state.config.clone();
-    let rect = window.get_rect()?;
+    let rect = window.get_rect().expect("Failed to get rectangle of new window");
 
     if !force && (rect.right - rect.left < min_width || rect.bottom - rect.top < min_height) {
         return Ok(());
@@ -54,7 +54,7 @@ pub fn handle(
         if let Some(grid) = display.get_focused_grid_mut() {
             grid.split(window);
         }
-        display.refresh_grid(&config);
+        display.refresh_grid(&config)?;
     }
 
     Ok(())

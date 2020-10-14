@@ -6,8 +6,7 @@ use crate::{
     system::{api, Rectangle},
     task_bar,
     tile_grid::TileGrid,
-    AppState,
-};
+system::SystemResult};
 use std::cmp::Ordering;
 use task_bar::{Taskbar, TaskbarPosition};
 
@@ -145,10 +144,12 @@ impl Display {
         self.focused_grid_id
             .and_then(move |id| self.get_grid_by_id_mut(id))
     }
-    pub fn refresh_grid(&self, config: &Config) {
+    pub fn refresh_grid(&self, config: &Config) -> SystemResult {
         if let Some(g) = self.get_focused_grid() {
-            g.draw_grid(self, config);
+            g.draw_grid(self, config)?;
         }
+
+        Ok(())
     }
 
     pub fn remove_grid_by_id(&mut self, id: i32) -> Option<TileGrid> {
@@ -161,12 +162,12 @@ impl Display {
     }
 
     /// Returns true if the workspace was found and false if it wasn't
-    pub fn focus_workspace(&mut self, config: &Config, id: i32) -> bool {
+    pub fn focus_workspace(&mut self, config: &Config, id: i32) -> SystemResult<bool> {
         if let Some(grid) = self.get_grid_by_id(id) {
-            grid.draw_grid(self, config);
-            grid.show();
+            grid.draw_grid(self, config)?;
+            grid.show()?;
         } else {
-            return false;
+            return Ok(false);
         }
 
         if let Some(grid) = self.get_focused_grid() {
@@ -175,7 +176,7 @@ impl Display {
 
         self.focused_grid_id = Some(id);
 
-        true
+        Ok(true)
     }
     pub fn new(id: DisplayId) -> Self {
         let mut display = Display::default();

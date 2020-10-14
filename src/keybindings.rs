@@ -88,7 +88,7 @@ impl KbManager {
     }
     fn change_mode(&mut self, mode: Mode) {
         *self.inner.mode.lock() = mode.clone();
-        self.sender.send(ChanMessage::ChangeMode(mode));
+        self.sender.send(ChanMessage::ChangeMode(mode)).expect("Failed to change mode of kb manager");
     }
     pub fn enter_mode(&mut self, mode: &str) {
         self.change_mode(Some(mode.into()));
@@ -159,7 +159,7 @@ impl KbManager {
     }
     pub fn stop(&mut self) {
         self.inner.clone().stopped.store(true, Ordering::SeqCst);
-        self.sender.send(ChanMessage::Stop);
+        self.sender.send(ChanMessage::Stop).expect("Failed to stop kb manager");
     }
 }
 

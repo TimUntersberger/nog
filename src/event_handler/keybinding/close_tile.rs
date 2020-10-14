@@ -1,6 +1,6 @@
-use crate::{popup, AppState};
+use crate::{popup, AppState, system::SystemResult};
 
-pub fn handle(state: &mut AppState) -> Result<(), Box<dyn std::error::Error>> {
+pub fn handle(state: &mut AppState) -> SystemResult {
     if popup::is_visible() {
         popup::close();
         return Ok(());

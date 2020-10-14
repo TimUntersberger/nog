@@ -18,7 +18,7 @@ use super::{bool_to_result, nullable_to_result, Window};
 unsafe extern "system" fn monitor_cb(
     hmonitor: HMONITOR,
     _: HDC,
-    rect: LPRECT,
+    _: LPRECT,
     l_param: LPARAM,
 ) -> BOOL {
     let displays = &mut *(l_param as *mut Vec<Display>);
@@ -122,14 +122,14 @@ pub fn add_launch_on_startup() {
 
         if source_path != target_path {
             debug!("Exe doesn't exist yet");
-            std::fs::copy(source_path, &target_path);
+            std::fs::copy(source_path, &target_path).expect("Failed to copy executable to nog folder");
         }
 
         let mut key: HKEY = std::mem::zeroed();
         let mut key_name: Vec<u16> =
             util::to_widestring("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
         let mut value_name = util::to_widestring("nog");
-        let mut app_path = util::to_widestring(target_path.to_str().unwrap());
+        let app_path = util::to_widestring(target_path.to_str().unwrap());
 
         if RegCreateKeyExW(
             HKEY_CURRENT_USER,
@@ -227,10 +227,4 @@ pub fn launch_program(cmd: String) -> SystemResult {
             Ok(())
         }
     }
-}
-
-pub fn get_taskbar_for_display(id: DisplayId) -> Option<Taskbar> {
-    get_taskbars()
-        .into_iter()
-        .find(|tb| tb.window.get_display().unwrap().id == id)
 }

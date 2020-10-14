@@ -1,9 +1,9 @@
-use crate::{split_direction::SplitDirection, AppState};
+use crate::{split_direction::SplitDirection, AppState, system::SystemResult};
 
 pub fn handle(
     state: &mut AppState,
     direction: SplitDirection,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> SystemResult {
     let display = state.get_current_display_mut();
     if let Some(grid) = display.get_focused_grid_mut() {
         grid.set_focused_split_direction(direction);

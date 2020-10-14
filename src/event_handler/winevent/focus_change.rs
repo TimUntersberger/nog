@@ -1,9 +1,9 @@
-use crate::{system::NativeWindow, AppState};
+use crate::{system::NativeWindow, AppState, system::SystemResult};
 
 pub fn handle(
     state: &mut AppState,
     window: NativeWindow,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> SystemResult {
     if let Some((g, _)) = state.find_window(window.id) {
         g.focus_stack.clear();
         g.focused_window_id = Some(window.id);

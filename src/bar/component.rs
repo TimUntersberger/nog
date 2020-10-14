@@ -1,5 +1,5 @@
 use crate::{
-    config::Config, display::Display, keybindings::KbManager, tile_grid::TileGrid, AppState,
+    display::Display, AppState,
 };
 use std::{fmt::Debug, sync::Arc};
 

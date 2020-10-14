@@ -1,14 +1,13 @@
 use std::sync::Arc;
 
-use keybindings::KbManager;
 use parking_lot::Mutex;
 
-use crate::{bar, config::Config, keybindings, startup, task_bar, AppState};
+use crate::{bar, config::Config, startup, task_bar, AppState, system::SystemResult};
 
 pub fn update_config(
     state_arc: Arc<Mutex<AppState>>,
     new_config: Config,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> SystemResult {
     let mut state = state_arc.lock();
     let work_mode = state.work_mode;
     let mut draw_app_bar = false;
@@ -45,15 +44,15 @@ pub fn update_config(
         for grid in state.get_grids_mut().iter_mut() {
             for tile in &mut grid.tiles {
                 tile.window.reset_style();
-                tile.window.update_style();
+                tile.window.update_style().expect("Failed to update style of window");
             }
         }
     } else if !state.config.remove_title_bar && new_config.remove_title_bar {
         let use_border = state.config.use_border;
         for grid in state.get_grids_mut() {
             for tile in &mut grid.tiles {
-                tile.window.remove_title_bar(use_border);
-                tile.window.update_style();
+                tile.window.remove_title_bar(use_border)?;
+                tile.window.update_style().expect("Failed to update style of window");
             }
         }
     }
@@ -78,7 +77,7 @@ pub fn update_config(
 
     for d in state.displays.iter() {
         if let Some(grid) = d.get_focused_grid() {
-            grid.draw_grid(d, &state.config);
+            grid.draw_grid(d, &state.config)?;
         }
     }
 

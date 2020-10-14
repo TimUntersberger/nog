@@ -1,4 +1,4 @@
-use crate::{config::Config, system::Rectangle, window::Window, window::WindowEvent, AppState};
+use crate::{system::Rectangle, window::Window, window::WindowEvent, AppState, system::SystemResult};
 use parking_lot::Mutex;
 use std::{fmt::Debug, sync::Arc};
 
@@ -49,9 +49,9 @@ impl Popup {
     /// Creates the window for the popup with the configured parameters.
     ///
     /// This function closes a popup that is currently visible.
-    pub fn create(&mut self, state_arc: Arc<Mutex<AppState>>) {
+    pub fn create(&mut self, state_arc: Arc<Mutex<AppState>>) -> SystemResult {
         if is_visible() {
-            close();
+            close()?;
         }
 
         let state_arc = state_arc.clone();
@@ -89,7 +89,7 @@ impl Popup {
                     },
                     None,
                     None,
-                );
+                ).expect("Failed to move popup to its location");
 
                 api.set_text_color(0xffffff);
                 api.write_text(&text, padding, padding, false, false);
@@ -99,35 +99,25 @@ impl Popup {
 
         self.window = Some(window);
         *POPUP.lock() = Some(self.clone());
+
+        Ok(())
     }
 }
 
-pub fn cleanup() {
-    close();
+pub fn cleanup() -> SystemResult {
+    close()
 }
 
 /// Close the current popup, if there is one.
-pub fn close() {
+pub fn close() -> SystemResult {
     if let Some(window) = POPUP.lock().clone().and_then(|p| p.window) {
-        window.close();
+        window.close()?;
     }
+
+    Ok(())
 }
 
 /// Is there a popup currently visible?
 pub fn is_visible() -> bool {
     POPUP.lock().is_some()
-}
-
-#[test]
-pub fn test() {
-    use crate::AppState;
-
-    let state = AppState::new();
-    Popup::new()
-        .with_text(&vec!["hello", "world"])
-        .create(&state.config);
-
-    loop {
-        std::thread::sleep_ms(1000);
-    }
 }

@@ -5,7 +5,6 @@ extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
 
-use bar::Bar;
 use config::{rhai::engine::parse_config, rule::Rule, workspace_setting::WorkspaceSetting, Config};
 use crossbeam_channel::select;
 use display::Display;
@@ -16,7 +15,7 @@ use hot_reload::update_config;
 use keybindings::KbManager;
 use log::debug;
 use log::{error, info};
-use parking_lot::{deadlock, lock_api::MutexGuard, Mutex};
+use parking_lot::{deadlock, Mutex};
 use std::{process, sync::Arc};
 use std::{thread, time::Duration};
 use system::{SystemResult, WinEventListener, WindowId, DisplayId};
@@ -303,7 +302,7 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
             recv(receiver) -> maybe_msg => {
                 let msg = maybe_msg.unwrap();
                 let _ = match msg {
-                    Event::NewPopup(mut p) => Ok(p.create(state_arc.clone())),
+                    Event::NewPopup(mut p) => p.create(state_arc.clone()),
                     Event::Keybinding(kb) => {
                         event_handler::keybinding::handle(state_arc.clone(), kb)
                     },
@@ -377,7 +376,7 @@ fn main() {
             deadlocks.first().unwrap().first().unwrap().backtrace()
         );
 
-        on_quit(&mut arc.lock());
+        on_quit(&mut arc.lock()).unwrap();
     });
 
     info!("");

@@ -4,11 +4,10 @@ use crate::{
     config::{rhai::engine, rule::Rule},
     event::Event,
     hot_reload::update_config,
-    keybindings::{self, keybinding::Keybinding, keybinding_type::KeybindingType},
+    keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
     system::api,
     AppState,
-};
-use keybindings::KbManager;
+system::SystemResult};
 use log::{debug, info};
 use parking_lot::Mutex;
 
@@ -23,7 +22,7 @@ pub mod toggle_work_mode;
 pub fn handle(
     state_arc: Arc<Mutex<AppState>>,
     kb: Keybinding,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> SystemResult {
     let mut state = state_arc.lock();
     let config = state.config.clone();
     if let KeybindingType::MoveWorkspaceToMonitor(_) = kb.typ {
@@ -52,7 +51,7 @@ pub fn handle(
                 let id = grid.id;
 
                 new_display.grids.push(grid);
-                new_display.focus_workspace(&config, id);
+                new_display.focus_workspace(&config, id)?;
                 state.workspace_id = id;
             }
         }
@@ -62,8 +61,8 @@ pub fn handle(
             if let Some(tile) = grid.get_focused_tile_mut() {
                 let id = tile.window.id;
 
-                tile.window.minimize();
-                tile.window.cleanup();
+                tile.window.minimize()?;
+                tile.window.cleanup()?;
 
                 grid.close_tile_by_window_id(id);
             }
@@ -81,7 +80,7 @@ pub fn handle(
         KeybindingType::ToggleFloatingMode => toggle_floating_mode::handle(&mut state)?,
         KeybindingType::ToggleFullscreen => {
             display.get_focused_grid_mut().unwrap().toggle_fullscreen();
-            display.refresh_grid(&config);
+            display.refresh_grid(&config)?;
         }
         KeybindingType::ToggleMode(mode) => {
             if state.keybindings_manager.get_mode() == Some(mode.clone()) {
@@ -114,19 +113,19 @@ pub fn handle(
         KeybindingType::Resize(direction, amount) => resize::handle(&mut state, direction, amount)?,
         KeybindingType::Focus(direction) => focus::handle(&mut state, direction)?,
         KeybindingType::Swap(direction) => swap::handle(&mut state, direction)?,
-        KeybindingType::Quit => sender.send(Event::Exit)?,
+        KeybindingType::Quit => sender.send(Event::Exit).expect("Failed to send exit event"),
         KeybindingType::Split(direction) => split::handle(&mut state, direction)?,
         KeybindingType::ResetColumn => {
             if let Some(g) = display.get_focused_grid_mut() {
                 g.reset_column();
             }
-            display.refresh_grid(&config);
+            display.refresh_grid(&config)?;
         }
         KeybindingType::ResetRow => {
             if let Some(g) = display.get_focused_grid_mut() {
                 g.reset_row();
             }
-            display.refresh_grid(&config);
+            display.refresh_grid(&config)?;
         }
         KeybindingType::Callback(idx) => engine::call(idx),
         KeybindingType::IgnoreTile => {
