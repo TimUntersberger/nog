@@ -1,7 +1,8 @@
 use crate::{
+    system::SystemResult,
     win_event_handler::{win_event::WinEvent, win_event_type::WinEventType},
     AppState,
-system::SystemResult};
+};
 use log::debug;
 
 mod destroy;

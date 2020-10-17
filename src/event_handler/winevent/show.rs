@@ -1,16 +1,14 @@
-use crate::{system::NativeWindow, AppState, system::SystemResult};
-use log::debug;
+use crate::{system::NativeWindow, system::SystemResult, AppState};
+use log::{debug, error};
 
-pub fn handle(
-    state: &mut AppState,
-    mut window: NativeWindow,
-    force: bool,
-) -> SystemResult {
+pub fn handle(state: &mut AppState, mut window: NativeWindow, force: bool) -> SystemResult {
     let min_width = state.config.min_width;
     let min_height = state.config.min_height;
 
     let config = state.config.clone();
-    let rect = window.get_rect().expect("Failed to get rectangle of new window");
+    let rect = fail!(window
+        .get_rect()
+        .map_err(|_| "Failed to get rectangle of new window"));
 
     if !force && (rect.right - rect.left < min_width || rect.bottom - rect.top < min_height) {
         return Ok(());

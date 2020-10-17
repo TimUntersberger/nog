@@ -25,5 +25,6 @@ pub fn start(cb: impl Fn(Option<MSG>) -> bool) {
         if !cb(value) {
             break;
         }
+
     }
 }

@@ -14,7 +14,7 @@ use std::{
     sync::mpsc::Sender,
     sync::Arc,
     thread,
-};
+time::Duration};
 
 pub mod key;
 pub mod keybinding;
@@ -88,7 +88,9 @@ impl KbManager {
     }
     fn change_mode(&mut self, mode: Mode) {
         *self.inner.mode.lock() = mode.clone();
-        self.sender.send(ChanMessage::ChangeMode(mode)).expect("Failed to change mode of kb manager");
+        self.sender
+            .send(ChanMessage::ChangeMode(mode))
+            .expect("Failed to change mode of kb manager");
     }
     pub fn enter_mode(&mut self, mode: &str) {
         self.change_mode(Some(mode.into()));
@@ -154,12 +156,16 @@ impl KbManager {
                             .expect("Failed to send key event");
                     }
                 }
+
+                thread::sleep(Duration::from_millis(10));
             }
         });
     }
     pub fn stop(&mut self) {
         self.inner.clone().stopped.store(true, Ordering::SeqCst);
-        self.sender.send(ChanMessage::Stop).expect("Failed to stop kb manager");
+        self.sender
+            .send(ChanMessage::Stop)
+            .expect("Failed to stop kb manager");
     }
 }
 

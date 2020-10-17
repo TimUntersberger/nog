@@ -3,10 +3,11 @@ use crate::{
     config::Config,
     renderer,
     system::DisplayId,
+    system::SystemResult,
     system::{api, Rectangle},
     task_bar,
     tile_grid::TileGrid,
-system::SystemResult};
+};
 use std::cmp::Ordering;
 use task_bar::{Taskbar, TaskbarPosition};
 

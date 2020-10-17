@@ -64,7 +64,7 @@ pub enum WinError {
     Bool,
 }
 
-type WinResult<T = ()> = Result<T, WinError>;
+pub type WinResult<T = ()> = Result<T, WinError>;
 
 impl From<RECT> for Rectangle {
     fn from(rect: RECT) -> Self {
@@ -144,7 +144,7 @@ impl From<HWND> for Window {
 
 impl Window {
     pub fn is_hidden(&self) -> bool {
-        unsafe { IsWindowVisible(self.id.into()) == 1 }
+        unsafe { IsWindowVisible(self.id.into()) == 0 }
     }
     pub fn is_visible(&self) -> bool {
         !self.is_hidden()

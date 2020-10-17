@@ -61,4 +61,3 @@ pub fn close_all(state_arc: Arc<Mutex<AppState>>) {
         w.close();
     }
 }
-

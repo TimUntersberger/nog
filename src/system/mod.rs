@@ -86,6 +86,8 @@ pub enum SystemError {
     DrawTile(SpecificError),
     #[error("Failed to launch a program")]
     LaunchProgram(String),
+    #[error("An error that is specific to the platform occured")]
+    Native(#[from] SpecificError),
     #[error("An unknown error occured")]
     Unknown(SpecificError),
 }

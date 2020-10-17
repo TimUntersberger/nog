@@ -18,11 +18,45 @@ use log::{error, info};
 use parking_lot::{deadlock, Mutex};
 use std::{process, sync::Arc};
 use std::{thread, time::Duration};
-use system::{SystemResult, WinEventListener, WindowId, DisplayId};
+use system::{DisplayId, SystemResult, WinEventListener, WindowId};
 use task_bar::Taskbar;
 use tile::Tile;
 use tile_grid::TileGrid;
 use window::Window;
+
+#[macro_use]
+mod macros {
+    macro_rules! fail_silent_with {
+        ($expr: expr, $value: expr) => {
+            match $expr {
+                Ok(r) => r,
+                Err(m) => return $value
+            };
+        };
+    }
+    macro_rules! fail_with {
+        ($expr: expr, $value: expr) => {
+            match $expr {
+                Ok(r) => r,
+                Err(m) => {
+                    error!("{}", m);
+                    return $value;
+                }
+            };
+        };
+    }
+    macro_rules! fail {
+        ($expr: expr) => {
+            match $expr {
+                Ok(r) => r,
+                Err(m) => {
+                    error!("{}", m);
+                    return Ok(());
+                }
+            };
+        };
+    }
+}
 
 mod bar;
 mod config;
@@ -357,7 +391,7 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
 }
 
 fn main() {
-    std::env::set_var("RUST_BACKTRACE", "full");
+    std::env::set_var("RUST_BACKTRACE", "1");
     logging::setup().expect("Failed to setup logging");
 
     let state_arc = Arc::new(Mutex::new(AppState::new()));

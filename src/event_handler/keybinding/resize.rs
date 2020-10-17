@@ -1,11 +1,7 @@
-use crate::{direction::Direction, AppState, system::SystemResult};
+use crate::{direction::Direction, system::SystemResult, AppState};
 use log::info;
 
-pub fn handle(
-    state: &mut AppState,
-    direction: Direction,
-    amount: i32,
-) -> SystemResult {
+pub fn handle(state: &mut AppState, direction: Direction, amount: i32) -> SystemResult {
     let config = state.config.clone();
     let display = state.get_current_display_mut();
     if let Some(grid) = display.get_focused_grid_mut() {

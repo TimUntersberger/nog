@@ -2,8 +2,8 @@ use super::{
     component::Component, component::ComponentText, item::Item, item_section::ItemSection, Bar,
 };
 use crate::{
-    config::Config, display::Display, event::Event, 
-    system::Rectangle, window::Api, window::WindowEvent, AppState,
+    config::Config, display::Display, event::Event, system::Rectangle, window::Api,
+    window::WindowEvent, AppState,
 };
 use log::{debug, error, info};
 use parking_lot::Mutex;
@@ -14,13 +14,18 @@ pub const NOG_BAR_NAME: &'static str = "nog_bar";
 fn spawn_refresh_thread(state_arc: Arc<Mutex<AppState>>) {
     let state = state_arc.clone();
     let sender = state.lock().event_channel.sender.clone();
+
     thread::spawn(move || loop {
         thread::sleep(Duration::from_millis(100));
 
-        if !state.lock().work_mode {
+        let state = state.lock();
+
+        if !state.work_mode || !state.config.display_app_bar {
             break;
         }
-        
+
+        drop(state);
+
         sender
             .send_timeout(Event::RedrawAppBar, Duration::from_millis(100))
             .expect("Failed to send redraw-app-bar event");
@@ -280,7 +285,9 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
                             clear_section(api, &state.config, bar.right.left, right.left);
                         }
 
-                        sender.send(Event::UpdateBarSections(display.id, left, center, right)).expect("Failed to send UpdateBarSections event");
+                        sender
+                            .send(Event::UpdateBarSections(display.id, left, center, right))
+                            .expect("Failed to send UpdateBarSections event");
                     }
                 }
                 _ => {}

@@ -1,9 +1,10 @@
 use log::debug;
 
 use crate::{
-    event::Event, system::NativeWindow, win_event_handler::win_event::WinEvent,
-    win_event_handler::win_event_type::WinEventType, AppState,
-system::SystemResult};
+    event::Event, system::NativeWindow, system::SystemResult,
+    win_event_handler::win_event::WinEvent, win_event_handler::win_event_type::WinEventType,
+    AppState,
+};
 
 pub fn handle(state: &mut AppState) -> SystemResult {
     let window = NativeWindow::get_foreground_window().expect("Failed to get foreground window");
@@ -29,7 +30,8 @@ pub fn handle(state: &mut AppState) -> SystemResult {
             .send(Event::WinEvent(WinEvent {
                 typ: WinEventType::Show(true),
                 window,
-            })).expect("Failed to send WinEvent");
+            }))
+            .expect("Failed to send WinEvent");
     }
     // if let Some((grid, _)) =  {
     //     let mut tile = grid.close_tile_by_window_id(window.id).unwrap();

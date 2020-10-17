@@ -1,4 +1,4 @@
-use crate::{popup, AppState, system::SystemResult};
+use crate::{popup, system::SystemResult, AppState};
 
 pub fn handle(state: &mut AppState) -> SystemResult {
     if popup::is_visible() {

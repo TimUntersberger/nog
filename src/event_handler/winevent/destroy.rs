@@ -1,4 +1,4 @@
-use crate::{system::NativeWindow, AppState, system::SystemResult};
+use crate::{system::NativeWindow, system::SystemResult, AppState};
 
 pub fn handle(
     state: &mut AppState,

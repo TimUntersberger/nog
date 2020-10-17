@@ -1,4 +1,6 @@
-use crate::{system::Rectangle, window::Window, window::WindowEvent, AppState, system::SystemResult};
+use crate::{
+    system::Rectangle, system::SystemResult, window::Window, window::WindowEvent, AppState,
+};
 use parking_lot::Mutex;
 use std::{fmt::Debug, sync::Arc};
 
@@ -80,16 +82,18 @@ impl Popup {
                 let x = api.display.width() / 2 - width / 2 - padding;
                 let y = api.display.height() / 2 - height / 2 - padding;
 
-                api.window.set_window_pos(
-                    Rectangle {
-                        left: x,
-                        right: x + width + padding * 2,
-                        top: y,
-                        bottom: y + height + padding * 2,
-                    },
-                    None,
-                    None,
-                ).expect("Failed to move popup to its location");
+                api.window
+                    .set_window_pos(
+                        Rectangle {
+                            left: x,
+                            right: x + width + padding * 2,
+                            top: y,
+                            bottom: y + height + padding * 2,
+                        },
+                        None,
+                        None,
+                    )
+                    .expect("Failed to move popup to its location");
 
                 api.set_text_color(0xffffff);
                 api.write_text(&text, padding, padding, false, false);

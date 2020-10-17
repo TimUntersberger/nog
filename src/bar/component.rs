@@ -1,6 +1,4 @@
-use crate::{
-    display::Display, AppState,
-};
+use crate::{display::Display, AppState};
 use std::{fmt::Debug, sync::Arc};
 
 pub mod active_mode;

@@ -20,11 +20,12 @@ use winapi::{
     um::winuser::WS_EX_NOACTIVATE, um::winuser::WS_EX_TOPMOST, um::winuser::WS_OVERLAPPEDWINDOW,
     um::winuser::WS_POPUPWINDOW,
 };
+use log::error;
 
 use crate::{
-    display::Display, message_loop, system::NativeWindow, system::Rectangle, system::WindowId,
-    util, AppState,
-system::SystemResult};
+    display::Display, message_loop, system::NativeWindow, system::Rectangle, system::SystemResult,
+    system::WindowId, util, AppState,
+};
 
 pub mod gwl_ex_style;
 pub mod gwl_style;
@@ -336,9 +337,8 @@ impl Window {
                     if msg.message == WM_IDENT {
                         let window: NativeWindow = hwnd.into();
                         let state = state.lock();
-                        let display_id = window.get_display().unwrap().id;
-                        let display =
-                            state.displays.iter().find(|d| d.id == display_id).unwrap();
+                        let display_id = fail_silent_with!(window.get_display(), true).id;
+                        let display = state.displays.iter().find(|d| d.id == display_id).unwrap();
 
                         let hdc = GetDC(hwnd);
                         let api = Api {

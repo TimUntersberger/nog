@@ -122,7 +122,8 @@ pub fn add_launch_on_startup() {
 
         if source_path != target_path {
             debug!("Exe doesn't exist yet");
-            std::fs::copy(source_path, &target_path).expect("Failed to copy executable to nog folder");
+            std::fs::copy(source_path, &target_path)
+                .expect("Failed to copy executable to nog folder");
         }
 
         let mut key: HKEY = std::mem::zeroed();

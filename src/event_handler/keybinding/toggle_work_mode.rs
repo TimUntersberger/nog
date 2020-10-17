@@ -32,9 +32,7 @@ pub fn turn_work_mode_off(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
     Ok(())
 }
 
-pub fn turn_work_mode_on(
-    state_arc: Arc<Mutex<AppState>>,
-) -> SystemResult {
+pub fn turn_work_mode_on(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
     let mut state = state_arc.lock();
 
     if state.config.remove_task_bar {

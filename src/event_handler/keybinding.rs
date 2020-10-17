@@ -6,8 +6,9 @@ use crate::{
     hot_reload::update_config,
     keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
     system::api,
+    system::SystemResult,
     AppState,
-system::SystemResult};
+};
 use log::{debug, info};
 use parking_lot::Mutex;
 
@@ -19,10 +20,7 @@ mod swap;
 mod toggle_floating_mode;
 pub mod toggle_work_mode;
 
-pub fn handle(
-    state_arc: Arc<Mutex<AppState>>,
-    kb: Keybinding,
-) -> SystemResult {
+pub fn handle(state_arc: Arc<Mutex<AppState>>, kb: Keybinding) -> SystemResult {
     let mut state = state_arc.lock();
     let config = state.config.clone();
     if let KeybindingType::MoveWorkspaceToMonitor(_) = kb.typ {
