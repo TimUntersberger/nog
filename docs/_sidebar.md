@@ -25,6 +25,7 @@
   - [Timestamps](scripting/timestamp.md)
   - [HTTP](scripting/http.md)
   - [Popup](scripting/popup.md)
+  - [Async](scripting/async.md)
   - [Further Reading](scripting/further_reading.md)
 
 - Example Configurations

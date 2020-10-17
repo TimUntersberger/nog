@@ -16,5 +16,5 @@ In almost all cases the [development](https://github.com/TimUntersberger/nog/rel
 ```
 $env:NOG_VERSION="<version>"
 cargo build --release
-./rcedit ./target/release/wwm.exe --set-icon ./assets/logo.ico
+./rcedit ./target/release/nog.exe --set-icon ./assets/logo.ico
 ```

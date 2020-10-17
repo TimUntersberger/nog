@@ -2,9 +2,8 @@ use super::{
     component::Component, component::ComponentText, item::Item, item_section::ItemSection, Bar,
 };
 use crate::{
-    NOG_BAR_NAME,
     config::Config, display::Display, event::Event, system::Rectangle, window::Api,
-    window::WindowEvent, AppState,
+    window::WindowEvent, AppState, NOG_BAR_NAME,
 };
 use log::{debug, error, info};
 use parking_lot::Mutex;

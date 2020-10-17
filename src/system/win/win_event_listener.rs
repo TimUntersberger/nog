@@ -1,9 +1,9 @@
 use super::nullable_to_result;
 use crate::{
-    NOG_BAR_NAME, event::Event, event::EventChannel, message_loop,
-    system::NativeWindow, win_event_handler::win_event::WinEvent,
-    win_event_handler::win_event_type::WinEventType,
-NOG_POPUP_NAME};
+    event::Event, event::EventChannel, message_loop, system::NativeWindow,
+    win_event_handler::win_event::WinEvent, win_event_handler::win_event_type::WinEventType,
+    NOG_BAR_NAME, NOG_POPUP_NAME,
+};
 use lazy_static::lazy_static;
 use log::debug;
 use parking_lot::Mutex;

@@ -1,6 +1,7 @@
 use crate::{
     system::Rectangle, system::SystemResult, window::Window, window::WindowEvent, AppState,
-NOG_POPUP_NAME};
+    NOG_POPUP_NAME,
+};
 use parking_lot::Mutex;
 use std::{fmt::Debug, sync::Arc, thread::JoinHandle};
 

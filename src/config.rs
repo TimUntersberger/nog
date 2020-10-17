@@ -1,4 +1,6 @@
-use crate::keybindings::{keybinding::Keybinding, key::Key, modifier::Modifier, keybinding_type::KeybindingType};
+use crate::keybindings::{
+    key::Key, keybinding::Keybinding, keybinding_type::KeybindingType, modifier::Modifier,
+};
 use bar_config::BarConfig;
 use log::error;
 use rule::Rule;
@@ -108,7 +110,11 @@ impl Config {
     }
 
     pub fn add_keybinding(&mut self, keybinding: Keybinding) {
-        if let Some(kb) = self.keybindings.iter_mut().find(|kb| kb.key == keybinding.key && kb.modifier == keybinding.modifier) {
+        if let Some(kb) = self
+            .keybindings
+            .iter_mut()
+            .find(|kb| kb.key == keybinding.key && kb.modifier == keybinding.modifier)
+        {
             kb.typ = keybinding.typ;
             kb.mode = keybinding.mode;
         } else {
