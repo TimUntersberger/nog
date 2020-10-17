@@ -171,8 +171,10 @@ impl Window {
             nullable_to_result(MonitorFromWindow(self.id.into(), MONITOR_DEFAULTTONULL).into())
         }
     }
-    pub fn get_foreground_window() -> WinResult<Window> {
-        unsafe { nullable_to_result(GetForegroundWindow().into()) }
+    pub fn get_foreground_window() -> SystemResult<Window> {
+        unsafe {
+            nullable_to_result(GetForegroundWindow().into()).map_err(SystemError::GetForegroundWindow)
+        }
     }
     pub fn get_class_name(&self) -> WinResult<String> {
         let mut buffer = [0; 0x200];

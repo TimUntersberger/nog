@@ -139,23 +139,24 @@ impl Default for AppState {
 }
 
 impl AppState {
-    pub fn new() -> Result<Self, String> {
-        let event_channel = EventChannel::default();
-        let config = parse_config(event_channel.sender.clone())?;
-
-        info!("Initializing displays");
-        let displays = display::init(&config);
-
-        Ok(Self {
+    pub fn new(config: Config) -> Self {
+        // let config = parse_config(event_channel.sender.clone())?;
+        Self {
             work_mode: config.work_mode,
-            displays,
+            displays: display::init(&config),
             keybindings_manager: KbManager::new(config.keybindings.clone()),
-            event_channel,
+            event_channel: EventChannel::default(),
             additonal_rules: Vec::new(),
             window_event_listener: WinEventListener::default(),
             workspace_id: 1,
             config,
-        })
+        }
+    }
+    pub fn init(&mut self, config: Config) {
+        self.config = config;
+        self.work_mode = self.config.work_mode;
+        self.displays = display::init(&self.config);
+        self.keybindings_manager = KbManager::new(self.config.keybindings.clone());
     }
 
     /// TODO: maybe rename this function
@@ -403,7 +404,7 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
                     },
                     Event::ReloadConfig => {
                         info!("Reloading Config");
-                        match parse_config(sender.clone()) {
+                        match parse_config(state_arc.clone()) {
                             Ok(new_config) => update_config(state_arc.clone(), new_config),
                             Err(e) => {
                                 sender.send(Event::NewPopup(Popup::new()
@@ -448,18 +449,20 @@ fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
     logging::setup().expect("Failed to setup logging");
 
-    let state_arc = Arc::new(Mutex::new(AppState::new().unwrap_or_else(|e| {
-        let state = AppState::default();
-        let state_arc = Arc::new(Mutex::new(state));
+    let state_arc = Arc::new(Mutex::new(AppState::default()));
 
-        Popup::new()
-            .with_padding(5)
-            .with_text(&[&e, "", "(Press Alt+Q to close)"])
-            .create(state_arc.clone())
-            .unwrap();
-
-        AppState::default()
-    })));
+    {
+        let config = parse_config(state_arc.clone())
+            .map_err(|e| {
+                Popup::new()
+                    .with_padding(5)
+                    .with_text(&[&e, "", "(Press Alt+Q to close)"])
+                    .create(state_arc.clone())
+                    .unwrap();
+            })
+            .unwrap_or_default();
+        state_arc.lock().init(config)
+    }
 
     let arc = state_arc.clone();
 

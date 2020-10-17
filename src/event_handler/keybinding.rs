@@ -125,7 +125,10 @@ pub fn handle(state_arc: Arc<Mutex<AppState>>, kb: Keybinding) -> SystemResult {
             }
             display.refresh_grid(&config)?;
         }
-        KeybindingType::Callback(idx) => engine::call(idx),
+        KeybindingType::Callback(idx) => {
+            drop(state);
+            engine::call(idx)
+        }
         KeybindingType::IgnoreTile => {
             if let Some(tile) = state.get_current_grid().unwrap().get_focused_tile() {
                 let mut rule = Rule::default();

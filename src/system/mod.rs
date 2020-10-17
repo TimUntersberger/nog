@@ -84,6 +84,8 @@ pub enum SystemError {
     MaximizeWindow(SpecificError),
     #[error("Failed to draw tile")]
     DrawTile(SpecificError),
+    #[error("Failed to get foreground window")]
+    GetForegroundWindow(SpecificError),
     #[error("Failed to launch a program")]
     LaunchProgram(String),
     #[error("An error that is specific to the platform occured")]
