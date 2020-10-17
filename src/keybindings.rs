@@ -51,9 +51,10 @@ impl KbManagerInner {
     }
 
     pub fn get_keybinding(&self, key: Key, modifier: Modifier) -> Option<&Keybinding> {
+        let mode = self.mode.lock();
         self.keybindings
             .iter()
-            .find(|kb| kb.key == key && kb.modifier == modifier)
+            .find(|kb| kb.key == key && kb.modifier == modifier && kb.mode == *mode)
     }
 
     pub fn get_keybindings_by<T: Fn(&&Keybinding) -> bool>(&self, f: T) -> Vec<&Keybinding> {
