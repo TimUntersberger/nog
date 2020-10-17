@@ -1,12 +1,3 @@
-set min_height 200;
-set min_width 200;
-
-enable work_mode;
-enable use_border;
-enable display_app_bar;
-enable remove_title_bar;
-enable remove_task_bar;
-
 bind "Alt+Q" close_tile();
 bind "Alt+M" minimize_tile();
 bind "Alt+X" quit();

@@ -1,4 +1,5 @@
 use strum_macros::EnumString;
+
 #[derive(Clone, Copy, FromPrimitive, ToPrimitive, PartialEq, EnumString, Display, Debug)]
 #[repr(u32)]
 #[allow(dead_code)]

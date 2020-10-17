@@ -1,7 +1,7 @@
 #![allow(unreachable_code)]
 #![allow(dead_code)]
 
-use crate::CONFIG;
+use crate::AppState;
 use std::{
     sync::atomic::{AtomicBool, Ordering},
     thread,
@@ -9,10 +9,9 @@ use std::{
 
 const STOP: AtomicBool = AtomicBool::new(false);
 
-pub fn start() -> Result<(), ()> {
-    let update_channel = CONFIG.lock().get_update_channel().cloned();
-    if let Some(_update_channel) = update_channel {
-        let update_interval = CONFIG.lock().update_interval;
+pub fn start(state: &AppState) -> Result<(), ()> {
+    if let Some(_update_channel) = state.config.get_update_channel() {
+        let update_interval = state.config.update_interval;
 
         thread::spawn(move || {
             while !STOP.load(Ordering::SeqCst) {

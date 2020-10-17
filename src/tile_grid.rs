@@ -1,22 +1,26 @@
-use crate::display::get_primary_display;
-use crate::display::Display;
-use crate::tile::Tile;
-use crate::util;
-use crate::window::Window;
-use crate::{direction::Direction, split_direction::SplitDirection, CONFIG};
-use log::debug;
+use crate::{
+    config::Config,
+    direction::Direction,
+    display::Display,
+    renderer::{NativeRenderer, Renderer},
+    split_direction::SplitDirection,
+    system::NativeWindow,
+    system::SystemError,
+    system::SystemResult,
+    system::WindowId,
+    tile::Tile,
+    AppState,
+};
+use log::{debug, error};
 use std::collections::HashMap;
-use winapi::shared::windef::HWND;
-use winapi::shared::windef::RECT;
-use winapi::um::winuser::SetWindowPos;
-use winapi::um::winuser::SWP_NOSENDCHANGING;
 
-#[derive(Clone)]
-pub struct TileGrid {
-    pub display: Display,
+#[derive(Clone, Debug)]
+pub struct TileGrid<TRenderer: Renderer = NativeRenderer> {
+    // pub display: Display,
+    pub renderer: TRenderer,
     pub id: i32,
     pub fullscreen: bool,
-    pub focus_stack: Vec<(Direction, i32)>,
+    pub focus_stack: Vec<(Direction, WindowId)>,
     /// Contains the resize values for each column
     /// Hashmap<column, (left, right)>
     pub column_modifications: HashMap<i32, (i32, i32)>,
@@ -24,17 +28,18 @@ pub struct TileGrid {
     /// Hashmap<column, (top, bottom)>
     pub row_modifications: HashMap<i32, (i32, i32)>,
     pub tiles: Vec<Tile>,
-    pub focused_window_id: Option<i32>,
+    pub focused_window_id: Option<WindowId>,
     pub taskbar_window: i32,
     pub rows: i32,
     pub columns: i32,
 }
 
-impl TileGrid {
-    pub fn new(id: i32) -> Self {
+impl<TRenderer: Renderer> TileGrid<TRenderer> {
+    pub fn new(id: i32, renderer: TRenderer) -> TileGrid<TRenderer> {
         Self {
             id,
-            display: get_primary_display(),
+            // display: get_primary_display(),
+            renderer,
             fullscreen: false,
             tiles: Vec::new(),
             focus_stack: Vec::with_capacity(5),
@@ -51,28 +56,55 @@ impl TileGrid {
             tile.window.hide();
         }
     }
-    pub fn show(&self) {
+    pub fn toggle_fullscreen(&mut self) -> bool {
+        if self.fullscreen || !self.tiles.is_empty() {
+            self.fullscreen = !self.fullscreen;
+        }
+
+        self.fullscreen
+    }
+    pub fn reset_row(&mut self) {
+        if let Some(tile) = self.get_focused_tile() {
+            if let Some(m) = tile.row.and_then(|c| self.row_modifications.get_mut(&c)) {
+                m.0 = 0;
+                m.1 = 0;
+            }
+        }
+    }
+    pub fn reset_column(&mut self) {
+        if let Some(tile) = self.get_focused_tile() {
+            if let Some(m) = tile
+                .column
+                .and_then(|c| self.column_modifications.get_mut(&c))
+            {
+                m.0 = 0;
+                m.1 = 0;
+            }
+        }
+    }
+    pub fn show(&self) -> SystemResult {
         for tile in &self.tiles {
             tile.window.show();
             tile.window
                 .to_foreground(true)
-                .expect("Failed to move window to foreground");
-            tile.window
-                .remove_topmost()
-                .expect("Failed to remove top-most window");
+                .map_err(SystemError::ShowWindow)?;
+            if let Err(e) = tile.window.remove_topmost() {
+                error!("{}", e);
+            }
         }
         if let Some(tile) = self.get_focused_tile() {
-            tile.window.focus().expect("Failed to focus window");
+            tile.window.focus()?;
         }
+        Ok(())
     }
-    pub fn get_tile_by_id(&self, id: i32) -> Option<Tile> {
+    pub fn get_tile_by_id(&self, id: WindowId) -> Option<Tile> {
         self.tiles
             .iter()
             .find(|tile| tile.window.id == id)
             .clone()
             .cloned()
     }
-    pub fn get_tile_by_id_mut(&mut self, id: i32) -> Option<&mut Tile> {
+    pub fn get_tile_by_id_mut(&mut self, id: WindowId) -> Option<&mut Tile> {
         self.tiles.iter_mut().find(|tile| tile.window.id == id)
     }
     pub fn get_focused_tile(&self) -> Option<&Tile> {
@@ -88,7 +120,7 @@ impl TileGrid {
             focused_tile.split_direction = direction;
         }
     }
-    fn get_next_tile_id(&self, direction: Direction) -> Option<i32> {
+    fn get_next_tile_id(&self, direction: Direction) -> Option<WindowId> {
         self.get_next_tile(direction).map(|t| t.window.id)
     }
     fn get_next_tile(&self, direction: Direction) -> Option<Tile> {
@@ -145,13 +177,13 @@ impl TileGrid {
                 .cloned()
         })
     }
-    fn set_location(&mut self, id: i32, row: Option<i32>, col: Option<i32>) {
+    fn set_location(&mut self, id: WindowId, row: Option<i32>, col: Option<i32>) {
         if let Some(mut tile) = self.get_tile_by_id_mut(id) {
             tile.row = row;
             tile.column = col;
         }
     }
-    fn swap_tiles(&mut self, x: i32, y: i32) {
+    fn swap_tiles(&mut self, x: WindowId, y: WindowId) {
         //borrow checker bullshit
         let x_tile = {
             let tile = self.get_tile_by_id(x).unwrap();
@@ -164,27 +196,19 @@ impl TileGrid {
         self.set_location(x_tile.0, y_tile.1, y_tile.2);
         self.set_location(y_tile.0, x_tile.1, x_tile.2);
     }
-    pub fn swap(&mut self, direction: Direction) -> Result<(), util::WinApiResultError> {
-        if let Some(tile) = self.check_focus_stack(direction)? {
+    pub fn swap(&mut self, direction: Direction) {
+        if let Some(tile) = self.check_focus_stack(direction) {
             //if the focus stack is not empty, then some tile must have focus
             let focused_id = self.focused_window_id.unwrap();
             self.swap_tiles(tile.window.id, focused_id);
-            return Ok(());
-        }
-        let maybe_next_id = self.get_next_tile_id(direction);
-        if let Some(next_id) = maybe_next_id {
+        } else if let Some(next_id) = self.get_next_tile_id(direction) {
             //if we get a next tile we can assume that a tile is focused
             let focused_id = self.focused_window_id.unwrap();
             self.swap_tiles(next_id, focused_id);
             self.focus_stack.push((direction, next_id));
         }
-
-        Ok(())
     }
-    fn check_focus_stack(
-        &mut self,
-        direction: Direction,
-    ) -> Result<Option<Tile>, util::WinApiResultError> {
+    fn check_focus_stack(&mut self, direction: Direction) -> Option<Tile> {
         if let Some(prev) = self.focus_stack.pop() {
             // This variable says that the action cancels the previous action.
             // Example: Left -> Right
@@ -200,7 +224,7 @@ impl TileGrid {
 
                 if let Some(tile) = maybe_tile {
                     debug!("The direction counters the previous one. Reverting the previous one.");
-                    return Ok(Some(tile));
+                    return Some(tile);
                 }
             }
 
@@ -212,10 +236,10 @@ impl TileGrid {
             }
         }
 
-        Ok(None)
+        None
     }
-    pub fn focus(&mut self, direction: Direction) -> Result<(), util::WinApiResultError> {
-        if let Some(tile) = self.check_focus_stack(direction)? {
+    pub fn focus(&mut self, direction: Direction) -> SystemResult {
+        if let Some(tile) = self.check_focus_stack(direction) {
             self.focused_window_id = Some(tile.window.id);
             tile.window.focus()?;
             return Ok(());
@@ -235,19 +259,19 @@ impl TileGrid {
 
         Ok(())
     }
-    pub fn focus_right(&mut self) -> Result<(), util::WinApiResultError> {
+    pub fn focus_right(&mut self) -> SystemResult {
         self.focus(Direction::Right)
     }
-    pub fn focus_left(&mut self) -> Result<(), util::WinApiResultError> {
+    pub fn focus_left(&mut self) -> SystemResult {
         self.focus(Direction::Left)
     }
-    pub fn focus_up(&mut self) -> Result<(), util::WinApiResultError> {
+    pub fn focus_up(&mut self) -> SystemResult {
         self.focus(Direction::Up)
     }
-    pub fn focus_down(&mut self) -> Result<(), util::WinApiResultError> {
+    pub fn focus_down(&mut self) -> SystemResult {
         self.focus(Direction::Down)
     }
-    pub fn close_tile_by_window_id(&mut self, id: i32) -> Option<Tile> {
+    pub fn close_tile_by_window_id(&mut self, id: WindowId) -> Option<Tile> {
         let maybe_removed_tile = self
             .tiles
             .iter()
@@ -363,7 +387,7 @@ impl TileGrid {
 
         maybe_removed_tile
     }
-    pub fn split(&mut self, window: Window) {
+    pub fn split(&mut self, window: NativeWindow) {
         if self.tiles.iter().any(|t| t.window.id == window.id) {
             return;
         }
@@ -450,122 +474,20 @@ impl TileGrid {
         }
     }
 
-    fn get_row_modifications(&self, row: Option<i32>) -> Option<(i32, i32)> {
+    pub fn get_row_modifications(&self, row: Option<i32>) -> Option<(i32, i32)> {
         row.and_then(|value| self.row_modifications.get(&value))
             .copied()
     }
-    fn get_column_modifications(&self, column: Option<i32>) -> Option<(i32, i32)> {
+    pub fn get_column_modifications(&self, column: Option<i32>) -> Option<(i32, i32)> {
         column
             .and_then(|value| self.column_modifications.get(&value))
             .copied()
     }
-    fn get_modifications(&self, tile: &Tile) -> (Option<(i32, i32)>, Option<(i32, i32)>) {
+    pub fn get_modifications(&self, tile: &Tile) -> (Option<(i32, i32)>, Option<(i32, i32)>) {
         (
             self.get_column_modifications(tile.column),
             self.get_row_modifications(tile.row),
         )
-    }
-    /// Converts the percentage to the real pixel value of the current display
-    fn percentage_to_real(&self, p: i32) -> i32 {
-        self.display.working_area_height() / 100 * p
-    }
-    /// Calculates all the data required for drawing the tile
-    fn calculate_tile_data(&self, tile: &Tile) -> RECT {
-        let (padding, margin) = {
-            let config = CONFIG.lock();
-
-            (config.inner_gap, config.outer_gap)
-        };
-        let display_height = self.display.working_area_height() - margin * 2 - padding * 2;
-        let display_width = self.display.working_area_width() - margin * 2 - padding * 2;
-        let column_width = display_width / self.columns;
-        let row_height = display_height / self.rows;
-        let mut x = self.display.working_area_left();
-        let mut y = self.display.working_area_top();
-        let mut height = display_height;
-        let mut width = display_width;
-
-        if !self.fullscreen {
-            if let Some(column) = tile.column {
-                width = column_width;
-                x += column_width * (column - 1);
-
-                if column > 1 {
-                    width -= padding;
-                    x += padding;
-                }
-            }
-
-            if let Some(row) = tile.row {
-                height = row_height;
-                y = row_height * (row - 1);
-
-                if row > 1 {
-                    height -= padding;
-                    y += padding;
-                }
-            }
-
-            x += margin;
-            x += padding;
-            y += margin;
-            y += padding;
-
-            let (column_modifications, row_modifications) = self.get_modifications(tile);
-
-            if let Some(modifications) = column_modifications {
-                let real_left = self.percentage_to_real(modifications.0);
-                let real_right = self.percentage_to_real(modifications.1);
-
-                x -= real_left;
-                width += real_right + real_left;
-            }
-            if let Some(modifications) = row_modifications {
-                let real_top = self.percentage_to_real(modifications.0);
-                let real_bottom = self.percentage_to_real(modifications.1);
-
-                y -= real_top;
-                height += real_bottom + real_top;
-            }
-
-            // column to the right
-            if let Some(modifications) = self.get_column_modifications(tile.column.map(|x| x + 1)) {
-                let real_left = self.percentage_to_real(modifications.0);
-
-                width -= real_left;
-            }
-
-            // row below
-            if let Some(modifications) = self.get_row_modifications(tile.row.map(|x| x + 1)) {
-                let real_top = self.percentage_to_real(modifications.0);
-
-                height -= real_top;
-            }
-
-            // column to the left
-            if let Some(modifications) = self.get_column_modifications(tile.column.map(|x| x - 1)) {
-                let real_right = self.percentage_to_real(modifications.1);
-
-                x += real_right;
-                width -= real_right;
-            }
-
-            // row above
-            if let Some(modifications) = self.get_row_modifications(tile.row.map(|x| x - 1)) {
-                let real_bottom = self.percentage_to_real(modifications.1);
-
-                y += real_bottom;
-                height -= real_bottom;
-            }
-        } else {
-            x += margin;
-            x += padding;
-            y += margin;
-            y += padding;
-        }
-
-        tile.window
-            .calculate_window_rect(&self.display, x, y, width, height)
     }
 
     pub fn resize_column(&mut self, column: i32, direction: Direction, amount: i32) {
@@ -595,22 +517,6 @@ impl TileGrid {
             }
 
             self.row_modifications.insert(row, modification);
-        }
-    }
-
-    fn draw_tile(&self, tile: &Tile) {
-        let rect = self.calculate_tile_data(tile);
-
-        unsafe {
-            SetWindowPos(
-                tile.window.id as HWND,
-                std::ptr::null_mut(),
-                rect.left,
-                rect.top,
-                rect.right - rect.left,
-                rect.bottom - rect.top,
-                SWP_NOSENDCHANGING,
-            );
         }
     }
 
@@ -672,20 +578,23 @@ impl TileGrid {
         println!();
     }
 
-    pub fn draw_grid(&self) {
+    pub fn draw_grid(&self, display: &Display, config: &Config) -> SystemResult {
         debug!("Drawing grid");
 
         if self.fullscreen {
-            self.draw_tile(self.get_focused_tile().expect("Couldn't get focused tile"));
-            return;
+            if let Some(tile) = self.get_focused_tile() {
+                self.renderer.render(self, tile, config, display)?;
+            }
+        } else {
+            for tile in &self.tiles {
+                debug!("{:?}", tile);
+
+                self.renderer.render(self, tile, config, display)?;
+            }
+
+            // self.print_grid();
         }
 
-        for tile in &self.tiles {
-            debug!("{:?}", tile);
-
-            self.draw_tile(tile);
-        }
-
-        // self.print_grid();
+        Ok(())
     }
 }

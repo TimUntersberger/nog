@@ -1,103 +1,307 @@
-use super::{get_bar_by_hmonitor, get_windows, redraw::redraw, window_cb, Bar, BARS};
-use crate::{event::Event, message_loop, util, CHANNEL, CONFIG, DISPLAYS};
+use super::{
+    component::Component, component::ComponentText, item::Item, item_section::ItemSection, Bar,
+};
+use crate::{
+    config::Config, display::Display, event::Event, system::Rectangle, window::Api,
+    window::WindowEvent, AppState, NOG_BAR_NAME,
+};
 use log::{debug, error, info};
-use winapi::{shared::minwindef::HINSTANCE, um::shellapi::ABM_SETAUTOHIDEBAR, um::winuser::WM_APP};
-use winapi::shared::windef::{HBRUSH, HWND, RECT};
-use winapi::um::shellapi::{
-    SHAppBarMessage, ABE_TOP, ABM_NEW, ABM_QUERYPOS, ABM_SETPOS, APPBARDATA,
-};
-use winapi::um::wingdi::CreateSolidBrush;
-use winapi::um::winuser::{
-    GetWindowRect, MoveWindow, RegisterClassA, ShowWindow, SW_SHOW, WNDCLASSA,
-};
+use parking_lot::Mutex;
+use std::{sync::Arc, thread, time::Duration};
 
-pub fn create() -> Result<(), util::WinApiResultError> {
-    info!("Creating appbar");
+fn spawn_refresh_thread(state_arc: Arc<Mutex<AppState>>) {
+    let state = state_arc.clone();
+    let sender = state.lock().event_channel.sender.clone();
 
-    let name = "nog_bar";
+    thread::spawn(move || loop {
+        thread::sleep(Duration::from_millis(100));
 
-    let app_bar_bg = CONFIG.lock().bar.color;
-    let height = CONFIG.lock().bar.height;
+        let state = state.lock();
 
-    std::thread::spawn(|| loop {
-        std::thread::sleep(std::time::Duration::from_millis(200));
-
-        if get_windows().is_empty() {
+        if !state.work_mode || !state.config.display_app_bar {
             break;
         }
 
-        CHANNEL
-            .sender
-            .clone()
-            .send(Event::RedrawAppBar)
+        drop(state);
+
+        sender
+            .send_timeout(Event::RedrawAppBar, Duration::from_millis(100))
             .expect("Failed to send redraw-app-bar event");
     });
+}
 
-    for display in DISPLAYS.lock().clone() {
-        std::thread::spawn(move || unsafe {
-            if get_bar_by_hmonitor(display.hmonitor as i32).is_some() {
-                error!(
-                    "Appbar for monitor {} already exists. Aborting",
-                    display.hmonitor as i32
-                );
-            }
+fn draw_component_text(
+    api: &Api,
+    rect: &Rectangle,
+    config: &Config,
+    component_text: &ComponentText,
+) {
+    let text = component_text.get_text();
 
-            debug!("Creating appbar for display {}", display.hmonitor as i32);
-
-            let working_area_width = display.working_area_width();
-
-            let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
-
-            let background_brush = CreateSolidBrush(app_bar_bg as u32);
-
-            let class = WNDCLASSA {
-                hInstance: instance as HINSTANCE,
-                lpszClassName: name.as_ptr() as *const i8,
-                lpfnWndProc: Some(window_cb),
-                hbrBackground: background_brush as HBRUSH,
-                ..WNDCLASSA::default()
-            };
-
-            RegisterClassA(&class);
-
-            let window_handle = winapi::um::winuser::CreateWindowExA(
-                winapi::um::winuser::WS_EX_NOACTIVATE | winapi::um::winuser::WS_EX_TOPMOST,
-                name.as_ptr() as *const i8,
-                name.as_ptr() as *const i8,
-                winapi::um::winuser::WS_POPUPWINDOW & !winapi::um::winuser::WS_BORDER,
-                display.working_area_left(),
-                display.working_area_top(),
-                working_area_width,
-                height,
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
-                instance as HINSTANCE,
-                std::ptr::null_mut(),
-            );
-
-            let mut bar = Bar::default();
-
-            bar.hmonitor = display.hmonitor as i32;
-            bar.window.id = window_handle as i32;
-
-            BARS.lock().push(bar);
-
-            ShowWindow(window_handle, SW_SHOW);
-            redraw();
-
-            let mut appbar_data: APPBARDATA = APPBARDATA {
-                cbSize: 4 + 4 + 4 + 4 + 16 + 4,
-                hWnd: window_handle as HWND,
-                uCallbackMessage: WM_APP + 1,
-                uEdge: ABE_TOP,
-                ..Default::default()
-            };
-
-            SHAppBarMessage(ABM_NEW, &mut appbar_data as *mut APPBARDATA);
-
-            message_loop::start(|_| true);
-        });
+    if text.is_empty() {
+        return;
     }
 
-    Ok(())
+    let fg = component_text.get_fg().unwrap_or(if config.light_theme {
+        0x00333333
+    } else {
+        0x00ffffff
+    });
+
+    let bg = component_text.get_bg().unwrap_or(config.bar.color as u32);
+
+    api.set_text_color(fg);
+    api.set_background_color(bg);
+    api.write_text(&text, rect.left, rect.top, true, false)
+}
+
+fn draw_components(
+    api: &Api,
+    display: &Display,
+    state: &AppState,
+    mut offset: i32,
+    components: &[Component],
+) {
+    for component in components {
+        let component_texts = component.render(display, state);
+
+        for (_i, component_text) in component_texts.iter().enumerate() {
+            let width = api.calculate_text_rect(&component_text.get_text()).width();
+
+            let rect = Rectangle {
+                left: offset,
+                right: offset + width,
+                bottom: state.config.bar.height,
+                top: 0,
+            };
+
+            offset = rect.right;
+
+            draw_component_text(api, &rect, &state.config, &component_text);
+        }
+    }
+}
+
+fn components_to_section(
+    api: &Api,
+    display: &Display,
+    state: &AppState,
+    components: &[Component],
+) -> ItemSection {
+    let mut section = ItemSection::default();
+    let mut component_offset = 0;
+
+    for component in components {
+        let mut item = Item::default();
+        let mut component_text_offset = 0;
+        let mut component_width = 0;
+
+        for component_text in component.render(display, state) {
+            let width = api.calculate_text_rect(&component_text.get_text()).width();
+            let left = component_text_offset;
+            let right = component_text_offset + width;
+
+            item.widths.push((left, right));
+
+            component_width += width;
+            component_text_offset += width;
+        }
+
+        item.left = component_offset;
+        item.right = item.left + component_width;
+        item.component = component.clone();
+
+        section.items.push(item);
+
+        component_offset += component_width;
+    }
+
+    section.right = component_offset;
+
+    section
+}
+
+fn clear_section(api: &Api, config: &Config, left: i32, right: i32) {
+    api.fill_rect(left, 0, right - left, config.bar.height, config.bar.color)
+}
+
+pub fn create(state_arc: Arc<Mutex<AppState>>) {
+    info!("Creating appbar");
+
+    spawn_refresh_thread(state_arc.clone());
+
+    let mut state = state_arc.lock();
+    let config = state.config.clone();
+
+    let sender = state.event_channel.sender.clone();
+
+    for display in state.displays.iter_mut() {
+        if display.appbar.is_some() {
+            error!(
+                "Appbar for monitor {:?} already exists. Aborting",
+                display.id
+            );
+            continue;
+        }
+
+        debug!("Creating appbar for display {:?}", display.id);
+        let mut bar = Bar::default();
+
+        bar.display_id = display.id;
+
+        let left = display.working_area_left();
+        let top = display.working_area_top(&config) - config.bar.height;
+        let width = display.working_area_width(&config);
+
+        bar.window = bar
+            .window
+            .with_is_popup(true)
+            .with_border(false)
+            .with_title(NOG_BAR_NAME)
+            .with_font(&config.bar.font)
+            .with_background_color(config.bar.color as u32)
+            .with_pos(left, top)
+            .with_size(width, config.bar.height);
+
+        let sender = sender.clone();
+
+        bar.window
+            .create(state_arc.clone(), true, move |event| match event {
+                WindowEvent::Click {
+                    x, display, state, ..
+                } => {
+                    display
+                        .appbar
+                        .as_ref()
+                        .and_then(|b| b.item_at_pos(*x).cloned())
+                        .map(|item| {
+                            if item.component.is_clickable {
+                                for (i, width) in item.widths.iter().enumerate() {
+                                    if width.0 <= *x && *x <= width.1 {
+                                        item.component.on_click(display, state, i);
+                                    }
+                                }
+                            }
+                        });
+                }
+                WindowEvent::MouseMove {
+                    x, api, display, ..
+                } => {
+                    display
+                        .appbar
+                        .as_ref()
+                        .and_then(|b| b.item_at_pos(*x))
+                        .map(|item| {
+                            if item.component.is_clickable {
+                                api.set_clickable_cursor();
+                            } else {
+                                api.set_default_cursor();
+                            }
+                        })
+                        .or_else(|| {
+                            api.set_default_cursor();
+                            None
+                        });
+                }
+                WindowEvent::Draw {
+                    api,
+                    display,
+                    state,
+                    ..
+                } => {
+                    if let Some(bar) = display.appbar.as_ref() {
+                        let working_area_width = display.working_area_width(&state.config);
+                        let left = components_to_section(
+                            api,
+                            &display,
+                            state,
+                            &state.config.bar.components.left,
+                        );
+
+                        let mut center = components_to_section(
+                            api,
+                            &display,
+                            state,
+                            &state.config.bar.components.center,
+                        );
+
+                        center.left = working_area_width / 2 - center.right / 2;
+                        center.right += center.left;
+
+                        let mut right = components_to_section(
+                            api,
+                            &display,
+                            state,
+                            &state.config.bar.components.right,
+                        );
+                        right.left = working_area_width - right.right;
+                        right.right += right.left;
+
+                        draw_components(
+                            api,
+                            &display,
+                            state,
+                            left.left,
+                            &state.config.bar.components.left,
+                        );
+                        draw_components(
+                            api,
+                            &display,
+                            state,
+                            center.left,
+                            &state.config.bar.components.center,
+                        );
+                        draw_components(
+                            api,
+                            &display,
+                            state,
+                            right.left,
+                            &state.config.bar.components.right,
+                        );
+
+                        if bar.left.width() > left.width() {
+                            clear_section(api, &state.config, left.right, bar.left.right);
+                        }
+
+                        if bar.center.width() > center.width() {
+                            let delta = (bar.center.right - center.right) / 2;
+                            clear_section(
+                                api,
+                                &state.config,
+                                bar.center.left,
+                                bar.center.left + delta,
+                            );
+                            clear_section(
+                                api,
+                                &state.config,
+                                bar.center.right - delta,
+                                bar.center.right,
+                            );
+                        }
+
+                        if bar.right.width() > right.width() {
+                            clear_section(api, &state.config, bar.right.left, right.left);
+                        }
+
+                        sender
+                            .send(Event::UpdateBarSections(display.id, left, center, right))
+                            .expect("Failed to send UpdateBarSections event");
+                    }
+                }
+                _ => {}
+            });
+
+        display.appbar = Some(bar);
+    }
+}
+
+#[test]
+pub fn test() {
+    crate::logging::setup();
+    // let state = AppState::new();
+    // create(state);
+
+    loop {
+        thread::sleep(Duration::from_millis(1000));
+    }
 }

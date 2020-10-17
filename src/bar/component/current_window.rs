@@ -1,16 +1,17 @@
 use super::{Component, ComponentText};
-use crate::{display::Display, with_current_grid};
 use std::sync::Arc;
 
-fn render(_: &Component, _: &Display) -> Vec<ComponentText> {
-    with_current_grid(|grid| {
-        vec![grid
-            .get_focused_tile()
-            .map(|t| ComponentText::Basic(t.window.title.clone()))
-            .unwrap_or(ComponentText::Basic("".into()))]
-    })
-}
-
 pub fn create() -> Component {
-    Component::new("ActiveMode", Arc::new(render))
+    Component::new(
+        "CurrentWindow",
+        Arc::new(|ctx| {
+            vec![ctx
+                .state
+                .get_display_by_id(ctx.display.id)
+                .and_then(|d| d.get_focused_grid())
+                .and_then(|g| g.get_focused_tile())
+                .map(|t| ComponentText::Basic(t.window.title.clone()))
+                .unwrap_or(ComponentText::Basic("".into()))]
+        }),
+    )
 }

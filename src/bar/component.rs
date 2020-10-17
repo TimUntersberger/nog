@@ -1,4 +1,4 @@
-use crate::display::Display;
+use crate::{display::Display, AppState};
 use std::{fmt::Debug, sync::Arc};
 
 pub mod active_mode;
@@ -38,9 +38,9 @@ impl ComponentText {
     }
 }
 
-pub type RenderFn = Arc<dyn Fn(&Component, &Display) -> Vec<ComponentText> + Send + Sync>;
+pub type RenderFn = Arc<dyn Fn(RenderContext) -> Vec<ComponentText> + Send + Sync>;
 /// Receives the Component, the display and the idx of ComponentText which got clicked
-pub type OnClickFn = Arc<dyn Fn(&Component, &Display, usize) -> () + Send + Sync>;
+pub type OnClickFn = Arc<dyn Fn(OnClickContext) -> () + Send + Sync>;
 
 #[derive(Clone)]
 pub struct Component {
@@ -55,10 +55,21 @@ impl Default for Component {
         Self {
             name: "Default".into(),
             is_clickable: false,
-            render_fn: Arc::new(|_, _| vec![ComponentText::Basic("Hello World".into())]),
+            render_fn: Arc::new(|_| vec![ComponentText::Basic("Hello World".into())]),
             on_click_fn: None,
         }
     }
+}
+
+pub struct RenderContext<'a> {
+    pub display: &'a Display,
+    pub state: &'a AppState,
+}
+
+pub struct OnClickContext<'a> {
+    pub display: &'a Display,
+    pub state: &'a AppState,
+    pub idx: usize,
 }
 
 impl Component {
@@ -71,16 +82,20 @@ impl Component {
         }
     }
 
-    pub fn on_click(&self, display: &Display, idx: usize) {
-        if let Some(fun) = self.on_click_fn.clone() {
-            fun(self, display, idx);
+    pub fn on_click(&self, display: &Display, state: &AppState, idx: usize) {
+        if let Some(f) = self.on_click_fn.clone() {
+            f(OnClickContext {
+                display,
+                state,
+                idx,
+            });
         }
     }
 
-    pub fn render(&self, display: &Display) -> Vec<ComponentText> {
+    pub fn render(&self, display: &Display, state: &AppState) -> Vec<ComponentText> {
         let f = self.render_fn.clone();
 
-        f(self, display)
+        f(RenderContext { display, state })
     }
 
     pub fn with_on_click(&mut self, f: OnClickFn) -> &mut Self {

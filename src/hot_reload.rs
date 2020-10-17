@@ -1,95 +1,91 @@
-use crate::{
-    bar, config::Config, display::get_display_by_hmonitor, keybindings, startup, task_bar,
-    with_current_grid, CONFIG, DISPLAYS, GRIDS, WORK_MODE,
-};
+use std::sync::Arc;
 
-pub fn update_config(new_config: Config) -> Result<(), Box<dyn std::error::Error>> {
-    keybindings::unregister();
+use parking_lot::Mutex;
 
-    let config = CONFIG.lock().clone();
-    let work_mode = *WORK_MODE.lock();
+use crate::{bar, config::Config, startup, system::SystemResult, task_bar, AppState};
+
+pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> SystemResult {
+    let mut state = state_arc.lock();
+    let work_mode = state.work_mode;
     let mut draw_app_bar = false;
-    let mut update_grid_displays = false;
+    let mut close_app_bars = false;
+    let old_config = state.config.clone();
+
+    state.config = new_config;
+
+    state.keybindings_manager.stop();
 
     if work_mode {
-        if config.remove_task_bar && !new_config.remove_task_bar {
-            task_bar::show_taskbars();
-            bar::close::close();
-            draw_app_bar = new_config.display_app_bar;
-            update_grid_displays = true;
-        } else if !config.remove_task_bar && new_config.remove_task_bar {
-            task_bar::hide_taskbars();
-            bar::close::close();
-            draw_app_bar = new_config.display_app_bar;
-            update_grid_displays = true;
+        if old_config.remove_task_bar && !state.config.remove_task_bar {
+            state.show_taskbars();
+            close_app_bars = true;
+            draw_app_bar = state.config.display_app_bar;
+        } else if !old_config.remove_task_bar && state.config.remove_task_bar {
+            task_bar::hide_taskbars(&mut state);
+            close_app_bars = true;
+            draw_app_bar = state.config.display_app_bar;
         }
 
-        if config.display_app_bar && new_config.display_app_bar {
-            if config.bar != new_config.bar || config.light_theme != new_config.light_theme {
-                bar::close::close();
+        if old_config.display_app_bar && state.config.display_app_bar {
+            if old_config.bar != state.config.bar
+                || old_config.light_theme != state.config.light_theme
+            {
+                close_app_bars = true;
                 draw_app_bar = true;
             }
-        } else if config.display_app_bar && !new_config.display_app_bar {
-            bar::close::close();
-
-            for d in DISPLAYS.lock().iter_mut() {
-                d.bottom += config.bar.height;
-            }
-
-            update_grid_displays = true;
-        } else if !config.display_app_bar && new_config.display_app_bar {
+        } else if old_config.display_app_bar && !state.config.display_app_bar {
+            close_app_bars = true;
+        } else if !old_config.display_app_bar && state.config.display_app_bar {
             draw_app_bar = true;
-
-            for d in DISPLAYS.lock().iter_mut() {
-                d.bottom -= config.bar.height;
-            }
-
-            update_grid_displays = true;
-        }
-
-        if update_grid_displays {
-            for grid in GRIDS.lock().iter_mut() {
-                grid.display = get_display_by_hmonitor(grid.display.hmonitor);
-            }
         }
     }
 
-    if config.remove_title_bar && !new_config.remove_title_bar {
-        let mut grids = GRIDS.lock();
+    //TODO: handle multi monitor change
 
-        for grid in grids.iter_mut() {
+    if old_config.remove_title_bar && !state.config.remove_title_bar {
+        for grid in state.get_grids_mut().iter_mut() {
             for tile in &mut grid.tiles {
                 tile.window.reset_style();
-                tile.window.update_style();
+                tile.window
+                    .update_style()
+                    .expect("Failed to update style of window");
             }
         }
-    } else if !config.remove_title_bar && new_config.remove_title_bar {
-        let mut grids = GRIDS.lock();
-
-        for grid in grids.iter_mut() {
+    } else if !old_config.remove_title_bar && state.config.remove_title_bar {
+        let use_border = old_config.use_border;
+        for grid in state.get_grids_mut() {
             for tile in &mut grid.tiles {
-                tile.window.remove_title_bar();
-                tile.window.update_style();
+                tile.window.remove_title_bar(use_border)?;
+                tile.window
+                    .update_style()
+                    .expect("Failed to update style of window");
             }
         }
     }
 
-    if config.launch_on_startup != new_config.launch_on_startup {
-        startup::set_launch_on_startup(new_config.launch_on_startup)?;
+    if old_config.launch_on_startup != state.config.launch_on_startup {
+        startup::set_launch_on_startup(state.config.launch_on_startup);
     }
 
-    *CONFIG.lock() = new_config;
+    if close_app_bars {
+        drop(state);
+        bar::close_all(state_arc.clone());
+        state = state_arc.lock();
+    }
 
     if draw_app_bar {
-        bar::create::create()?;
-        bar::visibility::show();
+        drop(state);
+        bar::create::create(state_arc.clone());
+        state = state_arc.lock();
     }
 
-    keybindings::register()?;
+    state.keybindings_manager.start(state_arc.clone());
 
-    with_current_grid(|grid| {
-        grid.draw_grid();
-    });
+    for d in state.displays.iter() {
+        if let Some(grid) = d.get_focused_grid() {
+            grid.draw_grid(d, &old_config)?;
+        }
+    }
 
     Ok(())
 }
