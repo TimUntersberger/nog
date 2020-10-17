@@ -14,7 +14,8 @@ use std::{
     sync::mpsc::Sender,
     sync::Arc,
     thread,
-time::Duration};
+    time::Duration,
+};
 
 pub mod key;
 pub mod keybinding;
@@ -66,6 +67,7 @@ impl KbManagerInner {
     }
 }
 
+#[derive(Clone)]
 pub struct KbManager {
     inner: Arc<KbManagerInner>,
     sender: Sender<ChanMessage>,

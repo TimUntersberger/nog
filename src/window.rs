@@ -1,5 +1,7 @@
+use log::error;
 use parking_lot::Mutex;
 use std::{ffi::c_void, ffi::CString, sync::mpsc::channel, sync::Arc, thread};
+use thread::JoinHandle;
 use winapi::um::wingdi::SelectObject;
 use winapi::um::wingdi::LOGFONTA;
 use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
@@ -20,7 +22,6 @@ use winapi::{
     um::winuser::WS_EX_NOACTIVATE, um::winuser::WS_EX_TOPMOST, um::winuser::WS_OVERLAPPEDWINDOW,
     um::winuser::WS_POPUPWINDOW,
 };
-use log::error;
 
 use crate::{
     display::Display, message_loop, system::NativeWindow, system::Rectangle, system::SystemResult,
@@ -268,12 +269,12 @@ impl Window {
         state_arc: Arc<Mutex<AppState>>,
         show: bool,
         event_handler: TEventHandler,
-    ) {
+    ) -> JoinHandle<()> {
         let state = state_arc.clone();
         let inner_arc = self.inner.clone();
         let (sender, receiver) = channel();
 
-        thread::spawn(move || unsafe {
+        let t = thread::spawn(move || unsafe {
             let mut inner = inner_arc.lock();
             let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
             let c_name = CString::new(inner.title.clone().as_str()).unwrap();
@@ -337,7 +338,7 @@ impl Window {
                     if msg.message == WM_IDENT {
                         let window: NativeWindow = hwnd.into();
                         let state = state.lock();
-                        let display_id = fail_silent_with!(window.get_display(), true).id;
+                        let display_id = fail_with!(window.get_display(), true).id;
                         let display = state.displays.iter().find(|d| d.id == display_id).unwrap();
 
                         let hdc = GetDC(hwnd);
@@ -437,5 +438,7 @@ impl Window {
         });
 
         self.id = receiver.recv().unwrap();
+
+        t
     }
 }

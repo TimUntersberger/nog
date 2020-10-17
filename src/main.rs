@@ -12,10 +12,14 @@ use event::Event;
 use event::EventChannel;
 use event_handler::keybinding::toggle_work_mode;
 use hot_reload::update_config;
-use keybindings::KbManager;
+use keybindings::{
+    key::Key, keybinding::Keybinding, keybinding_type::KeybindingType, modifier::Modifier,
+    KbManager,
+};
 use log::debug;
 use log::{error, info};
 use parking_lot::{deadlock, Mutex};
+use popup::Popup;
 use std::{process, sync::Arc};
 use std::{thread, time::Duration};
 use system::{DisplayId, SystemResult, WinEventListener, WindowId};
@@ -24,16 +28,33 @@ use tile::Tile;
 use tile_grid::TileGrid;
 use window::Window;
 
+pub const NOG_BAR_NAME: &'static str = "nog_bar";
+pub const NOG_POPUP_NAME: &'static str = "nog_popup";
+
 #[macro_use]
 mod macros {
+    /// logs the amount of time it took to execute the passed expression
+    macro_rules! time {
+        ($name: expr, $expr: expr) => {{
+            let timer = std::time::Instant::now();
+            let temp = $expr;
+            log::debug!("{} took {:?}", $name, timer.elapsed());
+            temp
+        }};
+    }
+    /// This macro either gets the Ok(..) value of the first expression or returns the second
+    /// expression.
     macro_rules! fail_silent_with {
         ($expr: expr, $value: expr) => {
             match $expr {
                 Ok(r) => r,
-                Err(m) => return $value
+                Err(m) => return $value,
             };
         };
     }
+    /// This macro either gets the Ok(..) value of the first expression or returns the second
+    /// expression.
+    /// This also prints the error using log::error
     macro_rules! fail_with {
         ($expr: expr, $value: expr) => {
             match $expr {
@@ -45,6 +66,8 @@ mod macros {
             };
         };
     }
+    /// This macro either gets the Ok(..) value of the passed expression or returns an Ok(()).
+    /// This also prints the error using log::error
     macro_rules! fail {
         ($expr: expr) => {
             match $expr {
@@ -82,7 +105,7 @@ mod util;
 mod win_event_handler;
 mod window;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AppState {
     pub config: Config,
     pub work_mode: bool,
@@ -94,17 +117,36 @@ pub struct AppState {
     pub workspace_id: i32,
 }
 
+impl Default for AppState {
+    fn default() -> Self {
+        let config = Config::default();
+        Self {
+            work_mode: true,
+            displays: time!("initializing displays", display::init(&config)),
+            keybindings_manager: KbManager::new(vec![Keybinding {
+                typ: KeybindingType::CloseTile,
+                mode: None,
+                key: Key::Q,
+                modifier: Modifier::ALT,
+            }]),
+            event_channel: EventChannel::default(),
+            additonal_rules: Vec::new(),
+            window_event_listener: WinEventListener::default(),
+            workspace_id: 1,
+            config,
+        }
+    }
+}
+
 impl AppState {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, String> {
         let event_channel = EventChannel::default();
-        let config = parse_config(&event_channel)
-            .map_err(|e| error!("{}", e))
-            .expect("Failed to load config");
+        let config = parse_config(event_channel.sender.clone())?;
 
         info!("Initializing displays");
         let displays = display::init(&config);
 
-        Self {
+        Ok(Self {
             work_mode: config.work_mode,
             displays,
             keybindings_manager: KbManager::new(config.keybindings.clone()),
@@ -113,7 +155,7 @@ impl AppState {
             window_event_listener: WinEventListener::default(),
             workspace_id: 1,
             config,
-        }
+        })
     }
 
     /// TODO: maybe rename this function
@@ -315,6 +357,7 @@ fn os_specific_setup(state: Arc<Mutex<AppState>>) {
 
 fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>> {
     let receiver = state_arc.lock().event_channel.receiver.clone();
+    let sender = state_arc.lock().event_channel.sender.clone();
 
     info!("Starting hot reloading of config");
     config::hot_reloading::start(state_arc.clone());
@@ -336,9 +379,13 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
             recv(receiver) -> maybe_msg => {
                 let msg = maybe_msg.unwrap();
                 let _ = match msg {
-                    Event::NewPopup(mut p) => p.create(state_arc.clone()),
+                    Event::NewPopup(mut p) => {
+                        p.create(state_arc.clone());
+                        Ok(())
+                    },
                     Event::Keybinding(kb) => {
-                        event_handler::keybinding::handle(state_arc.clone(), kb)
+                        event_handler::keybinding::handle(state_arc.clone(), kb);
+                        Ok(())
                     },
                     Event::RedrawAppBar => {
                         let windows = state_arc.lock().displays.iter().map(|d| d.appbar.as_ref()).flatten().map(|b| b.window.clone()).collect::<Vec<Window>>();
@@ -356,10 +403,17 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
                     },
                     Event::ReloadConfig => {
                         info!("Reloading Config");
-                        let new_config = parse_config(&state_arc.lock().event_channel)
-                            .map_err(|e| error!("{}", e))
-                            .expect("Failed to load config");
-                        update_config(state_arc.clone(), new_config)
+                        match parse_config(sender.clone()) {
+                            Ok(new_config) => update_config(state_arc.clone(), new_config),
+                            Err(e) => {
+                                sender.send(Event::NewPopup(Popup::new()
+                                    .with_padding(5)
+                                    .with_text(&[&e])
+                                ));
+                                Ok(())
+                            }
+
+                        }
                     },
                     Event::UpdateBarSections(display_id, left, center, right) => {
                         let mut state = state_arc.lock();
@@ -394,7 +448,19 @@ fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
     logging::setup().expect("Failed to setup logging");
 
-    let state_arc = Arc::new(Mutex::new(AppState::new()));
+    let state_arc = Arc::new(Mutex::new(AppState::new().unwrap_or_else(|e| {
+        let state = AppState::default();
+        let state_arc = Arc::new(Mutex::new(state));
+
+        Popup::new()
+            .with_padding(5)
+            .with_text(&[&e, "", "(Press Alt+Q to close)"])
+            .create(state_arc.clone())
+            .unwrap();
+
+        AppState::default()
+    })));
+
     let arc = state_arc.clone();
 
     thread::spawn(move || loop {

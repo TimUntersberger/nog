@@ -5,6 +5,7 @@ use crate::{
     system::SystemError, system::SystemResult, task_bar::Taskbar, task_bar::TaskbarPosition, util,
 };
 use log::{debug, error};
+use regex::Regex;
 use winapi::{
     shared::{minwindef::*, windef::*},
     um::{
@@ -14,6 +15,12 @@ use winapi::{
 };
 
 use super::{bool_to_result, nullable_to_result, Window};
+use lazy_static::lazy_static;
+
+lazy_static! {
+    static ref TASKBAR_WINDOW_NAME_REGEX: Regex =
+        Regex::new("^Shell_(Secondary)?TrayWnd$").expect("Failed to build taskbar name regex");
+}
 
 unsafe extern "system" fn monitor_cb(
     hmonitor: HMONITOR,
@@ -75,9 +82,7 @@ unsafe extern "system" fn enum_windows_task_bars_cb(hwnd: HWND, l_param: LPARAM)
     let taskbars = &mut *(l_param as *mut Vec<Taskbar>);
     let mut window: Window = hwnd.into();
     let class_name = window.get_class_name().expect("Failed to get class name");
-    let is_task_bar = regex::Regex::new("^Shell_(Secondary)?TrayWnd$")
-        .expect("Failed to build regex")
-        .is_match(&class_name);
+    let is_task_bar = TASKBAR_WINDOW_NAME_REGEX.is_match(&class_name);
 
     if is_task_bar {
         window.init().expect("Failed to init taskbar window");

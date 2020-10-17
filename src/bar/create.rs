@@ -2,14 +2,13 @@ use super::{
     component::Component, component::ComponentText, item::Item, item_section::ItemSection, Bar,
 };
 use crate::{
+    NOG_BAR_NAME,
     config::Config, display::Display, event::Event, system::Rectangle, window::Api,
     window::WindowEvent, AppState,
 };
 use log::{debug, error, info};
 use parking_lot::Mutex;
 use std::{sync::Arc, thread, time::Duration};
-
-pub const NOG_BAR_NAME: &'static str = "nog_bar";
 
 fn spawn_refresh_thread(state_arc: Arc<Mutex<AppState>>) {
     let state = state_arc.clone();

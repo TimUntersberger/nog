@@ -1,9 +1,9 @@
 use super::nullable_to_result;
 use crate::{
-    bar::create::NOG_BAR_NAME, event::Event, event::EventChannel, message_loop,
+    NOG_BAR_NAME, event::Event, event::EventChannel, message_loop,
     system::NativeWindow, win_event_handler::win_event::WinEvent,
     win_event_handler::win_event_type::WinEventType,
-};
+NOG_POPUP_NAME};
 use lazy_static::lazy_static;
 use log::debug;
 use parking_lot::Mutex;
@@ -37,7 +37,7 @@ unsafe extern "system" fn handler(
     let window: NativeWindow = hwnd.into();
 
     if let Ok(title) = window.get_title() {
-        if title == NOG_BAR_NAME {
+        if title == NOG_BAR_NAME || title == NOG_POPUP_NAME {
             return;
         }
     }
@@ -58,7 +58,7 @@ unsafe extern "system" fn handler(
         .expect("Failed to forward WinEvent");
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WinEventListener {
     stopped: Arc<AtomicBool>,
     hook: Arc<AtomicPtr<HWINEVENTHOOK__>>,

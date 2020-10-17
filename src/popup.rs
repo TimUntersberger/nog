@@ -1,8 +1,8 @@
 use crate::{
     system::Rectangle, system::SystemResult, window::Window, window::WindowEvent, AppState,
-};
+NOG_POPUP_NAME};
 use parking_lot::Mutex;
-use std::{fmt::Debug, sync::Arc};
+use std::{fmt::Debug, sync::Arc, thread::JoinHandle};
 
 static POPUP: Mutex<Option<Popup>> = Mutex::new(None);
 
@@ -51,19 +51,18 @@ impl Popup {
     /// Creates the window for the popup with the configured parameters.
     ///
     /// This function closes a popup that is currently visible.
-    pub fn create(&mut self, state_arc: Arc<Mutex<AppState>>) -> SystemResult {
+    pub fn create(&mut self, state_arc: Arc<Mutex<AppState>>) -> SystemResult<JoinHandle<()>> {
         if is_visible() {
             close()?;
         }
 
-        let state_arc = state_arc.clone();
         let state = state_arc.lock();
 
         let text = self.text.join("\n");
         let padding = self.padding;
 
         let mut window = Window::new()
-            .with_title("NogPopup")
+            .with_title(NOG_POPUP_NAME)
             .with_font(&state.config.bar.font)
             .with_size(10, 10)
             .with_font_size(state.config.bar.font_size)
@@ -72,7 +71,7 @@ impl Popup {
 
         drop(state);
 
-        window.create(state_arc, true, move |event| match event {
+        let t = window.create(state_arc, true, move |event| match event {
             WindowEvent::Draw { api, .. } => {
                 let rect = api.calculate_text_rect(&text);
 
@@ -104,7 +103,7 @@ impl Popup {
         self.window = Some(window);
         *POPUP.lock() = Some(self.clone());
 
-        Ok(())
+        Ok(t)
     }
 }
 

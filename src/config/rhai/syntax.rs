@@ -67,7 +67,7 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
             kb.typ = binding;
             kb.mode = MODE.lock().clone();
 
-            cfg.lock().keybindings.push(kb);
+            cfg.lock().add_keybinding(kb);
 
             Ok(().into())
         },
@@ -102,7 +102,7 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
                 kb.typ = binding;
                 kb.mode = MODE.lock().clone();
 
-                cfg.lock().keybindings.push(kb);
+                cfg.lock().add_keybinding(kb);
             }
 
             Ok(().into())

@@ -21,7 +21,7 @@ pub enum Event {
 pub type EventSender = Sender<Event>;
 pub type EventReceiver = Receiver<Event>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct EventChannel {
     pub sender: EventSender,
     pub receiver: EventReceiver,

@@ -2,14 +2,14 @@ use crate::{
     config::rhai::engine,
     event::Event,
     event::EventChannel,
+    event::EventSender,
     popup::{Popup, PopupAction},
 };
 
 use rhai::{Array, Engine, FnPtr, Map};
 use std::sync::Arc;
 
-pub fn init(engine: &mut Engine, chan: &EventChannel) {
-    let sender = chan.sender.clone();
+pub fn init(engine: &mut Engine, sender: EventSender) {
     #[allow(deprecated)]
     engine.register_raw_fn(
         "popup_new",

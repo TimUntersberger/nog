@@ -192,12 +192,13 @@ impl Display {
 
 pub fn init(config: &Config) -> Vec<Display> {
     let mut displays = api::get_displays();
+    let taskbars = api::get_taskbars();
 
     for d in displays.iter_mut() {
-        for tb in api::get_taskbars() {
+        for tb in &taskbars {
             let display = tb.window.get_display().unwrap();
             if display.id == d.id {
-                d.taskbar = Some(tb);
+                d.taskbar = Some(tb.clone());
             }
         }
     }

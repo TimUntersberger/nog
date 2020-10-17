@@ -1,9 +1,9 @@
 use rhai::Engine;
 
-use crate::event::EventChannel;
+use crate::event::{EventChannel, EventSender};
 
 mod popup;
 
-pub fn init(engine: &mut Engine, chan: &EventChannel) {
-    popup::init(engine, chan);
+pub fn init(engine: &mut Engine, sender: EventSender) {
+    popup::init(engine, sender);
 }

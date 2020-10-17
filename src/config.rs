@@ -1,4 +1,4 @@
-use crate::keybindings::keybinding::Keybinding;
+use crate::keybindings::{keybinding::Keybinding, key::Key, modifier::Modifier, keybinding_type::KeybindingType};
 use bar_config::BarConfig;
 use log::error;
 use rule::Rule;
@@ -33,7 +33,7 @@ pub struct Config {
     pub rules: Vec<Rule>,
     pub update_channels: Vec<UpdateChannel>,
     pub default_update_channel: Option<String>,
-    pub update_interval: Duration, //minutes
+    pub update_interval: Duration,
     /// contains the metadata for each mode (like an icon)
     /// HashMap<mode, (Option<char>)>
     pub mode_meta: HashMap<String, Option<char>>,
@@ -43,17 +43,17 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             launch_on_startup: false,
-            min_height: 0,
-            min_width: 0,
-            use_border: false,
+            min_height: 200,
+            min_width: 200,
+            use_border: true,
             outer_gap: 0,
             inner_gap: 0,
-            remove_title_bar: false,
-            work_mode: true,
+            remove_title_bar: true,
+            work_mode: false,
             light_theme: false,
             multi_monitor: false,
-            remove_task_bar: false,
-            display_app_bar: false,
+            remove_task_bar: true,
+            display_app_bar: true,
             bar: BarConfig::default(),
             mode_meta: HashMap::new(),
             workspace_settings: Vec::new(),
@@ -105,6 +105,19 @@ impl Config {
             _ => error!("Attempt to toggle unknown field: {}", field),
         }
         config
+    }
+
+    pub fn add_keybinding(&mut self, keybinding: Keybinding) {
+        if let Some(kb) = self.keybindings.iter_mut().find(|kb| kb.key == keybinding.key && kb.modifier == keybinding.modifier) {
+            kb.typ = keybinding.typ;
+            kb.mode = keybinding.mode;
+        } else {
+            self.keybindings.push(keybinding);
+        }
+    }
+
+    pub fn get_keybinding_of_type(&self, kind: KeybindingType) -> Option<&Keybinding> {
+        self.keybindings.iter().find(|kb| kb.typ == kind)
     }
 
     pub fn set_bool_field(&self, field: &str, value: bool) -> Config {
