@@ -1,18 +1,13 @@
 use super::{functions, lib, modules, syntax, types};
-use crate::config::Config;
+use crate::{config::Config, event::EventChannel, AppState};
 use lazy_static::lazy_static;
 use log::{debug, error};
+use parking_lot::Mutex;
 use rhai::{
     module_resolvers::{FileModuleResolver, ModuleResolversCollection},
     Engine, FnPtr, Scope,
 };
-use std::{
-    io::Write,
-    path::PathBuf,
-    sync::{Arc},
-};
-use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
-use parking_lot::Mutex;
+use std::{io::Write, path::PathBuf, sync::Arc, thread};
 
 lazy_static! {
     pub static ref MODE: Mutex<Option<String>> = Mutex::new(None);
@@ -30,27 +25,29 @@ pub fn add_callback(fp: FnPtr) -> usize {
 }
 
 pub fn call(idx: usize) {
-    let engine = ENGINE.lock();
-    let ast = AST.lock();
-    let callbacks = CALLBACKS.lock();
-    let _ = callbacks[idx]
-        .call_dynamic(&*engine, &*ast, None, [])
-        .map_err(|e| error!("{}", e.to_string()));
+    thread::spawn(move || {
+        let engine = ENGINE.lock();
+        let ast = AST.lock();
+        let callbacks = CALLBACKS.lock();
+        let _ = callbacks[idx]
+            .call_dynamic(&*engine, &*ast, None, [])
+            .map_err(|e| error!("{}", e.to_string()));
+    });
 }
 
 fn build_relative_resolver(config_path: &PathBuf) -> FileModuleResolver {
     FileModuleResolver::new_with_path_and_extension(config_path.clone(), "nog")
 }
 
-pub fn parse_config() -> Result<Config, String> {
+pub fn parse_config(state_arc: Arc<Mutex<AppState>>) -> Result<Config, String> {
     let mut engine = Engine::new();
     let mut scope = Scope::new();
     let mut config = Arc::new(Mutex::new(Config::default()));
 
-    syntax::init(&mut engine, &mut config).unwrap();
+    syntax::init(&mut engine, state_arc.clone(), &mut config).unwrap();
     types::init(&mut engine);
     functions::init(&mut engine);
-    lib::init(&mut engine);
+    lib::init(&mut engine, state_arc.clone());
 
     *CALLBACKS.lock() = Vec::new();
 
@@ -101,12 +98,6 @@ pub fn parse_config() -> Result<Config, String> {
     *AST.lock() = ast;
 
     let mut config = config.lock().clone();
-
-    config.bar.color = RGB(
-        GetBValue(config.bar.color as u32),
-        GetGValue(config.bar.color as u32),
-        GetRValue(config.bar.color as u32),
-    ) as i32;
 
     Ok(config)
 }

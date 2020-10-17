@@ -1,363 +1,444 @@
-use crate::config::rule::Rule;
-use crate::util;
-use crate::{display::Display, CONFIG};
-use gwl_ex_style::GwlExStyle;
-use gwl_style::GwlStyle;
 use log::error;
-use winapi::{shared::windef::HWND, um::winuser::IsWindowVisible};
-use winapi::shared::windef::RECT;
-use winapi::um::errhandlingapi::GetLastError;
-use winapi::um::winuser::AdjustWindowRectEx;
-use winapi::um::winuser::GetForegroundWindow;
-use winapi::um::winuser::GetParent;
-use winapi::um::winuser::GetWindowLongA;
-use winapi::um::winuser::GetWindowRect;
-use winapi::um::winuser::SendMessageA;
-use winapi::um::winuser::SetForegroundWindow;
-use winapi::um::winuser::SetWindowLongA;
-use winapi::um::winuser::SetWindowPos;
-use winapi::um::winuser::ShowWindow;
-use winapi::um::winuser::GWL_EXSTYLE;
-use winapi::um::winuser::GWL_STYLE;
-use winapi::um::winuser::HWND_NOTOPMOST;
-use winapi::um::winuser::HWND_TOP;
-use winapi::um::winuser::HWND_TOPMOST;
-use winapi::um::winuser::SM_CXFRAME;
-use winapi::um::winuser::SM_CYCAPTION;
-use winapi::um::winuser::SM_CYFRAME;
-use winapi::um::winuser::SWP_NOMOVE;
-use winapi::um::winuser::SWP_NOSIZE;
-use winapi::um::winuser::SW_HIDE;
-use winapi::um::winuser::SW_SHOW;
-use winapi::um::{
-    processthreadsapi::OpenProcess,
-    psapi::GetModuleFileNameExA,
-    winnt::{PROCESS_QUERY_INFORMATION, PROCESS_VM_READ},
-    winuser::{
-        GetClientRect, GetSystemMetricsForDpi, GetWindowThreadProcessId, SC_MAXIMIZE, SC_MINIMIZE,
-        SC_RESTORE, WM_CLOSE, WM_PAINT, WM_SYSCOMMAND,
-    },
+use parking_lot::Mutex;
+use std::{ffi::c_void, ffi::CString, sync::mpsc::channel, sync::Arc, thread};
+use thread::JoinHandle;
+use winapi::um::wingdi::SelectObject;
+use winapi::um::wingdi::LOGFONTA;
+use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
+use winapi::um::{wingdi::CreateFontIndirectA, winuser::IDC_HAND, winuser::WM_MOUSEMOVE};
+use winapi::um::{wingdi::DeleteObject, winuser::DT_SINGLELINE, winuser::DT_VCENTER};
+use winapi::{
+    shared::minwindef::LPARAM, shared::minwindef::LRESULT, shared::minwindef::UINT,
+    shared::minwindef::WPARAM, shared::windef::HDC, shared::windef::HWND, shared::windef::POINT,
+    shared::windef::RECT, um::wingdi::CreateSolidBrush, um::wingdi::SetBkColor,
+    um::wingdi::SetTextColor, um::winuser::BeginPaint, um::winuser::CreateWindowExA,
+    um::winuser::DefWindowProcA, um::winuser::DrawTextW, um::winuser::EndPaint,
+    um::winuser::FillRect, um::winuser::GetCursorPos, um::winuser::GetDC, um::winuser::LoadCursorA,
+    um::winuser::PostMessageA, um::winuser::RegisterClassA, um::winuser::ReleaseDC,
+    um::winuser::SetCursor, um::winuser::UnregisterClassA, um::winuser::DT_CALCRECT,
+    um::winuser::IDC_ARROW, um::winuser::PAINTSTRUCT, um::winuser::WM_APP, um::winuser::WM_CLOSE,
+    um::winuser::WM_CREATE, um::winuser::WM_LBUTTONDOWN, um::winuser::WM_PAINT,
+    um::winuser::WM_SETCURSOR, um::winuser::WNDCLASSA, um::winuser::WS_BORDER,
+    um::winuser::WS_EX_NOACTIVATE, um::winuser::WS_EX_TOPMOST, um::winuser::WS_OVERLAPPEDWINDOW,
+    um::winuser::WS_POPUPWINDOW,
+};
+
+use crate::{
+    display::Display, message_loop, system::NativeWindow, system::Rectangle, system::SystemResult,
+    system::WindowId, util, AppState,
 };
 
 pub mod gwl_ex_style;
 pub mod gwl_style;
 
-#[derive(Clone)]
-pub struct Window {
-    pub id: i32,
-    pub title: String,
-    pub maximized: bool,
-    pub rule: Option<Rule>,
-    pub style: GwlStyle,
-    pub exstyle: GwlExStyle,
-    pub original_style: GwlStyle,
-    pub original_rect: RECT,
+const WM_IDENT: u32 = WM_APP + 80;
+
+#[derive(Debug, Copy, Clone)]
+pub struct WindowMsg {
+    pub hwnd: HWND,
+    pub code: u32,
+    pub params: (usize, isize),
 }
 
-impl Default for Window {
-    fn default() -> Self {
-        Self {
-            id: 0,
-            title: String::from(""),
-            maximized: false,
-            rule: None,
-            style: GwlStyle::default(),
-            exstyle: GwlExStyle::default(),
-            original_style: GwlStyle::default(),
-            original_rect: RECT::default(),
+unsafe extern "system" fn window_cb(
+    hwnd: HWND,
+    msg: UINT,
+    w_param: WPARAM,
+    l_param: LPARAM,
+) -> LRESULT {
+    if msg == WM_SETCURSOR {
+        return 1;
+    } else if msg != WM_IDENT {
+        let payload = WindowMsg {
+            code: msg,
+            hwnd,
+            params: (w_param, l_param),
+        };
+
+        let ptr = Box::into_raw(Box::new(payload));
+
+        PostMessageA(hwnd, WM_IDENT, ptr as usize, 0);
+    }
+
+    DefWindowProcA(hwnd, msg, w_param, l_param)
+}
+
+fn convert_color_to_winapi(color: u32) -> u32 {
+    RGB(GetRValue(color), GetGValue(color), GetBValue(color))
+}
+
+#[derive(Debug, Clone)]
+pub struct Api {
+    pub hdc: i32,
+    pub background_color: u32,
+    pub window: NativeWindow,
+    pub display: Display,
+}
+
+impl Api {
+    pub fn set_clickable_cursor(&self) {
+        unsafe {
+            SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_HAND as *const i8));
         }
     }
+    pub fn set_default_cursor(&self) {
+        unsafe {
+            SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8));
+        }
+    }
+    pub fn set_text_color(&self, color: u32) {
+        unsafe {
+            SetTextColor(self.hdc as HDC, convert_color_to_winapi(color));
+        }
+    }
+    pub fn set_background_color(&self, color: u32) {
+        unsafe {
+            SetBkColor(self.hdc as HDC, convert_color_to_winapi(color));
+        }
+    }
+    pub fn reset_background_color(&self) {
+        self.set_background_color(self.background_color)
+    }
+    pub fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32, color: u32) {
+        unsafe {
+            let brush = CreateSolidBrush(convert_color_to_winapi(color));
+            let mut rect = RECT {
+                left: x,
+                right: x + width,
+                top: y,
+                bottom: y + height,
+            };
+
+            FillRect(self.hdc as HDC, &mut rect, brush);
+
+            DeleteObject(brush as *mut c_void);
+        }
+    }
+    pub fn calculate_text_rect(&self, text: &str) -> Rectangle {
+        let c_text = util::to_widestring(&text);
+        let mut rect = RECT::default();
+        unsafe {
+            DrawTextW(self.hdc as HDC, c_text.as_ptr(), -1, &mut rect, DT_CALCRECT);
+        }
+        rect.into()
+    }
+    pub fn write_text(&self, text: &str, x: i32, y: i32, vcenter: bool, _hcenter: bool) {
+        let c_text = util::to_widestring(&text);
+        let mut rect = self.calculate_text_rect(text);
+
+        rect.left += x;
+        rect.right += x;
+        rect.top += y;
+        rect.bottom += y;
+
+        let mut rect = rect.into();
+        let mut flags = 0;
+
+        if vcenter {
+            flags = DT_VCENTER | DT_SINGLELINE;
+        }
+
+        unsafe {
+            DrawTextW(self.hdc as HDC, c_text.as_ptr(), -1, &mut rect, flags);
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum WindowEvent<'a> {
+    Click {
+        display: &'a Display,
+        id: WindowId,
+        x: i32,
+        y: i32,
+        state: &'a AppState,
+    },
+    Create {
+        display: &'a Display,
+        id: WindowId,
+    },
+    Close {
+        display: &'a Display,
+        id: WindowId,
+    },
+    Draw {
+        display: &'a Display,
+        id: WindowId,
+        state: &'a AppState,
+        api: Api,
+    },
+    MouseMove {
+        display: &'a Display,
+        id: WindowId,
+        api: Api,
+        x: i32,
+        y: i32,
+    },
+    Native(WindowMsg),
+}
+
+#[derive(Default, Debug)]
+struct WindowInner {
+    pub native_window: Option<NativeWindow>,
+    pub is_popup: bool,
+    pub border: bool,
+    pub x: i32,
+    pub y: i32,
+    pub background_color: u32,
+    pub height: i32,
+    pub width: i32,
+    pub title: String,
+    pub font: String,
+    pub font_size: i32,
+}
+
+impl WindowInner {
+    pub fn new() -> Self {
+        Self {
+            title: "nog temp window name".into(),
+            border: true,
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Default, Clone, Debug)]
+pub struct Window {
+    pub id: WindowId,
+    inner: Arc<Mutex<WindowInner>>,
 }
 
 impl Window {
-    pub fn new(hwnd: i32) -> Self {
+    pub fn new() -> Self {
         Self {
-            id: hwnd,
-            ..Self::default()
+            id: WindowId::default(),
+            inner: Arc::new(Mutex::new(WindowInner::new())),
         }
     }
-    pub fn reset_style(&mut self) {
-        self.style = self.original_style;
+    pub fn with_size(self, width: i32, height: i32) -> Self {
+        self.inner.lock().height = height;
+        self.inner.lock().width = width;
+        self
     }
-    pub fn reset(&mut self) {
-        self.reset_style();
-        self.update_style();
-        self.reset_pos();
-
-        if self.maximized {
-            self.maximize();
-        }
+    pub fn with_background_color(self, color: u32) -> Self {
+        self.inner.lock().background_color = color;
+        self
     }
-    pub fn reset_pos(&self) {
-        unsafe {
-            SetWindowPos(
-                self.id as HWND,
-                std::ptr::null_mut(),
-                self.original_rect.left,
-                self.original_rect.top,
-                self.original_rect.right - self.original_rect.left,
-                self.original_rect.bottom - self.original_rect.top,
-                0,
-            );
-        }
+    pub fn with_font(self, font: &str) -> Self {
+        self.inner.lock().font = font.into();
+        self
     }
-    pub fn get_client_rect(&self) -> RECT {
-        let mut rect: RECT = RECT::default();
-        unsafe {
-            GetClientRect(self.id as HWND, &mut rect);
-        }
-        rect
+    pub fn with_title(self, title: &str) -> Self {
+        self.inner.lock().title = title.into();
+        self
     }
-    pub fn get_foreground_window() -> Result<HWND, util::WinApiResultError> {
-        unsafe { util::winapi_ptr_to_result(GetForegroundWindow()) }
+    pub fn with_font_size(self, font_size: i32) -> Self {
+        self.inner.lock().font_size = font_size;
+        self
     }
-    pub fn get_parent_window(&self) -> Result<HWND, util::WinApiResultError> {
-        unsafe { util::winapi_ptr_to_result(GetParent(self.id as HWND)) }
+    pub fn with_pos(self, x: i32, y: i32) -> Self {
+        self.inner.lock().x = x;
+        self.inner.lock().y = y;
+        self
     }
-    pub fn get_style(&self) -> Result<GwlStyle, util::WinApiResultError> {
-        unsafe {
-            let bits = util::winapi_nullable_to_result(GetWindowLongA(self.id as HWND, GWL_STYLE))?;
-            Ok(GwlStyle::from_bits_unchecked(bits as u32 as i32))
-        }
+    pub fn with_is_popup(self, val: bool) -> Self {
+        self.inner.lock().is_popup = val;
+        self
     }
-    pub fn get_ex_style(&self) -> Result<GwlExStyle, util::WinApiResultError> {
-        unsafe {
-            let bits =
-                util::winapi_nullable_to_result(GetWindowLongA(self.id as HWND, GWL_EXSTYLE))?;
-            Ok(GwlExStyle::from_bits_unchecked(bits as u32 as i32))
-        }
+    pub fn with_border(self, val: bool) -> Self {
+        self.inner.lock().border = val;
+        self
     }
-    pub fn get_rect(&self) -> Result<RECT, util::WinApiResultError> {
-        unsafe {
-            let mut temp = RECT::default();
-            util::winapi_nullable_to_result(GetWindowRect(self.id as HWND, &mut temp))?;
-            Ok(temp)
-        }
+    fn get_native_window(&self) -> NativeWindow {
+        self.id.into()
     }
-    pub fn show(&self) {
-        unsafe {
-            ShowWindow(self.id as HWND, SW_SHOW);
-        }
+    pub fn redraw(&self) -> SystemResult {
+        self.get_native_window().redraw()
     }
     pub fn hide(&self) {
-        unsafe {
-            ShowWindow(self.id as HWND, SW_HIDE);
-        }
+        self.get_native_window().hide();
     }
-    pub fn is_hidden(&self) -> bool {
-        unsafe {
-            IsWindowVisible(self.id as HWND) == 0
-        }
+    pub fn show(&self) {
+        self.get_native_window().show();
     }
-    pub fn calculate_window_rect(
-        &self,
-        display: &Display,
-        x: i32,
-        y: i32,
-        width: i32,
-        height: i32,
-    ) -> RECT {
-        let rule = self.rule.clone().unwrap_or_default();
-        let (display_app_bar, remove_title_bar, bar_height, use_border) = {
-            let config = CONFIG.lock();
-
-            (
-                config.display_app_bar,
-                config.remove_title_bar,
-                config.bar.height,
-                config.use_border,
-            )
-        };
-
-        let mut left = x;
-        let mut right = x + width;
-        let mut top = y;
-        let mut bottom = y + height;
-
-        unsafe {
-            let border_width = GetSystemMetricsForDpi(SM_CXFRAME, display.dpi);
-            let border_height = GetSystemMetricsForDpi(SM_CYFRAME, display.dpi);
-
-            if rule.chromium || rule.firefox || !remove_title_bar {
-                let caption_height = GetSystemMetricsForDpi(SM_CYCAPTION, display.dpi);
-                top += caption_height;
-            } else {
-                top -= border_height * 2;
-
-                if use_border {
-                    left += 1;
-                    right -= 1;
-                    top += 1;
-                    bottom -= 1;
-                }
-            }
-
-            if display_app_bar {
-                top += bar_height;
-                bottom += bar_height;
-            }
-
-            if rule.firefox || rule.chromium || (!remove_title_bar && rule.has_custom_titlebar) {
-                if rule.firefox {
-                    left -= (border_width as f32 * 1.5) as i32;
-                    right += (border_width as f32 * 1.5) as i32;
-                    bottom += (border_height as f32 * 1.5) as i32;
-                } else if rule.chromium {
-                    top -= border_height / 2;
-                    left -= border_width * 2;
-                    right += border_width * 2;
-                    bottom += border_height * 2;
-                }
-                left += border_width * 2;
-                right -= border_width * 2;
-                top += border_height * 2;
-                bottom -= border_height * 2;
-            } else {
-                top += border_height * 2;
-            }
-        }
-
-        let mut rect = RECT {
-            left,
-            right,
-            top,
-            bottom,
-        };
-
-        //println!("before {}", rect_to_string(rect));
-
-        unsafe {
-            AdjustWindowRectEx(
-                &mut rect,
-                self.style.bits() as u32,
-                0,
-                self.exstyle.bits() as u32,
-            );
-        }
-
-        // println!("after {}", rect_to_string(rect));
-
-        rect
+    pub fn close(&self) -> SystemResult {
+        self.get_native_window().close()
     }
-    pub fn to_foreground(&self, topmost: bool) -> Result<(), util::WinApiResultError> {
-        unsafe {
-            util::winapi_nullable_to_result(SetWindowPos(
-                self.id as HWND,
-                if topmost { HWND_TOPMOST } else { HWND_TOP },
-                0,
-                0,
-                0,
-                0,
-                SWP_NOMOVE | SWP_NOSIZE,
-            ))?;
-        }
+    pub fn create<TEventHandler: Fn(&WindowEvent) -> () + Sync + Send + 'static>(
+        &mut self,
+        state_arc: Arc<Mutex<AppState>>,
+        show: bool,
+        event_handler: TEventHandler,
+    ) -> JoinHandle<()> {
+        let state = state_arc.clone();
+        let inner_arc = self.inner.clone();
+        let (sender, receiver) = channel();
 
-        Ok(())
-    }
-    pub fn remove_topmost(&self) -> Result<(), util::WinApiResultError> {
-        unsafe {
-            util::winapi_nullable_to_result(SetWindowPos(
-                self.id as HWND,
-                HWND_NOTOPMOST,
-                0,
-                0,
-                0,
-                0,
-                SWP_NOMOVE | SWP_NOSIZE,
-            ))?;
-        }
+        let t = thread::spawn(move || unsafe {
+            let mut inner = inner_arc.lock();
+            let instance = winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut());
+            let c_name = CString::new(inner.title.clone().as_str()).unwrap();
 
-        Ok(())
-    }
-    /**
-     * This also brings the window to the foreground
-     */
-    pub fn focus(&self) -> Result<(), util::WinApiResultError> {
-        unsafe {
-            SetForegroundWindow(self.id as HWND);
-        }
-
-        Ok(())
-    }
-    pub fn get_process_name(&self) -> String {
-        self.get_process_path()
-            .split('\\')
-            .last()
-            .unwrap()
-            .to_string()
-    }
-    pub fn get_process_path(&self) -> String {
-        let mut buffer = [0; 0x200];
-
-        unsafe {
-            let mut process_id = 0;
-            GetWindowThreadProcessId(self.id as HWND, &mut process_id);
-            let process_handle =
-                OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, process_id);
-
-            if process_handle as i32 == 0 {
-                error!("winapi: {}", GetLastError());
-            }
-            if GetModuleFileNameExA(
-                process_handle,
-                std::ptr::null_mut(),
-                buffer.as_mut_ptr(),
-                buffer.len() as u32,
-            ) == 0
-            {
-                error!("winapi: {}", GetLastError());
+            let class = WNDCLASSA {
+                hInstance: instance,
+                lpszClassName: c_name.as_ptr(),
+                lpfnWndProc: Some(window_cb),
+                hbrBackground: CreateSolidBrush(inner.background_color),
+                ..WNDCLASSA::default()
             };
-        }
 
-        util::bytes_to_string(&buffer)
-    }
-    pub fn close(&self) {
-        unsafe {
-            SendMessageA(self.id as HWND, WM_CLOSE, 0, 0);
-        }
-    }
-    pub fn update_style(&self) {
-        unsafe {
-            SetWindowLongA(self.id as HWND, GWL_STYLE, self.style.bits());
-        }
-    }
-    pub fn update_exstyle(&self) {
-        unsafe {
-            SetWindowLongA(self.id as HWND, GWL_EXSTYLE, self.exstyle.bits());
-        }
-    }
-    pub fn remove_title_bar(&mut self) {
-        let rule = self.rule.clone().unwrap_or_default();
-        if !rule.chromium && !rule.firefox {
-            self.style.remove(GwlStyle::CAPTION);
-            self.style.remove(GwlStyle::THICKFRAME);
-        }
-        if CONFIG.lock().use_border {
-            self.style.insert(GwlStyle::BORDER);
-        }
-    }
+            RegisterClassA(&class);
 
-    pub fn maximize(&self) {
-        unsafe {
-            SendMessageA(self.id as HWND, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
-        }
-    }
+            let mut exstyle = 0;
+            let mut style = WS_OVERLAPPEDWINDOW;
 
-    pub fn minimize(&self) {
-        unsafe {
-            SendMessageA(self.id as HWND, WM_SYSCOMMAND, SC_MINIMIZE, 0);
-        }
-    }
+            if inner.is_popup {
+                exstyle = WS_EX_NOACTIVATE | WS_EX_TOPMOST;
+                style = WS_POPUPWINDOW;
+            }
 
-    pub fn redraw(&self) {
-        unsafe {
-            SendMessageA(self.id as HWND, WM_PAINT, 0, 0);
-        }
-    }
+            if !inner.border {
+                style &= !WS_BORDER
+            }
 
-    pub fn restore(&self) {
-        unsafe {
-            SendMessageA(self.id as HWND, WM_SYSCOMMAND, SC_RESTORE, 0);
-        }
+            let hwnd = CreateWindowExA(
+                exstyle,
+                c_name.as_ptr(),
+                c_name.as_ptr(),
+                style,
+                inner.x,
+                inner.y,
+                inner.width,
+                inner.height,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                instance,
+                std::ptr::null_mut(),
+            );
+
+            sender.send(hwnd.into()).unwrap();
+
+            let win: NativeWindow = hwnd.into();
+
+            if show {
+                win.show();
+            }
+
+            inner.native_window = Some(win);
+
+            let font = inner.font.clone();
+            let title = inner.title.clone();
+            let font_size = inner.font_size;
+            let background_color = inner.background_color;
+
+            drop(inner);
+
+            message_loop::start(move |msg| {
+                if let Some(msg) = msg {
+                    if msg.message == WM_IDENT {
+                        let window: NativeWindow = hwnd.into();
+                        let state = state.lock();
+                        let display_id = fail_with!(window.get_display(), true).id;
+                        let display = state.displays.iter().find(|d| d.id == display_id).unwrap();
+
+                        let hdc = GetDC(hwnd);
+                        let api = Api {
+                            hdc: hdc as i32,
+                            window: window.clone(),
+                            display: display.clone(),
+                            background_color,
+                        };
+                        let msg = *(msg.wParam as *const WindowMsg);
+
+                        if msg.code == WM_PAINT {
+                            let mut paint = PAINTSTRUCT::default();
+
+                            BeginPaint(hwnd, &mut paint);
+
+                            let mut logfont = LOGFONTA::default();
+                            let mut font_name: [i8; 32] = [0; 32];
+
+                            for (i, byte) in CString::new(font.as_str())
+                                .unwrap()
+                                .as_bytes()
+                                .iter()
+                                .enumerate()
+                            {
+                                font_name[i] = *byte as i8;
+                            }
+
+                            logfont.lfHeight = font_size;
+                            logfont.lfFaceName = font_name;
+
+                            let font = CreateFontIndirectA(&logfont);
+                            SelectObject(hdc, font as *mut c_void);
+
+                            SetBkColor(hdc, background_color);
+
+                            event_handler(&WindowEvent::Draw {
+                                display: &display,
+                                id: window.id,
+                                state: &state,
+                                api,
+                            });
+
+                            DeleteObject(font as *mut c_void);
+                            EndPaint(hwnd, &paint);
+                        } else if msg.code == WM_LBUTTONDOWN {
+                            let mut point = POINT::default();
+                            GetCursorPos(&mut point);
+                            let win_rect = window.get_rect().unwrap();
+
+                            event_handler(&WindowEvent::Click {
+                                id: window.id,
+                                x: point.x - win_rect.left,
+                                y: point.y - win_rect.top,
+                                state: &state,
+                                display: &display,
+                            });
+                        } else if msg.code == WM_CLOSE {
+                            let name = CString::new(title.clone()).unwrap();
+
+                            UnregisterClassA(
+                                name.as_ptr(),
+                                winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut()),
+                            );
+
+                            event_handler(&WindowEvent::Close {
+                                id: window.id,
+                                display: &display,
+                            });
+                        } else if msg.code == WM_CREATE {
+                            event_handler(&WindowEvent::Create {
+                                id: window.id,
+                                display: &display,
+                            });
+                        } else if msg.code == WM_MOUSEMOVE {
+                            let mut point = POINT::default();
+                            GetCursorPos(&mut point);
+                            let win_rect = window.get_rect().unwrap();
+
+                            event_handler(&WindowEvent::MouseMove {
+                                id: window.id,
+                                display: &display,
+                                api,
+                                x: point.x - win_rect.left,
+                                y: point.y - win_rect.top,
+                            });
+                        } else {
+                            event_handler(&WindowEvent::Native(msg));
+                        }
+
+                        ReleaseDC(hwnd, hdc);
+                    }
+                }
+
+                true
+            })
+        });
+
+        self.id = receiver.recv().unwrap();
+
+        t
     }
 }

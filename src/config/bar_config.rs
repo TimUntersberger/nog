@@ -33,7 +33,7 @@ impl BarComponentsConfig {
 #[derive(Clone, Debug)]
 pub struct BarConfig {
     pub height: i32,
-    pub color: i32,
+    pub color: u32,
     pub font: String,
     pub font_size: i32,
     pub components: BarComponentsConfig,
@@ -52,7 +52,7 @@ impl Default for BarConfig {
     fn default() -> Self {
         Self {
             height: 20,
-            color: 0x2e3440,
+            color: 0x40342e,
             font: "Consolas".into(),
             font_size: 18,
             components: BarComponentsConfig::default(),

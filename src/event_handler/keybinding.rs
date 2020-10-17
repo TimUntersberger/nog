@@ -1,15 +1,16 @@
+use std::sync::Arc;
+
 use crate::{
     config::{rhai::engine, rule::Rule},
-    display::get_display_by_idx,
     event::Event,
     hot_reload::update_config,
-    keybindings::{self, keybinding::Keybinding, keybinding_type::KeybindingType},
-    with_current_grid, with_grid_by_id,
-    workspace::change_workspace,
-    ADDITIONAL_RULES, CHANNEL, CONFIG, VISIBLE_WORKSPACES,
+    keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
+    system::api,
+    system::SystemResult,
+    AppState,
 };
-use log::{debug, error, info};
-use winapi::um::processthreadsapi::{CreateProcessA, PROCESS_INFORMATION, STARTUPINFOA};
+use log::{debug, info};
+use parking_lot::Mutex;
 
 mod close_tile;
 mod focus;
@@ -19,171 +20,131 @@ mod swap;
 mod toggle_floating_mode;
 pub mod toggle_work_mode;
 
-pub fn handle(kb: Keybinding) -> Result<(), Box<dyn std::error::Error>> {
+pub fn handle(state_arc: Arc<Mutex<AppState>>, kb: Keybinding) -> SystemResult {
+    let mut state = state_arc.lock();
+    let config = state.config.clone();
     if let KeybindingType::MoveWorkspaceToMonitor(_) = kb.typ {
-        if !CONFIG.lock().multi_monitor {
+        if !state.config.multi_monitor {
             return Ok(());
         }
     }
 
     info!("Received keybinding of type {:?}", kb.typ);
-    let sender = CHANNEL.sender.clone();
+    let sender = state.event_channel.sender.clone();
+    let display = state.get_current_display_mut();
+
     match kb.typ {
         KeybindingType::Launch(cmd) => {
-            let mut si = STARTUPINFOA::default();
-            let mut pi = PROCESS_INFORMATION::default();
-            let mut cmd_bytes: Vec<u8> = cmd.bytes().chain(std::iter::once(0)).collect();
-
-            unsafe {
-                let x = CreateProcessA(
-                    std::ptr::null_mut(),
-                    cmd_bytes.as_mut_ptr() as *mut i8,
-                    std::ptr::null_mut(),
-                    std::ptr::null_mut(),
-                    0,
-                    0,
-                    std::ptr::null_mut(),
-                    std::ptr::null_mut(),
-                    &mut si,
-                    &mut pi,
-                );
-
-                if x != 1 {
-                    error!(
-                        "Error launching program: {}",
-                        winapi::um::errhandlingapi::GetLastError()
-                    );
-                }
-            }
+            api::launch_program(cmd)?;
         }
         KeybindingType::MoveWorkspaceToMonitor(monitor) => {
-            let (grid_id, grid_old_monitor) = with_current_grid(|grid| {
-                let hmonitor = grid.display.hmonitor;
+            if let Some(grid) = display
+                .focused_grid_id
+                .and_then(|id| display.remove_grid_by_id(id))
+            {
+                let new_display = state
+                    .get_display_by_idx_mut(monitor)
+                    .expect("Monitor with specified idx doesn't exist");
 
-                grid.display = get_display_by_idx(monitor);
+                let id = grid.id;
 
-                (grid.id, hmonitor)
-            });
-
-            VISIBLE_WORKSPACES
-                .lock()
-                .insert(grid_old_monitor, 0);
-
-            change_workspace(grid_id, true)
-                .expect("Failed to change workspace after moving workspace to different monitor");
+                new_display.grids.push(grid);
+                new_display.focus_workspace(&config, id)?;
+                state.workspace_id = id;
+            }
         }
-        KeybindingType::CloseTile => close_tile::handle()?,
+        KeybindingType::CloseTile => close_tile::handle(&mut state)?,
         KeybindingType::MinimizeTile => {
-            with_current_grid(|grid| {
-                if let Some(tile) = grid.get_focused_tile_mut() {
-                    let id = tile.window.id;
+            let grid = state.get_current_grid_mut().unwrap();
+            if let Some(tile) = grid.get_focused_tile_mut() {
+                let id = tile.window.id;
 
-                    tile.window.minimize();
-                    tile.window.reset();
+                tile.window.minimize()?;
+                tile.window.cleanup()?;
 
-                    grid.close_tile_by_window_id(id);
-                }
-            });
+                grid.close_tile_by_window_id(id);
+            }
         }
         KeybindingType::MoveToWorkspace(id) => {
-            let maybe_tile = with_current_grid(|grid| {
-                grid.focused_window_id
-                    .and_then(|id| grid.close_tile_by_window_id(id))
-            });
-
-            if let Some(tile) = maybe_tile {
-                with_grid_by_id(id, |grid| {
-                    grid.split(tile.window.clone());
+            let grid = state.get_current_grid_mut().unwrap();
+            grid.focused_window_id
+                .and_then(|id| grid.close_tile_by_window_id(id))
+                .map(|tile| {
+                    state.get_grid_by_id_mut(id).unwrap().split(tile.window);
+                    state.change_workspace(id, false);
                 });
-                change_workspace(id, false)?;
-            }
         }
-        KeybindingType::ChangeWorkspace(id) => change_workspace(id, false)?,
-        KeybindingType::ToggleFloatingMode => toggle_floating_mode::handle()?,
+        KeybindingType::ChangeWorkspace(id) => state.change_workspace(id, false),
+        KeybindingType::ToggleFloatingMode => toggle_floating_mode::handle(&mut state)?,
         KeybindingType::ToggleFullscreen => {
-            with_current_grid(|grid| {
-                if !grid.tiles.is_empty() {
-                    grid.fullscreen = !grid.fullscreen;
-
-                    grid.draw_grid();
-                }
-            });
+            display.get_focused_grid_mut().unwrap().toggle_fullscreen();
+            display.refresh_grid(&config)?;
         }
         KeybindingType::ToggleMode(mode) => {
-            if keybindings::enable_mode(&mode) {
-                info!("Enabling {} mode", mode);
-            } else {
-                keybindings::disable_mode();
+            if state.keybindings_manager.get_mode() == Some(mode.clone()) {
                 info!("Disabling {} mode", mode);
+                state.keybindings_manager.leave_mode();
+            } else {
+                info!("Enabling {} mode", mode);
+                state.keybindings_manager.enter_mode(&mode);
             }
         }
-        KeybindingType::ToggleWorkMode => toggle_work_mode::handle()?,
+        KeybindingType::ToggleWorkMode => {
+            drop(state);
+            toggle_work_mode::handle(state_arc.clone())?
+        }
         KeybindingType::IncrementConfig(field, value) => {
-            let mut current_config = CONFIG.lock().clone();
-            current_config.increment_field(&field, value);
-            update_config(current_config)?;
+            let new_config = state.config.increment_field(&field, value);
+            drop(state);
+            update_config(state_arc.clone(), new_config)?;
         }
         KeybindingType::DecrementConfig(field, value) => {
-            let mut current_config = CONFIG.lock().clone();
-            current_config.decrement_field(&field, value);
-            update_config(current_config)?;
+            let new_config = state.config.decrement_field(&field, value);
+            drop(state);
+            update_config(state_arc.clone(), new_config)?;
         }
         KeybindingType::ToggleConfig(field) => {
-            let mut current_config = CONFIG.lock().clone();
-            current_config.toggle_field(&field);
-            update_config(current_config)?;
+            let new_config = state.config.toggle_field(&field);
+            drop(state);
+            update_config(state_arc.clone(), new_config)?;
         }
-        KeybindingType::Resize(direction, amount) => resize::handle(direction, amount)?,
-        KeybindingType::Focus(direction) => focus::handle(direction)?,
-        KeybindingType::Swap(direction) => swap::handle(direction)?,
-        KeybindingType::Quit => sender.send(Event::Exit)?,
-        KeybindingType::Split(direction) => split::handle(direction)?,
+        KeybindingType::Resize(direction, amount) => resize::handle(&mut state, direction, amount)?,
+        KeybindingType::Focus(direction) => focus::handle(&mut state, direction)?,
+        KeybindingType::Swap(direction) => swap::handle(&mut state, direction)?,
+        KeybindingType::Quit => sender.send(Event::Exit).expect("Failed to send exit event"),
+        KeybindingType::Split(direction) => split::handle(&mut state, direction)?,
         KeybindingType::ResetColumn => {
-            with_current_grid(|grid| {
-                if let Some(modification) = grid
-                    .get_focused_tile()
-                    .and_then(|t| t.column)
-                    .and_then(|c| grid.column_modifications.get_mut(&c))
-                {
-                    modification.0 = 0;
-                    modification.1 = 0;
-                }
-
-                grid.draw_grid();
-            });
+            if let Some(g) = display.get_focused_grid_mut() {
+                g.reset_column();
+            }
+            display.refresh_grid(&config)?;
         }
         KeybindingType::ResetRow => {
-            with_current_grid(|grid| {
-                if let Some(modification) = grid
-                    .get_focused_tile()
-                    .and_then(|t| t.row)
-                    .and_then(|c| grid.row_modifications.get_mut(&c))
-                {
-                    modification.0 = 0;
-                    modification.1 = 0;
-                }
-
-                grid.draw_grid();
-            });
+            if let Some(g) = display.get_focused_grid_mut() {
+                g.reset_row();
+            }
+            display.refresh_grid(&config)?;
         }
-        KeybindingType::Callback(idx) => engine::call(idx),
+        KeybindingType::Callback(idx) => {
+            drop(state);
+            engine::call(idx)
+        }
         KeybindingType::IgnoreTile => {
-            with_current_grid(|grid| {
-                if let Some(tile) = grid.get_focused_tile() {
-                    let process_name = tile.window.get_process_name();
-                    let mut rules = ADDITIONAL_RULES.lock();
-                    let mut rule = Rule::default();
-                    let pattern = format!("^{}$", process_name);
+            if let Some(tile) = state.get_current_grid().unwrap().get_focused_tile() {
+                let mut rule = Rule::default();
 
-                    debug!("Adding rule with pattern {}", pattern);
+                let process_name = tile.window.get_process_name();
+                let pattern = format!("^{}$", process_name);
 
-                    rule.pattern = regex::Regex::new(&pattern).expect("Failed to build regex");
-                    rule.manage = false;
+                debug!("Adding rule with pattern {}", pattern);
 
-                    rules.push(rule);
-                }
-            });
-            toggle_floating_mode::handle()?;
+                rule.pattern = regex::Regex::new(&pattern).expect("Failed to build regex");
+                rule.manage = false;
+
+                state.additonal_rules.push(rule);
+
+                toggle_floating_mode::handle(&mut state)?;
+            }
         }
     };
 

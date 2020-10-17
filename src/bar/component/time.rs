@@ -1,16 +1,14 @@
-use super::{Component, ComponentText, RenderFn};
-use crate::display::Display;
+use super::{Component, ComponentText};
 use chrono::Local;
 use std::sync::Arc;
 
-fn render(pattern: String) -> RenderFn {
-    Arc::new(move |_: &Component, _: &Display| -> Vec<ComponentText> {
-        let text = Local::now().format(&pattern).to_string();
-
-        vec![ComponentText::Basic(text)]
-    })
-}
-
 pub fn create(pattern: String) -> Component {
-    Component::new("Time", render(pattern))
+    Component::new(
+        "Time",
+        Arc::new(move |_| {
+            let text = Local::now().format(&pattern).to_string();
+
+            vec![ComponentText::Basic(text)]
+        }),
+    )
 }

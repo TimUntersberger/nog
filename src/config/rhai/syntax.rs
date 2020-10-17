@@ -1,20 +1,18 @@
-use super::engine::{MODE, ENGINE, self};
+use super::engine::{self, ENGINE, MODE};
 use crate::{
     bar::component::Component,
     config::{
         bar_config::BarConfig, update_channel::UpdateChannel, Config, Rule, WorkspaceSetting,
     },
+    event::Event,
     keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
+    AppState,
 };
 use log::error;
-use regex::Regex;
-use rhai::{Array, Dynamic, Engine, Map, ParseError, AST, FnPtr};
-use std::{
-    str::FromStr,
-    sync::{Arc},
-    time::Duration,
-thread};
 use parking_lot::Mutex;
+use regex::Regex;
+use rhai::{Array, Dynamic, Engine, FnPtr, Map, ParseError};
+use std::{str::FromStr, sync::Arc, thread, time::Duration};
 
 #[macro_use]
 mod macros;
@@ -58,7 +56,11 @@ fn set_config(config: &mut Config, key: String, value: Dynamic) {
     }
 }
 
-pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), Box<ParseError>> {
+pub fn init(
+    engine: &mut Engine,
+    state_arc: Arc<Mutex<AppState>>,
+    config: &mut Arc<Mutex<Config>>,
+) -> Result<(), Box<ParseError>> {
     let cfg = config.clone();
     engine.register_custom_syntax(
         &["bind", "$expr$", "$expr$"], // the custom syntax
@@ -71,7 +73,27 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
             kb.typ = binding;
             kb.mode = MODE.lock().clone();
 
-            cfg.lock().keybindings.push(kb);
+            cfg.lock().add_keybinding(kb);
+
+            Ok(().into())
+        },
+    )?;
+
+    let state = state_arc.clone();
+    engine.register_custom_syntax(
+        &["exec", "$expr$"], // the custom syntax
+        0,                   // the number of new variables declared within this custom syntax
+        move |engine, ctx, scope, inputs| {
+            let mut kb = Keybinding::from_str("A").unwrap();
+            kb.typ = get_type!(engine, ctx, scope, inputs, 0, KeybindingType);
+
+            state
+                .lock()
+                .event_channel
+                .sender
+                .clone()
+                .send(Event::Keybinding(kb))
+                .expect("Failed to send key event");
 
             Ok(().into())
         },
@@ -106,7 +128,7 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
                 kb.typ = binding;
                 kb.mode = MODE.lock().clone();
 
-                cfg.lock().keybindings.push(kb);
+                cfg.lock().add_keybinding(kb);
             }
 
             Ok(().into())
@@ -144,7 +166,7 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
                         }
                     }
                 } else {
-                    set!(i32, bar_config, color, key, val);
+                    set!(u32, bar_config, color, key, val);
                     set!(i32, bar_config, height, key, val);
                     set!(String, bar_config, font, key, val);
                     set!(i32, bar_config, font_size, key, val);
@@ -174,7 +196,7 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
 
     engine.register_custom_syntax(
         &["sleep", "$expr$"], // the custom syntax
-        0, // the number of new variables declared within this custom syntax
+        0,                    // the number of new variables declared within this custom syntax
         move |engine, ctx, scope, inputs| {
             let ms = get_int!(engine, ctx, scope, inputs, 0);
 
@@ -186,7 +208,7 @@ pub fn init(engine: &mut Engine, config: &mut Arc<Mutex<Config>>) -> Result<(), 
 
     engine.register_custom_syntax(
         &["async", "$expr$"], // the custom syntax
-        0, // the number of new variables declared within this custom syntax
+        0,                    // the number of new variables declared within this custom syntax
         move |engine, ctx, scope, inputs| {
             let fp = get_type!(engine, ctx, scope, inputs, 0, FnPtr);
             let idx = engine::add_callback(fp);

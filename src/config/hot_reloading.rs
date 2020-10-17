@@ -1,14 +1,18 @@
-use crate::event::Event;
-use crate::CHANNEL;
+use crate::{event::Event, AppState};
 use log::{debug, error};
 use notify::watcher;
 use notify::DebouncedEvent;
 use notify::RecursiveMode;
 use notify::Watcher;
-use std::sync::mpsc::channel;
+use parking_lot::Mutex;
+use std::{
+    sync::{mpsc::channel, Arc},
+    thread,
+};
 
-pub fn start() {
-    std::thread::spawn(|| {
+pub fn start(state: Arc<Mutex<AppState>>) {
+    let state = state.clone();
+    thread::spawn(move || {
         let (tx, rx) = channel();
 
         let mut watcher = watcher(tx, std::time::Duration::from_millis(10))
@@ -28,7 +32,9 @@ pub fn start() {
                 Ok(ev) => match ev {
                     DebouncedEvent::Write(_) => {
                         debug!("detected config change");
-                        CHANNEL
+                        state
+                            .lock()
+                            .event_channel
                             .sender
                             .clone()
                             .send(Event::ReloadConfig)

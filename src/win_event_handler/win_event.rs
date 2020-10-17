@@ -1,7 +1,9 @@
+use crate::system::NativeWindow;
+
 use super::win_event_type::WinEventType;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct WinEvent {
     pub typ: WinEventType,
-    pub hwnd: i32,
+    pub window: NativeWindow,
 }

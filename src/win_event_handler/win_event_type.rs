@@ -1,7 +1,3 @@
-use winapi::um::winuser::{
-    EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE, EVENT_OBJECT_SHOW, EVENT_SYSTEM_FOREGROUND,
-};
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum WinEventType {
     Destroy,
@@ -11,6 +7,11 @@ pub enum WinEventType {
     FocusChange,
 }
 
+#[cfg(target_os = "windows")]
+use winapi::um::winuser::{
+    EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE, EVENT_OBJECT_SHOW, EVENT_SYSTEM_FOREGROUND,
+};
+#[cfg(target_os = "windows")]
 impl WinEventType {
     pub fn from_u32(v: u32) -> Option<Self> {
         if v == EVENT_OBJECT_DESTROY {

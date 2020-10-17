@@ -1,57 +1,62 @@
-use crate::event::Event;
-use crate::window::Window;
-use crate::CHANNEL;
-use crate::GRIDS;
-use crate::{
-    win_event_handler::{win_event::WinEvent, win_event_type::WinEventType},
-    WORKSPACE_ID,
-};
 use log::debug;
 
-pub fn handle() -> Result<(), Box<dyn std::error::Error>> {
-    let window_handle = Window::get_foreground_window()?;
+use crate::{
+    event::Event, system::NativeWindow, system::SystemResult,
+    win_event_handler::win_event::WinEvent, win_event_handler::win_event_type::WinEventType,
+    AppState,
+};
 
-    let mut grids = GRIDS.lock();
-    let gid = *WORKSPACE_ID.lock();
+pub fn handle(state: &mut AppState) -> SystemResult {
+    let window = NativeWindow::get_foreground_window().expect("Failed to get foreground window");
+    let config = state.config.clone();
+    // The id of the grid that contains the window
+    let maybe_grid_id = state
+        .find_window(window.id)
+        .and_then(|(g, _)| g.close_tile_by_window_id(window.id).map(|t| (g.id, t)))
+        .map(|(id, mut t)| {
+            debug!("Unmanaging window '{}' | {}", t.window.title, t.window.id);
+            t.window.cleanup();
 
-    // May have a grid that has the window as tile
-    let maybe_grid = grids
-        .iter_mut()
-        .map(|g| (g.id, g.get_focused_tile_mut())) // (grid_id, maybe_focused_tile)
-        .filter(|t| t.1.is_some()) // check whether it is safe to unwrap
-        .map(|t| (t.0, t.1.unwrap())) // unwrap focused_tile -> (grid_id, focused_tile)
-        .find(|t| t.1.window.id == window_handle as i32); // find me the tuple that has the window
+            id
+        });
 
-    if let Some(tuple) = maybe_grid {
-        let grid_id = tuple.0;
-        let focused_tile = tuple.1;
-        let focused_tile_id = focused_tile.window.id;
-
-        if grid_id == gid {
-            // only continue if the grid is currently visible
-            debug!(
-                "Reseting window '{}' | {}",
-                focused_tile.window.title, focused_tile.window.id
-            );
-
-            focused_tile.window.reset();
-
-            debug!(
-                "Unmanaging window '{}' | {}",
-                focused_tile.window.title, focused_tile.window.id
-            );
-
-            let grid = grids.iter_mut().find(|g| g.id == gid).unwrap();
-
-            grid.close_tile_by_window_id(focused_tile_id);
-            grid.draw_grid();
-        }
+    if let Some((d, _)) = maybe_grid_id.and_then(|id| state.find_grid(id)) {
+        d.refresh_grid(&config);
     } else {
-        CHANNEL.sender.clone().send(Event::WinEvent(WinEvent {
-            typ: WinEventType::Show(true),
-            hwnd: window_handle as i32,
-        }))?;
+        state
+            .event_channel
+            .sender
+            .clone()
+            .send(Event::WinEvent(WinEvent {
+                typ: WinEventType::Show(true),
+                window,
+            }))
+            .expect("Failed to send WinEvent");
     }
+    // if let Some((grid, _)) =  {
+    //     let mut tile = grid.close_tile_by_window_id(window.id).unwrap();
+
+    //     tile.window.cleanup();
+
+    //     let display = state.get_current_display();
+
+    //     debug!(
+    //         "Unmanaging window '{}' | {}",
+    //         tile.window.title, tile.window.id
+    //     );
+
+    //     grid.draw_grid(display, &state.config);
+    //     display.refresh_grid(&state.config);
+    // } else {
+    //     state
+    //         .event_channel
+    //         .sender
+    //         .clone()
+    //         .send(Event::WinEvent(WinEvent {
+    //             typ: WinEventType::Show(true),
+    //             window,
+    //         }))?;
+    // }
 
     Ok(())
 }

@@ -1,10 +1,11 @@
-use crate::{direction::Direction, with_current_grid};
+use crate::{direction::Direction, system::SystemResult, AppState};
 
-pub fn handle(direction: Direction) -> Result<(), Box<dyn std::error::Error>> {
-    with_current_grid(|grid| {
+pub fn handle(state: &mut AppState, direction: Direction) -> SystemResult {
+    let config = state.config.clone();
+    let display = state.get_current_display_mut();
+    if let Some(grid) = display.get_focused_grid_mut() {
         grid.focus(direction)?;
-        grid.draw_grid();
-
-        Ok(())
-    })
+        display.refresh_grid(&config);
+    }
+    Ok(())
 }

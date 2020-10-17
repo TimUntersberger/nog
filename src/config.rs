@@ -1,4 +1,6 @@
-use crate::keybindings::keybinding::Keybinding;
+use crate::keybindings::{
+    key::Key, keybinding::Keybinding, keybinding_type::KeybindingType, modifier::Modifier,
+};
 use bar_config::BarConfig;
 use log::error;
 use rule::Rule;
@@ -33,7 +35,7 @@ pub struct Config {
     pub rules: Vec<Rule>,
     pub update_channels: Vec<UpdateChannel>,
     pub default_update_channel: Option<String>,
-    pub update_interval: Duration, //minutes
+    pub update_interval: Duration,
     /// contains the metadata for each mode (like an icon)
     /// HashMap<mode, (Option<char>)>
     pub mode_meta: HashMap<String, Option<char>>,
@@ -43,17 +45,17 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             launch_on_startup: false,
-            min_height: 0,
-            min_width: 0,
-            use_border: false,
+            min_height: 200,
+            min_width: 200,
+            use_border: true,
             outer_gap: 0,
             inner_gap: 0,
-            remove_title_bar: false,
-            work_mode: true,
+            remove_title_bar: true,
+            work_mode: false,
             light_theme: false,
             multi_monitor: false,
-            remove_task_bar: false,
-            display_app_bar: false,
+            remove_task_bar: true,
+            display_app_bar: true,
             bar: BarConfig::default(),
             mode_meta: HashMap::new(),
             workspace_settings: Vec::new(),
@@ -72,47 +74,70 @@ impl Config {
         Self::default()
     }
 
-    pub fn increment_field(self: &mut Self, field: &str, value: i32) {
-        self.alter_numerical_field(field, value);
+    pub fn increment_field(&self, field: &str, value: i32) -> Config {
+        self.alter_numerical_field(field, value)
     }
 
-    pub fn decrement_field(self: &mut Self, field: &str, value: i32) {
-        self.alter_numerical_field(field, -value);
+    pub fn decrement_field(&self, field: &str, value: i32) -> Config {
+        self.alter_numerical_field(field, -value)
     }
 
-    fn alter_numerical_field(self: &mut Self, field: &str, value: i32) {
+    fn alter_numerical_field(&self, field: &str, value: i32) -> Config {
+        let mut config = self.clone();
         match field {
-            "bar.height" => self.bar.height += value,
-            "bar.bg" => self.bar.color += value,
-            "bar.font_size" => self.bar.font_size += value,
-            "outer_gap" => self.outer_gap += value,
-            "inner_gap" => self.inner_gap += value,
+            "bar.height" => config.bar.height += value,
+            "bar.color" => config.bar.color += value as u32,
+            "bar.font_size" => config.bar.font_size += value,
+            "outer_gap" => config.outer_gap += value,
+            "inner_gap" => config.inner_gap += value,
             _ => error!("Attempt to alter unknown field: {} by {}", field, value),
         }
+        config
     }
 
-    pub fn toggle_field(self: &mut Self, field: &str) {
+    pub fn toggle_field(&self, field: &str) -> Config {
+        let mut config = self.clone();
         match field {
-            "use_border" => self.use_border = !self.use_border,
-            "light_theme" => self.light_theme = !self.light_theme,
-            "launch_on_startup" => self.launch_on_startup = !self.launch_on_startup,
-            "remove_title_bar" => self.remove_title_bar = !self.remove_title_bar,
-            "remove_task_bar" => self.remove_task_bar = !self.remove_task_bar,
-            "display_app_bar" => self.display_app_bar = !self.display_app_bar,
+            "use_border" => config.use_border = !config.use_border,
+            "light_theme" => config.light_theme = !config.light_theme,
+            "launch_on_startup" => config.launch_on_startup = !config.launch_on_startup,
+            "remove_title_bar" => config.remove_title_bar = !config.remove_title_bar,
+            "remove_task_bar" => config.remove_task_bar = !config.remove_task_bar,
+            "display_app_bar" => config.display_app_bar = !config.display_app_bar,
             _ => error!("Attempt to toggle unknown field: {}", field),
         }
+        config
     }
 
-    pub fn set_bool_field(self: &mut Self, field: &str, value: bool) {
+    pub fn add_keybinding(&mut self, keybinding: Keybinding) {
+        if let Some(kb) = self
+            .keybindings
+            .iter_mut()
+            .find(|kb| kb.key == keybinding.key && kb.modifier == keybinding.modifier)
+        {
+            kb.typ = keybinding.typ;
+            kb.mode = keybinding.mode;
+        } else {
+            self.keybindings.push(keybinding);
+        }
+    }
+
+    pub fn get_keybinding_of_type(&self, kind: KeybindingType) -> Option<&Keybinding> {
+        self.keybindings.iter().find(|kb| kb.typ == kind)
+    }
+
+    pub fn set_bool_field(&self, field: &str, value: bool) -> Config {
+        let mut config = self.clone();
         match field {
-            "use_border" => self.use_border = value,
-            "light_theme" => self.light_theme = value,
-            "launch_on_startup" => self.launch_on_startup = value,
-            "remove_title_bar" => self.remove_title_bar = value,
-            "remove_task_bar" => self.remove_task_bar = value,
-            "display_app_bar" => self.display_app_bar = value,
+            "use_border" => config.use_border = value,
+            "light_theme" => config.light_theme = value,
+            "launch_on_startup" => config.launch_on_startup = value,
+            "remove_title_bar" => config.remove_title_bar = value,
+            "remove_task_bar" => config.remove_task_bar = value,
+            "display_app_bar" => config.display_app_bar = value,
             _ => error!("Attempt to set unknown field: {}", field),
         }
+        config
     }
 
     pub fn get_update_channel(&self) -> Option<&UpdateChannel> {

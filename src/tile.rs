@@ -1,4 +1,5 @@
-use crate::{split_direction::SplitDirection, window::Window};
+use crate::split_direction::SplitDirection;
+use crate::system::NativeWindow;
 use std::fmt::Debug;
 
 #[derive(Clone)]
@@ -6,7 +7,7 @@ pub struct Tile {
     pub column: Option<i32>,
     pub row: Option<i32>,
     pub split_direction: SplitDirection,
-    pub window: Window,
+    pub window: NativeWindow,
 }
 
 impl Default for Tile {
@@ -15,7 +16,7 @@ impl Default for Tile {
             column: None,
             row: None,
             split_direction: SplitDirection::Vertical,
-            window: Window::default(),
+            window: NativeWindow::new(),
         }
     }
 }
