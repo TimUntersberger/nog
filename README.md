@@ -12,6 +12,12 @@ The current focus is on these two PRs:
 * [Cross platform foundation](https://github.com/TimUntersberger/nog/pull/165)
 * [Tile layout algorithm refactor](https://github.com/TimUntersberger/nog/pull/164)
 
+## Syntax highlighting
+
+Since nog uses a custom language we will provide official plugins for syntax highlighting.
+
+* [vim](https://github.com/TimUntersberger/nog.vim)
+
 ## [WIP] Documentation
 
 https://timuntersberger.github.io/nog
