@@ -15,12 +15,10 @@ pub fn handle(state: &mut AppState, ev: WinEvent) -> SystemResult {
     let mut grid_id: Option<i32> = None;
 
     for grid in grids.iter() {
-        for tile in &grid.tiles {
-            if tile.window.id == ev.window.id {
-                title = Some(tile.window.title.clone());
-                grid_id = Some(grid.id);
-                break;
-            }
+        if let Some(window) = grid.get_window(ev.window.id) {
+            title = Some(window.title.clone());
+            grid_id = Some(grid.id);
+            break;
         }
     }
 

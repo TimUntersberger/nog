@@ -50,7 +50,7 @@ pub fn handle(state: &mut AppState, mut window: NativeWindow, force: bool) -> Sy
 
         let display = state.get_current_display_mut();
         if let Some(grid) = display.get_focused_grid_mut() {
-            grid.split(window);
+            grid.push(window);
         }
         display.refresh_grid(&config)?;
     }

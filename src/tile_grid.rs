@@ -8,30 +8,168 @@ use crate::{
     system::SystemError,
     system::SystemResult,
     system::WindowId,
-    tile::Tile,
-    AppState,
+    tile_graph::{
+        text_renderer::TextRenderer, node::Node, node::NodeInfo, 
+        graph_wrapper::GraphWrapper, tile_render_info::TileRenderInfo
+    },
 };
+use std::cmp;
 use log::{debug, error};
-use std::collections::HashMap;
+
+static FULL_SIZE: u32 = 120;
+static HALF_SIZE: u32 = FULL_SIZE / 2;
 
 #[derive(Clone, Debug)]
 pub struct TileGrid<TRenderer: Renderer = NativeRenderer> {
     // pub display: Display,
     pub renderer: TRenderer,
     pub id: i32,
-    pub fullscreen: bool,
-    pub focus_stack: Vec<(Direction, WindowId)>,
-    /// Contains the resize values for each column
-    /// Hashmap<column, (left, right)>
-    pub column_modifications: HashMap<i32, (i32, i32)>,
-    /// Contains the resize values for each row
-    /// Hashmap<column, (top, bottom)>
-    pub row_modifications: HashMap<i32, (i32, i32)>,
-    pub tiles: Vec<Tile>,
-    pub focused_window_id: Option<WindowId>,
     pub taskbar_window: i32,
-    pub rows: i32,
-    pub columns: i32,
+    pub focused_id: Option<usize>,
+    pub fullscreen_id: Option<usize>,
+    pub next_axis: SplitDirection,
+    pub next_direction: Direction,
+    graph: GraphWrapper,
+}
+
+impl TileGrid {
+    pub fn draw_grid(&self, display: &Display, config: &Config) -> SystemResult {
+        debug!("IsFullScreened? {} FocusedNode: {:?}", self.fullscreen_id.is_some(), self.focused_id);
+        let render_infos = self.get_render_info(64, 20);
+        debug!("{}", TextRenderer::render(64, 20, render_infos)); 
+
+        let (padding, margin) = 
+            (if config.inner_gap > 0 { config.inner_gap / 2 } else { 0 }, 
+             if config.outer_gap > 0 { config.outer_gap } else { 0 });
+
+        let display_width = display.working_area_width(config) - margin;
+        let display_height = display.working_area_height(config) - margin;
+        let display_left = display.working_area_left() + (margin / 2);
+        let display_top = display.working_area_top(config) + (margin / 2);
+
+        let render_infos = self.get_render_info(display_width as u32, display_height as u32);
+
+        for render_info in render_infos {
+            let left_padding = if render_info.x != 0 { padding } else { 0 };
+            let top_padding = if render_info.y != 0 { padding } else { 0 };
+            let right_padding = 
+                if (render_info.x + render_info.width) as i32 != display_width { padding } else { 0 };
+            let bottom_padding = 
+                if (render_info.y + render_info.height) as i32 != display_height { padding } else { 0 };
+
+            let left = display_left + render_info.x as i32 + left_padding;
+            let top = display_top + render_info.y as i32 + top_padding;
+            let width = render_info.width as i32 - left_padding - right_padding;
+            let height = render_info.height as i32 - top_padding - bottom_padding;
+
+            self.renderer.render(self, &render_info.window, config, display, left, top, width, height)?;
+        }
+
+        Ok(())
+    }
+    /// Returns a list of render information for each tile in the graph
+    /// inner/outer padding should be handled outside of the tile grid by reducing the
+    /// width/height by the outer padding and trimming off between tiles with the inner padding.
+    pub fn get_render_info(&self, width: u32, height: u32) -> Vec::<TileRenderInfo> {
+        let mut render_infos = Vec::<TileRenderInfo>::new();
+
+        if let Some(fullscreen_id) = self.fullscreen_id {
+            match self.graph.node(fullscreen_id) {
+                Node::Tile((node, window)) => {
+                    render_infos.push(TileRenderInfo {
+                        window: window.clone(),
+                        x: 0,
+                        y: 0,
+                        height: height,
+                        width: width,
+                        debug_id: fullscreen_id,
+                        debug_size: node.size,
+                        debug_order: node.order,
+                    });
+                },
+                _ => ()
+            }
+        }
+        else if let Some(root_id) = self.graph.get_root() {
+            render_infos = self.populate_render_info(render_infos, root_id, 0, width, 0, height);
+        }
+
+        render_infos 
+    }
+    /// A recursive function that walks the graph and populates the supplied vec with rendering information
+    /// for each node based on the given resolution.
+    fn populate_render_info(&self, mut render_infos: Vec::<TileRenderInfo>, current_node_id: usize,
+                            min_x: u32, max_x: u32, min_y: u32, max_y: u32) -> Vec::<TileRenderInfo> {
+        match self.graph.node(current_node_id) {
+            Node::Tile((node, window)) => {
+                render_infos.push(TileRenderInfo {
+                    window: window.clone(),
+                    x: min_x,
+                    y: min_y,
+                    height: if min_y > max_y { 0 } else { max_y - min_y },
+                    width: if min_x > max_x { 0 } else { max_x - min_x },
+                    debug_id: current_node_id,
+                    debug_size: node.size,
+                    debug_order: node.order,
+                });
+            },
+            Node::Column(_) => {
+                let children = self.graph.get_sorted_children(current_node_id);
+                let length = children.len();
+                let mut current_min_x = min_x;
+                let mut remainder = (max_x - min_x) % children.len() as u32;
+                let mut get_remainder_slice = || if remainder > 0 { remainder -= 1; 1 } else { 0 };
+
+                let mut count = 1;
+                for child in children {
+                    let child_size = self.graph.node(child).get_size();
+                    let item_width = (((max_x - min_x) as f32) * 
+                                     (child_size as f32 / FULL_SIZE as f32)).floor() as u32;
+
+                    if item_width <= max_x {
+                        let remainder_slice = get_remainder_slice();
+                        let current_max_x = if count == length { max_x }
+                                            else { current_min_x + item_width + remainder_slice };
+
+                        render_infos = self.populate_render_info(render_infos, child, 
+                                                                 current_min_x, current_max_x, 
+                                                                 min_y, max_y);
+                        current_min_x += item_width + remainder_slice; 
+                    }
+
+                    count += 1;
+                }
+            },
+            Node::Row(_) => {
+                let children = self.graph.get_sorted_children(current_node_id);
+                let length = children.len();
+                let mut current_min_y = min_y;
+                let mut remainder = (max_y - min_y) % children.len() as u32;
+                let mut get_remainder_slice = || if remainder > 0 { remainder -= 1; 1 } else { 0 };
+
+                let mut count = 1;
+                for child in children {
+                    let child_size = self.graph.node(child).get_size();
+                    let item_height = (((max_y - min_y) as f32) * 
+                                      (child_size as f32 / FULL_SIZE as f32)).floor() as u32;
+
+                    if item_height <= max_y {
+                        let remainder_slice = get_remainder_slice();
+                        let current_max_y = if count == length { max_y }
+                                            else { current_min_y + item_height + remainder_slice };
+
+                        render_infos = self.populate_render_info(render_infos, child, min_x, max_x, 
+                                                                 current_min_y, current_max_y);
+                        current_min_y += item_height + remainder_slice;
+                    }
+
+                    count += 1;
+                }
+            }
+        }
+
+        render_infos 
+    }
 }
 
 impl<TRenderer: Renderer> TileGrid<TRenderer> {
@@ -40,561 +178,655 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             id,
             // display: get_primary_display(),
             renderer,
-            fullscreen: false,
-            tiles: Vec::new(),
-            focus_stack: Vec::with_capacity(5),
-            column_modifications: HashMap::new(),
-            row_modifications: HashMap::new(),
-            focused_window_id: None,
             taskbar_window: 0,
-            rows: 0,
-            columns: 0,
+            graph: GraphWrapper::new(),
+            fullscreen_id: None,
+            focused_id: None,
+            next_axis: SplitDirection::Vertical,
+            next_direction: Direction::Right,
         }
     }
+    /// Returns whether the tile grid is populated or not
+    pub fn is_empty(&self) -> bool {
+        self.graph.is_empty()
+    }
+    /// Iterates and hides every window managed by the current tile grid
+    pub fn hide(&self) {
+        for node_id in self.graph.nodes() {
+            if self.graph.node(node_id).is_tile() {
+                self.graph.node(node_id).get_window().hide();
+            }
+        }
+    }
+    /// Removes the focused node, if it exists, and returns the window on that node.
+    /// Leaves the tile_grid in an unfocused state and un-fullscreens if currently fullscreen'd.
+    pub fn pop(&mut self) -> Option<NativeWindow> {
+        let removed_node: Option<Node> = self.remove_node(self.focused_id);
+        self.focused_id = None;
+        self.fullscreen_id = None;
+
+        removed_node.map(|x| x.take_window()) 
+    }
+    /// Iterates and removes every node while resetting any windows that were managed
+    pub fn cleanup(&mut self) -> SystemResult {
+        while !self.is_empty() {
+            self.focused_id = self.get_last_tile();
+
+            if let Some(mut window) = self.pop() {
+                window.cleanup()?;
+            }
+        }
+
+        Ok(())
+    }
+    /*
     pub fn hide(&self) {
         for tile in &self.tiles {
             tile.window.hide();
         }
     }
-    pub fn toggle_fullscreen(&mut self) -> bool {
-        if self.fullscreen || !self.tiles.is_empty() {
-            self.fullscreen = !self.fullscreen;
+    */
+
+    /// Sets the currently focused tile to be fullscreen'd if it's not already, otherwise
+    /// reverts the graph to non-fullscreen'd mode. When a tile is fullscreened certain
+    /// operations are disabled like managing new tiles changing focus, resizing and tile movement
+    pub fn toggle_fullscreen(&mut self) {
+        if self.focused_id.is_some() {
+            if self.fullscreen_id.is_some() {
+                self.fullscreen_id = None;
+            } else {
+                self.fullscreen_id = self.focused_id;
+            }
+        }
+    }
+    /// Travels up the graph from the focused node until it finds a row
+    /// and then resets the size of all of that row's children.
+    /// No-op if no row is found above the focused node or if a node is currently fullscreen'd.
+    pub fn reset_row(&mut self) {
+        if self.fullscreen_id.is_some() { return; }
+        self.reset_size(self.graph.to_closest_row(self.focused_id))
+    }
+    /// Gets all the child nodes of a node and re-distrbutes the size among them. 
+    /// This applies only one level down, regardless of what type of nodes they are; any
+    /// child Row/Column nodes' children will retain their respective size.
+    fn reset_size(&mut self, parent_id: Option<usize>) {
+        if !parent_id.is_some() || self.fullscreen_id.is_some() { return }
+
+        let children = self.graph.get_sorted_children(parent_id.unwrap());
+        let number_of_children = children.len();
+        let size_per_child = FULL_SIZE / number_of_children as u32;
+
+        let mut remainder = FULL_SIZE % number_of_children as u32;
+        let mut get_remainder_slice = || if remainder > 0 { remainder -= 1; 1 } else { 0 }; 
+
+        for child in children {
+            self.graph.node_mut(child)
+                      .set_size(size_per_child + get_remainder_slice());
+        }
+    }
+    /// Travels up the graph from the focused node until it finds a column
+    /// and then resets the size of all of that column's children.
+    /// No-op if no column is found above the focused node or if a node is currently fullscreen'd.
+    pub fn reset_column(&mut self) {
+        if self.fullscreen_id.is_some() { return; }
+        self.reset_size(self.graph.to_closest_column(self.focused_id))
+    }
+    /// Iterates and shows every window managed by the current tile_grid 
+    pub fn show(&self) -> SystemResult {
+        for node_id in self.graph.nodes() {
+            if self.graph.node(node_id).is_tile() {
+                let window = self.graph.node(node_id).get_window();
+                window.show();
+                window.to_foreground(true)
+                      .map_err(SystemError::ShowWindow)?;
+                if let Err(e) = window.remove_topmost() {
+                    error!("{}", e);
+                }
+            }
         }
 
-        self.fullscreen
-    }
-    pub fn reset_row(&mut self) {
-        if let Some(tile) = self.get_focused_tile() {
-            if let Some(m) = tile.row.and_then(|c| self.row_modifications.get_mut(&c)) {
-                m.0 = 0;
-                m.1 = 0;
-            }
-        }
-    }
-    pub fn reset_column(&mut self) {
-        if let Some(tile) = self.get_focused_tile() {
-            if let Some(m) = tile
-                .column
-                .and_then(|c| self.column_modifications.get_mut(&c))
-            {
-                m.0 = 0;
-                m.1 = 0;
-            }
-        }
-    }
-    pub fn show(&self) -> SystemResult {
-        for tile in &self.tiles {
-            tile.window.show();
-            tile.window
-                .to_foreground(true)
-                .map_err(SystemError::ShowWindow)?;
-            if let Err(e) = tile.window.remove_topmost() {
-                error!("{}", e);
-            }
-        }
-        if let Some(tile) = self.get_focused_tile() {
-            tile.window.focus()?;
+        if let Some(focused_id) = self.focused_id {
+            self.graph.node(focused_id).get_window().focus().expect("Failed to focus window");
         }
         Ok(())
     }
-    pub fn get_tile_by_id(&self, id: WindowId) -> Option<Tile> {
-        self.tiles
-            .iter()
-            .find(|tile| tile.window.id == id)
-            .clone()
-            .cloned()
+    /// Returns the window of the currently focused tile if it exists
+    pub fn get_focused_window(&self) -> Option<&NativeWindow> {
+        self.focused_id.map(|id| self.graph.node(id).get_window())
     }
-    pub fn get_tile_by_id_mut(&mut self, id: WindowId) -> Option<&mut Tile> {
-        self.tiles.iter_mut().find(|tile| tile.window.id == id)
+    /// Returns the window that matches by ID if it exists
+    pub fn get_window(&self, id: WindowId) -> Option<&NativeWindow> {
+        self.graph.nodes()
+                  .find(|n| {
+                      let node = self.graph.node(*n);
+                      node.is_tile() && node.get_window().id == id
+                  })
+                  .map(|n| self.graph.node(n).get_window())
     }
-    pub fn get_focused_tile(&self) -> Option<&Tile> {
-        self.focused_window_id
-            .and_then(|id| self.tiles.iter().find(|tile| tile.window.id == id))
-    }
-    pub fn get_focused_tile_mut(&mut self) -> Option<&mut Tile> {
-        self.focused_window_id
-            .and_then(move |id| self.tiles.iter_mut().find(|tile| tile.window.id == id))
-    }
-    pub fn set_focused_split_direction(&mut self, direction: SplitDirection) {
-        if let Some(focused_tile) = self.get_focused_tile_mut() {
-            focused_tile.split_direction = direction;
+    /// Runs the passed in function on the currently focused tile's window in the current tile grid.
+    pub fn modify_focused_window<TFunction>(self: &mut Self, f: TFunction) -> SystemResult
+        where 
+            TFunction: FnMut(&mut NativeWindow) -> SystemResult + Copy {
+        if let Some(focused_id) = self.focused_id {
+            self.graph.node_mut(focused_id).modify_window(f)?;
         }
+        Ok(())
     }
-    fn get_next_tile_id(&self, direction: Direction) -> Option<WindowId> {
-        self.get_next_tile(direction).map(|t| t.window.id)
-    }
-    fn get_next_tile(&self, direction: Direction) -> Option<Tile> {
-        self.get_focused_tile().and_then(|focused_tile| {
-            //Whether it is possible to go in that direction or not
-            let possible = !match direction {
-                Direction::Right => {
-                    focused_tile.column == Some(self.columns) || focused_tile.column == None
-                }
-                Direction::Left => focused_tile.column == Some(1) || focused_tile.column == None,
-                Direction::Up => focused_tile.row == Some(1) || focused_tile.row == None,
-                Direction::Down => focused_tile.row == Some(self.rows) || focused_tile.row == None,
-            };
-
-            if !possible {
-                debug!("It is not possible to focus in this direction");
-                return None;
+    /// Iterates across all tile nodes and runs the passed in function on them. Useful for
+    /// changing all windows in the current tile grid.
+    pub fn modify_windows<TFunction>(self: &mut Self, f: TFunction) -> SystemResult
+        where 
+            TFunction: FnMut(&mut NativeWindow) -> SystemResult + Copy {
+        for node_id in self.graph.nodes() {
+            let node = self.graph.node_mut(node_id);
+            if node.is_tile() {
+                node.modify_window(f)?;
             }
-
-            debug!("It is possible to focus in this direction");
-
-            self.tiles
-                .iter()
-                .find(|tile| match direction {
-                    Direction::Right => {
-                        (focused_tile.row == None
-                            || tile.row == None
-                            || tile.row == focused_tile.row)
-                            && tile.column == focused_tile.column.map(|x| x + 1)
-                        // && (tile.row == Some(1) || tile.row == None)
-                    }
-                    Direction::Left => {
-                        (focused_tile.row == None
-                            || tile.row == None
-                            || tile.row == focused_tile.row)
-                            && tile.column == focused_tile.column.map(|x| x - 1)
-                        // && (tile.row == Some(1) || tile.row == None)
-                    }
-                    Direction::Up => {
-                        (focused_tile.column == None
-                            || tile.column == None
-                            || tile.column == focused_tile.column)
-                            && tile.row == focused_tile.row.map(|x| x - 1)
-                        // && (tile.column == Some(1) || tile.column == None)
-                    }
-                    Direction::Down => {
-                        (focused_tile.column == None
-                            || tile.column == None
-                            || tile.column == focused_tile.column)
-                            && tile.row == focused_tile.row.map(|x| x + 1)
-                        // && (tile.column == Some(1) || tile.column == None)
-                    }
-                })
-                .cloned()
-        })
+        }
+        Ok(())
     }
-    fn set_location(&mut self, id: WindowId, row: Option<i32>, col: Option<i32>) {
-        if let Some(mut tile) = self.get_tile_by_id_mut(id) {
-            tile.row = row;
-            tile.column = col;
+    pub fn swap_focused(&mut self, direction: Direction) {
+        if self.fullscreen_id.is_some() { return; }
+
+        if let Some(parent_id) = self.graph.map_to_parent(self.focused_id) {
+            let focused_id = self.focused_id.unwrap();
+            let focused_order = self.graph.node(focused_id).get_order();
+            let children = self.graph.get_children(parent_id);
+
+            let should_swap_with_sibling = 
+                match (&direction, self.graph.node(parent_id)) {
+                    (Direction::Left, Node::Column(_)) | 
+                    (Direction::Up, Node::Row(_)) => focused_order > 0 && children.len() > 1,
+                    (Direction::Right, Node::Column(_)) | 
+                    (Direction::Down, Node::Row(_)) => focused_order < (children.len() - 1) as u32,
+                    _ => false
+                };
+
+            if should_swap_with_sibling {
+                let sibling_id = self.graph.get_neighbor(focused_id, direction);
+                self.swap_order(focused_id, sibling_id.unwrap());
+            } 
         }
     }
-    fn swap_tiles(&mut self, x: WindowId, y: WindowId) {
-        //borrow checker bullshit
-        let x_tile = {
-            let tile = self.get_tile_by_id(x).unwrap();
-            (tile.window.id, tile.row, tile.column)
-        };
-        let y_tile = {
-            let tile = self.get_tile_by_id(y).unwrap();
-            (tile.window.id, tile.row, tile.column)
-        };
-        self.set_location(x_tile.0, y_tile.1, y_tile.2);
-        self.set_location(y_tile.0, x_tile.1, x_tile.2);
+    fn swap_order(&mut self, first: usize, second: usize) {
+        let first_order = self.graph.node(first).get_order();
+        let second_order = self.graph.node(second).get_order();
+        
+        self.graph.node_mut(first).set_order(second_order);
+        self.graph.node_mut(second).set_order(first_order);
     }
-    pub fn swap(&mut self, direction: Direction) {
-        if let Some(tile) = self.check_focus_stack(direction) {
-            //if the focus stack is not empty, then some tile must have focus
-            let focused_id = self.focused_window_id.unwrap();
-            self.swap_tiles(tile.window.id, focused_id);
-        } else if let Some(next_id) = self.get_next_tile_id(direction) {
-            //if we get a next tile we can assume that a tile is focused
-            let focused_id = self.focused_window_id.unwrap();
-            self.swap_tiles(next_id, focused_id);
-            self.focus_stack.push((direction, next_id));
-        }
-    }
-    fn check_focus_stack(&mut self, direction: Direction) -> Option<Tile> {
-        if let Some(prev) = self.focus_stack.pop() {
-            // This variable says that the action cancels the previous action.
-            // Example: Left -> Right
-            let counters = match direction {
-                Direction::Left => prev.0 == Direction::Right,
-                Direction::Right => prev.0 == Direction::Left,
-                Direction::Up => prev.0 == Direction::Down,
-                Direction::Down => prev.0 == Direction::Up,
-            };
+    pub fn focus(&mut self, direction: Direction) -> SystemResult {
+        if self.fullscreen_id.is_some() || !self.focused_id.is_some() { return Ok(()); }
 
-            if counters {
-                let maybe_tile = self.get_tile_by_id(prev.1);
+        let parent_id = self.graph.map_to_parent(self.focused_id);
+        if let Some(mut parent_id) = parent_id {
+            let mut target_focus: Option<usize> = None;
+            let mut current_focus = self.focused_id.unwrap();
+            while !target_focus.is_some() {
+                let children = self.graph.get_children(parent_id).len();
+                let focused_order = self.graph.node(current_focus).get_order();
 
-                if let Some(tile) = maybe_tile {
-                    debug!("The direction counters the previous one. Reverting the previous one.");
-                    return Some(tile);
+                let should_focus_sibling = 
+                    match (&direction, self.graph.node(parent_id)) {
+                        (Direction::Left, Node::Column(_)) | 
+                        (Direction::Up, Node::Row(_)) => focused_order > 0 && children > 1,
+                        (Direction::Right, Node::Column(_)) | 
+                        (Direction::Down, Node::Row(_)) => focused_order < (children - 1) as u32,
+                        _ => false
+                    };
+
+                if should_focus_sibling {
+                    target_focus = self.graph.get_neighbor(current_focus, direction);
+                } else if let Some(p_id) = self.graph.map_to_parent(Some(parent_id)) {
+                    // focus on parent and iterate again to find a tile in chosen direction
+                    current_focus = parent_id;
+                    parent_id = p_id;
+                } else {
+                    // no parent, can't move in direction
+                    target_focus = self.focused_id;
                 }
             }
 
-            self.focus_stack.push(prev);
+            self.focused_id = self.graph.to_closest_tile(target_focus, Some(direction));
+            self.graph.node(self.focused_id.unwrap()).get_window().focus()?;
+        }
 
-            if self.focus_stack.len() == self.focus_stack.capacity() {
-                debug!("Focus stack exceeded the limit. Removing oldest one");
-                self.focus_stack.drain(0..1);
+        Ok(())
+    }
+    fn reset_order(&mut self, parent_id: usize) {
+        let nodes = self.graph.get_sorted_children(parent_id);
+
+        let mut order = 0;
+        for node in nodes {
+            self.graph.node_mut(node).set_order(order);
+            order += 1;
+        }
+    }
+    fn remove_node(&mut self, node_id: Option<usize>) -> Option<Node> {
+        let mut removed_node: Option<Node> = None;
+        if let Some(current_id) = node_id {
+            if let Some(parent_id) = self.graph.map_to_parent(Some(current_id)) {
+                let children = self.graph.get_children(parent_id);
+                let number_of_children = children.len();
+                if number_of_children == 2 {
+                    // remove the current item
+                    // make the other child take place of parent
+                    let sibling_id = *children.iter().find(|x| **x != current_id).unwrap();
+                    
+                    if let Some(grand_parent_id) = self.graph.map_to_parent(Some(parent_id)) {
+                        self.graph.connect(grand_parent_id, sibling_id);
+                    }
+
+                    let (order, size) = self.graph.node(parent_id).get_info();
+
+                    let keep_node = self.graph.node_mut(sibling_id);
+                    keep_node.set_info(order, size);
+
+                    self.graph.remove_node(parent_id);
+                    removed_node = self.graph.remove_node(current_id);
+                } else {
+                    // remove the current item
+                    // distribute size among siblings
+                    let size = self.graph.node(current_id).get_size();
+                    let size_per_sibling = size / number_of_children as u32;
+
+                    let mut remainder = size % number_of_children as u32;
+                    let mut get_remainder_slice = || if remainder > 0 { remainder -= 1; 1 } else { 0 }; 
+
+                    for child in children {
+                        if child != current_id {
+                            let current_size = self.graph.node(child).get_size();
+                            self.graph.node_mut(child)
+                                      .set_size(size_per_sibling + current_size + get_remainder_slice());
+                        }
+                    }
+                    
+                    removed_node = self.graph.remove_node(current_id);
+                    self.reset_order(parent_id);
+                }
+            } else { 
+                // focused is root node so empy out entire graph
+                removed_node = self.graph.remove_node(current_id);
+                self.graph.clear();
             }
+        } 
+
+        removed_node
+    }
+    pub fn close_focused(&mut self) -> Option<NativeWindow> {
+        if let Some(focused_node) = self.focused_id.map(|id| self.graph.node(id)) {
+            self.remove_by_window_id(focused_node.get_window().id);
         }
 
         None
     }
-    pub fn focus(&mut self, direction: Direction) -> SystemResult {
-        if let Some(tile) = self.check_focus_stack(direction) {
-            self.focused_window_id = Some(tile.window.id);
-            tile.window.focus()?;
-            return Ok(());
-        }
-
-        let maybe_next_tile = self.get_next_tile(direction);
-
-        if let Some(next_tile) = maybe_next_tile {
-            self.focus_stack
-                .push((direction, self.focused_window_id.unwrap()));
-
-            self.focused_window_id = Some(next_tile.window.id);
-            next_tile.window.focus()?;
-        } else {
-            debug!("Couldn't find a valid tile");
-        }
-
-        Ok(())
-    }
-    pub fn focus_right(&mut self) -> SystemResult {
-        self.focus(Direction::Right)
-    }
-    pub fn focus_left(&mut self) -> SystemResult {
-        self.focus(Direction::Left)
-    }
-    pub fn focus_up(&mut self) -> SystemResult {
-        self.focus(Direction::Up)
-    }
-    pub fn focus_down(&mut self) -> SystemResult {
-        self.focus(Direction::Down)
-    }
-    pub fn close_tile_by_window_id(&mut self, id: WindowId) -> Option<Tile> {
-        let maybe_removed_tile = self
-            .tiles
-            .iter()
-            .position(|tile| tile.window.id == id)
-            .map(|idx| self.tiles.remove(idx));
-
-        if let Some(removed_tile) = maybe_removed_tile.clone() {
-            let is_empty_row = removed_tile.row != None
-                && !self.tiles.iter().any(|tile| tile.row == removed_tile.row);
-
-            let is_empty_column = removed_tile.column != None
-                && !self
-                    .tiles
-                    .iter()
-                    .any(|tile| tile.column == removed_tile.column);
-
-            if is_empty_row {
-                debug!("row is now empty");
-
-                self.row_modifications.remove(&self.rows);
-                self.rows -= 1;
-                if self.rows == 1 {
-                    self.tiles
-                        .iter_mut()
-                        .filter(|t| t.row > removed_tile.row)
-                        .for_each(|t| {
-                            t.row = None;
-                        });
-                } else {
-                    self.tiles
-                        .iter_mut()
-                        .filter(|t| t.row > removed_tile.row)
-                        .for_each(|t| {
-                            t.row.map(|x| x - 1);
-                        });
-                }
-            } else if !is_empty_column {
-                self.tiles
-                    .iter_mut()
-                    .filter(|t| t.column == removed_tile.column)
-                    .for_each(|t| t.row = None);
-            }
-
-            if is_empty_column {
-                debug!("column is now empty");
-
-                self.column_modifications.remove(&self.columns);
-                self.columns -= 1;
-
-                if self.columns == 1 {
-                    self.tiles
-                        .iter_mut()
-                        .filter(|t| t.column != removed_tile.column)
-                        .for_each(|t| {
-                            t.column = None;
-                        })
-                } else {
-                    self.tiles
-                        .iter_mut()
-                        .filter(|t| t.column > removed_tile.column)
-                        .for_each(|t| {
-                            t.column = t.column.map(|x| x - 1);
-                        })
-                }
-            } else {
-                let mut tiles_in_column: Vec<&mut Tile> = self
-                    .tiles
-                    .iter_mut()
-                    .filter(|t| t.column == removed_tile.column)
-                    .collect();
-
-                let tile_count = tiles_in_column.len();
-
-                for t in tiles_in_column.iter_mut() {
-                    t.row = if tile_count == 1 {
-                        None
-                    } else if removed_tile.row < t.row {
-                        t.row.map(|x| x - 1)
-                    } else {
-                        t.row
-                    };
+    pub fn remove_by_window_id(&mut self, id: WindowId) -> Option<NativeWindow> {
+        let mut window: Option<NativeWindow> = None;
+        if let Some(node_id) = self.graph.find(|x| x.is_tile() && x.get_window().id == id) {
+            window = self.remove_node(Some(node_id)).map(|x| x.take_window());
+            if let Some(focused_id) = self.focused_id {
+                if focused_id == node_id {
+                    self.focused_id = None;
                 }
             }
-
-            if self.tiles.is_empty() {
-                self.focused_window_id = None;
-            } else if let Some(focused_window_id) = self.focused_window_id {
-                if focused_window_id == removed_tile.window.id {
-                    let next_column = removed_tile.column.map(|column| {
-                        if column > self.columns {
-                            column - 1
-                        } else {
-                            column
-                        }
-                    });
-
-                    let next_row =
-                        removed_tile
-                            .row
-                            .map(|row| if row > self.rows { row - 1 } else { row });
-
-                    let maybe_next_tile: Option<&Tile> = self.tiles.iter().find(|tile| {
-                        (tile.column == None || tile.column == next_column)
-                            && (tile.row == None || tile.row == next_row)
-                    });
-
-                    if let Some(next_tile) = maybe_next_tile {
-                        self.focused_window_id = Some(next_tile.window.id);
-                    }
+            if let Some(fullscreen_id) = self.fullscreen_id {
+                if fullscreen_id == node_id || self.graph.nodes().count() <= 1 {
+                    self.fullscreen_id = None;
                 }
             }
         }
 
-        maybe_removed_tile
+        window
     }
-    pub fn split(&mut self, window: NativeWindow) {
-        if self.tiles.iter().any(|t| t.window.id == window.id) {
+    /// Returns whether a given window ID exists in the tile grid 
+    pub fn contains(&self, window_id: WindowId) -> bool {
+        self.graph.nodes()
+                  .find(|n| {
+                      let node = self.graph.node(*n);
+                      node.is_tile() && node.get_window().id == window_id
+                  })
+                  .is_some()  
+    }
+    /// Returns the an Option NodeID (usize) of the last Tile in the tile grid.
+    /// This is somewhat arbitrary as it won't necessarily be the last node added to
+    /// the grid based on the graph implementation but can serve as a "give me a node toward the 'bottom'
+    /// of the graph."
+    fn get_last_tile(&self) -> Option<usize> {
+        self.graph.nodes().filter(|n| self.graph.node(*n).is_tile()).last()
+    }
+    /// Focuses the tile that holds the given window ID if it exists in the current tile grid
+    pub fn focus_tile_by_window_id(&mut self, window_id: WindowId) {
+        let maybe_window_tile = self.graph.nodes()
+                                    .find(|n| {
+                                        let node = self.graph.node(*n);
+                                        node.is_tile() && node.get_window().id == window_id
+                                    });
+        if maybe_window_tile.is_some() {
+            self.focused_id = maybe_window_tile;
+        }
+    }
+    pub fn push(&mut self, window: NativeWindow) {
+        if self.fullscreen_id.is_some() {
+            // don't do anything if fullscreened
             return;
         }
 
-        match self.get_focused_tile_mut() {
-            Some(focused_tile) => {
-                let split_direction = focused_tile.split_direction;
-                let (column, row) = match focused_tile.split_direction {
-                    SplitDirection::Horizontal => {
-                        if focused_tile.row == None {
-                            focused_tile.row = Some(1);
+        if self.graph.len() == 0 {
+            let new_root_node = Node::Tile((NodeInfo { order: 0, size: FULL_SIZE }, window));
+            self.focused_id = Some(self.graph.add_node(new_root_node));
+
+            // first node inserted in empty graph so return early
+            return;
+        }
+
+        if self.contains(window.id) {
+            // window is already in graph
+            return;
+        }
+
+        if !self.focused_id.is_some() {
+            // if we're not focused, just focus last tile in the graph
+            self.focused_id = self.get_last_tile();
+        }
+
+        if let Some(current_id) = self.focused_id {
+            let mut new_node = Node::Tile((NodeInfo { order: 0, size: 0 }, window));
+            let (existing_node_order, new_node_order) = match self.next_direction {
+                                                            Direction::Up | Direction::Left => (1, 0),
+                                                            _ => (0, 1)
+                                                        };
+            match self.graph.node(current_id) {
+                Node::Tile(_) => {
+                    if let Some(parent_id) = self.graph.map_to_parent(Some(current_id)) {
+                        type CreateNode = fn(u32, u32) -> Node;
+                        enum PushOperation {
+                            AppendToParent,
+                            SwapAndAppend(CreateNode)
                         }
 
-                        let column = focused_tile.column;
-                        let row = focused_tile.row.map(|x| x + 1).or(Some(2));
+                        let operation = match (self.graph.node(parent_id), self.next_axis) {
+                            (Node::Column(_), SplitDirection::Vertical) |
+                            (Node::Row(_), SplitDirection::Horizontal) => PushOperation::AppendToParent,
+                            (Node::Column(_), _) => PushOperation::SwapAndAppend(Node::row),
+                            (Node::Row(_), _) => PushOperation::SwapAndAppend(Node::column),
+                            _ => panic!("Parent not column or row")
+                        };
 
-                        // This is not 0 when the new row is not the last one
-                        // It basically is the count of rows in this row that come after the location where this new tile gets placed
-                        let mut row_count = 0;
+                        match operation {
+                            PushOperation::AppendToParent => {
+                                // parent is same type as what we want to add
+                                // so append item to parent's column list
+                                let (current_node_order, ..) = self.graph.node(current_id).get_info();
+                                let new_node_order = current_node_order + new_node_order;
+                                new_node.set_info(new_node_order, self.make_space_for_node(parent_id));
+                                self.shift_order(parent_id, new_node_order);
+                                self.focused_id = Some(self.graph.add_child(parent_id, new_node));
+                            },
+                            PushOperation::SwapAndAppend(create_node) => {
+                                // parent is opposite type of what we want to add
+                                // so swap current node with opposite of parent type node 
+                                // and append current item + new item there
+                                let (new_order, new_size) = self.graph.node(current_id).get_info();
+                                let new_parent_node = create_node(new_order, new_size);
 
-                        // We can assume that row is Some because, there is no case where it is currently None
-                        if row.unwrap() <= self.rows {
-                            self.tiles
-                                .iter_mut()
-                                .filter(|t| t.column == column && t.row >= row)
-                                .for_each(|t| {
-                                    t.row = t.row.map(|x| x + 1);
-                                    row_count += 1;
-                                });
+                                let (new_parent_id, child_id) = self.graph.swap_and_nest(current_id, new_parent_node);
+                                self.graph.node_mut(child_id).set_info(existing_node_order, HALF_SIZE); 
+                                new_node.set_info(new_node_order, HALF_SIZE);
+                                self.focused_id = Some(self.graph.add_child(new_parent_id, new_node));
+                            }
                         }
-                        if row.map(|x| x + row_count) > Some(self.rows) {
-                            self.rows += 1;
-                        }
-
-                        (column, row)
+                    } else /* must be root tile */ { 
+                        let new_parent = match self.next_axis {
+                                           SplitDirection::Vertical => Node::column(0, FULL_SIZE),
+                                           SplitDirection::Horizontal => Node::row(0, FULL_SIZE)
+                                       };
+                        
+                        let (new_parent_id, child_id) = self.graph.swap_and_nest(current_id, new_parent);
+                        self.graph.node_mut(child_id).set_info(existing_node_order, HALF_SIZE); 
+                        new_node.set_info(new_node_order, HALF_SIZE);
+                        self.focused_id = Some(self.graph.add_child(new_parent_id, new_node));
                     }
-                    SplitDirection::Vertical => {
-                        if focused_tile.column == None {
-                            focused_tile.column = Some(1);
+                }
+                _ => panic!("Focused node not a tile. This is an invalid state")
+            }
+        }
+    }
+    fn shift_order(&mut self, parent_id: usize, mut shift_point: u32) {
+        let nodes = self.graph.get_sorted_children(parent_id);
+        let nodes = nodes.iter()
+                         .filter(|x| self.graph.node(**x).get_info().0 >= shift_point)
+                         .collect::<Vec<_>>();
+
+        for node in nodes {
+            shift_point += 1;
+            self.graph.node_mut(*node).set_order(shift_point);
+        }
+    }
+    fn make_space_for_node(&mut self, parent_id: usize) -> u32 {
+        let mut children = self.graph.get_children(parent_id);
+        let target_size_of_new_item = (FULL_SIZE as f32 / (children.len() as f32 + 1.0)).floor();
+        let mut existing_children_total = 0;
+
+        let take_from_each = (target_size_of_new_item / children.len() as f32) as u32;
+        let mut remainder = (target_size_of_new_item % children.len() as f32) as u32;
+        let mut take_remainder = || if remainder > 0 { remainder -= 1; 1 } else { 0 };
+
+        children.sort_by_key(|x| self.graph.node(*x).get_size());
+        children.reverse();
+
+        for child_id in children {
+            let mut child_size = self.graph.node(child_id).get_size();
+            child_size -= take_from_each + take_remainder(); 
+
+            existing_children_total += child_size;
+            self.graph.node_mut(child_id).set_size(child_size);
+        }
+        
+        FULL_SIZE - existing_children_total 
+    }
+    pub fn trade_size_with_neighbor(&mut self, node_id: Option<usize>, direction: Direction, size: i32) {
+        if !node_id.is_some() || self.fullscreen_id.is_some() { return; }
+
+        if let Some(parent_id) = self.graph.map_to_parent(node_id) {
+            let node_id = node_id.unwrap();
+            let (node_order, node_size) = self.graph.node(node_id).get_info();
+            let children = self.graph.get_children(parent_id);
+
+            match (direction, &self.graph.node(parent_id)) {
+                (Direction::Left, Node::Column(_)) | 
+                (Direction::Up, Node::Row(_)) if node_order > 0 => {
+                    if let Some(neighbor_id) = children.iter()
+                                                       .find(|x| self.graph.node(**x).get_order() == node_order - 1) {
+                        let neighbor_size = self.graph.node(*neighbor_id).get_size();
+
+                        if size > 0 && neighbor_size > size.abs() as u32 
+                            || size < 0 && node_size > size.abs() as u32 {
+                            self.graph.node_mut(*neighbor_id).set_size((neighbor_size as i32 - size) as u32);
+                            self.graph.node_mut(node_id).set_size((node_size as i32 + size) as u32);
                         }
-                        let row = focused_tile.row;
-                        let column = focused_tile.column.map(|x| x + 1).or(Some(2));
-
-                        // This is not 0 when the new column is not the last one
-                        // It basically is the count of columns in this row that come after the location where this new tile gets placed
-                        let mut column_count = 0;
-
-                        // We can assume that column is Some because, there is no case where it is currently None
-                        if column.unwrap() <= self.columns {
-                            self.tiles
-                                .iter_mut()
-                                .filter(|t| t.row == row && t.column >= column)
-                                .for_each(|t| {
-                                    t.column = t.column.map(|x| x + 1);
-                                    column_count += 1;
-                                });
-                        }
-
-                        if column.map(|x| x + column_count) > Some(self.columns) {
-                            self.columns += 1;
-                        }
-
-                        (column, row)
                     }
+                }
+                (Direction::Right, Node::Column(_)) | 
+                (Direction::Down, Node::Row(_)) => {
+                    if let Some(neighbor_id) = children.iter()
+                                                       .find(|x| self.graph.node(**x).get_order() == node_order + 1) {
+                        let neighbor_size = self.graph.node(*neighbor_id).get_size();
+
+                        if size > 0 && neighbor_size > size.abs() as u32 
+                            || size < 0 && node_size > size.abs() as u32 {
+                            self.graph.node_mut(*neighbor_id).set_size((neighbor_size as i32 - size) as u32);
+                            self.graph.node_mut(node_id).set_size((node_size as i32 + size) as u32);
+                        }
+                    }
+                }
+                _ => self.trade_size_with_neighbor(Some(parent_id), direction, size)
+            }
+        }
+    }
+    pub fn move_focused_out(&mut self, direction: Direction) {
+        if self.fullscreen_id.is_some() { return; }
+
+        if let Some(parent_id) = self.graph.map_to_parent(self.focused_id) {
+            let focused_id = self.focused_id.unwrap();
+            let children = self.graph.get_children(parent_id);
+
+            if !self.graph.map_to_parent(Some(parent_id)).is_some() {
+                let new_root = match self.graph.node(parent_id) {
+                                  Node::Column(_) => Node::row(0, FULL_SIZE),
+                                  Node::Row(_) => Node::column(0, FULL_SIZE),
+                                  _ => panic!("Parent must be row or column")
+                               };
+                if children.len() == 2 && self.graph.node(children[0]).is_tile() 
+                                       && self.graph.node(children[1]).is_tile() {
+                    self.graph.swap_node(parent_id, new_root);
+                } else if children.len() > 2 {
+                    self.remove_child(parent_id, focused_id);
+                    let new_root_id = self.graph.add_node(new_root);
+                    self.graph.connect(new_root_id, parent_id);
+                    self.graph.connect(new_root_id, focused_id);
+
+                    let (left, right) = match direction {
+                                            Direction::Left | Direction::Up => (focused_id, parent_id),
+                                            Direction::Right | Direction::Down => (parent_id, focused_id)
+                                        };
+                    self.graph.node_mut(left).set_info(0, HALF_SIZE);
+                    self.graph.node_mut(right).set_info(1, HALF_SIZE);
+                }
+
+                return;
+            }
+
+            let (new_parent_id, sibling_id) = 
+                match (&direction, self.graph.node(parent_id)) {
+                    (Direction::Left, Node::Column(_)) | 
+                    (Direction::Up, Node::Row(_)) |
+                    (Direction::Right, Node::Column(_)) | 
+                    (Direction::Down, Node::Row(_)) => 
+                        (self.graph.map_to_parent(self.graph.map_to_parent(Some(parent_id))),
+                         self.graph.map_to_parent(Some(parent_id))),
+                    (Direction::Up, Node::Column(_)) | 
+                    (Direction::Left, Node::Row(_)) |
+                    (Direction::Down, Node::Column(_)) | 
+                    (Direction::Right, Node::Row(_)) => 
+                        (self.graph.map_to_parent(Some(parent_id)), Some(parent_id)),
+                    _ => (None, None)
                 };
 
-                self.focused_window_id = Some(window.id);
-                self.tiles.push(Tile {
-                    row,
-                    column,
-                    split_direction,
-                    window,
-                });
-            }
-            None => {
-                self.rows = 1;
-                self.columns = 1;
-                self.focused_window_id = Some(window.id);
-                self.tiles.push(Tile {
-                    window,
-                    ..Tile::default()
-                });
+            if let Some(new_parent_id) = new_parent_id {
+                let sibling_id = sibling_id.unwrap();
+                let sibling_order = self.graph.node(sibling_id).get_order();
+                let (sibling_order, new_focused_order) = 
+                            match &direction {
+                                Direction::Up | Direction::Left => (sibling_order + 1, sibling_order),
+                                _ => (sibling_order, sibling_order + 1)
+                            };
+
+                match &self.graph.node(new_parent_id) {
+                    Node::Column(_) | Node::Row(_) => { 
+                        self.remove_child(parent_id, focused_id);
+                        let new_size = self.make_space_for_node(new_parent_id);
+                        self.graph.node_mut(focused_id).set_info(new_focused_order, new_size);
+                        self.graph.node_mut(sibling_id).set_order(sibling_order);
+                        self.graph.connect(new_parent_id, focused_id);
+                        self.reset_order(new_parent_id);
+                    },
+                    _ => panic!("Expected Column/Row. Tile is not a valid state")
+                }
+
+                self.bubble_siblingless_child(parent_id);
             }
         }
     }
+    pub fn move_focused_in(&mut self, direction: Direction) {
+        if self.fullscreen_id.is_some() { return; }
 
-    pub fn get_row_modifications(&self, row: Option<i32>) -> Option<(i32, i32)> {
-        row.and_then(|value| self.row_modifications.get(&value))
-            .copied()
-    }
-    pub fn get_column_modifications(&self, column: Option<i32>) -> Option<(i32, i32)> {
-        column
-            .and_then(|value| self.column_modifications.get(&value))
-            .copied()
-    }
-    pub fn get_modifications(&self, tile: &Tile) -> (Option<(i32, i32)>, Option<(i32, i32)>) {
-        (
-            self.get_column_modifications(tile.column),
-            self.get_row_modifications(tile.row),
-        )
-    }
+        if let Some(parent_id) = self.graph.map_to_parent(self.focused_id) {
+            let focused_id = self.focused_id.unwrap();
+            let number_of_children = self.graph.get_children(parent_id).len();
 
-    pub fn resize_column(&mut self, column: i32, direction: Direction, amount: i32) {
-        if amount != 0 {
-            let mut modification = self
-                .get_column_modifications(Some(column))
-                .unwrap_or((0, 0));
-
-            if direction == Direction::Left && column != 1 {
-                modification.0 += amount;
-            } else if direction == Direction::Right && column != self.columns {
-                modification.1 += amount;
-            }
-
-            self.column_modifications.insert(column, modification);
-        }
-    }
-
-    pub fn resize_row(&mut self, row: i32, direction: Direction, amount: i32) {
-        if amount != 0 {
-            let mut modification = self.get_row_modifications(Some(row)).unwrap_or((0, 0));
-
-            if direction == Direction::Up && row != 1 {
-                modification.0 += amount;
-            } else if direction == Direction::Down && row != self.rows {
-                modification.1 += amount;
-            }
-
-            self.row_modifications.insert(row, modification);
-        }
-    }
-
-    #[allow(dead_code)]
-    fn print_grid(&self) {
-        debug!("Printing grid");
-
-        if self.rows == 0 || self.columns == 0 {
-            print!("\nEmpty\n\n");
-            return;
-        }
-
-        let mut rows = [[std::ptr::null(); 10]; 10];
-
-        //TODO: Add checks for safety
-        //      Example:
-        //          Invalid row or column on tile
-        //      Without any checks we might get a STATUS_ACCESS_VIOLATION error from windows, which can't be handled by us.
-
-        for tile in &self.tiles {
-            match tile.row {
-                Some(row) => match tile.column {
-                    Some(column) => rows[(row - 1) as usize][(column - 1) as usize] = &tile.window,
-                    None => {
-                        for i in 0..self.columns {
-                            rows[(row - 1) as usize][i as usize] = &tile.window;
+            if let Some(sibling_id) = self.graph.get_neighbor(focused_id, direction) {
+                match &self.graph.node(sibling_id) {
+                    Node::Column(_) | Node::Row(_) => { // move focused under sibling column/row
+                        self.remove_child(parent_id, focused_id);
+                        let new_size = self.make_space_for_node(sibling_id);
+                        let new_order = self.graph.get_children(sibling_id).len() as u32;
+                        self.graph.node_mut(focused_id).set_info(new_order, new_size);
+                        self.graph.connect(sibling_id, focused_id);
+                    },
+                    Node::Tile(_) => {
+                        if number_of_children == 2 {
+                            // don't do anything if there are only two nodes and they're both tiles
+                            // this prevents columns in columns or rows in rows
+                            // in this scenario, the user should move_out not move_in
+                            return;
                         }
-                    }
-                },
-                None => match tile.column {
-                    Some(column) => {
-                        for i in 0..self.rows {
-                            rows[i as usize][(column - 1) as usize] = &tile.window;
-                        }
-                    }
-                    None => rows[0][0] = &tile.window,
-                },
-            }
-        }
+                        // need to look at what the grandparent is to determine if this
+                        // should make a column or row and then nest the sibling tile
+                        // and append the current item to it
+                        if let Some(sibling_parent_id) = self.graph.map_to_parent(Some(sibling_id)) {
+                            let focused_order = self.graph.node(focused_id).get_order();
+                            let (sibling_order, sibling_size) = self.graph.node(sibling_id).get_info();
+                            let new_order = cmp::min(focused_order, sibling_order);
+                            let new_node = match &self.graph.node(sibling_parent_id) {
+                                               Node::Column(_) => Node::row(new_order, sibling_size),
+                                               Node::Row(_) => Node::column(new_order, sibling_size),
+                                               _ => panic!("Parent should be a row or column")
+                                           };
 
-        println!();
+                            let new_node_id = self.graph.add_node(new_node);
+                            self.graph.disconnect(sibling_parent_id, sibling_id);
+                            self.graph.connect(sibling_parent_id, new_node_id);
+                            self.remove_child(parent_id, focused_id);
 
-        for row in 0..self.rows {
-            print!("|");
-            for column in 0..self.columns {
-                unsafe {
-                    let window = &(*rows[row as usize][column as usize]);
-                    if let Some(id) = self.focused_window_id {
-                        match window.id == id {
-                            true => print!("* {}({}) *|", window.title, window.id),
-                            false => print!(" {}({}) |", window.title, window.id),
+                            self.graph.node_mut(sibling_id).set_info(0, HALF_SIZE);
+                            self.graph.node_mut(focused_id).set_info(1, HALF_SIZE);
+
+                            self.graph.connect(new_node_id, sibling_id);
+                            self.graph.connect(new_node_id, focused_id);
+                        } else {
+                            panic!("Not sure if this is a valid scenario");
                         }
                     }
                 }
-            }
-            println!();
-        }
 
-        println!();
+                self.bubble_siblingless_child(parent_id);
+            }
+        }
     }
-
-    pub fn draw_grid(&self, display: &Display, config: &Config) -> SystemResult {
-        debug!("Drawing grid");
-
-        if self.fullscreen {
-            if let Some(tile) = self.get_focused_tile() {
-                self.renderer.render(self, tile, config, display)?;
-            }
-        } else {
-            for tile in &self.tiles {
-                debug!("{:?}", tile);
-
-                self.renderer.render(self, tile, config, display)?;
+    /// Scenario: moving out of a column/row leaving one child behind. This function
+    /// swaps the column/row with the remaining child and deletes the column/row node
+    fn bubble_siblingless_child(&mut self, parent_id: usize) {
+        let children = self.graph.get_children(parent_id);
+        if children.iter().len() == 1 {
+            let child_id = children[0];
+            
+            if let Some(grand_parent_id) = self.graph.map_to_parent(Some(parent_id)) {
+                self.graph.connect(grand_parent_id, child_id);
             }
 
-            // self.print_grid();
+            let (order, size) = self.graph.node(parent_id).get_info();
+            self.graph.node_mut(child_id).set_info(order, size);
+
+            self.graph.remove_node(parent_id);
+        }
+    }
+    fn remove_child(&mut self, parent_id: usize, child_id: usize) {
+        let children = self.graph.get_children(parent_id);
+        let number_of_children = children.iter().len();
+        let size = self.graph.node(child_id).get_size();
+        let size_per_sibling = size / number_of_children as u32;
+
+        let mut remainder = size % number_of_children as u32;
+        let mut get_remainder_slice = || if remainder > 0 { remainder -= 1; 1 } else { 0 }; 
+
+        for child in children {
+            if child != child_id {
+                let child_size = self.graph.node(child).get_size();
+                self.graph.node_mut(child).set_size(size_per_sibling + child_size + get_remainder_slice());
+            }
         }
 
-        Ok(())
+        self.graph.disconnect(parent_id, child_id);
+        self.reset_order(parent_id);
     }
 }

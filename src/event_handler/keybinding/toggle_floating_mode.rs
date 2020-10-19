@@ -12,16 +12,16 @@ pub fn handle(state: &mut AppState) -> SystemResult {
     // The id of the grid that contains the window
     let maybe_grid_id = state
         .find_window(window.id)
-        .and_then(|(g, _)| g.close_tile_by_window_id(window.id).map(|t| (g.id, t)))
-        .map(|(id, mut t)| {
-            debug!("Unmanaging window '{}' | {}", t.window.title, t.window.id);
-            t.window.cleanup();
+        .and_then(|g| g.remove_by_window_id(window.id).map(|t| (g.id, t)))
+        .map(|(id, mut window)| {
+            debug!("Unmanaging window '{}' | {}", window.title, window.id);
+            window.cleanup();
 
             id
         });
 
-    if let Some((d, _)) = maybe_grid_id.and_then(|id| state.find_grid(id)) {
-        d.refresh_grid(&config);
+    if let Some(d) = maybe_grid_id.and_then(|id| state.find_grid(id)) {
+        d.refresh_grid(&config)?;
     } else {
         state
             .event_channel

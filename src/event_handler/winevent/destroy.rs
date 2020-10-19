@@ -7,7 +7,7 @@ pub fn handle(
 ) -> SystemResult {
     if let Some(_) = state
         .find_window(window.id)
-        .map(|(g, _)| g.close_tile_by_window_id(window.id))
+        .map(|g| g.remove_by_window_id(window.id))
     {
         state.get_current_display().refresh_grid(&state.config)?;
     }

@@ -24,7 +24,6 @@ use std::{process, sync::Arc};
 use std::{thread, time::Duration};
 use system::{DisplayId, SystemResult, WinEventListener, WindowId};
 use task_bar::Taskbar;
-use tile::Tile;
 use tile_grid::TileGrid;
 use window::Window;
 
@@ -122,8 +121,8 @@ mod renderer;
 mod split_direction;
 mod startup;
 mod system;
+mod tile_graph;
 mod task_bar;
-mod tile;
 mod tile_grid;
 mod tray;
 mod update;
@@ -184,9 +183,7 @@ impl AppState {
     pub fn cleanup(&mut self) -> SystemResult {
         for d in self.displays.iter_mut() {
             for grid in d.grids.iter_mut() {
-                for tile in grid.tiles.iter_mut() {
-                    tile.window.cleanup()?;
-                }
+                grid.cleanup()?;
             }
         }
 
@@ -207,7 +204,7 @@ impl AppState {
     pub fn change_workspace(&mut self, id: i32, _force: bool) {
         let config = self.config.clone();
         let current = self.get_current_display().id;
-        if let Some((d, _)) = self.find_grid(id) {
+        if let Some(d) = self.find_grid(id) {
             let new = d.id;
             d.focus_workspace(&config, id);
             self.workspace_id = id;
@@ -259,24 +256,24 @@ impl AppState {
             .collect()
     }
 
-    /// Returns the display containing the grid and the grid
-    /// TODO: only return display
-    pub fn find_grid(&mut self, id: i32) -> Option<(&mut Display, TileGrid)> {
+    /// Returns the display containing the grid 
+    /// TODO: Rename to find_display?
+    pub fn find_grid(&mut self, id: i32) -> Option<&mut Display> {
         for d in self.displays.iter_mut() {
-            if let Some(grid) = d.grids.iter().find(|g| g.id == id).cloned() {
-                return Some((d, grid));
+            if let Some(_) = d.grids.iter().find(|g| g.id == id) {
+                return Some(d);
             }
         }
         None
     }
 
     /// Returns the grid containing the window and its corresponding tile
-    /// TODO: only return grid
-    pub fn find_window(&mut self, id: WindowId) -> Option<(&mut TileGrid, Tile)> {
+    /// TODO: Rename to find_grid?
+    pub fn find_window(&mut self, id: WindowId) -> Option<&mut TileGrid> {
         for d in self.displays.iter_mut() {
             for g in d.grids.iter_mut() {
-                if let Some(tile) = g.tiles.iter().find(|t| t.window.id == id).cloned() {
-                    return Some((g, tile));
+                if g.contains(id) {
+                    return Some(g);
                 }
             }
         }
