@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, thread, time::Duration};
 
 use parking_lot::Mutex;
 
@@ -21,7 +21,7 @@ pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> Sys
             close_app_bars = true;
             draw_app_bar = state.config.display_app_bar;
         } else if !old_config.remove_task_bar && state.config.remove_task_bar {
-            task_bar::hide_taskbars(&mut state);
+            state.hide_taskbars();
             close_app_bars = true;
             draw_app_bar = state.config.display_app_bar;
         }

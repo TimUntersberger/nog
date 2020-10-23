@@ -1,6 +1,6 @@
 use log::error;
 use parking_lot::Mutex;
-use std::{ffi::c_void, ffi::CString, sync::mpsc::channel, sync::Arc, thread};
+use std::{ffi::c_void, ffi::CString, sync::mpsc::channel, sync::Arc, sync::atomic::Ordering, thread, sync::mpsc::Sender, sync::mpsc::Receiver, sync::atomic::AtomicBool, time::Duration};
 use thread::JoinHandle;
 use winapi::um::wingdi::SelectObject;
 use winapi::um::wingdi::LOGFONTA;
@@ -205,6 +205,8 @@ impl WindowInner {
 #[derive(Default, Clone, Debug)]
 pub struct Window {
     pub id: WindowId,
+    pub refresh_rate: i32,
+    is_closed: Arc<AtomicBool>,
     inner: Arc<Mutex<WindowInner>>,
 }
 
@@ -212,12 +214,18 @@ impl Window {
     pub fn new() -> Self {
         Self {
             id: WindowId::default(),
+            refresh_rate: 0,
+            is_closed: Arc::new(AtomicBool::new(false)),
             inner: Arc::new(Mutex::new(WindowInner::new())),
         }
     }
     pub fn with_size(self, width: i32, height: i32) -> Self {
         self.inner.lock().height = height;
         self.inner.lock().width = width;
+        self
+    }
+    pub fn with_refresh_rate(mut self, value: i32) -> Self {
+        self.refresh_rate = value;
         self
     }
     pub fn with_background_color(self, color: u32) -> Self {
@@ -262,7 +270,11 @@ impl Window {
         self.get_native_window().show();
     }
     pub fn close(&self) -> SystemResult {
-        self.get_native_window().close()
+        self.get_native_window().close()?;
+
+        self.is_closed.store(true, Ordering::SeqCst);
+
+        Ok(())
     }
     pub fn create<TEventHandler: Fn(&WindowEvent) -> () + Sync + Send + 'static>(
         &mut self,
@@ -438,6 +450,21 @@ impl Window {
         });
 
         self.id = receiver.recv().unwrap();
+
+        if self.refresh_rate > 0 {
+            let id = self.id.clone();
+            let refresh_rate = self.refresh_rate;
+            let is_closed = self.is_closed.clone();
+
+            //refresh thread
+            thread::spawn(move || {
+                while !is_closed.load(Ordering::SeqCst) {
+                    thread::sleep(Duration::from_millis(refresh_rate as u64));
+                    let window: NativeWindow = id.into();
+                    window.redraw();
+                }
+            });
+        }
 
         t
     }
