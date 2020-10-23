@@ -171,8 +171,10 @@ impl Display {
             return Ok(false);
         }
 
-        if let Some(grid) = self.get_focused_grid() {
-            grid.hide();
+        if self.focused_grid_id != Some(id) {
+            if let Some(grid) = self.get_focused_grid() {
+                grid.hide();
+            }
         }
 
         self.focused_grid_id = Some(id);
