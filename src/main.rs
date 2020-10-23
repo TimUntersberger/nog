@@ -274,8 +274,25 @@ impl AppState {
     }
 
     pub fn hide_taskbars(&self) {
-        for tb in self.get_taskbars() {
-            tb.window.hide();
+        // have to hide the taskbars in a specific order for it to work (I know like wtf)
+        
+        // first hide primary display
+        for d in &self.displays {
+            if d.is_primary() {
+                if let Some(tb) = &d.taskbar {
+                    tb.window.hide();
+                }
+                break;
+            }
+        }
+
+        // then the other ones
+        for d in &self.displays {
+            if !d.is_primary() {
+                if let Some(tb) = &d.taskbar {
+                    tb.window.hide();
+                }
+            }
         }
     }
 
