@@ -58,22 +58,22 @@ impl Taskbar {
     }
 }
 
-pub fn show_taskbars(state: &mut AppState) {
-    for tb in state.get_taskbars() {
-        info!("Showing taskbar {:?}", tb);
-        tb.window.show();
-    }
+// pub fn show_taskbars(state: &mut AppState) {
+//     for tb in state.get_taskbars() {
+//         info!("Showing taskbar {:?}", tb);
+//         tb.window.show();
+//     }
 
-    // update_task_bars();
-}
-pub fn hide_taskbars(state: &mut AppState) {
-    for tb in state.get_taskbars() {
-        info!("Hiding taskbar {:?}", tb);
-        tb.window.hide();
-    }
+//     // update_task_bars();
+// }
+// pub fn hide_taskbars(state: &mut AppState) {
+//     for tb in state.get_taskbars() {
+//         info!("Hiding taskbar {:?}", tb);
+//         tb.window.hide();
+//     }
 
-    // update_task_bars();
-}
+//     // update_task_bars();
+// }
 
 // TODO: Find out whether this is still needed
 // pub fn update_task_bars() {
