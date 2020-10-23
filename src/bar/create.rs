@@ -7,28 +7,7 @@ use crate::{
 };
 use log::{debug, error, info};
 use parking_lot::Mutex;
-use std::{sync::Arc, thread, time::Duration};
-
-fn spawn_refresh_thread(state_arc: Arc<Mutex<AppState>>) {
-    let state = state_arc.clone();
-    let sender = state.lock().event_channel.sender.clone();
-
-    thread::spawn(move || loop {
-        thread::sleep(Duration::from_millis(100));
-
-        let state = state.lock();
-
-        if !state.work_mode || !state.config.display_app_bar {
-            break;
-        }
-
-        drop(state);
-
-        sender
-            .send_timeout(Event::RedrawAppBar, Duration::from_millis(100))
-            .expect("Failed to send redraw-app-bar event");
-    });
-}
+use std::{sync::Arc, thread, time::Duration, sync::atomic::AtomicBool, sync::atomic};
 
 fn draw_component_text(
     api: &Api,
@@ -128,8 +107,6 @@ fn clear_section(api: &Api, config: &Config, left: i32, right: i32) {
 pub fn create(state_arc: Arc<Mutex<AppState>>) {
     info!("Creating appbar");
 
-    spawn_refresh_thread(state_arc.clone());
-
     let mut state = state_arc.lock();
     let config = state.config.clone();
 
@@ -158,7 +135,9 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
             .with_is_popup(true)
             .with_border(false)
             .with_title(NOG_BAR_NAME)
+            .with_refresh_rate(100)
             .with_font(&config.bar.font)
+            .with_font_size(config.bar.font_size)
             .with_background_color(config.bar.color as u32)
             .with_pos(left, top)
             .with_size(width, config.bar.height);
