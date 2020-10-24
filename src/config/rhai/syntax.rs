@@ -346,10 +346,16 @@ pub fn init(
             let name = get_string!(engine, ctx, scope, inputs, 0);
             let key = get_string!(engine, ctx, scope, inputs, 1);
 
+            // toggle mode binding for outside of mode
             let mut kb = Keybinding::from_str(&key).unwrap();
             kb.typ = KeybindingType::ToggleMode(name.clone());
 
+            // toggle mode binding for inside of mode
+            let mut kb2 = kb.clone();
+            kb2.mode = Some(name.clone());
+
             cfg.lock().keybindings.push(kb);
+            cfg.lock().keybindings.push(kb2);
 
             *MODE.lock() = Some(name);
 

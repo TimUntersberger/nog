@@ -55,18 +55,20 @@ impl Debug for Keybinding {
         let modifier_str = format!("{:?}", self.modifier).replace(" | ", "+");
         if modifier_str == "(empty)" {
             f.write_str(&format!(
-                "Keybinding({:?}, {}, {})",
+                "Keybinding({:?}, {}, {}, {:?})",
                 self.key,
                 self.typ,
-                self.get_id()
+                self.get_id(),
+                self.mode
             ))
         } else {
             f.write_str(&format!(
-                "Keybinding({}+{:?}, {}, {})",
+                "Keybinding({}+{:?}, {}, {}, {:?})",
                 modifier_str,
                 self.key,
                 self.typ,
-                self.get_id()
+                self.get_id(),
+                self.mode
             ))
         }
     }
