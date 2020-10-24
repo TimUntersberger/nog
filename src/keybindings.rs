@@ -136,13 +136,7 @@ impl KbManager {
                             inner
                                 .keybindings
                                 .iter()
-                                .filter(|kb| {
-                                    kb.mode == new_mode
-                                        || kb.typ
-                                            == KeybindingType::ToggleMode(
-                                                new_mode.clone().unwrap_or_default(),
-                                            )
-                                })
+                                .filter(|kb| kb.mode == new_mode)
                                 .for_each(api::register_keybinding);
                         }
                     };
