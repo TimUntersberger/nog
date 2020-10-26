@@ -120,7 +120,7 @@ impl Config {
         if let Some(kb) = self
             .keybindings
             .iter_mut()
-            .find(|kb| kb.key == keybinding.key && kb.modifier == keybinding.modifier)
+            .find(|kb| kb.key == keybinding.key && kb.modifier == keybinding.modifier && kb.mode == keybinding.mode)
         {
             kb.typ = keybinding.typ;
             kb.mode = keybinding.mode;
