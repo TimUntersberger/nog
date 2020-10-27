@@ -679,6 +679,17 @@ fn push_twelve_nodes_altering_axis_and_directions_then_swap_focused_around() {
 }
 
 #[test]
+fn make_space_for_node_test_check_size_after_removing_one_tile() {
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    perform_actions(&mut tile_grid, "p,p,p,fl,o");
+    for node_id in tile_grid.graph.nodes() {
+        if tile_grid.graph.node(node_id).is_tile() {
+            assert_eq!(60, tile_grid.graph.node(node_id).get_size());
+        }
+    }
+}
+
+#[test]
 fn make_space_for_node_test_check_size_distributions() {
     let mut tile_grid = TileGrid::new(0, TestRenderer { } );
     perform_actions(&mut tile_grid, "p");

@@ -224,14 +224,6 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
 
         Ok(())
     }
-    /*
-    pub fn hide(&self) {
-        for tile in &self.tiles {
-            tile.window.hide();
-        }
-    }
-    */
-
     /// Sets the currently focused tile to be fullscreen'd if it's not already, otherwise
     /// reverts the graph to non-fullscreen'd mode. When a tile is fullscreened certain
     /// operations are disabled like managing new tiles changing focus, resizing and tile movement
@@ -407,6 +399,11 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             order += 1;
         }
     }
+    /// Removes and returns the node of the given node_id. The behavior of the removal falls into one of three cases:
+    /// Case One: If the graph only has one node and it's the given node, then the graph is emptied. 
+    /// Case Two: If the given node has only one sibling then the node is removed and its sibling gets propogated 
+    /// "up" a level to take the place of its parent node (A parent node with only one child is an invalid state). 
+    /// Case Three: If the given node has more than one sibling then the node is removed and its size is distributed among its siblings
     fn remove_node(&mut self, node_id: Option<usize>) -> Option<Node> {
         let mut removed_node: Option<Node> = None;
         if let Some(current_id) = node_id {
@@ -433,14 +430,16 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                     // remove the current item
                     // distribute size among siblings
                     let size = self.graph.node(current_id).get_size();
-                    let size_per_sibling = size / number_of_children as u32;
+                    let size_per_sibling = size / (number_of_children - 1) as u32;
 
-                    let mut remainder = size % number_of_children as u32;
+                    let mut remainder = size % (number_of_children - 1) as u32;
                     let mut get_remainder_slice = || if remainder > 0 { remainder -= 1; 1 } else { 0 }; 
+
 
                     for child in children {
                         if child != current_id {
                             let current_size = self.graph.node(child).get_size();
+
                             self.graph.node_mut(child)
                                       .set_size(size_per_sibling + current_size + get_remainder_slice());
                         }
