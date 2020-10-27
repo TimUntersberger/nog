@@ -1,4 +1,4 @@
-use crate::tile_graph::tile_render_info::TileRenderInfo;
+use crate::tile_grid::tile_render_info::TileRenderInfo;
 
 pub struct TextRenderer { }
 

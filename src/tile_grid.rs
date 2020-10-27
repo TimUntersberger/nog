@@ -8,13 +8,18 @@ use crate::{
     system::SystemError,
     system::SystemResult,
     system::WindowId,
-    tile_graph::{
+    tile_grid::{
         text_renderer::TextRenderer, node::Node, node::NodeInfo, 
         graph_wrapper::GraphWrapper, tile_render_info::TileRenderInfo
     },
 };
 use std::cmp;
 use log::{debug, error};
+
+pub mod graph_wrapper;
+pub mod node;
+pub mod tile_render_info;
+pub mod text_renderer;
 
 static FULL_SIZE: u32 = 120;
 static HALF_SIZE: u32 = FULL_SIZE / 2;
@@ -835,3 +840,6 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
         self.reset_order(parent_id);
     }
 }
+
+#[cfg(test)]
+mod tests;

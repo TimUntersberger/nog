@@ -302,7 +302,7 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
     }
 }
 
-#[test]
+#[test] #[ignore] // test never exits
 pub fn test() {
     crate::logging::setup();
     // let state = AppState::new();

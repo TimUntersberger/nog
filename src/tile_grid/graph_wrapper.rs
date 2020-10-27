@@ -5,7 +5,7 @@ use petgraph::{
     visit::EdgeRef
 };
 use std::{mem, fmt};
-use crate::tile_graph::node::Node;
+use crate::tile_grid::node::Node;
 use crate::direction::Direction;
 
 static EDGE: u32 = 0;
