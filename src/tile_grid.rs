@@ -322,29 +322,44 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
         }
         Ok(())
     }
+    /// Swaps position of the focused tile with the tile in the supplied direction. See swap for more details on behavior.
     pub fn swap_focused(&mut self, direction: Direction) {
         if self.fullscreen_id.is_some() { return; }
 
-        if let Some(parent_id) = self.graph.map_to_parent(self.focused_id) {
-            let focused_id = self.focused_id.unwrap();
-            let focused_order = self.graph.node(focused_id).get_order();
+        if let Some(focused_id) = self.focused_id {
+            self.swap(focused_id, direction);
+        }
+    }
+    /// Swaps position of the given tile with the tile in the supplied direction. No-op if grid is fullscreened or has
+    /// no focused tile. If the direction doesn't make sense, like swapping to the up/down in a column tile OR swapping 
+    /// left/right in a row tile, then the swap is propagated up the tree to the next parent that is able to swap in 
+    /// the given direction.
+    fn swap(&mut self, node_id: usize, direction: Direction) {
+        if self.fullscreen_id.is_some() { return; }
+
+        if let Some(parent_id) = self.graph.map_to_parent(Some(node_id)) {
+            let selected_node_order = self.graph.node(node_id).get_order();
             let children = self.graph.get_children(parent_id);
 
             let should_swap_with_sibling = 
                 match (&direction, self.graph.node(parent_id)) {
                     (Direction::Left, Node::Column(_)) | 
-                    (Direction::Up, Node::Row(_)) => focused_order > 0 && children.len() > 1,
+                    (Direction::Up, Node::Row(_)) => selected_node_order > 0 && children.len() > 1,
                     (Direction::Right, Node::Column(_)) | 
-                    (Direction::Down, Node::Row(_)) => focused_order < (children.len() - 1) as u32,
+                    (Direction::Down, Node::Row(_)) => selected_node_order < (children.len() - 1) as u32,
                     _ => false
                 };
 
             if should_swap_with_sibling {
-                let sibling_id = self.graph.get_neighbor(focused_id, direction);
-                self.swap_order(focused_id, sibling_id.unwrap());
-            } 
+                let sibling_id = self.graph.get_neighbor(node_id, direction);
+                self.swap_order(node_id, sibling_id.unwrap());
+            } else {
+                // bubble up the swap to the parent
+                self.swap(parent_id, direction);
+            }
         }
     }
+    /// Trades order (the index/position in a column or row) between two nodes. This function assumes the given nodes are siblings.
     fn swap_order(&mut self, first: usize, second: usize) {
         let first_order = self.graph.node(first).get_order();
         let second_order = self.graph.node(second).get_order();
