@@ -487,6 +487,11 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                   })
                   .is_some()  
     }
+    /// Sets the currently focused tile to whatever happens to be "last" in the graph.
+    /// See get_last_tile for more information.
+    pub fn focus_last_tile(self: &mut Self) {
+        self.focused_id = self.get_last_tile();
+    }
     /// Returns the an Option NodeID (usize) of the last Tile in the tile grid.
     /// This is somewhat arbitrary as it won't necessarily be the last node added to
     /// the grid based on the graph implementation but can serve as a "give me a node toward the 'bottom'
