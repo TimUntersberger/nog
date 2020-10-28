@@ -33,12 +33,18 @@ pub struct TileGrid<TRenderer: Renderer = NativeRenderer> {
     pub focused_id: Option<usize>,
     pub fullscreen_id: Option<usize>,
     pub next_axis: SplitDirection,
-    pub next_direction: Direction,
+    // TODO: currently defaults to Right/Down but implementing a toggle on this would allow
+    //       pushing a tile "above" a focused tile in a column or "before" a focused tile in a row
+    //       as opposed to the current way where it always adds below/after
+    pub next_direction: Direction, 
     graph: GraphWrapper,
 }
 
 impl TileGrid {
     pub fn draw_grid(&self, display: &Display, config: &Config) -> SystemResult {
+
+        // for Debug purposes. Adds information to the log
+        // TODO: make this configurable?
         debug!("IsFullScreened? {} FocusedNode: {:?}", self.fullscreen_id.is_some(), self.focused_id);
         let render_infos = self.get_render_info(64, 20);
         debug!("{}", TextRenderer::render(64, 20, render_infos)); 
@@ -367,6 +373,13 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
         self.graph.node_mut(first).set_order(second_order);
         self.graph.node_mut(second).set_order(first_order);
     }
+    /// Used to switch focus from the focused tile to the next tile in the given direction.
+    /// no-op if currently fullscreened or there is no tile focused. If a sibling is found in
+    /// the given direction then focus is moved to the sibling. Otherwise, the function travels
+    /// up the graph checking each parents' children to see if there is an applicable sibling to switch
+    /// focus to until it hits the root node at which point it exits leaving focus unchanged.
+    /// This allows focus to be switched up/down rows but also doing a focus left/right moves to the 
+    /// next-closest column in the given direction and vice versa for columns.
     pub fn focus(&mut self, direction: Direction) -> SystemResult {
         if self.fullscreen_id.is_some() || !self.focused_id.is_some() { return Ok(()); }
 
@@ -405,6 +418,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
 
         Ok(())
     }
+    /// Resets the order of all child nodes by sorting them and then "re-indexing" their order starting at 0
     fn reset_order(&mut self, parent_id: usize) {
         let nodes = self.graph.get_sorted_children(parent_id);
 
@@ -449,7 +463,6 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
 
                     let mut remainder = size % (number_of_children - 1) as u32;
                     let mut get_remainder_slice = || if remainder > 0 { remainder -= 1; 1 } else { 0 }; 
-
 
                     for child in children {
                         if child != current_id {
@@ -529,6 +542,14 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             self.focused_id = maybe_window_tile;
         }
     }
+    /// Creates a node from the given window and adds it to the graph if the following conditions are met:
+    /// 1. the grid isn't fullscreened
+    /// 2. the grid doesn't already contain the window
+    /// If the grid doesn't have a focused window, it resorts to focusing the last tile in the grid.
+    /// Pushing a tile depends on the state of the focused tile. If the focused tile is part of a column or row "list"
+    /// then it gets appended to the list next to the focused tile (other siblings get their order updated). If the focused
+    /// tile doesn't have a sibling then the function introduces a new parent node opposite of the current parent's type
+    /// and nests the focused node and the new window node within. This is how pushing into a tile creates rows or columns.
     pub fn push(&mut self, window: NativeWindow) {
         if self.fullscreen_id.is_some() {
             // don't do anything if fullscreened
@@ -555,6 +576,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
 
         if let Some(current_id) = self.focused_id {
             let mut new_node = Node::Tile((NodeInfo { order: 0, size: 0 }, window));
+            // determines whether to add the tile before or after the currently focused tile
             let (existing_node_order, new_node_order) = match self.next_direction {
                                                             Direction::Up | Direction::Left => (1, 0),
                                                             _ => (0, 1)
@@ -562,12 +584,16 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             match self.graph.node(current_id) {
                 Node::Tile(_) => {
                     if let Some(parent_id) = self.graph.map_to_parent(Some(current_id)) {
+                        // locally-scoped fn type and enum used to keep track of how the new node gets added
+                        // (whether it gets added to a column/row and whether it should nest with an existing
+                        // tile or get inserted into an existing column/row)
                         type CreateNode = fn(u32, u32) -> Node;
                         enum PushOperation {
                             AppendToParent,
                             SwapAndAppend(CreateNode)
                         }
 
+                        // this determines how the node should be added
                         let operation = match (self.graph.node(parent_id), self.next_axis) {
                             (Node::Column(_), SplitDirection::Vertical) |
                             (Node::Row(_), SplitDirection::Horizontal) => PushOperation::AppendToParent,
@@ -579,7 +605,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                         match operation {
                             PushOperation::AppendToParent => {
                                 // parent is same type as what we want to add
-                                // so append item to parent's column list
+                                // so append item to parent's list
                                 let (current_node_order, ..) = self.graph.node(current_id).get_info();
                                 let new_node_order = current_node_order + new_node_order;
                                 new_node.set_info(new_node_order, self.make_space_for_node(parent_id));
@@ -588,8 +614,9 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                             },
                             PushOperation::SwapAndAppend(create_node) => {
                                 // parent is opposite type of what we want to add
-                                // so swap current node with opposite of parent type node 
-                                // and append current item + new item there
+                                // so swap current node with opposite of the parent node's type 
+                                // and append current item + new item there. This is how we can
+                                // nest columns in rows or rows in columns.
                                 let (new_order, new_size) = self.graph.node(current_id).get_info();
                                 let new_parent_node = create_node(new_order, new_size);
 
@@ -615,6 +642,8 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             }
         }
     }
+    /// Increments the "order" index of all siblings starting from the given shift_point.
+    /// Used for moving all sibling nodes after a point to the right/down to make room for a new node.
     fn shift_order(&mut self, parent_id: usize, mut shift_point: u32) {
         let nodes = self.graph.get_sorted_children(parent_id);
         let nodes = nodes.iter()
@@ -704,7 +733,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                                        && self.graph.node(children[1]).is_tile() {
                     self.graph.swap_node(parent_id, new_root);
                 } else if children.len() > 2 {
-                    self.remove_child(parent_id, focused_id);
+                    self.disconnect_child(parent_id, focused_id);
                     let new_root_id = self.graph.add_node(new_root);
                     self.graph.connect(new_root_id, parent_id);
                     self.graph.connect(new_root_id, focused_id);
@@ -747,7 +776,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
 
                 match &self.graph.node(new_parent_id) {
                     Node::Column(_) | Node::Row(_) => { 
-                        self.remove_child(parent_id, focused_id);
+                        self.disconnect_child(parent_id, focused_id);
                         let new_size = self.make_space_for_node(new_parent_id);
                         self.graph.node_mut(focused_id).set_info(new_focused_order, new_size);
                         self.graph.node_mut(sibling_id).set_order(sibling_order);
@@ -771,7 +800,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             if let Some(sibling_id) = self.graph.get_neighbor(focused_id, direction) {
                 match &self.graph.node(sibling_id) {
                     Node::Column(_) | Node::Row(_) => { // move focused under sibling column/row
-                        self.remove_child(parent_id, focused_id);
+                        self.disconnect_child(parent_id, focused_id);
                         let new_size = self.make_space_for_node(sibling_id);
                         let new_order = self.graph.get_children(sibling_id).len() as u32;
                         self.graph.node_mut(focused_id).set_info(new_order, new_size);
@@ -800,15 +829,13 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                             let new_node_id = self.graph.add_node(new_node);
                             self.graph.disconnect(sibling_parent_id, sibling_id);
                             self.graph.connect(sibling_parent_id, new_node_id);
-                            self.remove_child(parent_id, focused_id);
+                            self.disconnect_child(parent_id, focused_id);
 
                             self.graph.node_mut(sibling_id).set_info(0, HALF_SIZE);
                             self.graph.node_mut(focused_id).set_info(1, HALF_SIZE);
 
                             self.graph.connect(new_node_id, sibling_id);
                             self.graph.connect(new_node_id, focused_id);
-                        } else {
-                            panic!("Not sure if this is a valid scenario");
                         }
                     }
                 }
@@ -819,6 +846,22 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     }
     /// Scenario: moving out of a column/row leaving one child behind. This function
     /// swaps the column/row with the remaining child and deletes the column/row node
+    /// Example:
+    ///                  [RootColumnNode]
+    ///                    /          \
+    ///          [TileNodeA]          [TileNodeB]
+    ///
+    ///        ***Remove TileNodeA from the grid***
+    ///
+    ///                  [RootColumnNode]
+    ///                               \
+    ///                               [TileNodeB]
+    ///
+    ///        ***bubble_siblingless_child on RootColumnNode***
+    ///
+    ///
+    ///                    [TileNodeB] // now the root node that has taken place of its parent
+    ///
     fn bubble_siblingless_child(&mut self, parent_id: usize) {
         let children = self.graph.get_children(parent_id);
         if children.iter().len() == 1 {
@@ -834,7 +877,9 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             self.graph.remove_node(parent_id);
         }
     }
-    fn remove_child(&mut self, parent_id: usize, child_id: usize) {
+    /// Removes conection between a parent and the given child node, but leaves the child in the graph.
+    /// This is useful when moving tiles between parents.
+    fn disconnect_child(&mut self, parent_id: usize, child_id: usize) {
         let children = self.graph.get_children(parent_id);
         let number_of_children = children.iter().len();
         let size = self.graph.node(child_id).get_size();
