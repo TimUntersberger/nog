@@ -171,6 +171,25 @@ Displays the title of the focused window in the current workspace.
 let component = C::current_window();
 ```
 
+### Split Direction
+
+![SplitDirection](../_media/components/split_direction.png)
+
+Displays the split direction of the focused window in the current workspace on this display.
+
+#### Arguments
+
+| Position | Value  | Description                                          |
+|----------|--------|------------------------------------------------------|
+| 1        | String | The text to display when the direction is Vertical   |
+| 2        | String | The text to display when the direction is Horizontal |
+
+#### Usage
+
+```nog
+let component = C::split_direction("V", "H");
+```
+
 ### Custom
 
 You can create custom components by using the `create` function provided in the `nog/components` module.
