@@ -68,7 +68,7 @@ impl Popup {
             .with_size(10, 10)
             .with_font_size(state.config.bar.font_size)
             .with_is_popup(true)
-            .with_background_color(state.config.bar.color as u32);
+            .with_background_color(state.config.bar.color);
 
         drop(state);
 

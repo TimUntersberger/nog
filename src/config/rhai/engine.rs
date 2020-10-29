@@ -97,7 +97,7 @@ pub fn parse_config(state_arc: Arc<Mutex<AppState>>) -> Result<Config, String> {
     *SCOPE.lock() = scope;
     *AST.lock() = ast;
 
-    let mut config = config.lock().clone();
+    let config = config.lock().clone();
 
     Ok(config)
 }

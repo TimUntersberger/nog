@@ -33,7 +33,7 @@ impl BarComponentsConfig {
 #[derive(Clone, Debug)]
 pub struct BarConfig {
     pub height: i32,
-    pub color: u32,
+    pub color: i32,
     pub font: String,
     pub font_size: i32,
     pub components: BarComponentsConfig,

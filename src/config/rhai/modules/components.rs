@@ -8,13 +8,12 @@ use crate::{
 };
 use log::error;
 use rhai::{Array, Dynamic, FnPtr, ImmutableString, Map, Module};
-use std::sync::Arc;
 
 fn create_component(name: ImmutableString, render_fn: FnPtr, options: Map) -> Component {
     let render_fn_name = render_fn.fn_name().to_string();
     let mut component = Component::new(
         &name,
-        Arc::new(move |_| {
+        move |_| {
             let engine = ENGINE.lock();
             let mut scope = SCOPE.lock();
             let ast = AST.lock();
@@ -26,18 +25,21 @@ fn create_component(name: ImmutableString, render_fn: FnPtr, options: Map) -> Co
             let return_value = result
                 .iter()
                 .map(|x| match x.type_name() {
-                    "string" => Some(ComponentText::Basic(x.as_str().unwrap().to_string())),
+                    "string" => Some(
+                        ComponentText::new().with_display_text(x.as_str().unwrap().to_string()),
+                    ),
                     "array" => {
                         let tuple = x.clone().cast::<Array>();
                         let fg = tuple.get(0).unwrap().as_int().unwrap();
                         let bg = tuple.get(1).unwrap().as_int().unwrap();
                         let text = tuple.get(2).unwrap().as_str().unwrap().to_string();
 
-                        Some(ComponentText::Colored(
-                            if fg < 0 { None } else { Some(fg as u32) },
-                            if bg < 0 { None } else { Some(bg as u32) },
-                            text,
-                        ))
+                        Some(
+                            ComponentText::new()
+                                .with_display_text(text)
+                                .with_foreground_color(fg)
+                                .with_background_color(bg),
+                        )
                     }
                     _ => None,
                 })
@@ -46,7 +48,7 @@ fn create_component(name: ImmutableString, render_fn: FnPtr, options: Map) -> Co
                 .collect();
 
             return_value
-        }),
+        },
     );
 
     for (key, val) in options.iter() {
@@ -55,7 +57,7 @@ fn create_component(name: ImmutableString, render_fn: FnPtr, options: Map) -> Co
                 let f = val.clone().cast::<FnPtr>();
                 let fn_name = f.fn_name().to_string();
 
-                component.with_on_click(Arc::new(move |ctx| {
+                component.with_on_click(move |ctx| {
                     let engine = ENGINE.lock();
                     let mut scope = SCOPE.lock();
                     let ast = AST.lock();
@@ -67,7 +69,7 @@ fn create_component(name: ImmutableString, render_fn: FnPtr, options: Map) -> Co
                             (ctx.display.clone(), ctx.idx),
                         )
                         .map_err(|e| error!("{}", e.to_string()));
-                }));
+                });
             }
             _ => {}
         }

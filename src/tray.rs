@@ -63,7 +63,7 @@ pub fn create(state: Arc<Mutex<AppState>>) {
         WindowEvent::Close { .. } => {
             sender.send(Event::Exit).expect("Failed to send exit event");
         }
-        WindowEvent::Native(msg) => {
+        WindowEvent::Native { msg, .. } => {
             if msg.code == WM_COMMAND {
                 if let Some(id) = PopupId::from_u16(LOWORD(msg.params.0 as u32)) {
                     match id {

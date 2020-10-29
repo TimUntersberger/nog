@@ -11,6 +11,7 @@ pub enum Event {
     Keybinding(Keybinding),
     WinEvent(WinEvent),
     NewPopup(Popup),
+    ToggleAppbar(DisplayId),
     UpdateBarSections(DisplayId, ItemSection, ItemSection, ItemSection),
     ChangeWorkspace(i32, bool),
     RedrawAppBar,

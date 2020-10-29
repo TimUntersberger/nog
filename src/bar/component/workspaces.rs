@@ -1,11 +1,10 @@
 use super::{Component, ComponentText};
 use crate::{util, Event};
-use std::sync::Arc;
 
 pub fn create() -> Component {
     Component::new(
         "Workspaces",
-        Arc::new(|ctx| {
+        |ctx| {
             let light_theme = ctx.state.config.light_theme;
             let workspace_settings = ctx.state.config.workspace_settings.clone();
             let bar_color = ctx.state.config.bar.color;
@@ -14,42 +13,41 @@ pub fn create() -> Component {
                 .get_active_grids()
                 .iter()
                 .map(|grid| {
-                    let bg = if light_theme {
+                    let factor = if light_theme {
                         if ctx.state.workspace_id == grid.id {
-                            util::scale_color(bar_color, 0.75) as u32
+                            0.75
                         } else {
-                            util::scale_color(bar_color, 0.9) as u32
+                            0.9
                         }
                     } else {
                         if ctx.state.workspace_id == grid.id {
-                            util::scale_color(bar_color, 2.0) as u32
+                            2.0
                         } else {
-                            util::scale_color(bar_color, 1.5) as u32
+                            1.5
                         }
                     };
-
-                    let mut text = format!(" {} ", grid.id.to_string());
-
-                    if let Some(settings) = workspace_settings.iter().find(|s| s.id == grid.id) {
-                        if !settings.text.is_empty() {
-                            text = settings.text.clone();
-                        }
-                    }
-
-                    ComponentText::Colored(None, Some(bg), text)
+                    ComponentText::new()
+                        .with_display_text(
+                            workspace_settings
+                                .iter()
+                                .find(|s| s.id == grid.id)
+                                .map(|s| s.text.clone())
+                                .filter(|t| !t.is_empty())
+                                .unwrap_or(format!(" {} ", grid.id.to_string())),
+                        )
+                        .with_value(grid.id)
+                        .with_background_color(util::scale_color(bar_color, factor))
                 })
                 .collect()
-        }),
+        },
     )
-    .with_on_click(Arc::new(|ctx| {
+    .with_on_click(|ctx| {
+        let id = *ctx.value.downcast_ref::<i32>().unwrap();
         ctx.state
             .event_channel
             .sender
             .clone()
-            .send(Event::ChangeWorkspace(
-                ctx.display.grids.get(ctx.idx).unwrap().id,
-                true,
-            ));
-    }))
+            .send(Event::ChangeWorkspace(id, true));
+    })
     .to_owned()
 }
