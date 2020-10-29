@@ -4,6 +4,7 @@ use std::{any::Any, fmt::Debug, sync::Arc};
 pub mod active_mode;
 pub mod current_window;
 pub mod date;
+pub mod split_direction;
 pub mod padding;
 pub mod time;
 pub mod workspaces;
@@ -42,36 +43,6 @@ impl ComponentText {
         self
     }
 }
-
-// #[derive(Debug, Clone)]
-// pub enum ComponentText {
-//     Basic(String),
-//     /// (fg, bg, text)
-//     Colored(Option<i32>, Option<i32>, String),
-// }
-
-// impl ComponentText {
-//     pub fn get_text(&self) -> String {
-//         match self {
-//             Self::Basic(text) => text.into(),
-//             Self::Colored(_, _, text) => text.into(),
-//         }
-//     }
-
-//     pub fn get_fg(&self) -> Option<i32> {
-//         match self {
-//             Self::Basic(_) => None,
-//             Self::Colored(fg, _, _) => fg.clone(),
-//         }
-//     }
-
-//     pub fn get_bg(&self) -> Option<i32> {
-//         match self {
-//             Self::Basic(_) => None,
-//             Self::Colored(_, bg, _) => bg.clone(),
-//         }
-//     }
-// }
 
 #[derive(Clone)]
 pub struct Component {

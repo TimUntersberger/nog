@@ -35,7 +35,7 @@ pub fn handle(state: &mut AppState, ev: WinEvent) -> SystemResult {
     }
 
     if title.is_some() {
-        debug!("{:?}: '{}' | {}", ev.typ, title.unwrap(), ev.window.id);
+        debug!("{:?}: '{}' | {}", ev.typ, ev.window.get_process_name(), ev.window.id);
     }
 
     match ev.typ {

@@ -166,8 +166,6 @@ pub fn init(
                         }
                     }
                 } else {
-                    dbg!(&key);
-                    dbg!(&val);
                     set!(i32, bar_config, color, key, val);
                     set!(i32, bar_config, height, key, val);
                     set!(String, bar_config, font, key, val);

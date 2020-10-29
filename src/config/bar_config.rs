@@ -13,6 +13,7 @@ impl Default for BarComponentsConfig {
             left: vec![component::workspaces::create()],
             center: vec![component::time::create("%T".into())],
             right: vec![
+                component::split_direction::create("V".into(), "H".into()),
                 component::active_mode::create(),
                 component::padding::create(5),
                 component::date::create("%e %b %Y".into()),
