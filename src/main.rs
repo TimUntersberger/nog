@@ -32,6 +32,7 @@ pub const NOG_BAR_NAME: &'static str = "nog_bar";
 pub const NOG_POPUP_NAME: &'static str = "nog_popup";
 
 #[macro_use]
+#[allow(unused_macros)]
 mod macros {
     /// logs the amount of time it took to execute the passed expression
     macro_rules! time {
@@ -41,6 +42,31 @@ mod macros {
             log::debug!("{} took {:?}", $name, timer.elapsed());
             temp
         }};
+    }
+    /// sleeps for the given milliseconds
+    macro_rules! sleep {
+        ($ms: expr) => {
+            std::thread::sleep(std::time::Duration::from_millis($ms))
+        };
+    }
+    /// only runs the code if this is compiled on windows
+    ///
+    /// usage
+    /// ```rust
+    /// windows! {
+    ///     // only runs on windows
+    /// }
+    /// ```
+    /// TODO: correctly implement this
+    macro_rules! windows {
+        ($( $stmt:stmt )*) => {
+            #[cfg(target_os = "windows")]
+            {
+                $(
+                    $stmt
+                )*
+            };
+        }
     }
     /// This macro either gets the Ok(..) value of the first expression or returns the second
     /// expression.
@@ -275,7 +301,7 @@ impl AppState {
 
     pub fn hide_taskbars(&self) {
         // have to hide the taskbars in a specific order for it to work (I know like wtf)
-        
+
         // first hide primary display
         for d in &self.displays {
             if d.is_primary() {
@@ -399,6 +425,26 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
                 let _ = match msg {
                     Event::NewPopup(mut p) => {
                         p.create(state_arc.clone());
+                        Ok(())
+                    },
+                    Event::ToggleAppbar(display_id) => {
+                        if let Some(bar) = state_arc
+                            .clone()
+                            .lock()
+                            .get_display_by_id(display_id)
+                            .and_then(|d| d.appbar.clone()) {
+                            let win = bar.window.get_native_window();
+
+                            if win.is_visible() {
+                                println!("before");
+                                //TODO: This causes a deadlock
+                                //      probably because i use ShowWindow which is sync
+                                win.hide();
+                                println!("after");
+                            } else {
+                                win.show();
+                            }
+                        }
                         Ok(())
                     },
                     Event::Keybinding(kb) => {

@@ -7,7 +7,7 @@ use crate::{
 };
 use log::{debug, error, info};
 use parking_lot::Mutex;
-use std::{sync::Arc, thread, time::Duration, sync::atomic::AtomicBool, sync::atomic};
+use std::sync::Arc;
 
 fn draw_component_text(
     api: &Api,
@@ -15,23 +15,31 @@ fn draw_component_text(
     config: &Config,
     component_text: &ComponentText,
 ) {
-    let text = component_text.get_text();
-
-    if text.is_empty() {
+    if component_text.display_text.is_empty() {
         return;
     }
 
-    let fg = component_text.get_fg().unwrap_or(if config.light_theme {
-        0x00333333
-    } else {
-        0x00ffffff
-    });
+    let fg = Some(component_text.foreground_color)
+        .filter(|x| *x > 0)
+        .unwrap_or(if config.light_theme {
+            0x00333333
+        } else {
+            0x00ffffff
+        });
 
-    let bg = component_text.get_bg().unwrap_or(config.bar.color as u32);
+    let bg = Some(component_text.background_color)
+        .filter(|x| *x > 0)
+        .unwrap_or(config.bar.color);
 
     api.set_text_color(fg);
     api.set_background_color(bg);
-    api.write_text(&text, rect.left, rect.top, true, false)
+    api.write_text(
+        &component_text.display_text,
+        rect.left,
+        rect.top,
+        true,
+        false,
+    )
 }
 
 fn draw_components(
@@ -45,7 +53,9 @@ fn draw_components(
         let component_texts = component.render(display, state);
 
         for (_i, component_text) in component_texts.iter().enumerate() {
-            let width = api.calculate_text_rect(&component_text.get_text()).width();
+            let width = api
+                .calculate_text_rect(&component_text.display_text)
+                .width();
 
             let rect = Rectangle {
                 left: offset,
@@ -76,11 +86,13 @@ fn components_to_section(
         let mut component_width = 0;
 
         for component_text in component.render(display, state) {
-            let width = api.calculate_text_rect(&component_text.get_text()).width();
+            let width = api
+                .calculate_text_rect(&component_text.display_text)
+                .width();
             let left = component_text_offset;
             let right = component_text_offset + width;
 
-            item.widths.push((left, right));
+            item.cached_result.push(((left, right), component_text));
 
             component_width += width;
             component_text_offset += width;
@@ -138,7 +150,7 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
             .with_refresh_rate(100)
             .with_font(&config.bar.font)
             .with_font_size(config.bar.font_size)
-            .with_background_color(config.bar.color as u32)
+            .with_background_color(config.bar.color)
             .with_pos(left, top)
             .with_size(width, config.bar.height);
 
@@ -146,6 +158,22 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
 
         bar.window
             .create(state_arc.clone(), true, move |event| match event {
+                WindowEvent::Native { msg, display, .. } => {
+                    //TODO: make this cleaner
+                    #[cfg(target_os = "windows")]
+                    unsafe {
+                        use winapi::um::shellapi::ABN_FULLSCREENAPP;
+                        use winapi::um::winuser::WM_APP;
+
+                        if msg.code == WM_APP + 1 {
+                            if msg.params.0 == ABN_FULLSCREENAPP as usize {
+                                sender
+                                    .send(Event::ToggleAppbar(display.id))
+                                    .expect("Failed to send ToggleAppbar event");
+                            }
+                        }
+                    }
+                }
                 WindowEvent::Click {
                     x, display, state, ..
                 } => {
@@ -155,9 +183,9 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
                         .and_then(|b| b.item_at_pos(*x).cloned())
                         .map(|item| {
                             if item.component.is_clickable {
-                                for (i, width) in item.widths.iter().enumerate() {
+                                for (i, (width, text)) in item.cached_result.iter().enumerate() {
                                     if width.0 <= *x && *x <= width.1 {
-                                        item.component.on_click(display, state, i);
+                                        item.component.on_click(display, state, text.value.clone(), i);
                                     }
                                 }
                             }
@@ -281,6 +309,6 @@ pub fn test() {
     // create(state);
 
     loop {
-        thread::sleep(Duration::from_millis(1000));
+        sleep!(1000);
     }
 }

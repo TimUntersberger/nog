@@ -86,7 +86,7 @@ impl Config {
         let mut config = self.clone();
         match field {
             "bar.height" => config.bar.height += value,
-            "bar.color" => config.bar.color += value as u32,
+            "bar.color" => config.bar.color += value,
             "bar.font_size" => config.bar.font_size += value,
             "outer_gap" => config.outer_gap += value,
             "inner_gap" => config.inner_gap += value,

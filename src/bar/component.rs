@@ -1,5 +1,5 @@
 use crate::{display::Display, AppState};
-use std::{fmt::Debug, sync::Arc};
+use std::{any::Any, fmt::Debug, sync::Arc};
 
 pub mod active_mode;
 pub mod current_window;
@@ -9,45 +9,76 @@ pub mod time;
 pub mod workspaces;
 
 #[derive(Debug, Clone)]
-pub enum ComponentText {
-    Basic(String),
-    /// (fg, bg, text)
-    Colored(Option<u32>, Option<u32>, String),
+pub struct ComponentText {
+    pub display_text: String,
+    pub value: Arc<Box<dyn Any + Sync + Send>>,
+    pub foreground_color: i32,
+    pub background_color: i32,
 }
 
 impl ComponentText {
-    pub fn get_text(&self) -> String {
-        match self {
-            Self::Basic(text) => text.into(),
-            Self::Colored(_, _, text) => text.into(),
+    pub fn new() -> Self {
+        Self {
+            display_text: "".into(),
+            value: Arc::new(Box::new(())),
+            foreground_color: 0,
+            background_color: 0,
         }
     }
-
-    pub fn get_fg(&self) -> Option<u32> {
-        match self {
-            Self::Basic(_) => None,
-            Self::Colored(fg, _, _) => fg.clone(),
-        }
+    pub fn with_display_text(mut self, value: String) -> Self {
+        self.display_text = value;
+        self
     }
-
-    pub fn get_bg(&self) -> Option<u32> {
-        match self {
-            Self::Basic(_) => None,
-            Self::Colored(_, bg, _) => bg.clone(),
-        }
+    pub fn with_value(mut self, value: impl Any + Send + Sync) -> Self {
+        self.value = Arc::new(Box::new(value));
+        self
+    }
+    pub fn with_foreground_color(mut self, value: i32) -> Self {
+        self.foreground_color = value;
+        self
+    }
+    pub fn with_background_color(mut self, value: i32) -> Self {
+        self.background_color = value;
+        self
     }
 }
 
-pub type RenderFn = Arc<dyn Fn(RenderContext) -> Vec<ComponentText> + Send + Sync>;
-/// Receives the Component, the display and the idx of ComponentText which got clicked
-pub type OnClickFn = Arc<dyn Fn(OnClickContext) -> () + Send + Sync>;
+// #[derive(Debug, Clone)]
+// pub enum ComponentText {
+//     Basic(String),
+//     /// (fg, bg, text)
+//     Colored(Option<i32>, Option<i32>, String),
+// }
+
+// impl ComponentText {
+//     pub fn get_text(&self) -> String {
+//         match self {
+//             Self::Basic(text) => text.into(),
+//             Self::Colored(_, _, text) => text.into(),
+//         }
+//     }
+
+//     pub fn get_fg(&self) -> Option<i32> {
+//         match self {
+//             Self::Basic(_) => None,
+//             Self::Colored(fg, _, _) => fg.clone(),
+//         }
+//     }
+
+//     pub fn get_bg(&self) -> Option<i32> {
+//         match self {
+//             Self::Basic(_) => None,
+//             Self::Colored(_, bg, _) => bg.clone(),
+//         }
+//     }
+// }
 
 #[derive(Clone)]
 pub struct Component {
     pub name: String,
     pub is_clickable: bool,
-    render_fn: RenderFn,
-    on_click_fn: Option<OnClickFn>,
+    render_fn: Arc<dyn Fn(RenderContext) -> Vec<ComponentText> + Send + Sync>,
+    on_click_fn: Option<Arc<dyn Fn(OnClickContext) -> () + Send + Sync>>,
 }
 
 impl Default for Component {
@@ -55,7 +86,7 @@ impl Default for Component {
         Self {
             name: "Default".into(),
             is_clickable: false,
-            render_fn: Arc::new(|_| vec![ComponentText::Basic("Hello World".into())]),
+            render_fn: Arc::new(|_| vec![]),
             on_click_fn: None,
         }
     }
@@ -66,27 +97,30 @@ pub struct RenderContext<'a> {
     pub state: &'a AppState,
 }
 
+#[derive(Debug)]
 pub struct OnClickContext<'a> {
     pub display: &'a Display,
     pub state: &'a AppState,
+    pub value: Arc<Box<dyn Any + Send + Sync>>,
     pub idx: usize,
 }
 
 impl Component {
-    pub fn new(name: &str, render_fn: RenderFn) -> Self {
+    pub fn new(name: &str, render_fn: impl Fn(RenderContext) -> Vec<ComponentText> + Send + Sync + 'static) -> Self {
         Self {
             name: name.into(),
             is_clickable: false,
-            render_fn,
+            render_fn: Arc::new(render_fn),
             on_click_fn: None,
         }
     }
 
-    pub fn on_click(&self, display: &Display, state: &AppState, idx: usize) {
+    pub fn on_click(&self, display: &Display, state: &AppState, value: Arc<Box<dyn Any + Send + Sync>>, idx: usize) {
         if let Some(f) = self.on_click_fn.clone() {
             f(OnClickContext {
                 display,
                 state,
+                value,
                 idx,
             });
         }
@@ -98,9 +132,9 @@ impl Component {
         f(RenderContext { display, state })
     }
 
-    pub fn with_on_click(&mut self, f: OnClickFn) -> &mut Self {
+    pub fn with_on_click(&mut self, f: impl Fn(OnClickContext) -> () + Send + Sync + 'static) -> &mut Self {
         self.is_clickable = true;
-        self.on_click_fn = Some(f);
+        self.on_click_fn = Some(Arc::new(f));
         self
     }
 }

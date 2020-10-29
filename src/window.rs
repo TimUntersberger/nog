@@ -1,6 +1,10 @@
 use log::error;
 use parking_lot::Mutex;
-use std::{ffi::c_void, ffi::CString, sync::mpsc::channel, sync::Arc, sync::atomic::Ordering, thread, sync::mpsc::Sender, sync::mpsc::Receiver, sync::atomic::AtomicBool, time::Duration};
+use std::{
+    ffi::c_void, ffi::CString, sync::atomic::AtomicBool, sync::atomic::Ordering,
+    sync::mpsc::channel, sync::mpsc::Receiver, sync::mpsc::Sender, sync::Arc, thread,
+    time::Duration,
+};
 use thread::JoinHandle;
 use winapi::um::wingdi::SelectObject;
 use winapi::um::wingdi::LOGFONTA;
@@ -70,7 +74,7 @@ fn convert_color_to_winapi(color: u32) -> u32 {
 #[derive(Debug, Clone)]
 pub struct Api {
     pub hdc: i32,
-    pub background_color: u32,
+    pub background_color: i32,
     pub window: NativeWindow,
     pub display: Display,
 }
@@ -86,22 +90,22 @@ impl Api {
             SetCursor(LoadCursorA(std::ptr::null_mut(), IDC_ARROW as *const i8));
         }
     }
-    pub fn set_text_color(&self, color: u32) {
+    pub fn set_text_color(&self, color: i32) {
         unsafe {
-            SetTextColor(self.hdc as HDC, convert_color_to_winapi(color));
+            SetTextColor(self.hdc as HDC, convert_color_to_winapi(color as u32));
         }
     }
-    pub fn set_background_color(&self, color: u32) {
+    pub fn set_background_color(&self, color: i32) {
         unsafe {
-            SetBkColor(self.hdc as HDC, convert_color_to_winapi(color));
+            SetBkColor(self.hdc as HDC, convert_color_to_winapi(color as u32));
         }
     }
     pub fn reset_background_color(&self) {
         self.set_background_color(self.background_color)
     }
-    pub fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32, color: u32) {
+    pub fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32, color: i32) {
         unsafe {
-            let brush = CreateSolidBrush(convert_color_to_winapi(color));
+            let brush = CreateSolidBrush(convert_color_to_winapi(color as u32));
             let mut rect = RECT {
                 left: x,
                 right: x + width,
@@ -174,7 +178,10 @@ pub enum WindowEvent<'a> {
         x: i32,
         y: i32,
     },
-    Native(WindowMsg),
+    Native {
+        msg: WindowMsg,
+        display: &'a Display,
+    },
 }
 
 #[derive(Default, Debug)]
@@ -184,7 +191,7 @@ struct WindowInner {
     pub border: bool,
     pub x: i32,
     pub y: i32,
-    pub background_color: u32,
+    pub background_color: i32,
     pub height: i32,
     pub width: i32,
     pub title: String,
@@ -228,7 +235,7 @@ impl Window {
         self.refresh_rate = value;
         self
     }
-    pub fn with_background_color(self, color: u32) -> Self {
+    pub fn with_background_color(self, color: i32) -> Self {
         self.inner.lock().background_color = color;
         self
     }
@@ -257,7 +264,7 @@ impl Window {
         self.inner.lock().border = val;
         self
     }
-    fn get_native_window(&self) -> NativeWindow {
+    pub fn get_native_window(&self) -> NativeWindow {
         self.id.into()
     }
     pub fn redraw(&self) -> SystemResult {
@@ -295,7 +302,7 @@ impl Window {
                 hInstance: instance,
                 lpszClassName: c_name.as_ptr(),
                 lpfnWndProc: Some(window_cb),
-                hbrBackground: CreateSolidBrush(inner.background_color),
+                hbrBackground: CreateSolidBrush(inner.background_color as u32),
                 ..WNDCLASSA::default()
             };
 
@@ -345,6 +352,26 @@ impl Window {
 
             drop(inner);
 
+            //TODO: make this cleaner
+            #[cfg(target_os = "windows")]
+            unsafe {
+                use winapi::um::shellapi::SHAppBarMessage;
+                use winapi::um::shellapi::ABE_TOP;
+                use winapi::um::shellapi::ABM_NEW;
+                use winapi::um::shellapi::APPBARDATA;
+                use winapi::um::winuser::WM_APP;
+
+                let mut appbar_data = APPBARDATA {
+                    cbSize: 4 + 4 + 4 + 4 + 16 + 4,
+                    hWnd: hwnd,
+                    uCallbackMessage: WM_APP + 1,
+                    uEdge: ABE_TOP,
+                    ..Default::default()
+                };
+
+                SHAppBarMessage(ABM_NEW, &mut appbar_data as *mut APPBARDATA);
+            }
+
             message_loop::start(move |msg| {
                 if let Some(msg) = msg {
                     if msg.message == WM_IDENT {
@@ -385,7 +412,7 @@ impl Window {
                             let font = CreateFontIndirectA(&logfont);
                             SelectObject(hdc, font as *mut c_void);
 
-                            SetBkColor(hdc, background_color);
+                            SetBkColor(hdc, background_color as u32);
 
                             event_handler(&WindowEvent::Draw {
                                 display: &display,
@@ -438,7 +465,10 @@ impl Window {
                                 y: point.y - win_rect.top,
                             });
                         } else {
-                            event_handler(&WindowEvent::Native(msg));
+                            event_handler(&WindowEvent::Native {
+                                msg,
+                                display: &display,
+                            });
                         }
 
                         ReleaseDC(hwnd, hdc);
@@ -459,7 +489,7 @@ impl Window {
             //refresh thread
             thread::spawn(move || {
                 while !is_closed.load(Ordering::SeqCst) {
-                    thread::sleep(Duration::from_millis(refresh_rate as u64));
+                    sleep!(refresh_rate as u64);
                     let window: NativeWindow = id.into();
                     window.redraw();
                 }

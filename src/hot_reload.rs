@@ -70,6 +70,7 @@ pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> Sys
     if close_app_bars {
         drop(state);
         bar::close_all(state_arc.clone());
+        sleep!(1000);
         state = state_arc.lock();
     }
 

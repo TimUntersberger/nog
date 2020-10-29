@@ -173,7 +173,8 @@ impl Window {
     }
     pub fn get_foreground_window() -> SystemResult<Window> {
         unsafe {
-            nullable_to_result(GetForegroundWindow().into()).map_err(SystemError::GetForegroundWindow)
+            nullable_to_result(GetForegroundWindow().into())
+                .map_err(SystemError::GetForegroundWindow)
         }
     }
     pub fn get_class_name(&self) -> WinResult<String> {
