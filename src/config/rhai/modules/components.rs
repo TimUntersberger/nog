@@ -86,6 +86,9 @@ pub fn new() -> Module {
         Ok(bar::component::current_window::create())
     });
     module.set_fn_0("workspaces", || Ok(bar::component::workspaces::create()));
+    module.set_fn_2("split_direction", |vertical: ImmutableString, horizontal: ImmutableString| {
+        Ok(bar::component::split_direction::create(horizontal.to_string(), vertical.to_string()))
+    });
     module.set_fn_1("date", |pattern: ImmutableString| {
         Ok(bar::component::date::create(pattern.to_string()))
     });
@@ -99,6 +102,7 @@ pub fn new() -> Module {
     module.set_fn_2("create", |name: ImmutableString, render_fn: FnPtr| {
         Ok(create_component(name, render_fn, Map::new()))
     });
+
     module.set_fn_3(
         "create",
         |name: ImmutableString, render_fn: FnPtr, options: Map| {
