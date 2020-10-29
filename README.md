@@ -1,16 +1,20 @@
 
 # Nog
 
-## Status
+## Known Problems
 
-I have very litte free time in October 2020, so the development will slow down until at least November. Hopefully I'll have more free time this November and onwards.
+### Window gets managed on wrong monitor
 
-(I currently have to work a lot)
+If you are using something like PowerLauncher for launching applications you might encounter this problem with `mutli_monitor` enabled.
 
-The current focus is on these two PRs:
+The problem is that the focus returns to the previous window after PowerLauncher closes, before spawning the new window.
 
-* [Cross platform foundation](https://github.com/TimUntersberger/nog/pull/165)
-* [Tile layout algorithm refactor](https://github.com/TimUntersberger/nog/pull/164)
+1. PowerLauncher opens
+2. You tell it to launch notepad for example
+3. PowerLauncher closes -> focus returns to previous application
+4. notepad launches
+
+If the previous application mentioned in step 3 is managed by nog, the workspace will change to its grid. The only way to fix this (at least that I know of) is if we implement our own application launcher that is connected with nog. 
 
 ## Syntax highlighting
 
