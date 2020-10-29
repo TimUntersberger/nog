@@ -428,17 +428,16 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
                         Ok(())
                     },
                     Event::ToggleAppbar(display_id) => {
-                        if let Some(bar) = state_arc
+                        let window = state_arc
                             .clone()
                             .lock()
                             .get_display_by_id(display_id)
-                            .and_then(|d| d.appbar.clone()) {
-                            let win = bar.window.get_native_window();
+                            .and_then(|d| d.appbar.as_ref())
+                            .map(|bar| bar.window.get_native_window());
 
+                        if let Some(win) = window {
                             if win.is_visible() {
                                 println!("before");
-                                //TODO: This causes a deadlock
-                                //      probably because i use ShowWindow which is sync
                                 win.hide();
                                 println!("after");
                             } else {
