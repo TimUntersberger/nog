@@ -4,8 +4,8 @@ use std::{any::Any, fmt::Debug, sync::Arc};
 pub mod active_mode;
 pub mod current_window;
 pub mod date;
-pub mod split_direction;
 pub mod padding;
+pub mod split_direction;
 pub mod time;
 pub mod workspaces;
 
@@ -77,7 +77,10 @@ pub struct OnClickContext<'a> {
 }
 
 impl Component {
-    pub fn new(name: &str, render_fn: impl Fn(RenderContext) -> Vec<ComponentText> + Send + Sync + 'static) -> Self {
+    pub fn new(
+        name: &str,
+        render_fn: impl Fn(RenderContext) -> Vec<ComponentText> + Send + Sync + 'static,
+    ) -> Self {
         Self {
             name: name.into(),
             is_clickable: false,
@@ -86,7 +89,13 @@ impl Component {
         }
     }
 
-    pub fn on_click(&self, display: &Display, state: &AppState, value: Arc<Box<dyn Any + Send + Sync>>, idx: usize) {
+    pub fn on_click(
+        &self,
+        display: &Display,
+        state: &AppState,
+        value: Arc<Box<dyn Any + Send + Sync>>,
+        idx: usize,
+    ) {
         if let Some(f) = self.on_click_fn.clone() {
             f(OnClickContext {
                 display,
@@ -103,7 +112,10 @@ impl Component {
         f(RenderContext { display, state })
     }
 
-    pub fn with_on_click(&mut self, f: impl Fn(OnClickContext) -> () + Send + Sync + 'static) -> &mut Self {
+    pub fn with_on_click(
+        &mut self,
+        f: impl Fn(OnClickContext) -> () + Send + Sync + 'static,
+    ) -> &mut Self {
         self.is_clickable = true;
         self.on_click_fn = Some(Arc::new(f));
         self

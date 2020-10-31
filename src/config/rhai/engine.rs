@@ -1,11 +1,11 @@
-use super::{functions, lib, modules, syntax, types};
+use super::{functions, lib, modules, plugin_module_resolver::PluginModuleResolver, syntax, types};
 use crate::{config::Config, event::EventChannel, AppState};
 use lazy_static::lazy_static;
 use log::{debug, error};
 use parking_lot::Mutex;
 use rhai::{
     module_resolvers::{FileModuleResolver, ModuleResolversCollection},
-    Engine, FnPtr, Scope,
+    Engine, FnPtr, Module, Scope,
 };
 use std::{io::Write, path::PathBuf, sync::Arc, thread};
 
@@ -53,15 +53,15 @@ pub fn parse_config(state_arc: Arc<Mutex<AppState>>) -> Result<Config, String> {
 
     let mut resolver_collection = ModuleResolversCollection::new();
 
+    resolver_collection.push(PluginModuleResolver::new(state_arc.clone()));
+
     let modules_resolver = modules::new();
-    resolver_collection.push(modules_resolver);
+    resolver_collection.push(modules_resolver.clone());
 
     let mut config_path: PathBuf = dirs::config_dir().unwrap_or_default();
-
     config_path.push("nog");
 
     let relative_resolver = build_relative_resolver(&config_path);
-
     resolver_collection.push(relative_resolver);
 
     engine.set_module_resolver(Some(resolver_collection));

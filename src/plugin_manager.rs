@@ -1,10 +1,20 @@
-use std::{collections::HashMap, path::PathBuf, fs};
+use std::{collections::HashMap, fs, path::PathBuf, process::Command};
 
 use log::debug;
+use rhai::{module_resolvers::StaticModuleResolver, Engine, Module};
+
+#[derive(Default, Debug, Clone)]
+pub struct Plugin {
+    pub name: String,
+    pub path: PathBuf,
+    pub url: String,
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct PluginManager {
-    pub plugins: HashMap<String, String>,
+    plugins_json_path: PathBuf,
+    plugins_folder_path: PathBuf,
+    pub plugins: Vec<Plugin>,
 }
 
 impl PluginManager {
@@ -15,28 +25,61 @@ impl PluginManager {
         if !config_path.exists() {
             debug!("nog folder doesn't exist yet. Creating the folder");
             fs::create_dir(config_path.clone()).map_err(|e| e.to_string());
-        }        
+        }
 
         config_path.push("plugins");
+
+        self.plugins_folder_path = config_path.clone();
+
         if !config_path.exists() {
             fs::create_dir(config_path.clone()).map_err(|e| e.to_string());
         }
+
         config_path.pop();
 
         config_path.push("plugins.json");
+
+        self.plugins_json_path = config_path.clone();
+
         if config_path.exists() {
             let raw_config = fs::read_to_string(config_path.clone()).unwrap();
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(&raw_config) {
                 if let Some(config) = json.as_object() {
                     for (key, value) in config {
+                        let mut path = self.plugins_folder_path.clone();
+                        path.push(key.clone());
                         if let Some(s) = value.as_str() {
-                            self.plugins.insert(key.clone(), s.to_string());
+                            self.plugins.push(Plugin {
+                                name: key.clone(),
+                                url: s.to_string(),
+                                path,
+                            });
                         }
                     }
                 }
             }
         }
+    }
 
-        dbg!(&self.plugins);
+    fn install_plugin(&self, plugin: &Plugin) {
+        Command::new("git")
+            .arg("clone")
+            .arg(format!("https://www.github.com/{}", plugin.url))
+            .arg(&plugin.path)
+            .spawn()
+            .unwrap();
+    }
+
+    pub fn install(&self) {
+        for plugin in &self.plugins {
+            if !plugin.path.exists() {
+                self.install_plugin(plugin);
+            }
+        }
+    }
+
+    pub fn update(&self) {
+        //TODO: update plugins that are already installed and install plugins that are not already
+        //installed
     }
 }

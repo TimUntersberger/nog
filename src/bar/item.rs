@@ -6,7 +6,7 @@ pub struct Item {
     pub right: i32,
     pub component: Component,
     /// Vec of (left, right) and componenttext
-    pub cached_result: Vec<((i32, i32), ComponentText)>
+    pub cached_result: Vec<((i32, i32), ComponentText)>,
 }
 
 impl Default for Item {

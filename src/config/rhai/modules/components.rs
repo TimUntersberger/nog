@@ -11,45 +11,42 @@ use rhai::{Array, Dynamic, FnPtr, ImmutableString, Map, Module};
 
 fn create_component(name: ImmutableString, render_fn: FnPtr, options: Map) -> Component {
     let render_fn_name = render_fn.fn_name().to_string();
-    let mut component = Component::new(
-        &name,
-        move |_| {
-            let engine = ENGINE.lock();
-            let mut scope = SCOPE.lock();
-            let ast = AST.lock();
-            let result = engine
-                .call_fn::<(), Vec<Dynamic>>(&mut *scope, &*ast, &render_fn_name, ())
-                .map_err(|e| error!("{}", e.to_string()))
-                .unwrap_or_default();
+    let mut component = Component::new(&name, move |_| {
+        let engine = ENGINE.lock();
+        let mut scope = SCOPE.lock();
+        let ast = AST.lock();
+        let result = engine
+            .call_fn::<(), Vec<Dynamic>>(&mut *scope, &*ast, &render_fn_name, ())
+            .map_err(|e| error!("{}", e.to_string()))
+            .unwrap_or_default();
 
-            let return_value = result
-                .iter()
-                .map(|x| match x.type_name() {
-                    "string" => Some(
-                        ComponentText::new().with_display_text(x.as_str().unwrap().to_string()),
-                    ),
-                    "array" => {
-                        let tuple = x.clone().cast::<Array>();
-                        let fg = tuple.get(0).unwrap().as_int().unwrap();
-                        let bg = tuple.get(1).unwrap().as_int().unwrap();
-                        let text = tuple.get(2).unwrap().as_str().unwrap().to_string();
+        let return_value = result
+            .iter()
+            .map(|x| match x.type_name() {
+                "string" => {
+                    Some(ComponentText::new().with_display_text(x.as_str().unwrap().to_string()))
+                }
+                "array" => {
+                    let tuple = x.clone().cast::<Array>();
+                    let fg = tuple.get(0).unwrap().as_int().unwrap();
+                    let bg = tuple.get(1).unwrap().as_int().unwrap();
+                    let text = tuple.get(2).unwrap().as_str().unwrap().to_string();
 
-                        Some(
-                            ComponentText::new()
-                                .with_display_text(text)
-                                .with_foreground_color(fg)
-                                .with_background_color(bg),
-                        )
-                    }
-                    _ => None,
-                })
-                .filter(|x| x.is_some())
-                .map(|x| x.unwrap())
-                .collect();
+                    Some(
+                        ComponentText::new()
+                            .with_display_text(text)
+                            .with_foreground_color(fg)
+                            .with_background_color(bg),
+                    )
+                }
+                _ => None,
+            })
+            .filter(|x| x.is_some())
+            .map(|x| x.unwrap())
+            .collect();
 
-            return_value
-        },
-    );
+        return_value
+    });
 
     for (key, val) in options.iter() {
         match key.as_str() {
@@ -86,9 +83,15 @@ pub fn new() -> Module {
         Ok(bar::component::current_window::create())
     });
     module.set_fn_0("workspaces", || Ok(bar::component::workspaces::create()));
-    module.set_fn_2("split_direction", |vertical: ImmutableString, horizontal: ImmutableString| {
-        Ok(bar::component::split_direction::create(horizontal.to_string(), vertical.to_string()))
-    });
+    module.set_fn_2(
+        "split_direction",
+        |vertical: ImmutableString, horizontal: ImmutableString| {
+            Ok(bar::component::split_direction::create(
+                horizontal.to_string(),
+                vertical.to_string(),
+            ))
+        },
+    );
     module.set_fn_1("date", |pattern: ImmutableString| {
         Ok(bar::component::date::create(pattern.to_string()))
     });

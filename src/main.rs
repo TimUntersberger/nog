@@ -5,7 +5,6 @@ extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
 
-use plugin_manager::PluginManager;
 use config::{rhai::engine::parse_config, rule::Rule, workspace_setting::WorkspaceSetting, Config};
 use crossbeam_channel::select;
 use display::Display;
@@ -20,8 +19,9 @@ use keybindings::{
 use log::debug;
 use log::{error, info};
 use parking_lot::{deadlock, Mutex};
+use plugin_manager::PluginManager;
 use popup::Popup;
-use std::{process, sync::Arc, collections::HashMap};
+use std::{collections::HashMap, process, sync::Arc};
 use std::{thread, time::Duration};
 use system::{DisplayId, SystemResult, WinEventListener, WindowId};
 use task_bar::Taskbar;
@@ -118,8 +118,8 @@ mod hot_reload;
 mod keybindings;
 mod logging;
 mod message_loop;
-mod popup;
 mod plugin_manager;
+mod popup;
 mod renderer;
 mod split_direction;
 mod startup;
@@ -404,8 +404,6 @@ fn os_specific_setup(state: Arc<Mutex<AppState>>) {
 }
 
 fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>> {
-    state_arc.lock().plugin_manager.load();
-
     let receiver = state_arc.lock().event_channel.receiver.clone();
     let sender = state_arc.lock().event_channel.sender.clone();
 
@@ -520,6 +518,9 @@ fn main() {
     let state_arc = Arc::new(Mutex::new(AppState::default()));
 
     {
+        state_arc.lock().plugin_manager.load();
+        state_arc.lock().plugin_manager.install();
+
         let config = parse_config(state_arc.clone())
             .map_err(|e| {
                 Popup::new()

@@ -185,7 +185,12 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
                             if item.component.is_clickable {
                                 for (i, (width, text)) in item.cached_result.iter().enumerate() {
                                     if width.0 <= *x && *x <= width.1 {
-                                        item.component.on_click(display, state, text.value.clone(), i);
+                                        item.component.on_click(
+                                            display,
+                                            state,
+                                            text.value.clone(),
+                                            i,
+                                        );
                                     }
                                 }
                             }

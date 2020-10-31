@@ -6,11 +6,11 @@ use std::{
     time::Duration,
 };
 use thread::JoinHandle;
-use winapi::um::{wingdi::SelectObject, winuser::SW_HIDE, winuser::SW_SHOW};
 use winapi::um::wingdi::LOGFONTA;
 use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
 use winapi::um::{wingdi::CreateFontIndirectA, winuser::IDC_HAND, winuser::WM_MOUSEMOVE};
 use winapi::um::{wingdi::DeleteObject, winuser::DT_SINGLELINE, winuser::DT_VCENTER};
+use winapi::um::{wingdi::SelectObject, winuser::SW_HIDE, winuser::SW_SHOW};
 use winapi::{
     shared::minwindef::LPARAM, shared::minwindef::LRESULT, shared::minwindef::UINT,
     shared::minwindef::WPARAM, shared::windef::HDC, shared::windef::HWND, shared::windef::POINT,
@@ -309,13 +309,9 @@ impl Window {
             };
 
             if RegisterClassA(&class) == 0 {
-                UnregisterClassA(
-                    c_name.as_ptr(),
-                    instance
-                );
+                UnregisterClassA(c_name.as_ptr(), instance);
                 RegisterClassA(&class);
             }
-
 
             let mut exstyle = 0;
             let mut style = WS_OVERLAPPEDWINDOW;
@@ -414,7 +410,8 @@ impl Window {
                             SetBkColor(hdc, background_color as u32);
 
                             let state = state.lock();
-                            let display = state.displays.iter().find(|d| d.id == display_id).unwrap();
+                            let display =
+                                state.displays.iter().find(|d| d.id == display_id).unwrap();
                             let api = Api {
                                 hdc: hdc as i32,
                                 window: window.clone(),
@@ -436,7 +433,8 @@ impl Window {
                             GetCursorPos(&mut point);
                             let win_rect = window.get_rect().unwrap();
                             let state = state.lock();
-                            let display = state.displays.iter().find(|d| d.id == display_id).unwrap();
+                            let display =
+                                state.displays.iter().find(|d| d.id == display_id).unwrap();
                             event_handler(&WindowEvent::Click {
                                 id: window.id,
                                 x: point.x - win_rect.left,
@@ -446,7 +444,8 @@ impl Window {
                             });
                         } else if msg.code == WM_CLOSE {
                             let state = state.lock();
-                            let display = state.displays.iter().find(|d| d.id == display_id).unwrap();
+                            let display =
+                                state.displays.iter().find(|d| d.id == display_id).unwrap();
 
                             event_handler(&WindowEvent::Close {
                                 id: window.id,
@@ -454,7 +453,8 @@ impl Window {
                             });
                         } else if msg.code == WM_CREATE {
                             let state = state.lock();
-                            let display = state.displays.iter().find(|d| d.id == display_id).unwrap();
+                            let display =
+                                state.displays.iter().find(|d| d.id == display_id).unwrap();
                             event_handler(&WindowEvent::Create {
                                 id: window.id,
                                 display: &display,
@@ -464,7 +464,8 @@ impl Window {
                             GetCursorPos(&mut point);
                             let win_rect = window.get_rect().unwrap();
                             let state = state.lock();
-                            let display = state.displays.iter().find(|d| d.id == display_id).unwrap();
+                            let display =
+                                state.displays.iter().find(|d| d.id == display_id).unwrap();
                             let api = Api {
                                 hdc: hdc as i32,
                                 window: window.clone(),
@@ -481,7 +482,8 @@ impl Window {
                             });
                         } else {
                             let state = state.lock();
-                            let display = state.displays.iter().find(|d| d.id == display_id).unwrap();
+                            let display =
+                                state.displays.iter().find(|d| d.id == display_id).unwrap();
                             event_handler(&WindowEvent::Native {
                                 msg,
                                 display: &display,
