@@ -83,7 +83,7 @@ pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> Sys
 
     for d in state.displays.iter() {
         if let Some(grid) = d.get_focused_grid() {
-            grid.draw_grid(d, &old_config)?;
+            grid.draw_grid(d, &state.config)?;
         }
     }
 
