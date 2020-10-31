@@ -1,4 +1,5 @@
 use crate::system::{NativeWindow, SystemResult};
+use log::error;
 
 #[derive(Debug, Clone)]
 pub struct NodeInfo {
@@ -103,7 +104,10 @@ impl Node {
         TFunction: FnMut(&mut NativeWindow) -> SystemResult {
         match self {
             Node::Tile((_, w)) => f(w),
-            _ => panic!("Attempt to get window of non-Tile node")
+            _ => {
+                error!("Attempt to modify window of non-Tile node");
+                Ok(())
+            }
         }
     }
 

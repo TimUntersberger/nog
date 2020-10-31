@@ -599,7 +599,10 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                             (Node::Row(_), SplitDirection::Horizontal) => PushOperation::AppendToParent,
                             (Node::Column(_), _) => PushOperation::SwapAndAppend(Node::row),
                             (Node::Row(_), _) => PushOperation::SwapAndAppend(Node::column),
-                            _ => panic!("Parent not column or row")
+                            _ => {
+                                error!("Parent not column or row");
+                                return;
+                            }
                         };
 
                         match operation {
@@ -638,7 +641,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                         self.focused_id = Some(self.graph.add_child(new_parent_id, new_node));
                     }
                 }
-                _ => panic!("Focused node not a tile. This is an invalid state")
+                _ => error!("Focused node not a tile. This is an invalid state")
             }
         }
     }
@@ -727,7 +730,10 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                 let new_root = match self.graph.node(parent_id) {
                                   Node::Column(_) => Node::row(0, FULL_SIZE),
                                   Node::Row(_) => Node::column(0, FULL_SIZE),
-                                  _ => panic!("Parent must be row or column")
+                                  _ => {
+                                      error!("Parent must be row or column");
+                                      return;
+                                  }
                                };
                 if children.len() == 2 && self.graph.node(children[0]).is_tile() 
                                        && self.graph.node(children[1]).is_tile() {
@@ -783,7 +789,10 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                         self.graph.connect(new_parent_id, focused_id);
                         self.reset_order(new_parent_id);
                     },
-                    _ => panic!("Expected Column/Row. Tile is not a valid state")
+                    _ => {
+                        error!("Expected Column/Row. Tile is not a valid state");
+                        return;
+                    }
                 }
 
                 self.bubble_siblingless_child(parent_id);
@@ -823,7 +832,10 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                             let new_node = match &self.graph.node(sibling_parent_id) {
                                                Node::Column(_) => Node::row(new_order, sibling_size),
                                                Node::Row(_) => Node::column(new_order, sibling_size),
-                                               _ => panic!("Parent should be a row or column")
+                                               _ => {
+                                                   error!("Parent should be a row or column");
+                                                   return;
+                                               }
                                            };
 
                             let new_node_id = self.graph.add_node(new_node);
