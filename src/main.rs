@@ -5,6 +5,7 @@ extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
 
+use plugin_manager::PluginManager;
 use config::{rhai::engine::parse_config, rule::Rule, workspace_setting::WorkspaceSetting, Config};
 use crossbeam_channel::select;
 use display::Display;
@@ -20,7 +21,7 @@ use log::debug;
 use log::{error, info};
 use parking_lot::{deadlock, Mutex};
 use popup::Popup;
-use std::{process, sync::Arc};
+use std::{process, sync::Arc, collections::HashMap};
 use std::{thread, time::Duration};
 use system::{DisplayId, SystemResult, WinEventListener, WindowId};
 use task_bar::Taskbar;
@@ -118,6 +119,7 @@ mod keybindings;
 mod logging;
 mod message_loop;
 mod popup;
+mod plugin_manager;
 mod renderer;
 mod split_direction;
 mod startup;
@@ -134,6 +136,7 @@ mod window;
 #[derive(Debug, Clone)]
 pub struct AppState {
     pub config: Config,
+    pub plugin_manager: PluginManager,
     pub work_mode: bool,
     pub displays: Vec<Display>,
     pub event_channel: EventChannel,
@@ -148,6 +151,7 @@ impl Default for AppState {
         let config = Config::default();
         Self {
             work_mode: true,
+            plugin_manager: PluginManager::default(),
             displays: time!("initializing displays", display::init(&config)),
             keybindings_manager: KbManager::new(vec![Keybinding {
                 typ: KeybindingType::CloseTile,
@@ -166,9 +170,9 @@ impl Default for AppState {
 
 impl AppState {
     pub fn new(config: Config) -> Self {
-        // let config = parse_config(event_channel.sender.clone())?;
         Self {
             work_mode: config.work_mode,
+            plugin_manager: PluginManager::default(),
             displays: display::init(&config),
             keybindings_manager: KbManager::new(config.keybindings.clone()),
             event_channel: EventChannel::default(),
@@ -400,6 +404,8 @@ fn os_specific_setup(state: Arc<Mutex<AppState>>) {
 }
 
 fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>> {
+    state_arc.lock().plugin_manager.load();
+
     let receiver = state_arc.lock().event_channel.receiver.clone();
     let sender = state_arc.lock().event_channel.sender.clone();
 
@@ -523,6 +529,7 @@ fn main() {
                     .unwrap();
             })
             .unwrap_or_default();
+
         state_arc.lock().init(config)
     }
 
