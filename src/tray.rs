@@ -1,5 +1,4 @@
 use std::sync::Arc;
-
 use crate::{event::Event, util, window::Window, window::WindowEvent, AppState};
 use num_traits::FromPrimitive;
 use parking_lot::Mutex;
