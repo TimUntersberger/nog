@@ -69,6 +69,9 @@ pub fn create(state: Arc<Mutex<AppState>>) {
                     match id {
                         PopupId::Exit => unsafe {
                             PostMessageW(msg.hwnd, WM_CLOSE, 0, 0);
+                            sender
+                                .send(Event::Exit)
+                                .expect("Failed to send event");
                         },
                         PopupId::Reload => {
                             sender
