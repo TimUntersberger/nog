@@ -149,12 +149,7 @@ impl Default for AppState {
         Self {
             work_mode: true,
             displays: time!("initializing displays", display::init(&config)),
-            keybindings_manager: KbManager::new(vec![Keybinding {
-                typ: KeybindingType::CloseTile,
-                mode: None,
-                key: Key::Q,
-                modifier: Modifier::ALT,
-            }]),
+            keybindings_manager: KbManager::new(config.keybindings.clone()),
             event_channel: EventChannel::default(),
             additonal_rules: Vec::new(),
             window_event_listener: WinEventListener::default(),
@@ -516,15 +511,19 @@ fn main() {
     {
         let config = parse_config(state_arc.clone())
             .map_err(|e| {
-                Popup::new()
-                    .with_padding(5)
-                    .with_text(&[&e, "", "(Press Alt+Q to close)"])
-                    .create(state_arc.clone())
-                    .unwrap();
+                let state_arc = state_arc.clone();
+                thread::spawn(move || {
+                    Popup::new()
+                        .with_padding(5)
+                        .with_text(&[&e, "", "(Press Alt+Q to close)"])
+                        .create(state_arc)
+                        .unwrap()
+                });
             })
             .unwrap_or_default();
         state_arc.lock().init(config)
     }
+
 
     let arc = state_arc.clone();
 

@@ -51,7 +51,7 @@ impl Default for Config {
             outer_gap: 0,
             inner_gap: 0,
             remove_title_bar: true,
-            work_mode: false,
+            work_mode: true,
             light_theme: false,
             multi_monitor: false,
             remove_task_bar: true,
@@ -59,7 +59,12 @@ impl Default for Config {
             bar: BarConfig::default(),
             mode_meta: HashMap::new(),
             workspace_settings: Vec::new(),
-            keybindings: Vec::new(),
+            keybindings: vec![Keybinding {
+                typ: KeybindingType::CloseTile,
+                mode: None,
+                key: Key::Q,
+                modifier: Modifier::ALT,
+            }],
             rules: Vec::new(),
             update_channels: Vec::new(),
             default_update_channel: None,
@@ -71,7 +76,9 @@ impl Default for Config {
 impl Config {
     /// Creates a new default config.
     pub fn new() -> Self {
-        Self::default()
+        let mut temp = Self::default();
+        temp.keybindings = Vec::new();
+        temp
     }
 
     pub fn increment_field(&self, field: &str, value: i32) -> Config {

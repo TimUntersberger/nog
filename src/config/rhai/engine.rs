@@ -99,6 +99,8 @@ pub fn parse_config(state_arc: Arc<Mutex<AppState>>) -> Result<Config, String> {
 
     let mut config = config.lock().clone();
 
+    dbg!(&config.keybindings);
+
     #[cfg(debug_assertions)]
     {
         config.work_mode = true;
