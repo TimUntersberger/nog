@@ -38,62 +38,62 @@ impl GraphWrapper {
         }
     }
 
-    pub fn add_node(self: &mut Self, node: Node) -> usize {
+    pub fn add_node(&mut self, node: Node) -> usize {
         self.graph.add_node(node).index()
     }
 
-    pub fn remove_node(self: &mut Self, node_id: usize) -> Option<Node> {
+    pub fn remove_node(&mut self, node_id: usize) -> Option<Node> {
         self.graph.remove_node(NodeIndex::new(node_id))
     }
 
-    pub fn clear(self: &mut Self) {
+    pub fn clear(&mut self) {
         self.graph.clear();
     }
 
-    pub fn swap_node(self: &mut Self, node_id: usize, mut node: Node) -> Node {
+    pub fn swap_node(&mut self, node_id: usize, mut node: Node) -> Node {
         mem::swap(self.node_mut(node_id), &mut node);
         node
     }
 
-    pub fn add_child(self: &mut Self, parent_id: usize, node: Node) -> usize {
+    pub fn add_child(&mut self, parent_id: usize, node: Node) -> usize {
         let child_id = self.add_node(node);
         self.connect(parent_id, child_id);
         child_id 
     }
 
-    pub fn swap_and_nest(self: &mut Self, node_id: usize, mut swap_item: Node) -> (usize, usize) {
+    pub fn swap_and_nest(&mut self, node_id: usize, mut swap_item: Node) -> (usize, usize) {
         mem::swap(self.node_mut(node_id), &mut swap_item);
         (node_id, self.add_child(node_id, swap_item))
     }
 
-    pub fn connect(self: &mut Self, parent_id: usize, child_id: usize) {
+    pub fn connect(&mut self, parent_id: usize, child_id: usize) {
         self.graph.update_edge(NodeIndex::new(parent_id), NodeIndex::new(child_id), EDGE);
     }
 
-    pub fn disconnect(self: &mut Self, parent_id: usize, child_id: usize) {
+    pub fn disconnect(&mut self, parent_id: usize, child_id: usize) {
         if let Some(edge) = self.graph.find_edge(NodeIndex::new(parent_id), NodeIndex::new(child_id)) {
             self.graph.remove_edge(edge);
         }
     }
 
-    pub fn len(self: &Self) -> usize {
+    pub fn len(&self) -> usize {
         self.graph.node_count()
     }
 
-    pub fn node(self: &Self, id: usize) -> &Node {
+    pub fn node(&self, id: usize) -> &Node {
         &self.graph[NodeIndex::new(id)]
     }
 
-    pub fn node_mut(self: &mut Self, id: usize) -> &mut Node {
+    pub fn node_mut(&mut self, id: usize) -> &mut Node {
         &mut self.graph[NodeIndex::new(id)]
     }
 
-    pub fn map_to_parent(self: &Self, id: Option<usize>) -> Option<usize> {
+    pub fn map_to_parent(&self, id: Option<usize>) -> Option<usize> {
         id.and_then(|i| self.graph.neighbors_directed(NodeIndex::new(i), GraphDirection::Incoming).next())
           .map(|n| n.index())
     }
 
-    pub fn get_root(self: &Self) -> Option<usize> {
+    pub fn get_root(&self) -> Option<usize> {
         self.graph.node_indices()
                   .find_map(|x| 
                       if !self.map_to_parent(Some(x.index())).is_some() { 
@@ -103,18 +103,18 @@ impl GraphWrapper {
                       })
     }
 
-    pub fn is_empty(self: &Self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.graph.node_count() == 0
     }
 
-    pub fn nodes(self: &Self) -> impl Iterator<Item = usize> {
+    pub fn nodes(&self) -> impl Iterator<Item = usize> {
         self.graph.node_indices()
                   .map(|n| n.index())
                   .collect::<Vec::<usize>>()
                   .into_iter()
     }
 
-    pub fn find<F>(self: &Self, mut f: F) -> Option<usize> 
+    pub fn find<F>(&self, mut f: F) -> Option<usize> 
        where F: FnMut(&Node) -> bool {
         self.graph.node_indices()
                   .find_map(|x| 
@@ -126,7 +126,7 @@ impl GraphWrapper {
                   )
     }
 
-    pub fn get_children(self: &Self, parent_id: usize) -> Vec::<usize> {
+    pub fn get_children(&self, parent_id: usize) -> Vec::<usize> {
         self.graph
             .edges_directed(NodeIndex::new(parent_id), GraphDirection::Outgoing)
             .map(|x| self.graph.edge_endpoints(x.id()).unwrap())
@@ -134,14 +134,14 @@ impl GraphWrapper {
             .collect()
     }
 
-    pub fn get_sorted_children(self: &Self, parent_id: usize) -> Vec::<usize> {
+    pub fn get_sorted_children(&self, parent_id: usize) -> Vec::<usize> {
         let mut children = self.get_children(parent_id);
         children.sort_by_key(|x| self.node(*x).get_info().0);
 
         children
     }
 
-    pub fn get_neighbor(self: &Self, id: usize, dir: Direction) -> Option<usize> {
+    pub fn get_neighbor(&self, id: usize, dir: Direction) -> Option<usize> {
         let order = self.node(id).get_order();
         if let Some(parent_id) = self.map_to_parent(Some(id)) {
             let neighbors = self.get_children(parent_id);
@@ -176,7 +176,7 @@ impl GraphWrapper {
         }
     }
 
-    pub fn to_closest_row(self: &Self, id: Option<usize>) -> Option<usize> {
+    pub fn to_closest_row(&self, id: Option<usize>) -> Option<usize> {
         if let Some(parent_id) = self.map_to_parent(id) {
             match &self.node(parent_id)  {
                 Node::Row(_) => Some(parent_id),
@@ -187,7 +187,7 @@ impl GraphWrapper {
         }
     }
 
-    pub fn to_closest_column(self: &Self, id: Option<usize>) -> Option<usize> {
+    pub fn to_closest_column(&self, id: Option<usize>) -> Option<usize> {
         if let Some(parent_id) = self.map_to_parent(id) {
             match &self.node(parent_id)  {
                 Node::Column(_) => Some(parent_id),
@@ -198,7 +198,7 @@ impl GraphWrapper {
         }
     }
 
-    pub fn to_closest_tile(self: &Self, id: Option<usize>, moving_direction: Option<Direction>) -> Option<usize> {
+    pub fn to_closest_tile(&self, id: Option<usize>, moving_direction: Option<Direction>) -> Option<usize> {
         if let Some(id) = id {
             match &self.node(id)  {
                 Node::Column(_) | Node::Row(_) => {

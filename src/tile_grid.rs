@@ -719,6 +719,9 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             }
         }
     }
+    /// Moves the focused tile out of a row/column in the given direction and automatically handles redistributing size/resetting the order
+    /// of any previous siblings. The behavior of this movement is essentially moving the tile so that it is a sibling of its parent and introducing a
+    /// new parent node that is the opposite type of the previous parent if necessary. No-op if the grid is currently fullscreened.
     pub fn move_focused_out(&mut self, direction: Direction) {
         if self.fullscreen_id.is_some() { return; }
 
@@ -726,6 +729,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             let focused_id = self.focused_id.unwrap();
             let children = self.graph.get_children(parent_id);
 
+            // This block handles when the focused tile is directly under the root node
             if !self.graph.map_to_parent(Some(parent_id)).is_some() {
                 let new_root = match self.graph.node(parent_id) {
                                   Node::Column(_) => Node::row(0, FULL_SIZE),
@@ -737,13 +741,20 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                                };
                 if children.len() == 2 && self.graph.node(children[0]).is_tile() 
                                        && self.graph.node(children[1]).is_tile() {
+                    // This is a weird case since moving out doesn't make sense when you only have two tile nodes in the grid
+                    // Rather than doing nothing, this swaps the root with a new root that is the opposite of the current root type.
                     self.graph.swap_node(parent_id, new_root);
                 } else if children.len() > 2 {
+                    // Creates a new root (opposite of current root type) and adds the focused tile
+                    // as a child and the old root as the other. In effect, this moves the focused tile
+                    // out of the existing row/column when there is only one row/column in the grid.
                     self.disconnect_child(parent_id, focused_id);
                     let new_root_id = self.graph.add_node(new_root);
                     self.graph.connect(new_root_id, parent_id);
                     self.graph.connect(new_root_id, focused_id);
 
+                    // This is determines the sibling order of the focused tile and the old root 
+                    // based on the movement direction and the new node type (column or row)
                     let (left, right) = match direction {
                                             Direction::Left | Direction::Up => (focused_id, parent_id),
                                             Direction::Right | Direction::Down => (parent_id, focused_id)
@@ -755,6 +766,10 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                 return;
             }
 
+            // The rest of the function handles the case when the focused tile is further down the graph, that is, when the focused tile has a grand parent.
+            // The idea here is to determine what the new parent would be (the grand parent of the focused node) and get a reference to the current parent
+            // which will be the new sibling. Then, the focused tile is appended to the new parent (previous grand parent) and the order of the 
+            // focused node and the sibling (old parent) is determined based on the direction given by the user. 
             let (new_parent_id, sibling_id) = 
                 match (&direction, self.graph.node(parent_id)) {
                     (Direction::Left, Node::Column(_)) | 
@@ -795,10 +810,16 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                     }
                 }
 
+                // this handles when a movement out of a parent creates a scenario where there is a parent (a row or column) with one child tile. 
+                //When this happens we just want the child to bubble up one level so that it is no longer siblingless.
                 self.bubble_siblingless_child(parent_id);
             }
         }
     }
+    /// Moves the focused tile into an adjacent row/column/tile found in the given direction and automatically handles redistributing size/resetting the order
+    /// of any previous siblings and new siblings. If the adjacent target is a row or column, this simply appends the focused tile at the end of the container.
+    /// If the adjacent target is a tile, this introduces a new column or row container, whichever is the opposite of the currently focused tile's parent, and
+    /// appends the focused tile & the adjacent tile within the new container. No-op if the grid is currently fullscreened.
     pub fn move_focused_in(&mut self, direction: Direction) {
         if self.fullscreen_id.is_some() { return; }
 
