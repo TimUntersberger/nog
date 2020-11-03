@@ -13,7 +13,7 @@ impl TextRenderer {
             tile_legend = tile_legend + &format!("{} ~ NodeID:{} WinID:{} - {} Size: {} Order: {}\n", letter,
                                         render_info.debug_id, 
                                         render_info.window.id, 
-                                        render_info.window.title.clone(),
+                                        render_info.window.get_title().unwrap_or("".to_string()).clone(),
                                         render_info.debug_size, 
                                         render_info.debug_order);
             buffer = TextRenderer::add_to_buffer(buffer, render_info, letter);
