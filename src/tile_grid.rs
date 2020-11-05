@@ -26,7 +26,6 @@ static HALF_SIZE: u32 = FULL_SIZE / 2;
 
 #[derive(Clone, Debug)]
 pub struct TileGrid<TRenderer: Renderer = NativeRenderer> {
-    // pub display: Display,
     pub renderer: TRenderer,
     pub id: i32,
     pub taskbar_window: i32,
@@ -727,7 +726,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
 
         if let Some(parent_id) = self.graph.map_to_parent(self.focused_id) {
             let focused_id = self.focused_id.unwrap();
-            let children = self.graph.get_children(parent_id);
+            let children = self.graph.get_sorted_children(parent_id);
 
             // This block handles when the focused tile is directly under the root node
             if !self.graph.map_to_parent(Some(parent_id)).is_some() {
@@ -743,7 +742,16 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                                        && self.graph.node(children[1]).is_tile() {
                     // This is a weird case since moving out doesn't make sense when you only have two tile nodes in the grid
                     // Rather than doing nothing, this swaps the root with a new root that is the opposite of the current root type.
+                    // And swaps the order of the two children if the user is attempting to move a tile to the other side of its sibling
                     self.graph.swap_node(parent_id, new_root);
+                    let (focused_child, other_child) = if focused_id == children[0] { (children[0], children[1]) } else { (children[1], children[0]) };
+                    let focused_order = self.graph.node(focused_child).get_order();
+                    let other_order = self.graph.node(other_child).get_order();
+                    if (focused_order > other_order && (direction == Direction::Left || direction == Direction::Up))
+                      || (focused_order < other_order && (direction == Direction::Right || direction == Direction::Down)) {
+                        self.graph.node_mut(focused_child).set_order(other_order);
+                        self.graph.node_mut(other_child).set_order(focused_order);
+                    }
                 } else if children.len() > 2 {
                     // Creates a new root (opposite of current root type) and adds the focused tile
                     // as a child and the old root as the other. In effect, this moves the focused tile
@@ -753,7 +761,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                     self.graph.connect(new_root_id, parent_id);
                     self.graph.connect(new_root_id, focused_id);
 
-                    // This is determines the sibling order of the focused tile and the old root 
+                    // This determines the sibling order of the focused tile and the old root 
                     // based on the movement direction and the new node type (column or row)
                     let (left, right) = match direction {
                                             Direction::Left | Direction::Up => (focused_id, parent_id),
@@ -840,7 +848,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                         if number_of_children == 2 {
                             // don't do anything if there are only two nodes and they're both tiles
                             // this prevents columns in columns or rows in rows
-                            // in this scenario, the user should move_out not move_in
+                            // in this scenario, the user should move_focused_out not move_focused_in
                             return;
                         }
                         // need to look at what the grandparent is to determine if this
@@ -913,7 +921,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     /// Removes conection between a parent and the given child node, but leaves the child in the graph.
     /// This is useful when moving tiles between parents.
     fn disconnect_child(&mut self, parent_id: usize, child_id: usize) {
-        let children = self.graph.get_children(parent_id);
+        let children = self.graph.get_sorted_children(parent_id);
         let number_of_children = children.iter().len();
         let size = self.graph.node(child_id).get_size();
         let size_per_sibling = size / number_of_children as u32;
