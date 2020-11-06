@@ -124,8 +124,8 @@ fn push_node_on_populated_root() {
     let root_node_value = 123;
     let new_node_value = 456;
 
-    let root_window =create_window(root_node_value);
-    let new_node_window =create_window(new_node_value);
+    let root_window = create_window(root_node_value);
+    let new_node_window = create_window(new_node_value);
 
     tile_grid.push(root_window);
     tile_grid.push(new_node_window);
@@ -738,6 +738,170 @@ fn make_space_for_node_test_check_size_distributions() {
             assert_eq!(20, tile_grid.graph.node(node_id).get_size());
         }
     }
+}
+
+#[test]
+fn move_focused_in_3_column_tiles_to_1_column_2_row() {
+    /*
+        testing [A][B][*]
+                [A][B][*]
+                    V
+        testing [A][*]
+                [A][B]
+    */
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    perform_actions(&mut tile_grid, "p,p,p,mil");
+    let root = tile_grid.graph.get_root().unwrap();
+    let node_a = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(root)[0]);
+    let row_1 = tile_grid.graph.get_sorted_children(root)[1];
+    let node_b = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(row_1)[0]);
+    let node_c = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(row_1)[1]);
+
+    assert!(is_column(&tile_grid, root));
+    assert!(is_row(&tile_grid, row_1));
+    assert_eq!(1, node_a);
+    assert_eq!(2, node_b);
+    assert_eq!(3, node_c);
+
+    /*
+        testing [*][B][C]
+                [*][B][C]
+                    V
+        testing [B][C]
+                [*][C]
+    */
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    perform_actions(&mut tile_grid, "p,p,p,fl,fl,mir");
+    let root = tile_grid.graph.get_root().unwrap();
+    let node_c = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(root)[1]);
+    let row_1 = tile_grid.graph.get_sorted_children(root)[0];
+    let node_b = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(row_1)[0]);
+    let node_a = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(row_1)[1]);
+
+    assert!(is_column(&tile_grid, root));
+    assert!(is_row(&tile_grid, row_1));
+    assert_eq!(1, node_a);
+    assert_eq!(2, node_b);
+    assert_eq!(3, node_c);
+
+    /*
+        testing [A][A]
+                [B][B]
+                [*][*]
+                  VV
+        testing [A][A]
+                [B][C]
+    */
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    perform_actions(&mut tile_grid, "axh,p,p,p,miu");
+    let root = tile_grid.graph.get_root().unwrap();
+    let node_a = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(root)[0]);
+    let column_1 = tile_grid.graph.get_sorted_children(root)[1];
+    let node_b = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(column_1)[0]);
+    let node_c = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(column_1)[1]);
+
+    assert!(is_row(&tile_grid, root));
+    assert!(is_column(&tile_grid, column_1));
+    assert_eq!(1, node_a);
+    assert_eq!(2, node_b);
+    assert_eq!(3, node_c);
+
+    /*
+        testing [*][*]
+                [B][B]
+                [C][C]
+                  VV
+        testing [B][*]
+                [C][C]
+    */
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    perform_actions(&mut tile_grid, "axh,p,p,p,fu,fu,mid");
+    let root = tile_grid.graph.get_root().unwrap();
+    let node_c = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(root)[1]);
+    let column_1 = tile_grid.graph.get_sorted_children(root)[0];
+    let node_b = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(column_1)[0]);
+    let node_a = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(column_1)[1]);
+
+    assert!(is_row(&tile_grid, root));
+    assert!(is_column(&tile_grid, column_1));
+    assert_eq!(1, node_a);
+    assert_eq!(2, node_b);
+    assert_eq!(3, node_c);
+}
+
+#[test]
+fn move_focused_out_3_column_tiles_to_1_row_2_column() {
+    /*
+        testing [A][B][*]
+                [A][B][*]
+                    V
+        testing [*][*]
+                [A][B]
+    */
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    perform_actions(&mut tile_grid, "p,p,p,mol");
+    let root = tile_grid.graph.get_root().unwrap();
+    let node_c = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(root)[0]);
+    let column_1 = tile_grid.graph.get_sorted_children(root)[1];
+    let node_a = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(column_1)[0]);
+    let node_b = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(column_1)[1]);
+
+    assert!(is_row(&tile_grid, root));
+    assert!(is_column(&tile_grid, column_1));
+    assert_eq!(1, node_a);
+    assert_eq!(2, node_b);
+    assert_eq!(3, node_c);
+
+    // Move_Focused_Out_Left & Move_Focused_Out_Up behave the same
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    perform_actions(&mut tile_grid, "p,p,p,mou");
+    let root = tile_grid.graph.get_root().unwrap();
+    let node_c = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(root)[0]);
+    let column_1 = tile_grid.graph.get_sorted_children(root)[1];
+    let node_a = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(column_1)[0]);
+    let node_b = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(column_1)[1]);
+
+    assert!(is_row(&tile_grid, root));
+    assert!(is_column(&tile_grid, column_1));
+    assert_eq!(1, node_a);
+    assert_eq!(2, node_b);
+    assert_eq!(3, node_c);
+
+    /*
+        testing [A][B][*]
+                [A][B][*]
+                    V
+        testing [A][B]
+                [*][*]
+    */
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    perform_actions(&mut tile_grid, "p,p,p,mor");
+    let root = tile_grid.graph.get_root().unwrap();
+    let node_c = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(root)[1]);
+    let column_1 = tile_grid.graph.get_sorted_children(root)[0];
+    let node_a = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(column_1)[0]);
+    let node_b = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(column_1)[1]);
+
+    assert!(is_row(&tile_grid, root));
+    assert!(is_column(&tile_grid, column_1));
+    assert_eq!(1, node_a);
+    assert_eq!(2, node_b);
+    assert_eq!(3, node_c);
+
+    // Move_Focused_Out_Right & Move_Focused_Out_Down behave the same
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    perform_actions(&mut tile_grid, "p,p,p,mod");
+    let root = tile_grid.graph.get_root().unwrap();
+    let node_c = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(root)[1]);
+    let column_1 = tile_grid.graph.get_sorted_children(root)[0];
+    let node_a = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(column_1)[0]);
+    let node_b = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(column_1)[1]);
+
+    assert!(is_row(&tile_grid, root));
+    assert!(is_column(&tile_grid, column_1));
+    assert_eq!(1, node_a);
+    assert_eq!(2, node_b);
+    assert_eq!(3, node_c);
 }
 
 fn print(tile_grid: &TileGrid) {

@@ -275,7 +275,11 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     }
     /// Iterates and shows every window managed by the current tile_grid 
     pub fn show(&self) -> SystemResult {
-        for node_id in self.graph.nodes() {
+        let mut nodes = self.graph.nodes().collect::<Vec::<usize>>();
+        if self.fullscreen_id.is_some() {
+            nodes.sort_by_key(|n| if self.fullscreen_id.unwrap() == *n { 1 } else { 0 });
+        }
+        for node_id in nodes {
             if self.graph.node(node_id).is_tile() {
                 let window = self.graph.node(node_id).get_window();
                 window.show();
@@ -457,21 +461,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                 } else {
                     // remove the current item
                     // distribute size among siblings
-                    let size = self.graph.node(current_id).get_size();
-                    let size_per_sibling = size / (number_of_children - 1) as u32;
-
-                    let mut remainder = size % (number_of_children - 1) as u32;
-                    let mut get_remainder_slice = || if remainder > 0 { remainder -= 1; 1 } else { 0 }; 
-
-                    for child in children {
-                        if child != current_id {
-                            let current_size = self.graph.node(child).get_size();
-
-                            self.graph.node_mut(child)
-                                      .set_size(size_per_sibling + current_size + get_remainder_slice());
-                        }
-                    }
-                    
+                    self.distribute_size_among_siblings(parent_id, current_id);
                     removed_node = self.graph.remove_node(current_id);
                     self.reset_order(parent_id);
                 }
@@ -921,12 +911,18 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     /// Removes conection between a parent and the given child node, but leaves the child in the graph.
     /// This is useful when moving tiles between parents.
     fn disconnect_child(&mut self, parent_id: usize, child_id: usize) {
+        self.distribute_size_among_siblings(parent_id, child_id);
+        self.graph.disconnect(parent_id, child_id);
+        self.reset_order(parent_id);
+    }
+
+    fn distribute_size_among_siblings(&mut self, parent_id: usize, child_id: usize) {
         let children = self.graph.get_sorted_children(parent_id);
         let number_of_children = children.iter().len();
         let size = self.graph.node(child_id).get_size();
-        let size_per_sibling = size / number_of_children as u32;
+        let size_per_sibling = size / (number_of_children - 1) as u32;
 
-        let mut remainder = size % number_of_children as u32;
+        let mut remainder = size % (number_of_children - 1) as u32;
         let mut get_remainder_slice = || if remainder > 0 { remainder -= 1; 1 } else { 0 }; 
 
         for child in children {
@@ -935,9 +931,6 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                 self.graph.node_mut(child).set_size(size_per_sibling + child_size + get_remainder_slice());
             }
         }
-
-        self.graph.disconnect(parent_id, child_id);
-        self.reset_order(parent_id);
     }
 }
 
