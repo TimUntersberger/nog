@@ -30,7 +30,7 @@ pub fn call(idx: usize) {
         let ast = AST.lock();
         let callbacks = CALLBACKS.lock();
         let _ = callbacks[idx]
-            .call_dynamic(&*engine, &*ast, None, [])
+            .call_dynamic(ctx, None, [])
             .map_err(|e| error!("{}", e.to_string()));
     });
 }

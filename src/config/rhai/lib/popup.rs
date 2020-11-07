@@ -1,8 +1,6 @@
 use crate::{
     config::rhai::engine,
     event::Event,
-    event::EventChannel,
-    event::EventSender,
     popup::{Popup, PopupAction},
     AppState,
 };
@@ -17,7 +15,7 @@ pub fn init(engine: &mut Engine, state_arc: Arc<Mutex<AppState>>) {
     engine.register_raw_fn(
         "popup_new",
         &[std::any::TypeId::of::<Map>()],
-        move |_engine, _module, args| {
+        move |_ctx, args| {
             let options = args[0].clone().cast::<Map>();
             let mut p = Popup::new();
             let sender = state.lock().event_channel.sender.clone();

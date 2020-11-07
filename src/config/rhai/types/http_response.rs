@@ -1,4 +1,4 @@
-use rhai::{ser::to_dynamic, Dynamic};
+use rhai::{serde::to_dynamic, Dynamic};
 
 #[derive(Copy, Clone)]
 pub enum ContentType {

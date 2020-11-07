@@ -4,7 +4,7 @@ use reqwest::{
     Method,
 };
 use rhai::{
-    de::from_dynamic, Array, Dynamic, EvalAltResult, ImmutableString, Map, Module, FLOAT, INT,
+    serde::from_dynamic, Array, Dynamic, EvalAltResult, ImmutableString, Map, Module, FLOAT, INT,
 };
 
 fn load_request_body(rb: RequestBuilder, body: Dynamic) -> RequestBuilder {

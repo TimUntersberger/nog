@@ -1,38 +1,38 @@
 macro_rules! get_int {
-    ($engine: ident, $ctx: ident, $scope: ident, $inputs: ident, $index: expr) => {
-        $engine
-            .eval_expression_tree($ctx, $scope, $inputs.get($index).unwrap())?
+    ($ctx: ident, $inputs: ident, $index: expr) => {
+        $ctx
+            .eval_expression_tree($inputs.get($index).unwrap())?
             .as_int()?
     };
 }
 
 macro_rules! get_string {
-    ($engine: ident, $ctx: ident, $scope: ident, $inputs: ident, $index: expr) => {
-        $engine
-            .eval_expression_tree($ctx, $scope, $inputs.get($index).unwrap())?
+    ($ctx: ident, $inputs: ident, $index: expr) => {
+        $ctx
+            .eval_expression_tree($inputs.get($index).unwrap())?
             .as_str()?
             .to_string()
     };
 }
 
 macro_rules! get_dynamic {
-    ($engine: ident, $ctx: ident, $scope: ident, $inputs: ident, $index: expr) => {
-        $engine.eval_expression_tree($ctx, $scope, $inputs.get($index).unwrap())?
+    ($ctx: ident, $inputs: ident, $index: expr) => {
+        $ctx.eval_expression_tree($inputs.get($index).unwrap())?
     };
 }
 
 macro_rules! get_map {
-    ($engine: ident, $ctx: ident, $scope: ident, $inputs: ident, $index: expr) => {
-        $engine
-            .eval_expression_tree($ctx, $scope, $inputs.get($index).unwrap())?
+    ($ctx: ident, $inputs: ident, $index: expr) => {
+        $ctx
+            .eval_expression_tree($inputs.get($index).unwrap())?
             .cast::<rhai::Map>();
     };
 }
 
 macro_rules! get_type {
-    ($engine: ident, $ctx: ident, $scope: ident, $inputs: ident, $index: expr, $type: ty) => {
-        $engine
-            .eval_expression_tree($ctx, $scope, $inputs.get($index).unwrap())?
+    ($ctx: ident, $inputs: ident, $index: expr, $type: ty) => {
+        $ctx
+            .eval_expression_tree($inputs.get($index).unwrap())?
             .cast::<$type>();
     };
 }

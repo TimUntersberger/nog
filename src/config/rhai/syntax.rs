@@ -65,9 +65,9 @@ pub fn init(
     engine.register_custom_syntax(
         &["bind", "$expr$", "$expr$"], // the custom syntax
         0, // the number of new variables declared within this custom syntax
-        move |engine, ctx, scope, inputs| {
-            let key = get_string!(engine, ctx, scope, inputs, 0);
-            let binding = get_type!(engine, ctx, scope, inputs, 1, KeybindingType);
+        move |ctx, inputs| {
+            let key = get_string!(ctx, inputs, 0);
+            let binding = get_type!(ctx, inputs, 1, KeybindingType);
             let mut kb = Keybinding::from_str(&key).unwrap();
 
             kb.typ = binding;
@@ -83,9 +83,9 @@ pub fn init(
     engine.register_custom_syntax(
         &["exec", "$expr$"], // the custom syntax
         0,                   // the number of new variables declared within this custom syntax
-        move |engine, ctx, scope, inputs| {
+        move |ctx, inputs| {
             let mut kb = Keybinding::from_str("A").unwrap();
-            kb.typ = get_type!(engine, ctx, scope, inputs, 0, KeybindingType);
+            kb.typ = get_type!(ctx, inputs, 0, KeybindingType);
 
             state
                 .lock()
@@ -103,10 +103,10 @@ pub fn init(
     engine.register_custom_syntax(
         &["bind_range", "$expr$", "$expr$", "$expr$", "$ident$"], // the custom syntax
         0, // the number of new variables declared within this custom syntax
-        move |engine, ctx, scope, inputs| {
-            let from = get_int!(engine, ctx, scope, inputs, 0);
-            let to = get_int!(engine, ctx, scope, inputs, 1);
-            let modifier = get_string!(engine, ctx, scope, inputs, 2);
+        move |ctx, inputs| {
+            let from = get_int!(ctx, inputs, 0);
+            let to = get_int!(ctx, inputs, 1);
+            let modifier = get_string!(ctx, inputs, 2);
             let binding_name = get_variable_name!(inputs, 3);
 
             for i in from..to + 1 {
@@ -139,8 +139,8 @@ pub fn init(
     engine.register_custom_syntax(
         &["bar", "$expr$"], // the custom syntax
         0,                  // the number of new variables declared within this custom syntax
-        move |engine, ctx, scope, inputs| {
-            let settings = get_map!(engine, ctx, scope, inputs, 0);
+        move |ctx, inputs| {
+            let settings = get_map!(ctx, inputs, 0);
             let mut bar_config: BarConfig = BarConfig::default();
 
             for (key, val) in settings {
@@ -183,9 +183,9 @@ pub fn init(
     engine.register_custom_syntax(
         &["set", "$ident$", "$expr$"], // the custom syntax
         0, // the number of new variables declared within this custom syntax
-        move |engine, ctx, scope, inputs| {
+        move |ctx, inputs| {
             let key = get_variable_name!(inputs, 0);
-            let value = get_dynamic!(engine, ctx, scope, inputs, 1);
+            let value = get_dynamic!(ctx, inputs, 1);
             let mut config = cfg.lock();
 
             set_config(&mut config, key, value);
@@ -197,8 +197,8 @@ pub fn init(
     engine.register_custom_syntax(
         &["sleep", "$expr$"], // the custom syntax
         0,                    // the number of new variables declared within this custom syntax
-        move |engine, ctx, scope, inputs| {
-            let ms = get_int!(engine, ctx, scope, inputs, 0);
+        move |ctx, inputs| {
+            let ms = get_int!(ctx, inputs, 0);
 
             thread::sleep(Duration::from_millis(ms as u64));
 
@@ -209,8 +209,8 @@ pub fn init(
     engine.register_custom_syntax(
         &["async", "$expr$"], // the custom syntax
         0,                    // the number of new variables declared within this custom syntax
-        move |engine, ctx, scope, inputs| {
-            let fp = get_type!(engine, ctx, scope, inputs, 0, FnPtr);
+        move |ctx, inputs| {
+            let fp = get_type!(ctx, inputs, 0, FnPtr);
             let idx = engine::add_callback(fp);
 
             // TODO: make this stoppable
@@ -227,7 +227,7 @@ pub fn init(
     engine.register_custom_syntax(
         &["enable", "$ident$"], // the custom syntax
         0,                      // the number of new variables declared within this custom syntax
-        move |_engine, _ctx, _scope, inputs| {
+        move |_ctx, inputs| {
             let key = get_variable_name!(inputs, 0);
             let mut config = cfg.lock();
 
@@ -241,7 +241,7 @@ pub fn init(
     engine.register_custom_syntax(
         &["disable", "$ident$"], // the custom syntax
         0,                       // the number of new variables declared within this custom syntax
-        move |_engine, _ctx, _scope, inputs| {
+        move |_ctx, inputs| {
             let key = get_variable_name!(inputs, 0);
             let mut config = cfg.lock();
 
@@ -255,9 +255,9 @@ pub fn init(
     engine.register_custom_syntax(
         &["rule", "$expr$", "$expr$"], // the custom syntax
         0, // the number of new variables declared within this custom syntax
-        move |engine, ctx, scope, inputs| {
-            let pattern = get_string!(engine, ctx, scope, inputs, 0);
-            let settings = get_map!(engine, ctx, scope, inputs, 1);
+        move |ctx, inputs| {
+            let pattern = get_string!(ctx, inputs, 0);
+            let settings = get_map!(ctx, inputs, 1);
             let mut rule = Rule::default();
 
             for (key, value) in settings.iter().map(|(k, v)| (k.to_string(), v)) {
@@ -280,9 +280,9 @@ pub fn init(
     engine.register_custom_syntax(
         &["update_channel", "$expr$", "$expr$"], // the custom syntax
         0, // the number of new variables declared within this custom syntax
-        move |engine, ctx, scope, inputs| {
-            let name = get_string!(engine, ctx, scope, inputs, 0);
-            let settings = get_map!(engine, ctx, scope, inputs, 1);
+        move |ctx, inputs| {
+            let name = get_string!(ctx, inputs, 0);
+            let settings = get_map!(ctx, inputs, 1);
             let mut update_channel = UpdateChannel::default();
 
             update_channel.name = name;
@@ -303,8 +303,8 @@ pub fn init(
     engine.register_custom_syntax(
         &["ignore", "$expr$"], // the custom syntax
         0,                     // the number of new variables declared within this custom syntax
-        move |engine, ctx, scope, inputs| {
-            let pattern = get_string!(engine, ctx, scope, inputs, 0);
+        move |ctx, inputs| {
+            let pattern = get_string!(ctx, inputs, 0);
             let mut rule = Rule::default();
 
             rule.pattern = Regex::new(&format!("^{}$", pattern)).map_err(|e| e.to_string())?;
@@ -320,9 +320,9 @@ pub fn init(
     engine.register_custom_syntax(
         &["workspace", "$expr$", "$expr$"], // the custom syntax
         0, // the number of new variables declared within this custom syntax
-        move |engine, ctx, scope, inputs| {
-            let id = get_int!(engine, ctx, scope, inputs, 0);
-            let settings = get_map!(engine, ctx, scope, inputs, 1);
+        move |ctx, inputs| {
+            let id = get_int!(ctx, inputs, 0);
+            let settings = get_map!(ctx, inputs, 1);
             let mut workspace = WorkspaceSetting::default();
 
             workspace.id = id;
@@ -342,9 +342,9 @@ pub fn init(
     engine.register_custom_syntax(
         &["mode", "$expr$", "$expr$", "$block$"], // the custom syntax
         0, // the number of new variables declared within this custom syntax
-        move |engine, ctx, scope, inputs| {
-            let name = get_string!(engine, ctx, scope, inputs, 0);
-            let key = get_string!(engine, ctx, scope, inputs, 1);
+        move |ctx, inputs| {
+            let name = get_string!(ctx, inputs, 0);
+            let key = get_string!(ctx, inputs, 1);
 
             // toggle mode binding for outside of mode
             let mut kb = Keybinding::from_str(&key).unwrap();
