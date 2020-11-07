@@ -206,10 +206,15 @@ impl AppState {
 
     pub fn change_workspace(&mut self, id: i32, _force: bool) {
         let config = self.config.clone();
+        let current = self.get_current_display().id;
         if let Some((d, _)) = self.find_grid(id) {
+            let new = d.id;
             d.focus_workspace(&config, id);
             self.workspace_id = id;
             self.redraw_app_bars();
+            if current != new {
+                self.get_display_by_id(current).map(|d| d.refresh_grid(&config));
+            }
         }
     }
 
