@@ -214,10 +214,10 @@ pub fn init(config: &Config) -> Vec<Display> {
     }
 
     displays.sort_by(|x, y| {
-        let ordering = x.rect.left.cmp(&y.rect.left);
+        let ordering = y.rect.left.cmp(&x.rect.left);
 
         if ordering == Ordering::Equal {
-            return x.rect.top.cmp(&y.rect.top);
+            return y.rect.top.cmp(&x.rect.top);
         }
 
         ordering
