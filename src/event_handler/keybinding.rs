@@ -72,14 +72,7 @@ pub fn handle(state_arc: Arc<Mutex<AppState>>, kb: Keybinding) -> SystemResult {
             grid.pop()
                 .map(|window| {
                     state.get_grid_by_id_mut(id).unwrap().push(window);
-                    let previous_display_id = state.get_current_display().id;
                     state.change_workspace(id, false);
-
-                    if previous_display_id != state.get_current_display().id {
-                        if let Some(previous_display) = state.get_display_by_id_mut(previous_display_id) {
-                            previous_display.refresh_grid(&config);
-                        }
-                    }
                 });
         }
         KeybindingType::ChangeWorkspace(id) => state.change_workspace(id, false),

@@ -226,10 +226,6 @@ impl AppState {
         self.displays.iter().find(|d| d.id == id)
     }
 
-    pub fn get_display_by_id_mut(&mut self, id: DisplayId) -> Option<&mut Display> {
-        self.displays.iter_mut().find(|d| d.id == id)
-    }
-
     pub fn get_display_by_idx(&self, idx: i32) -> Option<&Display> {
         let x: usize = if idx == -1 {
             0
