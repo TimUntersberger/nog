@@ -28,9 +28,14 @@ pub fn call(idx: usize) {
     thread::spawn(move || {
         let engine = ENGINE.lock();
         let ast = AST.lock();
+        let lib = &[ast.as_ref()];
         let callbacks = CALLBACKS.lock();
+        let context = (
+            &*engine,
+            lib
+        ).into();
         let _ = callbacks[idx]
-            .call_dynamic(ctx, None, [])
+            .call_dynamic(context, None, [])
             .map_err(|e| error!("{}", e.to_string()));
     });
 }

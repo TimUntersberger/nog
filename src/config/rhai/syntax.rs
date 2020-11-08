@@ -121,7 +121,7 @@ pub fn init(
                 };
 
                 let binding: KeybindingType =
-                    engine.eval_expression(&format!("{}({})", binding_name, i))?;
+                    ctx.engine().eval_expression(&format!("{}({})", binding_name, i))?;
 
                 let mut kb = Keybinding::from_str(&key).unwrap();
 
@@ -207,7 +207,7 @@ pub fn init(
     )?;
 
     engine.register_custom_syntax(
-        &["async", "$expr$"], // the custom syntax
+        &["coroutine", "$expr$"], // the custom syntax
         0,                    // the number of new variables declared within this custom syntax
         move |ctx, inputs| {
             let fp = get_type!(ctx, inputs, 0, FnPtr);
@@ -215,7 +215,6 @@ pub fn init(
 
             // TODO: make this stoppable
             thread::spawn(move || {
-                println!("test");
                 engine::call(idx);
             });
 
@@ -359,7 +358,7 @@ pub fn init(
 
             *MODE.lock() = Some(name);
 
-            engine.eval_expression_tree(ctx, scope, inputs.get(2).unwrap())?;
+            ctx.eval_expression_tree(inputs.get(2).unwrap())?;
 
             *MODE.lock() = None;
 

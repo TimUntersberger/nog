@@ -53,7 +53,7 @@ impl ModuleResolver for PluginModuleResolver {
                             pos,
                         ))
                     })?;
-                    let module = Module::eval_ast_as_new(Scope::new(), &ast, engine)
+                    let mut module = Module::eval_ast_as_new(Scope::new(), &ast, engine)
                         .map_err(|err| {
                             Box::new(EvalAltResult::ErrorInModule(
                                 file_path.to_str().unwrap().to_string(),
