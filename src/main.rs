@@ -520,6 +520,7 @@ fn main() {
     {
         state_arc.lock().plugin_manager.load();
         state_arc.lock().plugin_manager.install();
+        state_arc.lock().plugin_manager.purge();
 
         let config = parse_config(state_arc.clone())
             .map_err(|e| {

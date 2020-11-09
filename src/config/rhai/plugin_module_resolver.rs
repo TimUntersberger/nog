@@ -25,8 +25,9 @@ impl ModuleResolver for PluginModuleResolver {
         engine: &rhai::Engine,
         path: &str,
         pos: rhai::Position,
-    ) -> Result<rhai::Module, Box<rhai::EvalAltResult>> {
-        for plugin in &self.state_arc.lock().plugin_manager.plugins {
+    ) -> Result<Arc<rhai::Module>, Box<rhai::EvalAltResult>> {
+        let plugins = self.state_arc.lock().plugin_manager.plugins.clone();
+        for plugin in plugins {
             let mut file_path = plugin.path.clone();
             file_path.push("plugin");
             file_path.push(path);
@@ -43,7 +44,7 @@ impl ModuleResolver for PluginModuleResolver {
                                     pos,
                                 ))
                             },
-                        )?,
+                        ).map(|m| m.into())?,
                     );
                 } else {
                     let ast = engine.compile_file(file_path.clone()).map_err(|err| {
@@ -62,10 +63,12 @@ impl ModuleResolver for PluginModuleResolver {
                             ))
                         })?;
 
+                    module.build_index();
+
                     // TODO: This line causes a deadlock, but I don't know why?
                     // self.cache.write().insert(file_path.to_str().unwrap().to_string(), ast);
 
-                    return Ok(module);
+                    return Ok(module.into());
                 }
             }
         }

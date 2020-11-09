@@ -61,7 +61,7 @@ pub fn parse_config(state_arc: Arc<Mutex<AppState>>) -> Result<Config, String> {
     resolver_collection.push(PluginModuleResolver::new(state_arc.clone()));
 
     let modules_resolver = modules::new();
-    resolver_collection.push(modules_resolver.clone());
+    resolver_collection.push(modules_resolver);
 
     let mut config_path: PathBuf = dirs::config_dir().unwrap_or_default();
     config_path.push("nog");

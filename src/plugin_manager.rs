@@ -70,6 +70,15 @@ impl PluginManager {
             .unwrap();
     }
 
+    fn update_plugin(&self, plugin: &Plugin) {
+        Command::new("git")
+            .arg("pull")
+            .arg(format!("https://www.github.com/{}", plugin.url))
+            .arg(&plugin.path)
+            .spawn()
+            .unwrap();
+    }
+
     pub fn install(&self) {
         for plugin in &self.plugins {
             if !plugin.path.exists() {
@@ -79,7 +88,24 @@ impl PluginManager {
     }
 
     pub fn update(&self) {
-        //TODO: update plugins that are already installed and install plugins that are not already
-        //installed
+        for plugin in &self.plugins {
+            if !plugin.path.exists() {
+                self.install_plugin(plugin);
+            } else {
+                self.update_plugin(plugin);
+            }
+        }
+    }
+
+    pub fn purge(&self) {
+        if let Ok(list) = fs::read_dir(&self.plugins_folder_path) {
+            for folder in list {
+                if let Ok(folder) = folder {
+                    if !self.plugins.iter().any(|p| &p.name == folder.file_name().to_str().unwrap()) {
+                        fs::remove_dir(folder.path()).expect("Failed to purge");
+                    }
+                }
+            }
+        }
     }
 }
