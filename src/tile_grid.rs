@@ -200,6 +200,10 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     pub fn is_empty(&self) -> bool {
         self.graph.is_empty()
     }
+    /// Returns whether the tile grid is fullscreened or not
+    pub fn is_fullscreened(&self) -> bool {
+        self.fullscreen_id.is_some()
+    }
     /// Iterates and hides every window managed by the current tile grid
     pub fn hide(&self) {
         for node_id in self.graph.nodes() {
@@ -209,7 +213,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
         }
     }
     /// Removes the focused node, if it exists, and returns the window on that node.
-    /// Leaves the tile_grid in an unfocused state and un-fullscreens if currently fullscreen'd.
+    /// Leaves the tile_grid in an unfocused state and un-fullscreens if currently fullscreened.
     pub fn pop(&mut self) -> Option<NativeWindow> {
         let removed_node: Option<Node> = self.remove_node(self.focused_id);
         self.focused_id = None;
@@ -229,9 +233,8 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
 
         Ok(())
     }
-    /// Sets the currently focused tile to be fullscreen'd if it's not already, otherwise
-    /// reverts the graph to non-fullscreen'd mode. When a tile is fullscreened certain
-    /// operations are disabled like managing new tiles changing focus, resizing and tile movement
+    /// Sets the currently focused tile to be fullscreened if it's not already, 
+    /// otherwise reverts the graph to non-fullscreened mode. 
     pub fn toggle_fullscreen(&mut self) {
         if self.focused_id.is_some() {
             if self.fullscreen_id.is_some() {
@@ -243,16 +246,21 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     }
     /// Travels up the graph from the focused node until it finds a row
     /// and then resets the size of all of that row's children.
-    /// No-op if no row is found above the focused node or if a node is currently fullscreen'd.
+    /// No-op if no row is found above the focused node.
     pub fn reset_row(&mut self) {
-        if self.fullscreen_id.is_some() { return; }
-        self.reset_size(self.graph.to_closest_row(self.focused_id))
+        self.reset_size(self.graph.to_closest_row(self.focused_id));
+    }
+    /// Travels up the graph from the focused node until it finds a column
+    /// and then resets the size of all of that column's children.
+    /// No-op if no column is found above the focused node.
+    pub fn reset_column(&mut self) {
+        self.reset_size(self.graph.to_closest_column(self.focused_id));
     }
     /// Gets all the child nodes of a node and re-distrbutes the size among them. 
     /// This applies only one level down, regardless of what type of nodes they are; any
     /// child Row/Column nodes' children will retain their respective size.
     fn reset_size(&mut self, parent_id: Option<usize>) {
-        if !parent_id.is_some() || self.fullscreen_id.is_some() { return }
+        if !parent_id.is_some() { return; }
 
         let children = self.graph.get_sorted_children(parent_id.unwrap());
         let number_of_children = children.len();
@@ -265,13 +273,6 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             self.graph.node_mut(child)
                       .set_size(size_per_child + get_remainder_slice());
         }
-    }
-    /// Travels up the graph from the focused node until it finds a column
-    /// and then resets the size of all of that column's children.
-    /// No-op if no column is found above the focused node or if a node is currently fullscreen'd.
-    pub fn reset_column(&mut self) {
-        if self.fullscreen_id.is_some() { return; }
-        self.reset_size(self.graph.to_closest_column(self.focused_id))
     }
     /// Iterates and shows every window managed by the current tile_grid 
     pub fn show(&self) -> SystemResult {
@@ -333,19 +334,15 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     }
     /// Swaps position of the focused tile with the tile in the supplied direction. See swap for more details on behavior.
     pub fn swap_focused(&mut self, direction: Direction) {
-        if self.fullscreen_id.is_some() { return; }
-
         if let Some(focused_id) = self.focused_id {
             self.swap(focused_id, direction);
         }
     }
-    /// Swaps position of the given tile with the tile in the supplied direction. No-op if grid is fullscreened or has
-    /// no focused tile. If the direction doesn't make sense, like swapping to the up/down in a column tile OR swapping 
+    /// Swaps position of the given tile with the tile in the supplied direction. No-op if grid has no focused tile.
+    /// If the direction doesn't make sense, like swapping to the up/down in a column tile OR swapping 
     /// left/right in a row tile, then the swap is propagated up the tree to the next parent that is able to swap in 
     /// the given direction.
     fn swap(&mut self, node_id: usize, direction: Direction) {
-        if self.fullscreen_id.is_some() { return; }
-
         if let Some(parent_id) = self.graph.map_to_parent(Some(node_id)) {
             let selected_node_order = self.graph.node(node_id).get_order();
             let children = self.graph.get_children(parent_id);
@@ -377,14 +374,14 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
         self.graph.node_mut(second).set_order(first_order);
     }
     /// Used to switch focus from the focused tile to the next tile in the given direction.
-    /// no-op if currently fullscreened or there is no tile focused. If a sibling is found in
+    /// no-op if there is no tile focused. If a sibling is found in
     /// the given direction then focus is moved to the sibling. Otherwise, the function travels
     /// up the graph checking each parents' children to see if there is an applicable sibling to switch
     /// focus to until it hits the root node at which point it exits leaving focus unchanged.
     /// This allows focus to be switched up/down rows but also doing a focus left/right moves to the 
     /// next-closest column in the given direction and vice versa for columns.
     pub fn focus(&mut self, direction: Direction) -> SystemResult {
-        if self.fullscreen_id.is_some() || !self.focused_id.is_some() { return Ok(()); }
+        if !self.focused_id.is_some() { return Ok(()); }
 
         let parent_id = self.graph.map_to_parent(self.focused_id);
         if let Some(mut parent_id) = parent_id {
@@ -531,20 +528,13 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             self.focused_id = maybe_window_tile;
         }
     }
-    /// Creates a node from the given window and adds it to the graph if the following conditions are met:
-    /// 1. the grid isn't fullscreened
-    /// 2. the grid doesn't already contain the window
+    /// Creates a node from the given window and adds it to the graph if the grid doesn't already contain the window.
     /// If the grid doesn't have a focused window, it resorts to focusing the last tile in the grid.
     /// Pushing a tile depends on the state of the focused tile. If the focused tile is part of a column or row "list"
     /// then it gets appended to the list next to the focused tile (other siblings get their order updated). If the focused
     /// tile doesn't have a sibling then the function introduces a new parent node opposite of the current parent's type
     /// and nests the focused node and the new window node within. This is how pushing into a tile creates rows or columns.
     pub fn push(&mut self, window: NativeWindow) {
-        if self.fullscreen_id.is_some() {
-            // don't do anything if fullscreened
-            return;
-        }
-
         if self.graph.len() == 0 {
             let new_root_node = Node::Tile((NodeInfo { order: 0, size: FULL_SIZE }, window));
             self.focused_id = Some(self.graph.add_node(new_root_node));
@@ -670,7 +660,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
         FULL_SIZE - existing_children_total 
     }
     pub fn trade_size_with_neighbor(&mut self, node_id: Option<usize>, direction: Direction, size: i32) {
-        if !node_id.is_some() || self.fullscreen_id.is_some() { return; }
+        if !node_id.is_some() { return; }
 
         if let Some(parent_id) = self.graph.map_to_parent(node_id) {
             let node_id = node_id.unwrap();
@@ -710,10 +700,8 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     }
     /// Moves the focused tile out of a row/column in the given direction and automatically handles redistributing size/resetting the order
     /// of any previous siblings. The behavior of this movement is essentially moving the tile so that it is a sibling of its parent and introducing a
-    /// new parent node that is the opposite type of the previous parent if necessary. No-op if the grid is currently fullscreened.
+    /// new parent node that is the opposite type of the previous parent if necessary.
     pub fn move_focused_out(&mut self, direction: Direction) {
-        if self.fullscreen_id.is_some() { return; }
-
         if let Some(parent_id) = self.graph.map_to_parent(self.focused_id) {
             let focused_id = self.focused_id.unwrap();
             let children = self.graph.get_sorted_children(parent_id);
@@ -817,10 +805,8 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     /// Moves the focused tile into an adjacent row/column/tile found in the given direction and automatically handles redistributing size/resetting the order
     /// of any previous siblings and new siblings. If the adjacent target is a row or column, this simply appends the focused tile at the end of the container.
     /// If the adjacent target is a tile, this introduces a new column or row container, whichever is the opposite of the currently focused tile's parent, and
-    /// appends the focused tile & the adjacent tile within the new container. No-op if the grid is currently fullscreened.
+    /// appends the focused tile & the adjacent tile within the new container.
     pub fn move_focused_in(&mut self, direction: Direction) {
-        if self.fullscreen_id.is_some() { return; }
-
         if let Some(parent_id) = self.graph.map_to_parent(self.focused_id) {
             let focused_id = self.focused_id.unwrap();
             let number_of_children = self.graph.get_children(parent_id).len();

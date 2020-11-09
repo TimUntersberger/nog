@@ -120,14 +120,18 @@ pub fn handle(state_arc: Arc<Mutex<AppState>>, kb: Keybinding) -> SystemResult {
         KeybindingType::ResetColumn => {
             let display = state.get_current_display_mut();
             if let Some(g) = display.get_focused_grid_mut() {
-                g.reset_column();
+                if !config.ignore_fullscreen_actions || !g.is_fullscreened() {
+                    g.reset_column();
+                }
             }
             display.refresh_grid(&config)?;
         }
         KeybindingType::ResetRow => {
             let display = state.get_current_display_mut();
             if let Some(g) = display.get_focused_grid_mut() {
-                g.reset_row();
+                if !config.ignore_fullscreen_actions || !g.is_fullscreened() {
+                    g.reset_row();
+                }
             }
             display.refresh_grid(&config)?;
         }
