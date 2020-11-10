@@ -153,12 +153,7 @@ impl Default for AppState {
             work_mode: true,
             plugin_manager: PluginManager::default(),
             displays: time!("initializing displays", display::init(&config)),
-            keybindings_manager: KbManager::new(vec![Keybinding {
-                typ: KeybindingType::CloseTile,
-                mode: None,
-                key: Key::Q,
-                modifier: Modifier::ALT,
-            }]),
+            keybindings_manager: KbManager::new(config.keybindings.clone()),
             event_channel: EventChannel::default(),
             additonal_rules: Vec::new(),
             window_event_listener: WinEventListener::default(),
@@ -215,10 +210,15 @@ impl AppState {
 
     pub fn change_workspace(&mut self, id: i32, _force: bool) {
         let config = self.config.clone();
+        let current = self.get_current_display().id;
         if let Some((d, _)) = self.find_grid(id) {
+            let new = d.id;
             d.focus_workspace(&config, id);
             self.workspace_id = id;
             self.redraw_app_bars();
+            if current != new {
+                self.get_display_by_id(current).map(|d| d.refresh_grid(&config));
+            }
         }
     }
 
@@ -524,16 +524,20 @@ fn main() {
 
         let config = parse_config(state_arc.clone())
             .map_err(|e| {
-                Popup::new()
-                    .with_padding(5)
-                    .with_text(&[&e, "", "(Press Alt+Q to close)"])
-                    .create(state_arc.clone())
-                    .unwrap();
+                let state_arc = state_arc.clone();
+                thread::spawn(move || {
+                    Popup::new()
+                        .with_padding(5)
+                        .with_text(&[&e, "", "(Press Alt+Q to close)"])
+                        .create(state_arc)
+                        .unwrap()
+                });
             })
             .unwrap_or_default();
 
         state_arc.lock().init(config)
     }
+
 
     let arc = state_arc.clone();
 
