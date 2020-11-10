@@ -30,10 +30,7 @@ pub fn call(idx: usize) {
         let ast = AST.lock();
         let lib = &[ast.as_ref()];
         let callbacks = CALLBACKS.lock();
-        let context = (
-            &*engine,
-            lib
-        ).into();
+        let context = (&*engine, lib).into();
         let _ = callbacks[idx]
             .call_dynamic(context, None, [])
             .map_err(|e| error!("{}", e.to_string()));
@@ -103,8 +100,6 @@ pub fn parse_config(state_arc: Arc<Mutex<AppState>>) -> Result<Config, String> {
     *AST.lock() = ast;
 
     let mut config = config.lock().clone();
-
-    dbg!(&config.keybindings);
 
     #[cfg(debug_assertions)]
     {

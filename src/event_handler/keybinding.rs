@@ -4,7 +4,7 @@ use crate::{
     config::{rhai::engine, rule::Rule},
     event::Event,
     hot_reload::update_config,
-    keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
+    keybindings::{action::Action, keybinding::Keybinding},
     system::api,
     system::SystemResult,
     AppState,
@@ -23,21 +23,21 @@ pub mod toggle_work_mode;
 pub fn handle(state_arc: Arc<Mutex<AppState>>, kb: Keybinding) -> SystemResult {
     let mut state = state_arc.lock();
     let config = state.config.clone();
-    if let KeybindingType::MoveWorkspaceToMonitor(_) = kb.typ {
+    if let Action::MoveWorkspaceToMonitor(_) = kb.action {
         if !state.config.multi_monitor {
             return Ok(());
         }
     }
 
-    info!("Received keybinding of type {:?}", kb.typ);
+    info!("Received keybinding of type {:?}", kb.action);
     let sender = state.event_channel.sender.clone();
     let display = state.get_current_display_mut();
 
-    match kb.typ {
-        KeybindingType::Launch(cmd) => {
+    match kb.action {
+        Action::Launch(cmd) => {
             api::launch_program(cmd)?;
         }
-        KeybindingType::MoveWorkspaceToMonitor(monitor) => {
+        Action::MoveWorkspaceToMonitor(monitor) => {
             if let Some(grid) = display
                 .focused_grid_id
                 .and_then(|id| display.remove_grid_by_id(id))
@@ -53,8 +53,8 @@ pub fn handle(state_arc: Arc<Mutex<AppState>>, kb: Keybinding) -> SystemResult {
                 state.workspace_id = id;
             }
         }
-        KeybindingType::CloseTile => close_tile::handle(&mut state)?,
-        KeybindingType::MinimizeTile => {
+        Action::CloseTile => close_tile::handle(&mut state)?,
+        Action::MinimizeTile => {
             let grid = state.get_current_grid_mut().unwrap();
             if let Some(tile) = grid.get_focused_tile_mut() {
                 let id = tile.window.id;
@@ -65,7 +65,7 @@ pub fn handle(state_arc: Arc<Mutex<AppState>>, kb: Keybinding) -> SystemResult {
                 grid.close_tile_by_window_id(id);
             }
         }
-        KeybindingType::MoveToWorkspace(id) => {
+        Action::MoveToWorkspace(id) => {
             let grid = state.get_current_grid_mut().unwrap();
             grid.focused_window_id
                 .and_then(|id| grid.close_tile_by_window_id(id))
@@ -74,13 +74,13 @@ pub fn handle(state_arc: Arc<Mutex<AppState>>, kb: Keybinding) -> SystemResult {
                     state.change_workspace(id, false);
                 });
         }
-        KeybindingType::ChangeWorkspace(id) => state.change_workspace(id, false),
-        KeybindingType::ToggleFloatingMode => toggle_floating_mode::handle(&mut state)?,
-        KeybindingType::ToggleFullscreen => {
+        Action::ChangeWorkspace(id) => state.change_workspace(id, false),
+        Action::ToggleFloatingMode => toggle_floating_mode::handle(&mut state)?,
+        Action::ToggleFullscreen => {
             display.get_focused_grid_mut().unwrap().toggle_fullscreen();
             display.refresh_grid(&config)?;
         }
-        KeybindingType::ToggleMode(mode) => {
+        Action::ToggleMode(mode) => {
             if state.keybindings_manager.get_mode() == Some(mode.clone()) {
                 info!("Disabling {} mode", mode);
                 state.keybindings_manager.leave_mode();
@@ -89,47 +89,56 @@ pub fn handle(state_arc: Arc<Mutex<AppState>>, kb: Keybinding) -> SystemResult {
                 state.keybindings_manager.enter_mode(&mode);
             }
         }
-        KeybindingType::ToggleWorkMode => {
+        Action::ToggleWorkMode => {
             drop(state);
             toggle_work_mode::handle(state_arc.clone())?
         }
-        KeybindingType::IncrementConfig(field, value) => {
+        Action::IncrementConfig(field, value) => {
             let new_config = state.config.increment_field(&field, value);
             drop(state);
             update_config(state_arc.clone(), new_config)?;
         }
-        KeybindingType::DecrementConfig(field, value) => {
+        Action::DecrementConfig(field, value) => {
             let new_config = state.config.decrement_field(&field, value);
             drop(state);
             update_config(state_arc.clone(), new_config)?;
         }
-        KeybindingType::ToggleConfig(field) => {
+        Action::ToggleConfig(field) => {
             let new_config = state.config.toggle_field(&field);
             drop(state);
             update_config(state_arc.clone(), new_config)?;
         }
-        KeybindingType::Resize(direction, amount) => resize::handle(&mut state, direction, amount)?,
-        KeybindingType::Focus(direction) => focus::handle(&mut state, direction)?,
-        KeybindingType::Swap(direction) => swap::handle(&mut state, direction)?,
-        KeybindingType::Quit => sender.send(Event::Exit).expect("Failed to send exit event"),
-        KeybindingType::Split(direction) => split::handle(&mut state, direction)?,
-        KeybindingType::ResetColumn => {
+        Action::Resize(direction, amount) => resize::handle(&mut state, direction, amount)?,
+        Action::Focus(direction) => focus::handle(&mut state, direction)?,
+        Action::Swap(direction) => swap::handle(&mut state, direction)?,
+        Action::Quit => sender.send(Event::Exit).expect("Failed to send exit event"),
+        Action::Split(direction) => split::handle(&mut state, direction)?,
+        Action::ResetColumn => {
             if let Some(g) = display.get_focused_grid_mut() {
                 g.reset_column();
             }
             display.refresh_grid(&config)?;
         }
-        KeybindingType::ResetRow => {
+        Action::ResetRow => {
             if let Some(g) = display.get_focused_grid_mut() {
                 g.reset_row();
             }
             display.refresh_grid(&config)?;
         }
-        KeybindingType::Callback(idx) => {
+        Action::Callback(idx) => {
             drop(state);
             engine::call(idx)
         }
-        KeybindingType::IgnoreTile => {
+        Action::InstallPlugins => {
+            state.plugin_manager.install();
+        }
+        Action::UpdatePlugins => {
+            state.plugin_manager.update();
+        }
+        Action::PurgePlugins => {
+            state.plugin_manager.purge();
+        }
+        Action::IgnoreTile => {
             if let Some(tile) = state.get_current_grid().unwrap().get_focused_tile() {
                 let mut rule = Rule::default();
 

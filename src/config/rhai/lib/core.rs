@@ -1,19 +1,8 @@
-use crate::{
-    config::rhai::engine,
-    event::Event,
-    event::EventChannel,
-    keybindings::keybinding::Keybinding,
-    keybindings::keybinding_type::KeybindingType,
-    popup::{Popup, PopupAction},
-    system::api,
-    system::NativeWindow,
-    AppState,
-};
-
+use crate::{system::NativeWindow, AppState};
 use log::error;
 use parking_lot::Mutex;
-use rhai::{Array, Dynamic, Engine, FnPtr, Map, RegisterFn};
-use std::{str::FromStr, sync::Arc};
+use rhai::{Dynamic, Engine, RegisterFn};
+use std::sync::Arc;
 
 pub fn init(engine: &mut Engine, state_arc: Arc<Mutex<AppState>>) {
     let state = state_arc.clone();

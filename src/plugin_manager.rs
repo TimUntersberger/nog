@@ -1,5 +1,5 @@
-use std::{fs, path::PathBuf, process::Command};
 use log::debug;
+use std::{fs, path::PathBuf, process::Command};
 
 #[derive(Default, Debug, Clone)]
 pub struct Plugin {
@@ -53,7 +53,7 @@ impl PluginManager {
                         if let Some(s) = value.as_str() {
                             let mut plugin = Plugin {
                                 url: s.to_string(),
-                                path: Default::default()
+                                path: Default::default(),
                             };
                             path.push(plugin.name());
                             plugin.path = path;
@@ -108,7 +108,11 @@ impl PluginManager {
         if let Ok(list) = fs::read_dir(&self.plugins_folder_path) {
             for folder in list {
                 if let Ok(folder) = folder {
-                    if !self.plugins.iter().any(|p| p.name() == folder.file_name().to_str().unwrap()) {
+                    if !self
+                        .plugins
+                        .iter()
+                        .any(|p| p.name() == folder.file_name().to_str().unwrap())
+                    {
                         debug!("Purging {:?}", folder.file_name());
                         fs::remove_dir_all(folder.path()).expect("Failed to purge");
                     }

@@ -25,7 +25,7 @@ pub fn init(engine: &mut Engine, state_arc: Arc<Mutex<AppState>>) {
                     "text" => p.with_text(
                         val.cast::<Array>()
                             .iter()
-                            .map(|v| v.as_str().unwrap())
+                            .map(|v| v.as_str().unwrap_or_default())
                             .collect::<Vec<&str>>()
                             .as_slice(),
                     ),

@@ -35,17 +35,15 @@ impl ModuleResolver for PluginModuleResolver {
 
             if file_path.exists() {
                 if let Some(ast) = self.cache.read().get(file_path.to_str().unwrap()) {
-                    return Ok(
-                        Module::eval_ast_as_new(Scope::new(), ast, engine).map_err(
-                            |err| {
-                                Box::new(EvalAltResult::ErrorInModule(
-                                    file_path.to_str().unwrap().to_string(),
-                                    err,
-                                    pos,
-                                ))
-                            },
-                        ).map(|m| m.into())?,
-                    );
+                    return Ok(Module::eval_ast_as_new(Scope::new(), ast, engine)
+                        .map_err(|err| {
+                            Box::new(EvalAltResult::ErrorInModule(
+                                file_path.to_str().unwrap().to_string(),
+                                err,
+                                pos,
+                            ))
+                        })
+                        .map(|m| m.into())?);
                 } else {
                     let ast = engine.compile_file(file_path.clone()).map_err(|err| {
                         Box::new(EvalAltResult::ErrorInModule(
@@ -54,8 +52,8 @@ impl ModuleResolver for PluginModuleResolver {
                             pos,
                         ))
                     })?;
-                    let mut module = Module::eval_ast_as_new(Scope::new(), &ast, engine)
-                        .map_err(|err| {
+                    let mut module =
+                        Module::eval_ast_as_new(Scope::new(), &ast, engine).map_err(|err| {
                             Box::new(EvalAltResult::ErrorInModule(
                                 file_path.to_str().unwrap().to_string(),
                                 err,

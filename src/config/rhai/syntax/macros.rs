@@ -1,15 +1,13 @@
 macro_rules! get_int {
     ($ctx: ident, $inputs: ident, $index: expr) => {
-        $ctx
-            .eval_expression_tree($inputs.get($index).unwrap())?
+        $ctx.eval_expression_tree($inputs.get($index).unwrap())?
             .as_int()?
     };
 }
 
 macro_rules! get_string {
     ($ctx: ident, $inputs: ident, $index: expr) => {
-        $ctx
-            .eval_expression_tree($inputs.get($index).unwrap())?
+        $ctx.eval_expression_tree($inputs.get($index).unwrap())?
             .as_str()?
             .to_string()
     };
@@ -23,16 +21,14 @@ macro_rules! get_dynamic {
 
 macro_rules! get_map {
     ($ctx: ident, $inputs: ident, $index: expr) => {
-        $ctx
-            .eval_expression_tree($inputs.get($index).unwrap())?
+        $ctx.eval_expression_tree($inputs.get($index).unwrap())?
             .cast::<rhai::Map>();
     };
 }
 
 macro_rules! get_type {
     ($ctx: ident, $inputs: ident, $index: expr, $type: ty) => {
-        $ctx
-            .eval_expression_tree($inputs.get($index).unwrap())?
+        $ctx.eval_expression_tree($inputs.get($index).unwrap())?
             .cast::<$type>();
     };
 }

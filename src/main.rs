@@ -12,17 +12,14 @@ use event::Event;
 use event::EventChannel;
 use event_handler::keybinding::toggle_work_mode;
 use hot_reload::update_config;
-use keybindings::{
-    key::Key, keybinding::Keybinding, keybinding_type::KeybindingType, modifier::Modifier,
-    KbManager,
-};
+use keybindings::KbManager;
 use log::debug;
 use log::{error, info};
 use parking_lot::{deadlock, Mutex};
 use plugin_manager::PluginManager;
 use popup::Popup;
-use std::{collections::HashMap, process, sync::Arc};
-use std::{thread, time::Duration};
+use std::time::Duration;
+use std::{process, sync::Arc, thread};
 use system::{DisplayId, SystemResult, WinEventListener, WindowId};
 use task_bar::Taskbar;
 use tile::Tile;
@@ -217,7 +214,8 @@ impl AppState {
             self.workspace_id = id;
             self.redraw_app_bars();
             if current != new {
-                self.get_display_by_id(current).map(|d| d.refresh_grid(&config));
+                self.get_display_by_id(current)
+                    .map(|d| d.refresh_grid(&config));
             }
         }
     }
@@ -519,8 +517,6 @@ fn main() {
 
     {
         state_arc.lock().plugin_manager.load();
-        state_arc.lock().plugin_manager.update();
-        state_arc.lock().plugin_manager.purge();
 
         let config = parse_config(state_arc.clone())
             .map_err(|e| {
@@ -537,7 +533,6 @@ fn main() {
 
         state_arc.lock().init(config)
     }
-
 
     let arc = state_arc.clone();
 

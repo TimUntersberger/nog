@@ -1,7 +1,7 @@
-use std::sync::Arc;
 use crate::{event::Event, util, window::Window, window::WindowEvent, AppState};
 use num_traits::FromPrimitive;
 use parking_lot::Mutex;
+use std::sync::Arc;
 use winapi::{
     shared::{minwindef::LOWORD, windef::HWND, windef::POINT},
     um::shellapi::Shell_NotifyIconW,
@@ -68,9 +68,7 @@ pub fn create(state: Arc<Mutex<AppState>>) {
                     match id {
                         PopupId::Exit => unsafe {
                             PostMessageW(msg.hwnd, WM_CLOSE, 0, 0);
-                            sender
-                                .send(Event::Exit)
-                                .expect("Failed to send event");
+                            sender.send(Event::Exit).expect("Failed to send event");
                         },
                         PopupId::Reload => {
                             sender

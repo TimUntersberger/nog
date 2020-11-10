@@ -1,9 +1,9 @@
-use super::{key::Key, keybinding_type::KeybindingType, modifier::Modifier};
+use super::{action::Action, key::Key, modifier::Modifier};
 use std::{fmt::Debug, str::FromStr};
 
 #[derive(Clone)]
 pub struct Keybinding {
-    pub typ: KeybindingType,
+    pub action: Action,
     pub mode: Option<String>,
     pub key: Key,
     pub modifier: Modifier,
@@ -42,7 +42,7 @@ impl FromStr for Keybinding {
             .ok_or(format!("Invalid key {}", raw_key))?;
 
         Ok(Self {
-            typ: KeybindingType::Quit,
+            action: Action::Quit,
             mode: None,
             modifier,
             key,
@@ -57,7 +57,7 @@ impl Debug for Keybinding {
             f.write_str(&format!(
                 "Keybinding({:?}, {}, {}, {:?})",
                 self.key,
-                self.typ,
+                self.action,
                 self.get_id(),
                 self.mode
             ))
@@ -66,7 +66,7 @@ impl Debug for Keybinding {
                 "Keybinding({}+{:?}, {}, {}, {:?})",
                 modifier_str,
                 self.key,
-                self.typ,
+                self.action,
                 self.get_id(),
                 self.mode
             ))

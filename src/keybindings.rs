@@ -1,7 +1,7 @@
 use crate::{event::Event, system, system::api, AppState};
+use action::Action;
 use key::Key;
 use keybinding::Keybinding;
-use keybinding_type::KeybindingType;
 use log::{debug, info};
 use modifier::Modifier;
 use num_traits::FromPrimitive;
@@ -17,9 +17,9 @@ use std::{
     time::Duration,
 };
 
+pub mod action;
 pub mod key;
 pub mod keybinding;
-pub mod keybinding_type;
 pub mod modifier;
 
 pub type Mode = Option<String>;
@@ -143,7 +143,7 @@ impl KbManager {
                 }
 
                 if let Some(kb) = do_loop(&inner) {
-                    if state.lock().work_mode || kb.typ == KeybindingType::ToggleWorkMode {
+                    if state.lock().work_mode || kb.action == Action::ToggleWorkMode {
                         state
                             .lock()
                             .event_channel

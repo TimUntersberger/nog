@@ -5,7 +5,7 @@ use crate::{
         bar_config::BarConfig, update_channel::UpdateChannel, Config, Rule, WorkspaceSetting,
     },
     event::Event,
-    keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
+    keybindings::{action::Action, keybinding::Keybinding},
     AppState,
 };
 use log::error;
@@ -67,10 +67,10 @@ pub fn init(
         0, // the number of new variables declared within this custom syntax
         move |ctx, inputs| {
             let key = get_string!(ctx, inputs, 0);
-            let binding = get_type!(ctx, inputs, 1, KeybindingType);
+            let binding = get_type!(ctx, inputs, 1, Action);
             let mut kb = Keybinding::from_str(&key).unwrap();
 
-            kb.typ = binding;
+            kb.action = binding;
             kb.mode = MODE.lock().clone();
 
             cfg.lock().add_keybinding(kb);
@@ -85,7 +85,7 @@ pub fn init(
         0,                   // the number of new variables declared within this custom syntax
         move |ctx, inputs| {
             let mut kb = Keybinding::from_str("A").unwrap();
-            kb.typ = get_type!(ctx, inputs, 0, KeybindingType);
+            kb.action = get_type!(ctx, inputs, 0, Action);
 
             state
                 .lock()
@@ -120,12 +120,13 @@ pub fn init(
                     format!("{}+{}", modifier, i)
                 };
 
-                let binding: KeybindingType =
-                    ctx.engine().eval_expression(&format!("{}({})", binding_name, i))?;
+                let binding: Action = ctx
+                    .engine()
+                    .eval_expression(&format!("{}({})", binding_name, i))?;
 
                 let mut kb = Keybinding::from_str(&key).unwrap();
 
-                kb.typ = binding;
+                kb.action = binding;
                 kb.mode = MODE.lock().clone();
 
                 cfg.lock().add_keybinding(kb);
@@ -208,7 +209,7 @@ pub fn init(
 
     engine.register_custom_syntax(
         &["coroutine", "$expr$"], // the custom syntax
-        0,                    // the number of new variables declared within this custom syntax
+        0,                        // the number of new variables declared within this custom syntax
         move |ctx, inputs| {
             let fp = get_type!(ctx, inputs, 0, FnPtr);
             let idx = engine::add_callback(fp);
@@ -347,7 +348,7 @@ pub fn init(
 
             // toggle mode binding for outside of mode
             let mut kb = Keybinding::from_str(&key).unwrap();
-            kb.typ = KeybindingType::ToggleMode(name.clone());
+            kb.action = Action::ToggleMode(name.clone());
 
             // toggle mode binding for inside of mode
             let mut kb2 = kb.clone();

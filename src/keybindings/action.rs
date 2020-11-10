@@ -2,13 +2,16 @@ use crate::{direction::Direction, split_direction::SplitDirection};
 
 pub type Command = String;
 #[derive(Display, Clone, PartialEq, Debug)]
-pub enum KeybindingType {
+pub enum Action {
     CloseTile,
     IgnoreTile,
     MinimizeTile,
     ResetColumn,
     ResetRow,
     Quit,
+    InstallPlugins,
+    UpdatePlugins,
+    PurgePlugins,
     ChangeWorkspace(i32),
     ToggleFloatingMode,
     ToggleMode(String),

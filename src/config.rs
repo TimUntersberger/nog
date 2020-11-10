@@ -1,6 +1,4 @@
-use crate::keybindings::{
-    key::Key, keybinding::Keybinding, keybinding_type::KeybindingType, modifier::Modifier,
-};
+use crate::keybindings::{action::Action, keybinding::Keybinding};
 use bar_config::BarConfig;
 use log::error;
 use rule::Rule;
@@ -51,7 +49,7 @@ impl Default for Config {
             outer_gap: 0,
             inner_gap: 0,
             remove_title_bar: true,
-            work_mode: true,
+            work_mode: false,
             light_theme: false,
             multi_monitor: false,
             remove_task_bar: true,
@@ -59,12 +57,7 @@ impl Default for Config {
             bar: BarConfig::default(),
             mode_meta: HashMap::new(),
             workspace_settings: Vec::new(),
-            keybindings: vec![Keybinding {
-                typ: KeybindingType::CloseTile,
-                mode: None,
-                key: Key::Q,
-                modifier: Modifier::ALT,
-            }],
+            keybindings: Vec::new(),
             rules: Vec::new(),
             update_channels: Vec::new(),
             default_update_channel: None,
@@ -76,9 +69,7 @@ impl Default for Config {
 impl Config {
     /// Creates a new default config.
     pub fn new() -> Self {
-        let mut temp = Self::default();
-        temp.keybindings = Vec::new();
-        temp
+        Self::default()
     }
 
     pub fn increment_field(&self, field: &str, value: i32) -> Config {
@@ -122,15 +113,15 @@ impl Config {
             .iter_mut()
             .find(|kb| kb.key == keybinding.key && kb.modifier == keybinding.modifier)
         {
-            kb.typ = keybinding.typ;
+            kb.action = keybinding.action;
             kb.mode = keybinding.mode;
         } else {
             self.keybindings.push(keybinding);
         }
     }
 
-    pub fn get_keybinding_of_type(&self, kind: KeybindingType) -> Option<&Keybinding> {
-        self.keybindings.iter().find(|kb| kb.typ == kind)
+    pub fn get_keybinding_of_type(&self, kind: Action) -> Option<&Keybinding> {
+        self.keybindings.iter().find(|kb| kb.action == kind)
     }
 
     pub fn set_bool_field(&self, field: &str, value: bool) -> Config {
