@@ -1,13 +1,16 @@
-use std::{collections::HashMap, fs, path::PathBuf, process::Command};
-
+use std::{fs, path::PathBuf, process::Command};
 use log::debug;
-use rhai::{module_resolvers::StaticModuleResolver, Engine, Module};
 
 #[derive(Default, Debug, Clone)]
 pub struct Plugin {
-    pub name: String,
     pub path: PathBuf,
     pub url: String,
+}
+
+impl Plugin {
+    pub fn name(&self) -> &str {
+        self.url.split("/").last().unwrap()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -44,16 +47,17 @@ impl PluginManager {
         if config_path.exists() {
             let raw_config = fs::read_to_string(config_path.clone()).unwrap();
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(&raw_config) {
-                if let Some(config) = json.as_object() {
-                    for (key, value) in config {
+                if let Some(config) = json.as_array() {
+                    for value in config {
                         let mut path = self.plugins_folder_path.clone();
-                        path.push(key.clone());
                         if let Some(s) = value.as_str() {
-                            self.plugins.push(Plugin {
-                                name: key.clone(),
+                            let mut plugin = Plugin {
                                 url: s.to_string(),
-                                path,
-                            });
+                                path: Default::default()
+                            };
+                            path.push(plugin.name());
+                            plugin.path = path;
+                            self.plugins.push(plugin);
                         }
                     }
                 }
@@ -62,21 +66,24 @@ impl PluginManager {
     }
 
     fn install_plugin(&self, plugin: &Plugin) {
+        debug!("Installing {:?} from {}", plugin.name(), plugin.url);
         Command::new("git")
             .arg("clone")
             .arg(format!("https://www.github.com/{}", plugin.url))
             .arg(&plugin.path)
             .spawn()
-            .unwrap();
+            .unwrap()
+            .wait();
     }
 
     fn update_plugin(&self, plugin: &Plugin) {
+        debug!("Updating {:?}", plugin.name());
         Command::new("git")
+            .current_dir(&plugin.path)
             .arg("pull")
-            .arg(format!("https://www.github.com/{}", plugin.url))
-            .arg(&plugin.path)
             .spawn()
-            .unwrap();
+            .unwrap()
+            .wait();
     }
 
     pub fn install(&self) {
@@ -101,8 +108,9 @@ impl PluginManager {
         if let Ok(list) = fs::read_dir(&self.plugins_folder_path) {
             for folder in list {
                 if let Ok(folder) = folder {
-                    if !self.plugins.iter().any(|p| &p.name == folder.file_name().to_str().unwrap()) {
-                        fs::remove_dir(folder.path()).expect("Failed to purge");
+                    if !self.plugins.iter().any(|p| p.name() == folder.file_name().to_str().unwrap()) {
+                        debug!("Purging {:?}", folder.file_name());
+                        fs::remove_dir_all(folder.path()).expect("Failed to purge");
                     }
                 }
             }

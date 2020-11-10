@@ -11,7 +11,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rhai = { git = "https://github.com/jonathandturner/rhai", features = ["only_i32", "sync", "no_closure", "serde"] }
+rhai = { version = "0.19.5", features = ["only_i32", "sync", "no_closure", "serde"] }
 parking_lot = { version = "0.11.0", features = ["deadlock_detection", "nightly"] }
 derivative = "2.1.1"
 log = "0.4"
