@@ -416,6 +416,10 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             self.graph.node(self.focused_id.unwrap()).get_window().focus()?;
         }
 
+        if self.is_fullscreened() {
+            self.fullscreen_id = self.focused_id;
+        }
+
         Ok(())
     }
     /// Resets the order of all child nodes by sorting them and then "re-indexing" their order starting at 0
