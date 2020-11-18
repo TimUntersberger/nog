@@ -126,6 +126,7 @@ mod task_bar;
 mod tile;
 mod tile_grid;
 mod tray;
+mod language;
 mod update;
 mod util;
 mod win_event_handler;
@@ -508,6 +509,8 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
 }
 
 fn main() {
+    language::main();
+    todo!();
     std::env::set_var("RUST_BACKTRACE", "1");
     logging::setup().expect("Failed to setup logging");
 
