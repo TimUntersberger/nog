@@ -14,7 +14,7 @@ use crate::{
     },
 };
 use std::cmp;
-use log::{debug, error};
+use log::{info, debug, error};
 
 pub mod graph_wrapper;
 pub mod node;
@@ -59,6 +59,7 @@ impl TileGrid {
 
         let render_infos = self.get_render_info(display_width as u32, display_height as u32);
 
+        info!("Beginning Rendering"); 
         for render_info in render_infos {
             let left_padding = if render_info.x != 0 { padding } else { 0 };
             let top_padding = if render_info.y != 0 { padding } else { 0 };
@@ -74,6 +75,7 @@ impl TileGrid {
 
             self.renderer.render(self, &render_info.window, config, display, left, top, width, height)?;
         }
+        info!("Rendering completed"); 
 
         Ok(())
     }
