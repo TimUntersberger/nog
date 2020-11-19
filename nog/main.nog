@@ -1,3 +1,0 @@
-//nog.use_defaults();
-
-print(nog.version);

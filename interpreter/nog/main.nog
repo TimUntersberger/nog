@@ -1,0 +1,20 @@
+//nog.use_defaults();
+
+class Vec {
+    var x = 0;
+    var y = 0;
+    var z = 0;
+
+    op add(other) {
+        return Vec {
+            x: this.x + other.x,
+            y: this.y + other.y,
+            z: this.z + other.z
+        };
+    }
+}
+
+var vec1 = Vec { x: 1 };
+var vec2 = Vec {};
+
+print(vec1 + vec2);

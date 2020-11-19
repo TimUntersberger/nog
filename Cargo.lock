@@ -568,6 +568,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "interpreter"
+version = "0.1.0"
+dependencies = [
+ "itertools",
+ "logos",
+ "pratt",
+]
+
+[[package]]
 name = "iovec"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -805,7 +814,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "nog"
+name = "nog-twm"
 version = "0.13.0"
 dependencies = [
  "bitflags",
@@ -815,15 +824,12 @@ dependencies = [
  "derivative",
  "dirs",
  "flexi_logger",
- "itertools",
  "lazy_static",
  "log",
- "logos",
  "notify",
  "num-derive",
  "num-traits",
  "parking_lot",
- "pratt",
  "regex",
  "reqwest",
  "rhai",

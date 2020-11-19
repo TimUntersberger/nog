@@ -1,39 +1,5 @@
-[package]
-name = "nog"
-version = "0.13.0"
-log = "debug"
-description = "A tiling window manager for Windows 10"
-license = "MIT"
-homepage = "http://www.github.com/TimUntersberger/nog"
-authors = ["timun"]
-edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-rhai = { version = "0.19.0", features = ["only_i32", "sync", "no_closure", "serde"] }
-parking_lot = { version = "0.11.0", features = ["deadlock_detection", "nightly"] }
-derivative = "2.1.1"
-log = "0.4"
-syn = "1.0.38"
-flexi_logger = "0.15"
-reqwest = { version = "0.10", features = ["blocking", "json"] }
-winapi = { version = "0.3", features = ["winuser", "errhandlingapi", "impl-default", "shellapi", "windowsx", "shellscalingapi", "processthreadsapi", "psapi"] }
-serde = "1.0"
-serde_json = "1.0"
-chrono = "0.4"
-lazy_static = "1.4.0"
-num-traits = "0.2"
-num-derive = "0.3"
-strum = "0.18.0"
-strum_macros = "0.18.0"
-dirs = "2.0"
-notify = "4.0.15"
-crossbeam-channel = "0.4"
-bitflags = "1.2"
-thiserror = "1.0"
-ctrlc = { version = "3.0", features = ["termination"] }
-regex = "1"
-logos = "0.11.4"
-pratt = { "git" = "https://github.com/TimUntersberger/pratt" }
-itertools = "0.9.0"
+[workspace]
+members = [
+  "interpreter",
+  "twm"
+]
