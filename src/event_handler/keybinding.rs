@@ -17,6 +17,8 @@ mod focus;
 mod resize;
 mod split;
 mod swap;
+mod move_in;
+mod move_out;
 mod toggle_floating_mode;
 pub mod toggle_work_mode;
 
@@ -31,13 +33,13 @@ pub fn handle(state_arc: Arc<Mutex<AppState>>, kb: Keybinding) -> SystemResult {
 
     info!("Received keybinding of type {:?}", kb.typ);
     let sender = state.event_channel.sender.clone();
-    let display = state.get_current_display_mut();
 
     match kb.typ {
         KeybindingType::Launch(cmd) => {
             api::launch_program(cmd)?;
         }
         KeybindingType::MoveWorkspaceToMonitor(monitor) => {
+            let display = state.get_current_display_mut();
             if let Some(grid) = display
                 .focused_grid_id
                 .and_then(|id| display.remove_grid_by_id(id))
@@ -56,27 +58,27 @@ pub fn handle(state_arc: Arc<Mutex<AppState>>, kb: Keybinding) -> SystemResult {
         KeybindingType::CloseTile => close_tile::handle(&mut state)?,
         KeybindingType::MinimizeTile => {
             let grid = state.get_current_grid_mut().unwrap();
-            if let Some(tile) = grid.get_focused_tile_mut() {
-                let id = tile.window.id;
+            grid.modify_focused_window(|window| {
+                window.minimize()?;
+                window.cleanup()
+            })?;
 
-                tile.window.minimize()?;
-                tile.window.cleanup()?;
-
-                grid.close_tile_by_window_id(id);
-            }
+            grid.close_focused();
+            let display = state.get_current_display_mut();
+            display.refresh_grid(&config)?;
         }
         KeybindingType::MoveToWorkspace(id) => {
             let grid = state.get_current_grid_mut().unwrap();
-            grid.focused_window_id
-                .and_then(|id| grid.close_tile_by_window_id(id))
-                .map(|tile| {
-                    state.get_grid_by_id_mut(id).unwrap().split(tile.window);
+            grid.pop()
+                .map(|window| {
+                    state.get_grid_by_id_mut(id).unwrap().push(window);
                     state.change_workspace(id, false);
                 });
         }
         KeybindingType::ChangeWorkspace(id) => state.change_workspace(id, false),
         KeybindingType::ToggleFloatingMode => toggle_floating_mode::handle(&mut state)?,
         KeybindingType::ToggleFullscreen => {
+            let display = state.get_current_display_mut();
             display.get_focused_grid_mut().unwrap().toggle_fullscreen();
             display.refresh_grid(&config)?;
         }
@@ -111,17 +113,25 @@ pub fn handle(state_arc: Arc<Mutex<AppState>>, kb: Keybinding) -> SystemResult {
         KeybindingType::Resize(direction, amount) => resize::handle(&mut state, direction, amount)?,
         KeybindingType::Focus(direction) => focus::handle(&mut state, direction)?,
         KeybindingType::Swap(direction) => swap::handle(&mut state, direction)?,
+        KeybindingType::MoveIn(direction) => move_in::handle(&mut state, direction)?,
+        KeybindingType::MoveOut(direction) => move_out::handle(&mut state, direction)?,
         KeybindingType::Quit => sender.send(Event::Exit).expect("Failed to send exit event"),
         KeybindingType::Split(direction) => split::handle(&mut state, direction)?,
         KeybindingType::ResetColumn => {
+            let display = state.get_current_display_mut();
             if let Some(g) = display.get_focused_grid_mut() {
-                g.reset_column();
+                if !config.ignore_fullscreen_actions || !g.is_fullscreened() {
+                    g.reset_column();
+                }
             }
             display.refresh_grid(&config)?;
         }
         KeybindingType::ResetRow => {
+            let display = state.get_current_display_mut();
             if let Some(g) = display.get_focused_grid_mut() {
-                g.reset_row();
+                if !config.ignore_fullscreen_actions || !g.is_fullscreened() {
+                    g.reset_row();
+                }
             }
             display.refresh_grid(&config)?;
         }
@@ -130,10 +140,10 @@ pub fn handle(state_arc: Arc<Mutex<AppState>>, kb: Keybinding) -> SystemResult {
             engine::call(idx)
         }
         KeybindingType::IgnoreTile => {
-            if let Some(tile) = state.get_current_grid().unwrap().get_focused_tile() {
+            if let Some(window) = state.get_current_grid().unwrap().get_focused_window() {
                 let mut rule = Rule::default();
 
-                let process_name = tile.window.get_process_name();
+                let process_name = window.get_process_name();
                 let pattern = format!("^{}$", process_name);
 
                 debug!("Adding rule with pattern {}", pattern);

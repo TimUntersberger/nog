@@ -39,7 +39,7 @@ impl Display {
         let tb_height = self
             .taskbar
             .clone()
-            .map(|tb| match tb.position {
+            .map(|tb| match tb.get_position() {
                 // Should probably handle the error at some point instead of just unwraping
                 TaskbarPosition::Top | TaskbarPosition::Bottom => {
                     tb.window.get_rect().unwrap().height()
@@ -56,33 +56,11 @@ impl Display {
                 0
             }
     }
-    pub fn get_taskbar_position(&self) -> TaskbarPosition {
-        // Should probably handle the error at some point instead of just unwraping
-        let task_bar_rect = self.taskbar.clone().unwrap().window.get_rect().unwrap();
-        if self.rect.left == task_bar_rect.left
-            && self.rect.top == task_bar_rect.top
-            && self.rect.bottom == task_bar_rect.bottom
-        {
-            TaskbarPosition::Left
-        } else if self.rect.right == task_bar_rect.right
-            && self.rect.top == task_bar_rect.top
-            && self.rect.bottom == task_bar_rect.bottom
-        {
-            TaskbarPosition::Right
-        } else if self.rect.left == task_bar_rect.left
-            && self.rect.top == task_bar_rect.top
-            && self.rect.right == task_bar_rect.right
-        {
-            TaskbarPosition::Top
-        } else {
-            TaskbarPosition::Bottom
-        }
-    }
     pub fn working_area_width(&self, config: &Config) -> i32 {
         let tb_width = self
             .taskbar
             .clone()
-            .map(|tb| match tb.position {
+            .map(|tb| match tb.get_position() {
                 // Should probably handle the error at some point instead of just unwraping
                 TaskbarPosition::Left | TaskbarPosition::Right => {
                     tb.window.get_rect().unwrap().width()
@@ -97,7 +75,7 @@ impl Display {
         let offset = self
             .taskbar
             .clone()
-            .map(|t| match t.position {
+            .map(|t| match t.get_position() {
                 // Should probably handle the error at some point instead of just unwraping
                 TaskbarPosition::Top => t.window.get_rect().unwrap().height(),
                 _ => 0,
@@ -116,7 +94,7 @@ impl Display {
         let offset = self
             .taskbar
             .clone()
-            .map(|t| match t.position {
+            .map(|t| match t.get_position() {
                 // Should probably handle the error at some point instead of just unwraping
                 TaskbarPosition::Left => t.window.get_rect().unwrap().width(),
                 _ => 0,
@@ -132,7 +110,7 @@ impl Display {
     pub fn get_active_grids(&self) -> Vec<&TileGrid> {
         self.grids
             .iter()
-            .filter(|g| self.focused_grid_id == Some(g.id) || !g.tiles.is_empty())
+            .filter(|g| self.focused_grid_id == Some(g.id) || !g.is_empty())
             .collect()
     }
     pub fn get_grid_by_id_mut(&mut self, id: i32) -> Option<&mut TileGrid> {
@@ -164,6 +142,12 @@ impl Display {
 
     /// Returns true if the workspace was found and false if it wasn't
     pub fn focus_workspace(&mut self, config: &Config, id: i32) -> SystemResult<bool> {
+        if let Some(grid) = self.get_grid_by_id_mut(id) {
+            if !grid.focused_id.is_some() {
+                grid.focus_last_tile(); // ensures a tile is focused on the current grid
+            }
+        }
+
         if let Some(grid) = self.get_grid_by_id(id) {
             grid.draw_grid(self, config)?;
             grid.show()?;

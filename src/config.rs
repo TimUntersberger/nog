@@ -28,6 +28,7 @@ pub struct Config {
     pub inner_gap: i32,
     pub remove_title_bar: bool,
     pub remove_task_bar: bool,
+    pub ignore_fullscreen_actions: bool,
     pub display_app_bar: bool,
     pub bar: BarConfig,
     pub workspace_settings: Vec<WorkspaceSetting>,
@@ -56,6 +57,7 @@ impl Default for Config {
             multi_monitor: false,
             remove_task_bar: true,
             display_app_bar: true,
+            ignore_fullscreen_actions: false,
             bar: BarConfig::default(),
             mode_meta: HashMap::new(),
             workspace_settings: Vec::new(),
@@ -110,6 +112,7 @@ impl Config {
             "launch_on_startup" => config.launch_on_startup = !config.launch_on_startup,
             "remove_title_bar" => config.remove_title_bar = !config.remove_title_bar,
             "remove_task_bar" => config.remove_task_bar = !config.remove_task_bar,
+            "ignore_fullscreen_actions" => config.ignore_fullscreen_actions = !config.ignore_fullscreen_actions,
             "display_app_bar" => config.display_app_bar = !config.display_app_bar,
             _ => error!("Attempt to toggle unknown field: {}", field),
         }
@@ -120,7 +123,7 @@ impl Config {
         if let Some(kb) = self
             .keybindings
             .iter_mut()
-            .find(|kb| kb.key == keybinding.key && kb.modifier == keybinding.modifier)
+            .find(|kb| kb.key == keybinding.key && kb.modifier == keybinding.modifier && kb.mode == keybinding.mode)
         {
             kb.typ = keybinding.typ;
             kb.mode = keybinding.mode;
@@ -141,6 +144,7 @@ impl Config {
             "launch_on_startup" => config.launch_on_startup = value,
             "remove_title_bar" => config.remove_title_bar = value,
             "remove_task_bar" => config.remove_task_bar = value,
+            "ignore_fullscreen_actions" => config.ignore_fullscreen_actions = value,
             "display_app_bar" => config.display_app_bar = value,
             _ => error!("Attempt to set unknown field: {}", field),
         }

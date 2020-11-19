@@ -271,17 +271,10 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
                         }
 
                         if bar.center.width() > center.width() {
-                            let delta = (bar.center.right - center.right) / 2;
                             clear_section(
                                 api,
                                 &state.config,
                                 bar.center.left,
-                                bar.center.left + delta,
-                            );
-                            clear_section(
-                                api,
-                                &state.config,
-                                bar.center.right - delta,
                                 bar.center.right,
                             );
                         }
@@ -302,7 +295,7 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
     }
 }
 
-#[test]
+#[test] #[ignore] // test never exits
 pub fn test() {
     crate::logging::setup();
     // let state = AppState::new();
