@@ -24,7 +24,6 @@ use std::{process, sync::Arc};
 use std::{thread, time::Duration};
 use system::{DisplayId, SystemResult, WinEventListener, WindowId};
 use task_bar::Taskbar;
-use tile::Tile;
 use tile_grid::TileGrid;
 use window::Window;
 
@@ -122,9 +121,8 @@ mod renderer;
 mod split_direction;
 mod startup;
 mod system;
-mod task_bar;
-mod tile;
 mod tile_grid;
+mod task_bar;
 mod tray;
 mod update;
 mod util;
@@ -149,12 +147,7 @@ impl Default for AppState {
         Self {
             work_mode: true,
             displays: time!("initializing displays", display::init(&config)),
-            keybindings_manager: KbManager::new(vec![Keybinding {
-                typ: KeybindingType::CloseTile,
-                mode: None,
-                key: Key::Q,
-                modifier: Modifier::ALT,
-            }]),
+            keybindings_manager: KbManager::new(config.keybindings.clone()),
             event_channel: EventChannel::default(),
             additonal_rules: Vec::new(),
             window_event_listener: WinEventListener::default(),
@@ -189,9 +182,7 @@ impl AppState {
     pub fn cleanup(&mut self) -> SystemResult {
         for d in self.displays.iter_mut() {
             for grid in d.grids.iter_mut() {
-                for tile in grid.tiles.iter_mut() {
-                    tile.window.cleanup()?;
-                }
+                grid.cleanup()?;
             }
         }
 
@@ -211,10 +202,15 @@ impl AppState {
 
     pub fn change_workspace(&mut self, id: i32, _force: bool) {
         let config = self.config.clone();
-        if let Some((d, _)) = self.find_grid(id) {
+        let current = self.get_current_display().id;
+        if let Some(d) = self.find_grid(id) {
+            let new = d.id;
             d.focus_workspace(&config, id);
             self.workspace_id = id;
             self.redraw_app_bars();
+            if current != new {
+                self.get_display_by_id(current).map(|d| d.refresh_grid(&config));
+            }
         }
     }
 
@@ -259,24 +255,24 @@ impl AppState {
             .collect()
     }
 
-    /// Returns the display containing the grid and the grid
-    /// TODO: only return display
-    pub fn find_grid(&mut self, id: i32) -> Option<(&mut Display, TileGrid)> {
+    /// Returns the display containing the grid 
+    /// TODO: Rename to find_display?
+    pub fn find_grid(&mut self, id: i32) -> Option<&mut Display> {
         for d in self.displays.iter_mut() {
-            if let Some(grid) = d.grids.iter().find(|g| g.id == id).cloned() {
-                return Some((d, grid));
+            if let Some(_) = d.grids.iter().find(|g| g.id == id) {
+                return Some(d);
             }
         }
         None
     }
 
     /// Returns the grid containing the window and its corresponding tile
-    /// TODO: only return grid
-    pub fn find_window(&mut self, id: WindowId) -> Option<(&mut TileGrid, Tile)> {
+    /// TODO: Rename to find_grid?
+    pub fn find_window(&mut self, id: WindowId) -> Option<&mut TileGrid> {
         for d in self.displays.iter_mut() {
             for g in d.grids.iter_mut() {
-                if let Some(tile) = g.tiles.iter().find(|t| t.window.id == id).cloned() {
-                    return Some((g, tile));
+                if g.contains(id) {
+                    return Some(g);
                 }
             }
         }
@@ -428,17 +424,16 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
                         Ok(())
                     },
                     Event::ToggleAppbar(display_id) => {
-                        if let Some(bar) = state_arc
+                        let window = state_arc
                             .clone()
                             .lock()
                             .get_display_by_id(display_id)
-                            .and_then(|d| d.appbar.clone()) {
-                            let win = bar.window.get_native_window();
+                            .and_then(|d| d.appbar.as_ref())
+                            .map(|bar| bar.window.get_native_window());
 
+                        if let Some(win) = window {
                             if win.is_visible() {
                                 println!("before");
-                                //TODO: This causes a deadlock
-                                //      probably because i use ShowWindow which is sync
                                 win.hide();
                                 println!("after");
                             } else {
@@ -517,15 +512,19 @@ fn main() {
     {
         let config = parse_config(state_arc.clone())
             .map_err(|e| {
-                Popup::new()
-                    .with_padding(5)
-                    .with_text(&[&e, "", "(Press Alt+Q to close)"])
-                    .create(state_arc.clone())
-                    .unwrap();
+                let state_arc = state_arc.clone();
+                thread::spawn(move || {
+                    Popup::new()
+                        .with_padding(5)
+                        .with_text(&[&e, "", "(Press Alt+Q to close)"])
+                        .create(state_arc)
+                        .unwrap()
+                });
             })
             .unwrap_or_default();
         state_arc.lock().init(config)
     }
+
 
     let arc = state_arc.clone();
 

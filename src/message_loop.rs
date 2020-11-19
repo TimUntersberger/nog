@@ -12,10 +12,6 @@ pub fn start(cb: impl Fn(Option<MSG>) -> bool) {
                 TranslateMessage(&msg);
                 DispatchMessageW(&msg);
 
-                if msg.message == WM_QUIT {
-                    break;
-                }
-
                 value = Some(msg);
             }
         }

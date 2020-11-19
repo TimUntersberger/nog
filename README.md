@@ -30,6 +30,10 @@ https://timuntersberger.github.io/nog
 
 In almost all cases the [development](https://github.com/TimUntersberger/nog/releases/tag/development-release) release is the way to go.
 
+## Contributions
+
+* Thank you [@ramirezmike](https://github.com/ramirezmike) for designing and implementing the graph based tile organizer
+
 ## Development
 
 ### Create Executable

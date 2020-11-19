@@ -86,10 +86,7 @@ unsafe extern "system" fn enum_windows_task_bars_cb(hwnd: HWND, l_param: LPARAM)
 
     if is_task_bar {
         window.init().expect("Failed to init taskbar window");
-        taskbars.push(Taskbar {
-            window,
-            position: TaskbarPosition::default(),
-        });
+        taskbars.push(Taskbar::new(window));
     }
 
     1

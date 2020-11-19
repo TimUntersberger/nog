@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 use thread::JoinHandle;
-use winapi::um::wingdi::SelectObject;
+use winapi::um::{wingdi::SelectObject, winuser::SW_HIDE, winuser::SW_SHOW};
 use winapi::um::wingdi::LOGFONTA;
 use winapi::um::wingdi::{GetBValue, GetGValue, GetRValue, RGB};
 use winapi::um::{wingdi::CreateFontIndirectA, winuser::IDC_HAND, winuser::WM_MOUSEMOVE};
@@ -61,6 +61,7 @@ unsafe extern "system" fn window_cb(
 
         let ptr = Box::into_raw(Box::new(payload));
 
+        //TODO: Does nothing when WM_CLOSE is sent
         PostMessageA(hwnd, WM_IDENT, ptr as usize, 0);
     }
 
@@ -161,6 +162,7 @@ pub enum WindowEvent<'a> {
         display: &'a Display,
         id: WindowId,
     },
+    /// This never gets sent on windows (Working on a fix)
     Close {
         display: &'a Display,
         id: WindowId,
@@ -306,7 +308,14 @@ impl Window {
                 ..WNDCLASSA::default()
             };
 
-            RegisterClassA(&class);
+            if RegisterClassA(&class) == 0 {
+                UnregisterClassA(
+                    c_name.as_ptr(),
+                    instance
+                );
+                RegisterClassA(&class);
+            }
+
 
             let mut exstyle = 0;
             let mut style = WS_OVERLAPPEDWINDOW;
@@ -346,7 +355,6 @@ impl Window {
             inner.native_window = Some(win);
 
             let font = inner.font.clone();
-            let title = inner.title.clone();
             let font_size = inner.font_size;
             let background_color = inner.background_color;
 
@@ -376,17 +384,8 @@ impl Window {
                 if let Some(msg) = msg {
                     if msg.message == WM_IDENT {
                         let window: NativeWindow = hwnd.into();
-                        let state = state.lock();
                         let display_id = fail_with!(window.get_display(), true).id;
-                        let display = state.displays.iter().find(|d| d.id == display_id).unwrap();
-
                         let hdc = GetDC(hwnd);
-                        let api = Api {
-                            hdc: hdc as i32,
-                            window: window.clone(),
-                            display: display.clone(),
-                            background_color,
-                        };
                         let msg = *(msg.wParam as *const WindowMsg);
 
                         if msg.code == WM_PAINT {
@@ -414,6 +413,15 @@ impl Window {
 
                             SetBkColor(hdc, background_color as u32);
 
+                            let state = state.lock();
+                            let display = state.displays.iter().find(|d| d.id == display_id).unwrap();
+                            let api = Api {
+                                hdc: hdc as i32,
+                                window: window.clone(),
+                                display: display.clone(),
+                                background_color,
+                            };
+
                             event_handler(&WindowEvent::Draw {
                                 display: &display,
                                 id: window.id,
@@ -427,7 +435,8 @@ impl Window {
                             let mut point = POINT::default();
                             GetCursorPos(&mut point);
                             let win_rect = window.get_rect().unwrap();
-
+                            let state = state.lock();
+                            let display = state.displays.iter().find(|d| d.id == display_id).unwrap();
                             event_handler(&WindowEvent::Click {
                                 id: window.id,
                                 x: point.x - win_rect.left,
@@ -436,18 +445,16 @@ impl Window {
                                 display: &display,
                             });
                         } else if msg.code == WM_CLOSE {
-                            let name = CString::new(title.clone()).unwrap();
-
-                            UnregisterClassA(
-                                name.as_ptr(),
-                                winapi::um::libloaderapi::GetModuleHandleA(std::ptr::null_mut()),
-                            );
+                            let state = state.lock();
+                            let display = state.displays.iter().find(|d| d.id == display_id).unwrap();
 
                             event_handler(&WindowEvent::Close {
                                 id: window.id,
                                 display: &display,
                             });
                         } else if msg.code == WM_CREATE {
+                            let state = state.lock();
+                            let display = state.displays.iter().find(|d| d.id == display_id).unwrap();
                             event_handler(&WindowEvent::Create {
                                 id: window.id,
                                 display: &display,
@@ -456,6 +463,14 @@ impl Window {
                             let mut point = POINT::default();
                             GetCursorPos(&mut point);
                             let win_rect = window.get_rect().unwrap();
+                            let state = state.lock();
+                            let display = state.displays.iter().find(|d| d.id == display_id).unwrap();
+                            let api = Api {
+                                hdc: hdc as i32,
+                                window: window.clone(),
+                                display: display.clone(),
+                                background_color,
+                            };
 
                             event_handler(&WindowEvent::MouseMove {
                                 id: window.id,
@@ -465,6 +480,8 @@ impl Window {
                                 y: point.y - win_rect.top,
                             });
                         } else {
+                            let state = state.lock();
+                            let display = state.displays.iter().find(|d| d.id == display_id).unwrap();
                             event_handler(&WindowEvent::Native {
                                 msg,
                                 display: &display,

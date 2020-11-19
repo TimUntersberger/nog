@@ -259,6 +259,56 @@ Swaps the current tile with the next tile in a direction
 bind "<key-combo>" swap("<direction>");
 ```
 
+### MoveIn
+A context-sensitive way of creating a new column or row by moving the focused tile into an adjacent row/column/tile. Performing this action on a tile into an adjacent tile will introduce a new column or row (whichever is the opposite of what the tiles reside in) with the two tiles. Peforming this action on a tile into an adjacent column or row moves the focused tile into the adjacent column or row respectively.
+
+For example, given the following layout with Tile 3 focused...
+
+![Move_in_1](../_media/move_1.png)
+<p style='text-align:center;'>(Note: "Tile #" label added for demonstration purposes)</p>
+
+Performing a `move_in("Left")` moves the focused Tile 3 _into_ a new row container with Tile 2 in the first position and Tile 3 in the second position.
+
+![Move_in_2](../_media/move_2.png)
+<p style='text-align:center;'>(Note: "Tile #" label added for demonstration purposes)</p>
+
+#### Arguments
+
+| Position | Value  | Description                                                       |
+|----------|--------|-------------------------------------------------------------------|
+| 1        | String | The direction which you want to "move_in" the current tile with (Left/Right/Up/Down) |
+
+#### Usage
+
+```nog
+bind "<key-combo>" move_in("<direction>");
+```
+
+### MoveOut
+A context-sensitive way of moving a tile out of a column or row by moving the focused tile into a new row/column. Performing this action on a tile within a row or column will introduce a new column or row (whichever is the opposite of what the tiles reside in) containing only the focused tile. 
+
+For example, given the following layout with Tile 3 focused...
+
+![Move_out_1](../_media/move_1.png)
+<p style='text-align:center;'>(Note: "Tile #" label added for demonstration purposes)</p>
+
+Performing a `move_out("Up")` moves the focused Tile 3 _out_ of its parent column container and introduces a new parent row container with the focused Tile 3 in the first position and the previous parent column container in the second position.
+
+![Move_out_2](../_media/move_3.png)
+<p style='text-align:center;'>(Note: "Tile #" label added for demonstration purposes)</p>
+
+#### Arguments
+
+| Position | Value  | Description                                                       |
+|----------|--------|-------------------------------------------------------------------|
+| 1        | String | The direction which you want to "move_out" the current tile with (Left/Right/Up/Down) |
+
+#### Usage
+
+```nog
+bind "<key-combo>" move_out("<direction>");
+```
+
 ### Split
 
 Changes the orientation of the current tile. Per default a new tile gets opened vertically.

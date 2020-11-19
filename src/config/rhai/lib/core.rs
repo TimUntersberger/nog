@@ -21,8 +21,7 @@ pub fn init(engine: &mut Engine, state_arc: Arc<Mutex<AppState>>) {
         match state
             .lock()
             .get_current_grid()
-            .and_then(|g| g.get_focused_tile())
-            .map(|t| t.split_direction.to_string())
+            .map(|g| g.next_axis.to_string())
         {
             Some(s) => s.into(),
             None => ().into(),

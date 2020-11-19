@@ -2,7 +2,7 @@ use std::{sync::Arc, thread, time::Duration};
 
 use parking_lot::Mutex;
 
-use crate::{bar, config::Config, startup, system::SystemResult, task_bar, AppState};
+use crate::{bar, config::Config, startup, system::SystemResult, task_bar, AppState, keybindings::KbManager};
 
 pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> SystemResult {
     let mut state = state_arc.lock();
@@ -11,9 +11,10 @@ pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> Sys
     let mut close_app_bars = false;
     let old_config = state.config.clone();
 
-    state.config = new_config;
-
     state.keybindings_manager.stop();
+
+    state.config = new_config;
+    state.keybindings_manager = KbManager::new(state.config.keybindings.clone());
 
     if work_mode {
         if old_config.remove_task_bar && !state.config.remove_task_bar {
@@ -44,22 +45,22 @@ pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> Sys
 
     if old_config.remove_title_bar && !state.config.remove_title_bar {
         for grid in state.get_grids_mut().iter_mut() {
-            for tile in &mut grid.tiles {
-                tile.window.reset_style();
-                tile.window
-                    .update_style()
-                    .expect("Failed to update style of window");
-            }
+            grid.modify_windows(|window| {
+                window.reset_style();
+                window.update_style()
+                      .expect("Failed to update style of window");
+                Ok(())
+            })?;
         }
     } else if !old_config.remove_title_bar && state.config.remove_title_bar {
         let use_border = old_config.use_border;
         for grid in state.get_grids_mut() {
-            for tile in &mut grid.tiles {
-                tile.window.remove_title_bar(use_border)?;
-                tile.window
-                    .update_style()
-                    .expect("Failed to update style of window");
-            }
+            grid.modify_windows(|window| {
+                window.remove_title_bar(use_border)?;
+                window.update_style()
+                      .expect("Failed to update style of window");
+                Ok(())
+            })?;
         }
     }
 
@@ -70,7 +71,6 @@ pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> Sys
     if close_app_bars {
         drop(state);
         bar::close_all(state_arc.clone());
-        sleep!(1000);
         state = state_arc.lock();
     }
 
@@ -84,7 +84,7 @@ pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> Sys
 
     for d in state.displays.iter() {
         if let Some(grid) = d.get_focused_grid() {
-            grid.draw_grid(d, &old_config)?;
+            grid.draw_grid(d, &state.config)?;
         }
     }
 

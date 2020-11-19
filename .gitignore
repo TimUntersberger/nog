@@ -4,3 +4,4 @@
 .vscode
 log
 output.log
+*.swp
