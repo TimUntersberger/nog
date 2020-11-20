@@ -907,7 +907,6 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
         self.graph.disconnect(parent_id, child_id);
         self.reset_order(parent_id);
     }
-
     fn distribute_size_among_siblings(&mut self, parent_id: usize, child_id: usize) {
         let children = self.graph.get_sorted_children(parent_id);
         let number_of_children = children.iter().len();
@@ -921,6 +920,15 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             if child != child_id {
                 let child_size = self.graph.node(child).get_size();
                 self.graph.node_mut(child).set_size(size_per_sibling + child_size + get_remainder_slice());
+            }
+        }
+    }
+    pub fn swap_columns_and_rows(&mut self) {
+        for node_id in self.graph.nodes() {
+            match self.graph.node(node_id) {
+                Node::Column(info) => { self.graph.swap_node(node_id, Node::row(info.order, info.size)); },
+                Node::Row(info) => { self.graph.swap_node(node_id, Node::column(info.order, info.size)); },
+                _ => ()
             }
         }
     }

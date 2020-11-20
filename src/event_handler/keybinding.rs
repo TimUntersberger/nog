@@ -17,6 +17,7 @@ mod focus;
 mod resize;
 mod split;
 mod swap;
+mod swap_columns_rows;
 mod move_in;
 mod move_out;
 mod toggle_floating_mode;
@@ -113,6 +114,7 @@ pub fn handle(state_arc: Arc<Mutex<AppState>>, kb: Keybinding) -> SystemResult {
         KeybindingType::Resize(direction, amount) => resize::handle(&mut state, direction, amount)?,
         KeybindingType::Focus(direction) => focus::handle(&mut state, direction)?,
         KeybindingType::Swap(direction) => swap::handle(&mut state, direction)?,
+        KeybindingType::SwapColumnsAndRows => swap_columns_rows::handle(&mut state)?,
         KeybindingType::MoveIn(direction) => move_in::handle(&mut state, direction)?,
         KeybindingType::MoveOut(direction) => move_out::handle(&mut state, direction)?,
         KeybindingType::Quit => sender.send(Event::Exit).expect("Failed to send exit event"),
