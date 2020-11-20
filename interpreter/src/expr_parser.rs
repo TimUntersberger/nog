@@ -51,6 +51,8 @@ fn parse_object_literal<'a, I: Iterator<Item = Token<'a>>>(
             tokens.push(rest.next().unwrap());
         }
 
+        rest.next();
+
         let value = parser.parse(&mut tokens.into_iter()).unwrap();
 
         fields.insert(ident.text().to_string(), value);

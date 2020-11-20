@@ -15,6 +15,6 @@ class Vec {
 }
 
 var vec1 = Vec { x: 1 };
-var vec2 = Vec {};
+var vec2 = Vec { x: 2, y: 1 };
 
 print(vec1 + vec2);
