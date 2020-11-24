@@ -1009,6 +1009,140 @@ fn swap_columns_and_rows_large_graph() {
     assert_eq!(12, node_12);
 }
 
+#[test]
+fn to_string_columns() {
+    // testing just one tile
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    perform_actions(&mut tile_grid, "p");
+    assert_eq!("t0|120|1", tile_grid.to_string());
+
+    // testing two tiles pushed in
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    perform_actions(&mut tile_grid, "p,p");
+    assert_eq!("c0|120[t0|60|1,t1|60|2]", tile_grid.to_string());
+
+    // testing three tiles pushed in
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    perform_actions(&mut tile_grid, "p,p,p");
+    assert_eq!("c0|120[t0|40|1,t1|40|2,t2|40|3]", tile_grid.to_string());
+
+    // testing four tiles pushed in
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    perform_actions(&mut tile_grid, "p,p,p,p");
+    assert_eq!("c0|120[t0|30|1,t1|30|2,t2|30|3,t3|30|4]", tile_grid.to_string());
+}
+
+#[test]
+fn to_string_rows() {
+    // testing just one tile
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    perform_actions(&mut tile_grid, "axh,p");
+    assert_eq!("t0|120|1", tile_grid.to_string());
+
+    // testing two tiles pushed in
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    perform_actions(&mut tile_grid, "axh,p,p");
+    assert_eq!("r0|120[t0|60|1,t1|60|2]", tile_grid.to_string());
+
+    // testing three tiles pushed in
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    perform_actions(&mut tile_grid, "axh,p,p,p");
+    assert_eq!("r0|120[t0|40|1,t1|40|2,t2|40|3]", tile_grid.to_string());
+
+    // testing four tiles pushed in
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    perform_actions(&mut tile_grid, "axh,p,p,p,p");
+    assert_eq!("r0|120[t0|30|1,t1|30|2,t2|30|3,t3|30|4]", tile_grid.to_string());
+}
+
+#[test]
+fn to_string_children() {
+    /*
+            c
+           / \
+          t0  r
+            / | \
+          t1 t2 t3
+    */
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    perform_actions(&mut tile_grid, "p,p,axh,p,p");
+    assert_eq!("c0|120[t0|60|1,r1|60[t0|40|2,t1|40|3,t2|40|4]]", tile_grid.to_string());
+}
+
+
+#[test]
+fn to_string_large_layout() {
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    perform_actions(&mut tile_grid, LARGE_LAYOUT);
+    assert_eq!("c0|120[t0|60|1,r1|60[t0|24|2,t1|24|3,c2|24[t0|24|6,t1|24|7,r2|24[t0|40|10,t1|40|12,t2|40|11],t3|24|9,t4|24|8],t3|24|5,t4|24|4]]", tile_grid.to_string());
+}
+
+#[test]
+fn from_string_columns() {
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    tile_grid.from_string("t0|120|1".into());
+    assert_eq!("t0|120|1", tile_grid.to_string());
+
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    tile_grid.from_string("c0|120[t0|60|1,t1|60|2]".into());
+    assert_eq!("c0|120[t0|60|1,t1|60|2]", tile_grid.to_string());
+
+    // testing three tiles pushed in
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    tile_grid.from_string("c0|120[t0|40|1,t1|40|2,t2|40|3]".into());
+    assert_eq!("c0|120[t0|40|1,t1|40|2,t2|40|3]", tile_grid.to_string());
+
+    // testing four tiles pushed in
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    tile_grid.from_string("c0|120[t0|30|1,t1|30|2,t2|30|3,t3|30|4]".into());
+    assert_eq!("c0|120[t0|30|1,t1|30|2,t2|30|3,t3|30|4]", tile_grid.to_string());
+}
+
+#[test]
+fn from_string_rows() {
+    // testing just one tile
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    tile_grid.from_string("t0|120|1".into());
+    assert_eq!("t0|120|1", tile_grid.to_string());
+
+    // testing two tiles pushed in
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    tile_grid.from_string("r0|120[t0|60|1,t1|60|2]".into());
+    assert_eq!("r0|120[t0|60|1,t1|60|2]", tile_grid.to_string());
+
+    // testing three tiles pushed in
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    tile_grid.from_string("r0|120[t0|40|1,t1|40|2,t2|40|3]".into());
+    assert_eq!("r0|120[t0|40|1,t1|40|2,t2|40|3]", tile_grid.to_string());
+
+    // testing four tiles pushed in
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    tile_grid.from_string("r0|120[t0|30|1,t1|30|2,t2|30|3,t3|30|4]".into());
+    assert_eq!("r0|120[t0|30|1,t1|30|2,t2|30|3,t3|30|4]", tile_grid.to_string());
+}
+
+#[test]
+fn from_string_children() {
+    /*
+            c
+           / \
+          t0  r
+            / | \
+          t1 t2 t3
+    */
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    tile_grid.from_string("c0|120[t0|60|1,r1|60[t0|40|2,t1|40|3,t2|40|4]]".into());
+    assert_eq!("c0|120[t0|60|1,r1|60[t0|40|2,t1|40|3,t2|40|4]]", tile_grid.to_string());
+}
+
+#[test]
+fn from_string_large_layout() {
+    let large_layout_string = "c0|120[t0|60|1,r1|60[t0|24|2,t1|24|3,c2|24[t0|24|6,t1|24|7,r2|24[t0|40|10,t1|40|12,t2|40|11],t3|24|9,t4|24|8],t3|24|5,t4|24|4]]";
+    let mut tile_grid = TileGrid::new(0, TestRenderer { } );
+    tile_grid.from_string(large_layout_string.into());
+    assert_eq!(large_layout_string, tile_grid.to_string());
+}
+
 fn print(tile_grid: &TileGrid) {
     let render_infos = tile_grid.get_render_info(127, 90);
     println!("{}", TextRenderer::render(127, 90, render_infos)); 
