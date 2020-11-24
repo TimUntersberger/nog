@@ -930,6 +930,15 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                 Node::Row(info) => { self.graph.swap_node(node_id, Node::column(info.order, info.size)); },
                 _ => ()
             }
+         }
+     }
+    /// Iterates nodes in tile grid and removes any that are no longer valid windows
+    pub fn remove_empty_tiles(&mut self) {
+        for node_id in self.graph.nodes() {
+            if self.graph.node(node_id).is_tile() && !self.graph.node(node_id).get_window().is_window() {
+                self.focused_id = Some(node_id);
+                self.pop();
+            }
         }
     }
     /// Returns a stringified version of the grid that follows this format:

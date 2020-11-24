@@ -33,30 +33,6 @@ pub fn handle(state: &mut AppState) -> SystemResult {
             }))
             .expect("Failed to send WinEvent");
     }
-    // if let Some((grid, _)) =  {
-    //     let mut tile = grid.close_tile_by_window_id(window.id).unwrap();
-
-    //     tile.window.cleanup();
-
-    //     let display = state.get_current_display();
-
-    //     debug!(
-    //         "Unmanaging window '{}' | {}",
-    //         tile.window.title, tile.window.id
-    //     );
-
-    //     grid.draw_grid(display, &state.config);
-    //     display.refresh_grid(&state.config);
-    // } else {
-    //     state
-    //         .event_channel
-    //         .sender
-    //         .clone()
-    //         .send(Event::WinEvent(WinEvent {
-    //             typ: WinEventType::Show(true),
-    //             window,
-    //         }))?;
-    // }
 
     Ok(())
 }
