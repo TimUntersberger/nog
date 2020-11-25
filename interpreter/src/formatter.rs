@@ -36,7 +36,7 @@ impl<'a> Formatter<'a> {
                 format!("let {} = {}", name, self.format_expr(value))
             }
             Ast::VariableAssignment(_, _) => todo!(),
-            Ast::IfStatement(_, _) => todo!(),
+            Ast::IfStatement(_) => todo!(),
             Ast::FunctionCall(name, args) => format!("{}({})", name, self.format_args(args)),
             Ast::FunctionDefinition(name, args, block) => {
                 self.level += 1;

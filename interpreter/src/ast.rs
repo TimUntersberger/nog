@@ -12,7 +12,7 @@ pub enum ClassMember {
 pub enum Ast {
     ReturnStatement(Expression),
     Expression(Expression),
-    IfStatement(Expression, Vec<Ast>),
+    IfStatement(Vec<(Expression, Vec<Ast>)>),
     VariableDefinition(String, Expression),
     VariableAssignment(String, Expression),
     ClassDefinition(String, Vec<ClassMember>),

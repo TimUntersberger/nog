@@ -25,6 +25,7 @@ impl ObjectBuilder {
             Dynamic::RustFunction {
                 name: name.into(),
                 callback: Arc::new(f),
+                scope: None,
             },
         );
         self

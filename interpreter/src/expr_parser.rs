@@ -3,12 +3,28 @@ use std::{collections::HashMap, iter::Peekable};
 use itertools::Itertools;
 use pratt::{Affix, Associativity, PrattParser, Precedence};
 
-use super::{ast::Ast, expression::Expression, lexer::Lexer, parser::Parser, token::Token};
+use super::{
+    ast::Ast,
+    expression::Expression,
+    lexer::Lexer,
+    parser::Parser,
+    token::{Token, TokenData},
+};
 
-pub struct ExprParser;
+pub struct ExprParser<'a> {
+    pub prev_token: Token<'a>,
+}
+
+impl<'a> Default for ExprParser<'a> {
+    fn default() -> Self {
+        Self {
+            prev_token: Token::Error,
+        }
+    }
+}
 
 fn parse_object_literal<'a, I: Iterator<Item = Token<'a>>>(
-    parser: &mut ExprParser,
+    parser: &mut ExprParser<'a>,
     rest: &mut Peekable<&mut I>,
 ) -> HashMap<String, Expression> {
     let mut fields = HashMap::new();
@@ -61,7 +77,98 @@ fn parse_object_literal<'a, I: Iterator<Item = Token<'a>>>(
     fields
 }
 
-impl<'a, I> PrattParser<I> for ExprParser
+fn parse_inside_brackets<'a>(
+    parser: &mut ExprParser<'a>,
+    rest: &mut dyn Iterator<Item = Token<'a>>,
+) -> Vec<Token<'a>> {
+    let mut tokens = Vec::new();
+    let mut depth = 0;
+
+    parser.prev_token = Token::LBracket(TokenData::default());
+
+    while let Some(token) = rest.next() {
+        match token {
+            Token::LBracket(_) => {
+                depth += 1;
+            }
+            Token::RBracket(_) => {
+                if depth == 0 {
+                    parser.prev_token = token;
+                    break;
+                }
+                depth -= 1;
+            }
+            _ => {}
+        }
+        tokens.push(token.clone());
+    }
+    tokens
+}
+
+fn parse_arg_list<'a>(
+    parser: &mut ExprParser<'a>,
+    rest: &mut dyn Iterator<Item = Token<'a>>,
+) -> Vec<Expression> {
+    let mut list = Vec::new();
+    let mut arg = Vec::new();
+    let mut depth = 0;
+    while let Some(token) = rest.next() {
+        match token {
+            Token::LParan(_) | Token::LBracket(_) | Token::LCurly(_) => {
+                depth += 1;
+            }
+            Token::RParan(_) | Token::RBracket(_) | Token::RCurly(_) => {
+                depth -= 1;
+            }
+            Token::Comma(_) => {
+                if depth == 0 && !arg.is_empty() {
+                    parser.prev_token = token;
+                    list.push(parser.parse(&mut arg.clone().into_iter()).unwrap());
+                    arg.clear();
+                    continue;
+                }
+            }
+            _ => {}
+        }
+        arg.push(token.clone());
+    }
+    if !arg.is_empty() {
+        list.push(parser.parse(&mut arg.into_iter()).unwrap());
+    }
+    list
+}
+
+fn parse_inside_parenthesis<'a>(
+    parser: &mut ExprParser<'a>,
+    rest: &mut dyn Iterator<Item = Token<'a>>,
+) -> Vec<Expression> {
+    let mut tokens = Vec::new();
+    let mut depth = 0;
+
+    parser.prev_token = Token::LParan(TokenData::default());
+
+    while let Some(token) = rest.next() {
+        match token {
+            Token::LParan(_) => {
+                parser.prev_token = token.clone();
+                depth += 1;
+            }
+            Token::RParan(_) => {
+                if depth == 0 {
+                    let res = parse_arg_list(parser, &mut tokens.into_iter());
+                    parser.prev_token = token;
+                    return res;
+                }
+                depth -= 1;
+            }
+            _ => {}
+        }
+        tokens.push(token.clone());
+    }
+    vec![]
+}
+
+impl<'a, I> PrattParser<I> for ExprParser<'a>
 where
     I: Iterator<Item = Token<'a>>,
 {
@@ -70,7 +177,7 @@ where
     type Input = Token<'a>;
 
     fn query(&mut self, token: &Self::Input, _: &mut Peekable<&mut I>) -> pratt::Result<Affix> {
-        Ok(match token {
+        let res = match token {
             Token::Symbol(data) => match data.value {
                 "+" => Affix::Infix(Precedence(3), Associativity::Left),
                 "-" => Affix::Infix(Precedence(3), Associativity::Left),
@@ -78,16 +185,30 @@ where
                 "/" => Affix::Infix(Precedence(4), Associativity::Left),
                 _ => unreachable!(data.value),
             },
-            Token::Dot(_) => Affix::Infix(Precedence(10), Associativity::Left),
+            Token::GT(_)
+            | Token::GTE(_)
+            | Token::LT(_)
+            | Token::LTE(_)
+            | Token::EQ(_)
+            | Token::NEQ(_) => Affix::Infix(Precedence(2), Associativity::Left),
+            Token::Dot(_) => Affix::Infix(Precedence(11), Associativity::Left),
             Token::DoubleColon(_) => Affix::Infix(Precedence(11), Associativity::Left),
-            Token::Equal(_) => Affix::Infix(Precedence(2), Associativity::Neither),
-            Token::LParan(_) => Affix::Nilfix,
+            Token::Equal(_) => Affix::Infix(Precedence(1), Associativity::Neither),
+            Token::LParan(_) | Token::LBracket(_) => match dbg!(&self.prev_token) {
+                Token::LCurly(_)
+                | Token::RCurly(_)
+                | Token::LParan(_)
+                | Token::LBracket(_)
+                | Token::Error
+                | Token::Equal(_)
+                | Token::Comma(_) => Affix::Nilfix,
+                _ => Affix::Postfix(Precedence(10)),
+            },
             Token::Arrow(_) => Affix::Nilfix,
             Token::RParan(_) => Affix::Nilfix,
             Token::Hash(_) => Affix::Nilfix,
             Token::LCurly(_) => Affix::Nilfix,
             Token::RCurly(_) => Affix::Nilfix,
-            Token::LBracket(_) => Affix::Nilfix,
             Token::RBracket(_) => Affix::Nilfix,
             Token::NumberLiteral(_) => Affix::Nilfix,
             Token::StringLiteral(_) => Affix::Nilfix,
@@ -96,13 +217,15 @@ where
             Token::Identifier(_) => Affix::Nilfix,
             Token::Null(_) => Affix::Nilfix,
             _ => unreachable!("{:?}", token),
-        })
+        };
+        Ok(res)
     }
     fn primary(
         &mut self,
         token: Self::Input,
         rest: &mut Peekable<&mut I>,
     ) -> pratt::Result<Self::Output> {
+        self.prev_token = token.clone();
         Ok(match token {
             Token::NumberLiteral(data) => Expression::NumberLiteral(data.value),
             Token::StringLiteral(data) => Expression::StringLiteral(data.value.to_string()),
@@ -160,57 +283,7 @@ where
             }
             Token::Identifier(data) => {
                 let ident = data.value.to_string();
-                let mut expr = Expression::Identifier(ident.clone());
-                while let Some(next) = rest.peek() {
-                    let res = match next {
-                        Token::LParan(_) => {
-                            rest.next();
-                            let mut depth = 0;
-                            let mut args = Vec::new();
-                            let mut arg_tokens = Vec::new();
-                            while let Some(next) = rest.next() {
-                                match &next {
-                                    Token::LBracket(_) => {
-                                        args.push(self.primary(next, rest)?);
-                                        continue;
-                                    }
-                                    Token::LParan(_) => depth += 1,
-                                    Token::RParan(_) => {
-                                        if depth == 0 {
-                                            if !arg_tokens.is_empty() {
-                                                args.push(
-                                                    self.parse(&mut arg_tokens.clone().into_iter())
-                                                        .map_err(|_| pratt::NoError)?,
-                                                );
-                                            }
-                                            break;
-                                        }
-
-                                        depth -= 1;
-                                    }
-                                    Token::Comma(_) => {
-                                        args.push(
-                                            self.parse(&mut arg_tokens.clone().into_iter())
-                                                .map_err(|_| pratt::NoError)?,
-                                        );
-                                        arg_tokens.clear();
-                                        continue;
-                                    }
-                                    _ => {}
-                                };
-
-                                arg_tokens.push(next);
-                            }
-
-                            Expression::FunctionCall(Box::new(expr), args)
-                        }
-                        _ => break
-                    };
-
-                    expr = res;
-                }
-                
-                expr
+                Expression::Identifier(ident)
             }
             Token::LParan(_) => {
                 let mut depth = 0;
@@ -275,7 +348,9 @@ where
                         }
                         return Ok(Expression::ArrowFunction(
                             arg_names,
-                            vec![Ast::ReturnStatement(self.parse(&mut tokens.into_iter()).unwrap())],
+                            vec![Ast::ReturnStatement(
+                                self.parse(&mut tokens.into_iter()).unwrap(),
+                            )],
                         ));
                     }
                 } else {
@@ -311,11 +386,29 @@ where
     }
     fn postfix(
         &mut self,
-        _lhs: Self::Output,
-        _token: Self::Input,
-        _: &mut Peekable<&mut I>,
+        lhs: Self::Output,
+        token: Self::Input,
+        rest: &mut Peekable<&mut I>,
     ) -> pratt::Result<Self::Output> {
-        todo!();
+        match token {
+            Token::LBracket(_) => {
+                let tokens = parse_inside_brackets(self, rest);
+                Ok(Expression::PostOp(
+                    Box::new(lhs),
+                    "[]".into(),
+                    Some(Box::new(self.parse(&mut tokens.into_iter()).unwrap())),
+                ))
+            }
+            Token::LParan(_) => {
+                let args = parse_inside_parenthesis(self, rest);
+                Ok(Expression::PostOp(
+                    Box::new(lhs),
+                    "()".into(),
+                    Some(Box::new(Expression::ArrayLiteral(args))),
+                ))
+            }
+            _ => todo!(),
+        }
     }
 }
 
@@ -329,15 +422,84 @@ mod test {
     use std::collections::HashMap;
 
     fn parse(input: &str) -> Expression {
-        ExprParser.parse(&mut Token::lexer(input)).unwrap()
+        ExprParser::default()
+            .parse(&mut Token::lexer(input))
+            .unwrap()
     }
 
     fn binary(lhs: Expression, op: &str, rhs: Expression) -> Expression {
         Expression::BinaryOp(Box::new(lhs), op.into(), Box::new(rhs))
     }
 
+    fn post(lhs: Expression, op: &str, value: Option<Expression>) -> Expression {
+        Expression::PostOp(Box::new(lhs), op.into(), value.map(|x| Box::new(x)))
+    }
+
+    fn array(items: Vec<Expression>) -> Expression {
+        Expression::ArrayLiteral(items)
+    }
+
+    fn object(fields: HashMap<&str, Expression>) -> Expression {
+        Expression::ObjectLiteral(
+            fields
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v))
+                .collect(),
+        )
+    }
+
+    fn ident(name: &str) -> Expression {
+        Expression::Identifier(name.into())
+    }
+
+    fn class(name: &str) -> Expression {
+        Expression::ClassIdentifier(name.into())
+    }
+
+    fn string(name: &str) -> Expression {
+        Expression::StringLiteral(name.into())
+    }
+
+    fn call_op(lhs: Expression, args: Vec<Expression>) -> Expression {
+        post(lhs, "()", Some(array(args)))
+    }
+
+    fn index_op(lhs: Expression, rhs: Expression) -> Expression {
+        post(lhs, "[]", Some(rhs))
+    }
+
+    fn namespace_op(lhs: Expression, rhs: Expression) -> Expression {
+        binary(lhs, "::", rhs)
+    }
+
+    fn number(x: i32) -> Expression {
+        Expression::NumberLiteral(x)
+    }
+
+    fn boolean(x: bool) -> Expression {
+        Expression::BooleanLiteral(x)
+    }
+
+    fn add_op(lhs: Expression, rhs: Expression) -> Expression {
+        binary(lhs, "+", rhs)
+    }
+
+    fn dot_op(lhs: Expression, rhs: Expression) -> Expression {
+        binary(lhs, ".", rhs)
+    }
+
+    fn instance(name: &str, fields: HashMap<&str, Expression>) -> Expression {
+        ClassInstantiation(
+            name.into(),
+            fields
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v))
+                .collect(),
+        )
+    }
+
     #[test]
-    fn test1() {
+    fn math_expr1() {
         assert_eq!(
             parse("1 + 2"),
             binary(NumberLiteral(1), "+", NumberLiteral(2),)
@@ -345,7 +507,7 @@ mod test {
     }
 
     #[test]
-    fn test2() {
+    fn math_expr2() {
         assert_eq!(
             parse("1 + 2 - 3"),
             binary(
@@ -357,7 +519,7 @@ mod test {
     }
 
     #[test]
-    fn test3() {
+    fn math_expr3() {
         assert_eq!(
             parse("1 + 2 * 3"),
             binary(
@@ -369,7 +531,7 @@ mod test {
     }
 
     #[test]
-    fn test4() {
+    fn math_expr4() {
         assert_eq!(
             parse("(1 + 2) * 3"),
             binary(
@@ -381,199 +543,185 @@ mod test {
     }
 
     #[test]
-    fn test5() {
+    fn op_plus() {
         assert_eq!(
             parse(r#"a + " world""#),
-            binary(Identifier("a".into()), "+", StringLiteral(" world".into()),)
+            binary(ident("a"), "+", StringLiteral(" world".into()),)
         );
     }
 
     #[test]
-    fn test6() {
-        assert_eq!(parse(r#"test()"#), FunctionCall(Box::new(Identifier("test".into())), vec![]),);
+    fn op_call() {
+        assert_eq!(parse(r#"test()"#), call_op(ident("test"), vec![]),);
     }
 
     #[test]
-    fn test7() {
+    fn op_call_with_args() {
         assert_eq!(
             parse(r#"print(hello, world)"#),
-            FunctionCall(
-                Box::new(Identifier("print".into())),
-                vec![Identifier("hello".into()), Identifier("world".into())]
-            ),
+            call_op(ident("print"), vec![ident("hello"), ident("world")]),
         );
     }
 
     #[test]
-    fn test8() {
+    fn op_call_with_expr_args() {
         assert_eq!(
             parse(r#"print(get_message(), "string", 2, (1 + 3), true)"#),
-            FunctionCall(
-                Box::new(Identifier("print".into())),
+            call_op(
+                ident("print"),
                 vec![
-                    FunctionCall(Box::new(Identifier("get_message".into())), vec![]),
-                    StringLiteral("string".into()),
-                    NumberLiteral(2),
-                    binary(NumberLiteral(1), "+", NumberLiteral(3)),
-                    BooleanLiteral(true)
+                    call_op(ident("get_message"), vec![]),
+                    string("string"),
+                    number(2),
+                    add_op(number(1), number(3)),
+                    boolean(true)
                 ]
             ),
         );
     }
 
     #[test]
-    fn test9() {
+    fn op_add() {
         assert_eq!(
             parse(r#""Hello " + test()"#),
-            binary(
-                StringLiteral("Hello ".into()),
-                "+",
-                FunctionCall(Box::new(Identifier("test".into())), vec![]),
-            )
+            add_op(string("Hello "), call_op(ident("test"), vec![]))
         );
     }
 
     #[test]
-    fn test10() {
+    fn op_dot() {
         assert_eq!(
             parse(r"account.username"),
-            binary(
-                Identifier("account".into()),
-                ".",
-                Identifier("username".into()),
-            )
+            dot_op(ident("account"), ident("username"),)
         );
     }
 
     #[test]
-    fn test11() {
-        assert_eq!(
-            parse(r"[1, 2]"),
-            ArrayLiteral(vec![NumberLiteral(1), NumberLiteral(2),])
-        );
+    fn array_literal() {
+        assert_eq!(parse(r"[1, 2]"), array(vec![number(1), number(2)]));
     }
 
     #[test]
-    fn test12() {
+    fn nested_array_literal() {
         assert_eq!(
             parse(r"[1, [2, 3]]"),
-            ArrayLiteral(vec![
-                NumberLiteral(1),
-                ArrayLiteral(vec![NumberLiteral(2), NumberLiteral(3),])
-            ])
+            array(vec![number(1), array(vec![number(2), number(3)])])
         );
     }
 
     #[test]
-    fn test13() {
+    fn op_call_with_array_arg() {
         assert_eq!(
             parse(r"print([this, other])"),
-            FunctionCall(
-                Box::new(Identifier("print".into())),
-                vec![ArrayLiteral(vec![
-                    Identifier("this".into()),
-                    Identifier("other".into()),
-                ])]
+            call_op(
+                ident("print"),
+                vec![array(vec![ident("this"), ident("other")])]
             )
         );
     }
 
     #[test]
-    fn test14() {
+    fn op_add_classes() {
         assert_eq!(
             parse(r"User{} + User{}"),
-            binary(
-                ClassInstantiation("User".into(), HashMap::new()),
-                "+",
-                ClassInstantiation("User".into(), HashMap::new()),
+            add_op(
+                instance("User", HashMap::new()),
+                instance("User", HashMap::new())
             )
         );
     }
 
     #[test]
-    fn test15() {
+    fn op_dot_class_with_instance_fn_call() {
         assert_eq!(
             parse(r"User{}.hello()"),
-            binary(
-                ClassInstantiation("User".into(), HashMap::new()),
-                ".",
-                FunctionCall(Box::new(Identifier("hello".into())), vec![]),
+            call_op(
+                dot_op(instance("User", HashMap::new()), ident("hello")),
+                vec![]
             )
         );
     }
 
     #[test]
-    fn test16() {
-        assert_eq!(parse(r"#{}"), ObjectLiteral(HashMap::new()),);
+    fn object_literal() {
+        assert_eq!(parse(r"#{}"), object(HashMap::new()));
     }
 
     #[test]
-    fn test17() {
+    fn object_literal_with_fields() {
         assert_eq!(
             parse(r#"#{ username: "test" }"#),
-            ObjectLiteral(hashmap! { "username".to_string() => StringLiteral("test".into()) }),
+            object(hashmap! { "username" => string("test") }),
         );
     }
 
     #[test]
-    fn test18() {
+    fn nested_dot_operator_with_fn_call() {
         assert_eq!(
             parse(r#"user.names.push(1)"#),
-            binary(
-                binary(Identifier("user".into()), ".", Identifier("names".into())),
-                ".",
-                FunctionCall(Box::new(Identifier("push".into())), vec![NumberLiteral(1)])
-            ),
+            call_op(
+                dot_op(dot_op(ident("user"), ident("names")), ident("push")),
+                vec![number(1)]
+            )
         );
     }
 
     #[test]
-    fn test19() {
+    fn static_class_fn_call() {
         assert_eq!(
             parse(r#"User.new()"#),
-            binary(
-                ClassIdentifier("User".into()),
-                ".",
-                FunctionCall(Box::new(Identifier("new".into())), vec![])
-            ),
+            call_op(dot_op(class("User"), ident("new")), vec![])
         );
     }
 
     #[test]
-    fn test20() {
+    fn namespace_fn_call() {
         assert_eq!(
             parse(r#"user::call()"#),
-            binary(
-                Identifier("user".into()),
-                "::",
-                FunctionCall(Box::new(Identifier("call".into())), vec![])
-            ),
+            call_op(namespace_op(ident("user"), ident("call")), vec![])
         );
     }
 
     #[test]
-    fn test21() {
+    fn nested_namespace_op() {
+        assert_eq!(
+            parse(r#"user::functions::call"#),
+            namespace_op(
+                namespace_op(ident("user"), ident("functions")),
+                ident("call")
+            )
+        );
+    }
+
+    #[test]
+    fn nested_namespace_op_with_fn_call() {
         assert_eq!(
             parse(r#"user::functions::call()"#),
-            binary(
-                binary(
-                    Identifier("user".into()),
-                    "::",
-                    Identifier("functions".into()),
+            call_op(
+                namespace_op(
+                    namespace_op(ident("user"), ident("functions")),
+                    ident("call")
                 ),
-                "::",
-                FunctionCall(Box::new(Identifier("call".into())), vec![])
-            ),
+                vec![]
+            )
         );
     }
 
     #[test]
-    fn test22() {
+    fn arrow_fn() {
         assert_eq!(parse(r#"() => {}"#), ArrowFunction(vec![], vec![]));
     }
 
     #[test]
-    fn test23() {
+    fn arrow_fn_with_args() {
+        assert_eq!(
+            parse(r#"(test) => {}"#),
+            ArrowFunction(vec!["test".into()], vec![])
+        );
+    }
+
+    #[test]
+    fn arrow_fn_with_body() {
         assert_eq!(
             parse(
                 r#"() => {
@@ -582,16 +730,13 @@ mod test {
             ),
             ArrowFunction(
                 vec![],
-                vec![Ast::FunctionCall(
-                    "print".into(),
-                    vec![Expression::NumberLiteral(1)]
-                )]
+                vec![Ast::Expression(call_op(ident("print"), vec![number(1)]))]
             )
         );
     }
 
     #[test]
-    fn test24() {
+    fn object_literal_with_arrow_fn() {
         assert_eq!(
             parse(
                 r#"#{
@@ -600,12 +745,12 @@ mod test {
                     }
                 }"#
             ),
-            ObjectLiteral(hashmap! {
-                "f".into() => ArrowFunction(
+            object(hashmap! {
+                "f" => ArrowFunction(
                     vec![],
                     vec![Ast::FunctionCall(
                         "print".into(),
-                        vec![Expression::StringLiteral("hello world".into())]
+                        vec![string("hello world")]
                     )]
                 )
             })
@@ -613,18 +758,64 @@ mod test {
     }
 
     #[test]
-    fn test25() {
+    fn nested_fn_call() {
         assert_eq!(
-            parse(
-                r#"f()()"#
-            ),
-            FunctionCall(
-                Box::new(FunctionCall(
-                    Box::new(Identifier("f".into())),
+            parse(r#"f()()"#),
+            call_op(call_op(ident("f"), vec![]), vec![])
+        );
+    }
+
+    #[test]
+    fn index_operator_0() {
+        assert_eq!(parse(r#"array[0]"#), index_op(ident("array"), number(0)));
+    }
+
+    #[test]
+    fn index_operator_field() {
+        assert_eq!(
+            parse(r#"object["name"]"#),
+            index_op(ident("object"), string("name"))
+        );
+    }
+
+    #[test]
+    fn advanced_index_operator_usage1() {
+        assert_eq!(
+            parse(r#"f()[0]"#),
+            index_op(call_op(ident("f"), vec![]), number(0))
+        );
+    }
+
+    #[test]
+    fn advanced_index_operator_usage2() {
+        assert_eq!(
+            parse(r#"f()[0]()"#),
+            call_op(index_op(call_op(ident("f"), vec![]), number(0)), vec![])
+        );
+    }
+
+    #[test]
+    fn advanced_index_operator_usage3() {
+        assert_eq!(
+            parse(r#"print(f()[0]())"#),
+            call_op(
+                ident("print"),
+                vec![call_op(
+                    index_op(call_op(ident("f"), vec![]), number(0)),
                     vec![]
-                )),
-                vec![]
+                )]
             )
         );
+    }
+
+    #[test]
+    fn logic_operators() {
+        let ops = vec![">", "<", ">=", "<=", "==", "!="];
+        for op in &ops {
+            assert_eq!(
+                parse(&format!("1 {} 2", op)),
+                binary(number(1), op, number(2),)
+            );
+        }
     }
 }

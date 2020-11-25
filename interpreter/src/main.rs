@@ -86,7 +86,7 @@ pub fn main() {
 
     let program = parser.parse();
 
-        dbg!(&program);
+    dbg!(&program);
 
     interpreter.execute(&program);
 }

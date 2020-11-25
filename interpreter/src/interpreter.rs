@@ -122,6 +122,35 @@ impl Interpreter {
 
     fn eval(&mut self, expr: &Expression) -> Dynamic {
         match expr {
+            Expression::PostOp(lhs, op, arg) => {
+                let op = Operator::from_str(op).unwrap();
+                let value = self.eval(lhs);
+                let arg = arg
+                    .as_ref()
+                    .map(|arg| self.eval(arg.as_ref()))
+                    .and_then(|arg| arg.as_array());
+
+                match op {
+                    Operator::Call => match value {
+                        Dynamic::Function {
+                            arg_names,
+                            body,
+                            scope,
+                            ..
+                        } => self.call_fn(None, Some(scope), &arg_names, &arg.unwrap(), &body),
+                        Dynamic::RustFunction {
+                            callback, scope, ..
+                        } => {
+                            self.scopes.push(scope.unwrap_or_default());
+                            let res = callback(self, arg.unwrap());
+                            self.scopes.pop();
+                            res.unwrap_or_default()
+                        }
+                        _ => todo!(),
+                    },
+                    _ => todo!(),
+                }
+            }
             Expression::BinaryOp(lhs, op, rhs) => {
                 let op = Operator::from_str(op).unwrap();
                 let (class_name, is_static) = match lhs.as_ref() {
@@ -133,25 +162,6 @@ impl Interpreter {
                         Expression::Identifier(x) => {
                             (self.eval(lhs.as_ref()), vec![Dynamic::String(x.clone())])
                         }
-                        Expression::FunctionCall(name, args) => {
-                            if is_static {
-                                (
-                                    Dynamic::Null,
-                                    vec![Dynamic::new_array(vec![
-                                        name.as_ref().into(),
-                                        args.clone().into(),
-                                    ])],
-                                )
-                            } else {
-                                (
-                                    self.eval(lhs.as_ref()),
-                                    vec![Dynamic::new_array(vec![
-                                        name.as_ref().into(),
-                                        args.clone().into(),
-                                    ])],
-                                )
-                            }
-                        }
                         _ => unreachable!(rhs),
                     },
                     Operator::Namespace => {
@@ -160,27 +170,6 @@ impl Interpreter {
 
                         if let Some(module) = module {
                             match rhs.as_ref() {
-                                Expression::FunctionCall(expr, args) => {
-                                    match expr.as_ref() {
-                                        Expression::Identifier(fn_name) => {
-                                            if let Some(function) = module.functions.get(fn_name) {
-                                                let arg_values = args
-                                                    .iter()
-                                                    .map(|expr| self.eval(expr))
-                                                    .collect::<Vec<Dynamic>>();
-                                                return self.with_clean_state(module.scope, None, |i| {
-                                                    function.invoke(i, arg_values.clone())
-                                                });
-                                            } else {
-                                                panic!(
-                                                    "Function with name {} doesn't exist in {}",
-                                                    fn_name, module_name
-                                                );
-                                            }
-                                        },
-                                        _ => todo!()
-                                    }
-                                }
                                 Expression::Identifier(name) => {
                                     if let Some(variable) = module.variables.get(name) {
                                         return variable.clone();
@@ -215,16 +204,19 @@ impl Interpreter {
 
                 if is_static {
                     let class = self.find_class(class_name.unwrap()).unwrap();
-                    let fn_info = args[0].clone().as_array().unwrap();
-                    let fn_name = fn_info[0].clone().as_str().unwrap();
+                    let field_name = args[0].clone().as_str().unwrap();
 
-                    if let Some(f) = class.static_functions.get(&fn_name).cloned() {
-                        f.invoke(self, args)
+                    if let Some(f) = class.static_functions.get(&field_name).cloned() {
+                        Dynamic::RustFunction {
+                            name: f.name.clone(),
+                            scope: Some(f.scope.clone()),
+                            callback: Arc::new(move |i, arg| Some(f.invoke(i, arg))),
+                        }
                     } else {
                         panic!(
                             "The class {} doesn't have a static function called {}",
                             class_name.unwrap(),
-                            fn_name
+                            field_name
                         );
                     }
                 } else {
@@ -251,56 +243,6 @@ impl Interpreter {
                 .get(name)
                 .map(|c| c.clone().into())
                 .unwrap_or_default(),
-            Expression::FunctionCall(expr, arg_values) => {
-                match expr.as_ref() {
-                    Expression::Identifier(name) => {
-                        let val = self.find(&name).clone();
-                        match val {
-                            Dynamic::Function {
-                                arg_names, body, ..
-                            } => self.call_fn(
-                                None,
-                                &arg_names,
-                                &arg_values.iter().map(|a| a.into()).collect(),
-                                &body,
-                            ),
-                            Dynamic::RustFunction { name, callback } => {
-                                let args = arg_values.iter().map(|a| self.eval(a)).collect();
-                                callback(self, args).unwrap_or_default()
-                            }
-                            actual => panic!("Expected {} to be a function, but it was {}", name, actual),
-                        }
-                    },
-                    Expression::FunctionCall(lhs, args) => {
-                        // evaluate lhs
-                        let lhs = match self.eval(lhs) {
-                            Dynamic::Function { arg_names, body, .. } => {
-                                self.call_fn(
-                                    None,
-                                    &arg_names,
-                                    &args.iter().map(|a| a.into()).collect(),
-                                    &body,
-                                )
-                            },
-                            _ => todo!()
-                        };
-
-                        // if the value of the lhs is a function, call it with the given args
-                        match lhs {
-                            Dynamic::Function { arg_names, body, .. } => {
-                                self.call_fn(
-                                    None,
-                                    &arg_names,
-                                    &args.iter().map(|a| a.into()).collect(),
-                                    &body,
-                                )
-                            },
-                            _ => todo!()
-                        }
-                    }
-                    _ => todo!()
-                }
-            }
             Expression::ClassInstantiation(name, values) => {
                 if let Some(class_fields) = self.find_class(name).map(|c| c.fields.clone()) {
                     let mut fields = HashMap::new();
@@ -328,6 +270,7 @@ impl Interpreter {
                 name: "<anonymous function>".into(),
                 arg_names: arg_names.clone(),
                 body: body.clone(),
+                scope: (&self.scopes).into(),
             },
         }
     }
@@ -343,11 +286,12 @@ impl Interpreter {
     pub fn call_fn(
         &mut self,
         this: Option<Dynamic>,
+        scope: Option<Scope>,
         arg_names: &Vec<String>,
         args: &Vec<Dynamic>,
         body: &Vec<Ast>,
     ) -> Dynamic {
-        let mut f_scope = Scope::default();
+        let mut f_scope = scope.unwrap_or_default();
         for (arg_name, arg) in arg_names.iter().zip(args.iter()) {
             f_scope.set(
                 arg_name.clone(),
@@ -445,10 +389,14 @@ impl Interpreter {
             }
             Ast::FunctionCall(name, arg_values) => match self.find(name).clone() {
                 Dynamic::Function {
-                    arg_names, body, ..
+                    arg_names,
+                    body,
+                    scope,
+                    ..
                 } => {
                     self.call_fn(
                         None,
+                        Some(scope),
                         &arg_names,
                         &arg_values.iter().map(|a| a.into()).collect(),
                         &body,
@@ -461,6 +409,7 @@ impl Interpreter {
                 actual => panic!("Expected {} to be a function, but it is a {}", name, actual),
             },
             Ast::FunctionDefinition(name, args, body) => {
+                let flat_scope = (&self.scopes).into();
                 let scope = self.get_scope_mut();
                 scope.set(
                     name.clone(),
@@ -468,14 +417,18 @@ impl Interpreter {
                         name: name.clone(),
                         arg_names: args.clone(),
                         body: body.clone(),
+                        scope: flat_scope,
                     },
                 )
             }
-            Ast::IfStatement(cond, block) => {
-                if self.eval(cond).is_true() {
-                    self.scopes.push(Scope::default());
-                    self.execute_stmts(block);
-                    self.scopes.pop();
+            Ast::IfStatement(branches) => {
+                for (cond, block) in branches {
+                    if self.eval(cond).is_true() {
+                        self.scopes.push(Scope::default());
+                        self.execute_stmts(block);
+                        self.scopes.pop();
+                        break;
+                    }
                 }
             }
             Ast::ClassDefinition(name, members) => {
@@ -487,14 +440,16 @@ impl Interpreter {
                             let body = body.clone();
                             let arg_names = arg_names.clone();
                             class = class.add_static_function(name, move |interp, args| {
-                                interp.call_fn(None, &arg_names, &args, &body)
+                                //TODO: also capture scope
+                                interp.call_fn(None, None, &arg_names, &args, &body)
                             });
                         }
                         ClassMember::Function(name, arg_names, body) => {
                             let body = body.clone();
                             let arg_names = arg_names.clone();
                             class = class.add_function(name, move |interp, this, args| {
-                                interp.call_fn(Some(this), &arg_names, &args, &body)
+                                //TODO: also capture scope
+                                interp.call_fn(Some(this), None, &arg_names, &args, &body)
                             });
                         }
                         ClassMember::Field(name, default) => {
@@ -586,12 +541,15 @@ impl Interpreter {
             let value = self.find(&var_name);
             match value {
                 Dynamic::Function {
-                    body, arg_names, ..
+                    body,
+                    arg_names,
+                    scope,
+                    ..
                 } => {
                     let arg_names = arg_names.clone();
                     let body = body.clone();
-                    let value = Function::new(&var_name, move |interp, args| {
-                        interp.call_fn(None, &arg_names, &args, &body)
+                    let value = Function::new(&var_name, Some(scope), move |interp, args| {
+                        interp.call_fn(None, None, &arg_names, &args, &body)
                     });
                     functions.insert(var_name, value);
                 }
@@ -620,18 +578,67 @@ fn create_default_classes() -> HashMap<String, Class> {
     let mut classes = Vec::new();
 
     classes.push(
-        Class::new("number").set_op_impl(Operator::Add, |_, this, args| {
-            let rhs = &args[0];
+        Class::new("number")
+            .set_op_impl(Operator::Add, |_, this, args| {
+                let rhs = &args[0];
 
-            if let Dynamic::Number(this) = this {
-                match rhs {
-                    Dynamic::Number(x) => Dynamic::Number(this + x),
-                    _ => todo!(),
+                if let Dynamic::Number(this) = this {
+                    match rhs {
+                        Dynamic::Number(x) => Dynamic::Number(this + x),
+                        _ => todo!(),
+                    }
+                } else {
+                    unreachable!()
                 }
-            } else {
-                unreachable!()
-            }
-        }),
+            })
+            .set_op_impl(Operator::GreaterThan, |_, this, args| {
+                let rhs = &args[0];
+
+                if let Dynamic::Number(this) = this {
+                    match rhs {
+                        Dynamic::Number(x) => Dynamic::Boolean(&this > x),
+                        _ => todo!(),
+                    }
+                } else {
+                    unreachable!()
+                }
+            })
+            .set_op_impl(Operator::GreaterThanOrEqual, |_, this, args| {
+                let rhs = &args[0];
+
+                if let Dynamic::Number(this) = this {
+                    match rhs {
+                        Dynamic::Number(x) => Dynamic::Boolean(&this >= x),
+                        _ => todo!(),
+                    }
+                } else {
+                    unreachable!()
+                }
+            })
+            .set_op_impl(Operator::LessThan, |_, this, args| {
+                let rhs = &args[0];
+
+                if let Dynamic::Number(this) = this {
+                    match rhs {
+                        Dynamic::Number(x) => Dynamic::Boolean(&this < x),
+                        _ => todo!(),
+                    }
+                } else {
+                    unreachable!()
+                }
+            })
+            .set_op_impl(Operator::LessThanOrEqual, |_, this, args| {
+                let rhs = &args[0];
+
+                if let Dynamic::Number(this) = this {
+                    match rhs {
+                        Dynamic::Number(x) => Dynamic::Boolean(&this <= x),
+                        _ => todo!(),
+                    }
+                } else {
+                    unreachable!()
+                }
+            })
     );
     classes.push(
         Class::new("string").set_op_impl(Operator::Add, |_, this, args| {
@@ -649,21 +656,60 @@ fn create_default_classes() -> HashMap<String, Class> {
             }
         }),
     );
-    classes.push(Class::new("array").add_function("push", |_, this, args| {
-        if let Dynamic::Array(items_ref) = &this {
-            for arg in args {
-                items_ref.lock().unwrap().push(arg.clone());
-            }
-        } else {
-            unreachable!()
-        }
+    classes.push(
+        Class::new("array")
+            .add_function("push", |_, this, args| {
+                if let Dynamic::Array(items_ref) = &this {
+                    for arg in args {
+                        items_ref.lock().unwrap().push(arg.clone());
+                    }
+                } else {
+                    unreachable!()
+                }
 
-        this
-    }));
+                this
+            })
+            .set_op_impl(Operator::Index, |_interp, this, args| {
+                if let Dynamic::Array(items_ref) = &this {
+                    let items = items_ref.lock().unwrap();
+                    match args[0] {
+                        Dynamic::Number(x) => {
+                            items.get(x as usize).map(|x| x.clone()).unwrap_or_default()
+                        }
+                        _ => todo!(),
+                    }
+                } else {
+                    unreachable!()
+                }
+            }),
+    );
+    classes.push(Class::new("null"));
     classes.push(Class::new("object"));
     classes.push(Class::new("boolean"));
-    classes.push(Class::new("function"));
-    classes.push(Class::new("extern function"));
+    classes.push(
+        Class::new("function").set_op_impl(Operator::Call, |i, this, args| {
+            if let Dynamic::Function {
+                arg_names,
+                scope,
+                body,
+                ..
+            } = this
+            {
+                i.call_fn(None, Some(scope), &arg_names, &args, &body)
+            } else {
+                unreachable!();
+            }
+        }),
+    );
+    classes.push(
+        Class::new("extern function").set_op_impl(Operator::Call, |i, this, args| {
+            if let Dynamic::RustFunction { callback, .. } = this {
+                callback(i, args).unwrap_or_default()
+            } else {
+                unreachable!();
+            }
+        }),
+    );
 
     classes.into_iter().map(|c| (c.name.clone(), c)).collect()
 }

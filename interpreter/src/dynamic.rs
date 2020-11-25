@@ -6,7 +6,7 @@ use std::{
     sync::Mutex,
 };
 
-use super::{ast::Ast, expression::Expression, interpreter::Interpreter};
+use super::{ast::Ast, expression::Expression, interpreter::Interpreter, scope::Scope};
 
 pub mod object_builder;
 
@@ -22,10 +22,12 @@ pub enum Dynamic {
         name: String,
         arg_names: Vec<String>,
         body: Vec<Ast>,
+        scope: Scope,
     },
     RustFunction {
         name: String,
         callback: Arc<dyn Fn(&mut Interpreter, Vec<Dynamic>) -> Option<Dynamic>>,
+        scope: Option<Scope>,
     },
     ClassInstance(String, Arc<Mutex<HashMap<String, Dynamic>>>),
     Null,
@@ -110,12 +112,8 @@ impl Dynamic {
             Dynamic::Array(_) => "array",
             Dynamic::Object(_) => "object",
             Dynamic::ClassInstance(name, _) => name,
-            Dynamic::Function {
-                name,
-                arg_names,
-                body,
-            } => "function",
-            Dynamic::RustFunction { name, callback } => "extern function",
+            Dynamic::Function { .. } => "function",
+            Dynamic::RustFunction { .. } => "extern function",
             Dynamic::Null => "null",
         }
         .into()

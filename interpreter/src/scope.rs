@@ -34,7 +34,22 @@ impl Scope {
             Dynamic::RustFunction {
                 name: name.to_string(),
                 callback: Arc::new(callback),
+                scope: None,
             },
         )
+    }
+}
+
+impl From<&Vec<Scope>> for Scope {
+    fn from(scopes: &Vec<Scope>) -> Scope {
+        let mut flat_scope = Scope::default();
+
+        for scope in scopes {
+            for (key, value) in scope.variables.borrow().iter() {
+                flat_scope.set(key.clone(), value.clone());
+            }
+        }
+
+        flat_scope
     }
 }

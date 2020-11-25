@@ -8,6 +8,21 @@ pub struct TokenData<T = ()> {
     pub location: Range<usize>,
 }
 
+impl<T> TokenData<T> {
+    pub fn new(value: T, location: Range<usize>) -> Self {
+        Self { value, location }
+    }
+}
+
+impl<T: Default> Default for TokenData<T> {
+    fn default() -> Self {
+        Self {
+            value: Default::default(),
+            location: 0..0,
+        }
+    }
+}
+
 fn str_token_data<'a>(lexer: &mut Lexer<'a, Token<'a>>) -> TokenData<&'a str> {
     TokenData {
         value: lexer.slice(),
@@ -73,11 +88,11 @@ pub enum Token<'a> {
     Equal(TokenData<&'a str>),
     #[token("return", str_token_data)]
     Return(TokenData<&'a str>),
-    #[token("else if", str_token_data)]
+    #[token("elif", str_token_data)]
     ElseIf(TokenData<&'a str>),
     #[token("if", str_token_data)]
     If(TokenData<&'a str>),
-    #[token("else", str_token_data)]
+    #[token("else", str_token_data, priority = 3)]
     Else(TokenData<&'a str>),
     #[token(",", str_token_data)]
     Comma(TokenData<&'a str>),
@@ -89,6 +104,18 @@ pub enum Token<'a> {
     DoubleColon(TokenData<&'a str>),
     #[token(";", str_token_data)]
     SemiColon(TokenData<&'a str>),
+    #[token(">", str_token_data)]
+    GT(TokenData<&'a str>),
+    #[token(">=", str_token_data)]
+    GTE(TokenData<&'a str>),
+    #[token("<", str_token_data)]
+    LT(TokenData<&'a str>),
+    #[token("<=", str_token_data)]
+    LTE(TokenData<&'a str>),
+    #[token("==", str_token_data)]
+    EQ(TokenData<&'a str>),
+    #[token("!=", str_token_data)]
+    NEQ(TokenData<&'a str>),
     #[token("(", str_token_data)]
     LParan(TokenData<&'a str>),
     #[token(")", str_token_data)]
@@ -119,6 +146,12 @@ impl<'a> Token<'a> {
         match self {
             Token::Identifier(x)
             | Token::ClassIdentifier(x)
+            | Token::LT(x)
+            | Token::LTE(x)
+            | Token::GT(x)
+            | Token::GTE(x)
+            | Token::EQ(x)
+            | Token::NEQ(x)
             | Token::Colon(x)
             | Token::DoubleColon(x)
             | Token::Export(x)
@@ -153,5 +186,84 @@ impl<'a> Token<'a> {
             Token::BooleanLiteral(x) => x.value.to_string().into(),
             Token::Error => panic!("Don't know how to do error yet"),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Token::*;
+    use super::{Token, TokenData};
+    use logos::Logos;
+
+    fn parse(code: &str, expected: Token) {
+        let mut lexer = Token::lexer(code);
+        let actual = lexer.next();
+
+        assert_eq!(actual, Some(expected));
+    }
+
+    fn parse_seq(code: &str, expected: Vec<Token>) {
+        let mut lexer = Token::lexer(code);
+
+        for expected in expected {
+            let actual = lexer.next();
+            assert_eq!(actual, Some(expected));
+        }
+
+        assert!(lexer.next().is_none());
+    }
+
+    #[test]
+    fn else_kw() {
+        parse("else", Else(TokenData::new("else", 0..4)))
+    }
+
+    #[test]
+    fn if_stmt_with_else() {
+        parse_seq(
+            "if true {} else {}",
+            vec![
+                If(TokenData::new("if", 0..2)),
+                BooleanLiteral(TokenData::new(true, 3..7)),
+                LCurly(TokenData::new("{", 8..9)),
+                RCurly(TokenData::new("}", 9..10)),
+                Else(TokenData::new("else", 11..15)),
+                LCurly(TokenData::new("{", 16..17)),
+                RCurly(TokenData::new("}", 17..18)),
+            ],
+        )
+    }
+
+    #[test]
+    fn if_stmt_with_else_if() {
+        parse_seq(
+            "if true {} elif true {}",
+            vec![
+                If(TokenData::new("if", 0..2)),
+                BooleanLiteral(TokenData::new(true, 3..7)),
+                LCurly(TokenData::new("{", 8..9)),
+                RCurly(TokenData::new("}", 9..10)),
+                ElseIf(TokenData::new("elif", 11..15)),
+                BooleanLiteral(TokenData::new(true, 16..20)),
+                LCurly(TokenData::new("{", 21..22)),
+                RCurly(TokenData::new("}", 22..23)),
+            ],
+        )
+    }
+
+    #[test]
+    fn identifier() {
+        parse(
+            "identifier",
+            Identifier(TokenData::new("identifier", 0..10)),
+        )
+    }
+
+    #[test]
+    fn class_identifier() {
+        parse(
+            "Identifier",
+            ClassIdentifier(TokenData::new("Identifier", 0..10)),
+        )
     }
 }

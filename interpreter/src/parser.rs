@@ -9,7 +9,7 @@ use pratt::PrattParser;
 pub struct Parser<'a> {
     path: PathBuf,
     pub lexer: itertools::MultiPeek<Lexer<'a>>,
-    expr_parser: ExprParser,
+    expr_parser: ExprParser<'a>,
 }
 
 impl<'a> Parser<'a> {
@@ -17,11 +17,11 @@ impl<'a> Parser<'a> {
         Self {
             path: "".into(),
             lexer: itertools::multipeek(Lexer::new("").into_iter()),
-            expr_parser: ExprParser,
+            expr_parser: ExprParser::default(),
         }
     }
 
-    fn parse_expr(&mut self) -> Result<Expression, String> {
+    fn parse_expr(&mut self, prev_token: Option<Token<'a>>) -> Result<Expression, String> {
         let mut tokens = Vec::new();
         let mut paren_depth = 0;
         let mut curly_depth = 0;
@@ -71,6 +71,10 @@ impl<'a> Parser<'a> {
         }
 
         self.lexer.reset_peek();
+
+        if let Some(token) = prev_token {
+            self.expr_parser.prev_token = token;
+        }
 
         self.expr_parser
             .parse(&mut tokens.into_iter())
@@ -159,11 +163,37 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_if(&mut self) -> Result<Ast, String> {
-        consume!(self.lexer, Token::If, "if")?;
-        let cond = self.parse_expr()?;
+        let mut branches = Vec::new();
+
+        let prev_token = consume!(self.lexer, Token::If, "if")?;
+        let cond = self.parse_expr(Some(prev_token))?;
         consume!(self.lexer, Token::LCurly, "{", true)?;
         let block = self.parse_stmts()?;
-        Ok(Ast::IfStatement(cond, block))
+        branches.push((cond, block));
+
+        while let Some(token) = &self.lexer.peek() {
+            match token {
+                Token::ElseIf(_) => {
+                    self.lexer.next();
+                    let prev_token = consume!(self.lexer, Token::ElseIf, "elif")?;
+                    let cond = self.parse_expr(Some(prev_token))?;
+                    consume!(self.lexer, Token::LCurly, "{", true)?;
+                    let block = self.parse_stmts()?;
+                    branches.push((cond, block));
+                }
+                Token::Else(_) => {
+                    self.lexer.next();
+                    consume!(self.lexer, Token::Else, "else")?;
+                    let cond = Expression::BooleanLiteral(true);
+                    consume!(self.lexer, Token::LCurly, "{", true)?;
+                    let block = self.parse_stmts()?;
+                    branches.push((cond, block));
+                }
+                _ => break,
+            }
+        }
+
+        Ok(Ast::IfStatement(branches))
     }
 
     fn parse_var_assignment(&mut self) -> Result<Ast, String> {
@@ -171,8 +201,8 @@ impl<'a> Parser<'a> {
             Some(Token::Identifier(data)) => data.value.to_string(),
             _ => todo!(),
         };
-        consume!(self.lexer, Token::Equal, "=")?;
-        let value = self.parse_expr()?;
+        let prev_token = consume!(self.lexer, Token::Equal, "=")?;
+        let value = self.parse_expr(Some(prev_token))?;
 
         Ok(Ast::VariableAssignment(ident, value))
     }
@@ -262,13 +292,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_return_statement(&mut self) -> Result<Ast, String> {
-        consume!(self.lexer, Token::Return, "return")?;
+        let prev_token = consume!(self.lexer, Token::Return, "return")?;
 
         let value = if let Some(Token::SemiColon(_)) = self.lexer.peek() {
             Expression::Null
         } else {
             self.lexer.reset_peek();
-            self.parse_expr()?
+            self.parse_expr(Some(prev_token))?
         };
 
         Ok(Ast::ReturnStatement(value))
@@ -280,8 +310,8 @@ impl<'a> Parser<'a> {
         let value = if let Some(Token::SemiColon(_)) = self.lexer.peek() {
             Expression::Null
         } else {
-            consume!(self.lexer, Token::Equal, "=")?;
-            self.parse_expr()?
+            let prev_token = consume!(self.lexer, Token::Equal, "=")?;
+            self.parse_expr(Some(prev_token))?
         };
 
         Ok(Ast::VariableDefinition(ident.text().to_string(), value))
@@ -317,7 +347,7 @@ impl<'a> Parser<'a> {
                             Token::LCurly(_) => {
                                 drop(token);
                                 self.lexer.reset_peek();
-                                Ok(Ast::Expression(self.parse_expr()?))
+                                Ok(Ast::Expression(self.parse_expr(None)?))
                             }
                             _ => unreachable!(),
                         }
@@ -328,10 +358,10 @@ impl<'a> Parser<'a> {
                 Token::Identifier(_) => {
                     if let Some(token) = self.lexer.peek() {
                         match token {
-                            Token::LParan(_) => self.parse_expr().map(|x| Ast::Expression(x)),
+                            Token::LParan(_) => self.parse_expr(None).map(|x| Ast::Expression(x)),
                             Token::Equal(_) => self.parse_var_assignment(),
                             Token::Dot(_) | Token::DoubleColon(_) => {
-                                Ok(Ast::Expression(self.parse_expr()?))
+                                Ok(Ast::Expression(self.parse_expr(None)?))
                             }
                             _ => unreachable!(token.text()),
                         }
@@ -370,5 +400,40 @@ impl<'a> Parser<'a> {
             path: self.path.clone(),
             stmts: self.parse_stmts().unwrap(),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Parser;
+    use crate::ast::Ast;
+    use crate::ast::Ast::*;
+    use crate::expression::Expression;
+    use crate::lexer::Lexer;
+
+    fn expect(code: &str, ast: Ast) {
+        let mut parser = Parser::new();
+        parser.lexer = itertools::multipeek(Lexer::new(code));
+        let prog = parser.parse();
+        assert_eq!(prog.stmts, vec![ast]);
+    }
+
+    #[test]
+    pub fn if_stmt() {
+        expect(
+            r#"if true {}"#,
+            IfStatement(vec![(Expression::BooleanLiteral(true), vec![])]),
+        );
+    }
+
+    #[test]
+    pub fn if_stmt_with_else() {
+        expect(
+            r#"if true {} else {}"#,
+            IfStatement(vec![
+                (Expression::BooleanLiteral(true), vec![]),
+                (Expression::BooleanLiteral(true), vec![]),
+            ]),
+        );
     }
 }

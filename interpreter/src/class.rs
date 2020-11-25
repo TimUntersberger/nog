@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use super::{
     dynamic::Dynamic, expression::Expression, function::Function, interpreter::Interpreter,
@@ -47,36 +47,64 @@ impl Class {
             let rhs = &args[0];
 
             match rhs {
-                Dynamic::String(x) => fields.get(x).unwrap_or_default().clone(),
+                Dynamic::String(x) => fields
+                    .get(x)
+                    .cloned()
+                    .or_else(|| {
+                        interp
+                            .classes
+                            .get(&class_name)
+                            .cloned()
+                            .and_then(|class| class.functions.get(x).cloned())
+                            .map(|method| Dynamic::RustFunction {
+                                name: x.clone(),
+                                scope: None,
+                                callback: Arc::new(move |i, args| {
+                                    Some(method.invoke(i, this.clone(), args))
+                                }),
+                            })
+                    })
+                    .unwrap_or_default()
+                    .clone(),
                 Dynamic::Array(vec_ref) => {
-                    let vec = vec_ref.lock().unwrap();
-                    //TODO: Can no longer assume that this is a string
-                    let fn_name = vec[0].clone().as_str().unwrap();
-                    let args = vec[1].clone().as_array().unwrap();
+                    unreachable!();
+                    //let vec = vec_ref.lock().unwrap();
+                    ////TODO: Can no longer assume that this is a string
+                    //let fn_name = vec[0].clone().as_str().unwrap();
+                    //let args = vec[1].clone().as_array().unwrap();
 
-                    if class_name == "object" {
-                        if let Some(var) = fields.get(&fn_name) {
-                            match var {
-                                Dynamic::RustFunction { callback, .. } => {
-                                    callback(interp, args).unwrap_or_default()
-                                }
-                                Dynamic::Function {
-                                    body, arg_names, ..
-                                } => interp.call_fn(None, arg_names, &args, body),
-                                _ => todo!(),
-                            }
-                        } else {
-                            todo!("{}", fn_name)
-                        }
-                    } else {
-                        let class = interp.classes.get(&class_name).unwrap().clone();
+                    //if class_name == "object" {
+                    //    if let Some(var) = fields.get(&fn_name) {
+                    //        match var {
+                    //            Dynamic::RustFunction { callback, .. } => {
+                    //                callback(interp, args).unwrap_or_default()
+                    //            }
+                    //            Dynamic::Function {
+                    //                body,
+                    //                arg_names,
+                    //                scope,
+                    //                ..
+                    //            } => interp.call_fn(
+                    //                None,
+                    //                Some(scope.clone()),
+                    //                arg_names,
+                    //                &args,
+                    //                body,
+                    //            ),
+                    //            _ => todo!(),
+                    //        }
+                    //    } else {
+                    //        todo!("{}", fn_name)
+                    //    }
+                    //} else {
+                    //    let class = interp.classes.get(&class_name).unwrap().clone();
 
-                        if let Some(method) = class.functions.get(&fn_name) {
-                            method.invoke(interp, this, args)
-                        } else {
-                            todo!("{}", fn_name)
-                        }
-                    }
+                    //    if let Some(method) = class.functions.get(&fn_name) {
+                    //        method.invoke(interp, this, args)
+                    //    } else {
+                    //        todo!("{}", fn_name)
+                    //    }
+                    //}
                 }
                 _ => todo!(),
             }
@@ -104,7 +132,7 @@ impl Class {
         f: impl Fn(&mut Interpreter, Vec<Dynamic>) -> Dynamic + 'static,
     ) -> Self {
         self.static_functions
-            .insert(name.to_string(), Function::new(name, f));
+            .insert(name.to_string(), Function::new(name, None, f));
         self
     }
 

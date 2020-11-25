@@ -8,6 +8,7 @@ use super::ast::Ast;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Expression {
     BinaryOp(Box<Expression>, String, Box<Expression>),
+    PostOp(Box<Expression>, String, Option<Box<Expression>>),
     NumberLiteral(i32),
     ArrayLiteral(Vec<Expression>),
     ObjectLiteral(HashMap<String, Expression>),
@@ -18,7 +19,6 @@ pub enum Expression {
     Null,
     ArrowFunction(Vec<String>, Vec<Ast>),
     ClassInstantiation(String, HashMap<String, Expression>),
-    FunctionCall(Box<Expression>, Vec<Expression>),
 }
 
 impl Display for Expression {
@@ -37,15 +37,12 @@ impl Display for Expression {
                 ),
                 Expression::BooleanLiteral(x) => x.to_string(),
                 //TODO: might have to modify the to string for function call expressions
-                Expression::FunctionCall(name, args) => format!(
-                    "{}({})",
-                    name,
-                    args.iter().map(|a| a.to_string()).join(", ")
-                ),
                 Expression::BinaryOp(lhs, op, rhs) => match op.as_str() {
                     "." => format!("{}{}{}", lhs.to_string(), op, rhs.to_string()),
+                    "()" => format!("{}({})", lhs.to_string(), rhs.to_string()),
                     _ => format!("{} {} {}", lhs.to_string(), op, rhs.to_string()),
                 },
+                Expression::PostOp(lhs, op, _value) => format!("{}{}", lhs.to_string(), op),
                 _ => "unknown".into(),
             }
         )
