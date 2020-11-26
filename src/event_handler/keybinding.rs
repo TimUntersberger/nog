@@ -5,6 +5,7 @@ use crate::{
     event::Event,
     hot_reload::update_config,
     keybindings::{keybinding::Keybinding, keybinding_type::KeybindingType},
+    tile_grid::store::Store,
     system::api,
     system::SystemResult,
     AppState,
@@ -70,11 +71,13 @@ pub fn handle(state_arc: Arc<Mutex<AppState>>, kb: Keybinding) -> SystemResult {
         }
         KeybindingType::MoveToWorkspace(id) => {
             let grid = state.get_current_grid_mut().unwrap();
-            grid.pop()
-                .map(|window| {
-                    state.get_grid_by_id_mut(id).unwrap().push(window);
-                    state.change_workspace(id, false);
-                });
+            let popped_window = grid.pop();
+            Store::save(grid.id, grid.to_string()); // save modification
+
+            popped_window.map(|window| {
+                state.get_grid_by_id_mut(id).unwrap().push(window);
+                state.change_workspace(id, false);
+            });
         }
         KeybindingType::ChangeWorkspace(id) => state.change_workspace(id, false),
         KeybindingType::ToggleFloatingMode => toggle_floating_mode::handle(&mut state)?,

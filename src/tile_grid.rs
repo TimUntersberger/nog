@@ -10,7 +10,8 @@ use crate::{
     system::WindowId,
     tile_grid::{
         text_renderer::TextRenderer, node::Node, node::NodeInfo, 
-        graph_wrapper::GraphWrapper, tile_render_info::TileRenderInfo
+        graph_wrapper::GraphWrapper, tile_render_info::TileRenderInfo,
+        store::Store
     },
 };
 use std::cmp;
@@ -20,6 +21,7 @@ pub mod graph_wrapper;
 pub mod node;
 pub mod tile_render_info;
 pub mod text_renderer;
+pub mod store;
 
 static FULL_SIZE: u32 = 120;
 static HALF_SIZE: u32 = FULL_SIZE / 2;
@@ -295,7 +297,10 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
         }
 
         if let Some(focused_id) = self.focused_id {
-            self.graph.node(focused_id).get_window().focus().expect("Failed to focus window");
+            match self.graph.node(focused_id).get_window().focus() {
+                Err(_) => info!("Failed focusing window in node {}", focused_id),
+                _ => ()
+            }
         }
         Ok(())
     }
@@ -974,33 +979,34 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     /// Takes string formatted from the to_string function, parses it and populates the tile grid with the nodes and the right relationships 
     /// Currently this will panic if the string isn't formatted correctly, although the strings passed into this function should be generated
     /// by the to_string function. An incorrectly formatted string would indicate a bug in the to_string function.
-    pub fn from_string(&mut self, mut target: String) {
+    pub fn from_string(&mut self, target: String) {
         if target.len() == 0 { return; }
 
         self.inner_from_string(&target[..], None);
+        self.remove_empty_tiles();
     }
-    fn inner_from_string(&mut self, mut target: &str, parent_id: Option<usize>) -> usize {
+    fn inner_from_string(&mut self, target: &str, parent_id: Option<usize>) -> usize {
         // intended to get the matching brace when nested children occur [ [ [ ] ] ]
         //                                                               ^         ^
         let get_closing_brace_index = |s: &str| {
-            let mut bracket_stack = Vec::new();
-            let mut counter: usize = 0;
+            let mut bracket_count: usize = 0;
+            let mut index: usize = 0;
 
             for c in s.chars() {
-                counter += 1;
+                index += 1;
                 match c {
-                    '[' => bracket_stack.push(c),
+                    '[' => bracket_count += 1,
                     ']' => {
-                        bracket_stack.pop();
-                        if bracket_stack.is_empty() {
-                            return counter;
+                        bracket_count -= 1;
+                        if bracket_count == 0 {
+                            return index;
                         }
                     },
                     _ => continue
                 }
             }
 
-            counter
+            index
         };
 
         match target.chars().nth(0).unwrap() {
@@ -1008,8 +1014,12 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                 let end_info_index = cmp::min(target.find(']').unwrap_or(target.len()), target.find(',').unwrap_or(target.len()));
                 let tile = &target[1..end_info_index];
                 let tile_information = tile.split("|").collect::<Vec::<&str>>();
-                let mut window = NativeWindow::new();
-                window.id = WindowId::from(tile_information[2].parse::<i32>().unwrap());
+                let mut window = NativeWindow::from(WindowId::from(tile_information[2].parse::<i32>().unwrap()));
+
+                match window.init() {
+                    Err(_) => debug!("Failed to initialize window"),
+                    _ => ()
+                }
 
                 match parent_id {
                     Some(id) => {

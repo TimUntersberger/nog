@@ -7,6 +7,7 @@ use crate::{
     system::{api, Rectangle},
     task_bar,
     tile_grid::TileGrid,
+    tile_grid::store::Store,
 };
 use std::cmp::Ordering;
 use task_bar::{Taskbar, TaskbarPosition};
@@ -126,6 +127,8 @@ impl Display {
     pub fn refresh_grid(&self, config: &Config) -> SystemResult {
         if let Some(g) = self.get_focused_grid() {
             g.draw_grid(self, config)?;
+
+            Store::save(g.id, g.to_string());
         }
 
         Ok(())
@@ -207,6 +210,7 @@ pub fn init(config: &Config) -> Vec<Display> {
         ordering
     });
 
+    let mut stored_grids: Vec<String> = Store::load().into_iter().rev().collect();
     for i in 1..11 {
         let monitor = config
             .workspace_settings
@@ -215,7 +219,16 @@ pub fn init(config: &Config) -> Vec<Display> {
             .map(|s| s.monitor)
             .unwrap_or(-1);
 
-        let grid = TileGrid::new(i, renderer::NativeRenderer);
+        let mut grid = TileGrid::new(i, renderer::NativeRenderer);
+        grid.from_string(stored_grids.pop().unwrap_or("".into()));
+        Store::save(i, grid.to_string());
+
+        if config.remove_title_bar {
+            grid.modify_windows(|window| {
+                window.remove_title_bar(config.use_border)?;
+                Ok(())
+            });
+        }
 
         if let Some(d) = displays.get_mut((monitor - 1) as usize) {
             d.grids.push(grid);

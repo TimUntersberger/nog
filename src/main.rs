@@ -146,7 +146,7 @@ impl Default for AppState {
         let config = Config::default();
         Self {
             work_mode: true,
-            displays: time!("initializing displays", display::init(&config)),
+            displays: Vec::<Display>::new(),
             keybindings_manager: KbManager::new(config.keybindings.clone()),
             event_channel: EventChannel::default(),
             additonal_rules: Vec::new(),
