@@ -1,4 +1,4 @@
-use crate::{bar, popup, system::SystemResult};
+use crate::{bar, popup, system::SystemResult, tile_grid::store::Store};
 use crate::{info, AppState};
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -16,6 +16,12 @@ pub fn turn_work_mode_off(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
     state.window_event_listener.stop();
 
     popup::cleanup()?;
+
+    for display in state.displays.iter() {
+        for grid in display.grids.iter() {
+            Store::save(grid.id, grid.to_string());
+        }
+    }
 
     if state.config.display_app_bar {
         drop(state);
@@ -44,6 +50,14 @@ pub fn turn_work_mode_on(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
         drop(state);
         bar::create::create(state_arc.clone());
         state = state_arc.lock();
+    }
+
+    let mut stored_grids: Vec<String> = Store::load().into_iter().rev().collect();
+    for display in state.displays.iter_mut() {
+        for grid in display.grids.iter_mut() {
+            grid.from_string(stored_grids.pop().unwrap_or("".into()));
+            Store::save(grid.id, grid.to_string());
+        }
     }
 
     state.change_workspace(1, false);
