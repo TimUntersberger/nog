@@ -23,13 +23,11 @@ impl<'a> Default for ExprParser<'a> {
     }
 }
 
-fn parse_object_literal<'a, I: Iterator<Item = Token<'a>>>(
+fn parse_inside_curlies<'a, I: Iterator<Item = Token<'a>>>(
     parser: &mut ExprParser<'a>,
     rest: &mut Peekable<&mut I>,
 ) -> HashMap<String, Expression> {
     let mut fields = HashMap::new();
-
-    consume!(rest, Token::LCurly, "{", true).unwrap();
 
     while let Some(token) = rest.peek() {
         match token {
@@ -75,6 +73,14 @@ fn parse_object_literal<'a, I: Iterator<Item = Token<'a>>>(
     }
 
     fields
+}
+
+fn parse_object_literal<'a, I: Iterator<Item = Token<'a>>>(
+    parser: &mut ExprParser<'a>,
+    rest: &mut Peekable<&mut I>,
+) -> HashMap<String, Expression> {
+    consume!(rest, Token::LCurly, "{", true).unwrap();
+    parse_inside_curlies(parser, rest)
 }
 
 fn parse_inside_brackets<'a>(
@@ -192,9 +198,11 @@ where
             | Token::EQ(_)
             | Token::NEQ(_) => Affix::Infix(Precedence(2), Associativity::Left),
             Token::Dot(_) => Affix::Infix(Precedence(11), Associativity::Left),
+            Token::And(_) => Affix::Infix(Precedence(8), Associativity::Left),
+            Token::Or(_) => Affix::Infix(Precedence(8), Associativity::Left),
             Token::DoubleColon(_) => Affix::Infix(Precedence(11), Associativity::Left),
             Token::Equal(_) => Affix::Infix(Precedence(1), Associativity::Neither),
-            Token::LParan(_) | Token::LBracket(_) => match dbg!(&self.prev_token) {
+            Token::LParan(_) | Token::LBracket(_) => match &self.prev_token {
                 Token::LCurly(_)
                 | Token::RCurly(_)
                 | Token::LParan(_)
@@ -204,10 +212,13 @@ where
                 | Token::Comma(_) => Affix::Nilfix,
                 _ => Affix::Postfix(Precedence(10)),
             },
+            Token::LCurly(_) => match &self.prev_token {
+                Token::ClassIdentifier(_) => Affix::Postfix(Precedence(10)),
+                _ => Affix::Nilfix,
+            },
             Token::Arrow(_) => Affix::Nilfix,
             Token::RParan(_) => Affix::Nilfix,
             Token::Hash(_) => Affix::Nilfix,
-            Token::LCurly(_) => Affix::Nilfix,
             Token::RCurly(_) => Affix::Nilfix,
             Token::RBracket(_) => Affix::Nilfix,
             Token::NumberLiteral(_) => Affix::Nilfix,
@@ -268,17 +279,6 @@ where
             }
             Token::ClassIdentifier(data) => {
                 let ident = data.value.to_string();
-
-                match rest.peek() {
-                    Some(Token::LCurly(_)) => {
-                        let fields = parse_object_literal(self, rest);
-
-                        return Ok(Expression::ClassInstantiation(ident, fields));
-                    }
-                    Some(Token::Dot(_)) => {}
-                    _ => todo!(),
-                };
-
                 Expression::ClassIdentifier(ident)
             }
             Token::Identifier(data) => {
@@ -407,6 +407,14 @@ where
                     Some(Box::new(Expression::ArrayLiteral(args))),
                 ))
             }
+            Token::LCurly(_) => {
+                let fields = parse_inside_curlies(self, rest);
+                Ok(Expression::PostOp(
+                    Box::new(lhs),
+                    "{}".into(),
+                    Some(Box::new(Expression::ObjectLiteral(fields))),
+                ))
+            }
             _ => todo!(),
         }
     }
@@ -489,12 +497,15 @@ mod test {
     }
 
     fn instance(name: &str, fields: HashMap<&str, Expression>) -> Expression {
-        ClassInstantiation(
-            name.into(),
-            fields
-                .into_iter()
-                .map(|(k, v)| (k.to_string(), v))
-                .collect(),
+        post(
+            class(name),
+            "{}",
+            Some(Expression::ObjectLiteral(
+                fields
+                    .into_iter()
+                    .map(|(k, v)| (k.to_string(), v))
+                    .collect(),
+            )),
         )
     }
 
@@ -809,8 +820,40 @@ mod test {
     }
 
     #[test]
+    fn constructor_op() {
+        assert_eq!(
+            parse("User{}"),
+            post(class("User"), "{}", Some(object(hashmap! {})))
+        );
+    }
+
+    #[test]
+    fn constructor_op_with_namespace() {
+        assert_eq!(
+            parse("lib::User{}"),
+            post(
+                binary(ident("lib"), "::", class("User")),
+                "{}",
+                Some(object(hashmap! {}))
+            )
+        );
+    }
+
+    #[test]
+    fn constructor_op_with_fields() {
+        assert_eq!(
+            parse("User{test: 1}"),
+            post(
+                class("User"),
+                "{}",
+                Some(object(hashmap! {"test" => number(1)}))
+            )
+        );
+    }
+
+    #[test]
     fn logic_operators() {
-        let ops = vec![">", "<", ">=", "<=", "==", "!="];
+        let ops = vec![">", "<", ">=", "<=", "==", "!=", "&&", "||"];
         for op in &ops {
             assert_eq!(
                 parse(&format!("1 {} 2", op)),

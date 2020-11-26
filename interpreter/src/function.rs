@@ -34,3 +34,13 @@ impl Debug for Function {
         write!(f, "function {}(...)", self.name)
     }
 }
+
+impl Into<Dynamic> for Function {
+    fn into(self) -> Dynamic {
+        Dynamic::RustFunction {
+            name: self.name.clone(),
+            scope: Some(self.scope.clone()),
+            callback: Arc::new(move |i, arg| Some(self.invoke(i, arg))),
+        }
+    }
+}

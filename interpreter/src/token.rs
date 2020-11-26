@@ -102,6 +102,10 @@ pub enum Token<'a> {
     Colon(TokenData<&'a str>),
     #[token("::", str_token_data)]
     DoubleColon(TokenData<&'a str>),
+    #[token("&&", str_token_data)]
+    And(TokenData<&'a str>),
+    #[token("||", str_token_data)]
+    Or(TokenData<&'a str>),
     #[token(";", str_token_data)]
     SemiColon(TokenData<&'a str>),
     #[token(">", str_token_data)]
@@ -167,6 +171,8 @@ impl<'a> Token<'a> {
             | Token::LBracket(x)
             | Token::RBracket(x)
             | Token::LCurly(x)
+            | Token::And(x)
+            | Token::Or(x)
             | Token::RCurly(x)
             | Token::NewLine(x)
             | Token::Equal(x)

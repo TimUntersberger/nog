@@ -35,7 +35,6 @@ pub struct Interpreter {
     pub exported_variables: Vec<String>,
     pub exported_classes: Vec<String>,
     pub module_cache: HashMap<PathBuf, Module>,
-    pub modules: HashMap<String, Module>,
     /// This may contain an expression if a return statement was parsed. This gets consumed when a
     /// function definition finishes parsing
     pub return_expr: Option<Expression>,
@@ -52,7 +51,6 @@ impl Interpreter {
             default_classes: create_default_classes(),
             default_variables: create_default_variables(),
             classes: HashMap::new(),
-            modules: HashMap::new(),
             module_cache: HashMap::new(),
             exported_classes: Vec::new(),
             exported_variables: Vec::new(),
@@ -113,7 +111,7 @@ impl Interpreter {
         let result = f(self);
 
         self.scopes = scopes;
-        self.classes = classes;
+        self.classes = self.classes.clone().into_iter().chain(classes).collect();
         self.return_expr = return_expr;
         self.file_path = file_path;
 
@@ -125,30 +123,22 @@ impl Interpreter {
             Expression::PostOp(lhs, op, arg) => {
                 let op = Operator::from_str(op).unwrap();
                 let value = self.eval(lhs);
-                let arg = arg
-                    .as_ref()
-                    .map(|arg| self.eval(arg.as_ref()))
-                    .and_then(|arg| arg.as_array());
 
-                match op {
-                    Operator::Call => match value {
-                        Dynamic::Function {
-                            arg_names,
-                            body,
-                            scope,
-                            ..
-                        } => self.call_fn(None, Some(scope), &arg_names, &arg.unwrap(), &body),
-                        Dynamic::RustFunction {
-                            callback, scope, ..
-                        } => {
-                            self.scopes.push(scope.unwrap_or_default());
-                            let res = callback(self, arg.unwrap());
-                            self.scopes.pop();
-                            res.unwrap_or_default()
-                        }
-                        _ => todo!(),
-                    },
-                    _ => todo!(),
+                let arg = arg.as_ref().map(|arg| self.eval(arg.as_ref()));
+
+                let class = self.find_class(&value.type_name()).unwrap().clone();
+
+                if let Some(cb) = class.get_op_impl(&op) {
+                    cb.invoke(
+                        self,
+                        value,
+                        match op {
+                            Operator::Call => arg.and_then(|x| x.as_array()).unwrap(),
+                            _ => vec![arg.unwrap()],
+                        },
+                    )
+                } else {
+                    Dynamic::Null
                 }
             }
             Expression::BinaryOp(lhs, op, rhs) => {
@@ -159,35 +149,11 @@ impl Interpreter {
                 };
                 let (lhs, args) = match op {
                     Operator::Dot => match rhs.as_ref() {
-                        Expression::Identifier(x) => {
+                        Expression::ClassIdentifier(x) | Expression::Identifier(x) => {
                             (self.eval(lhs.as_ref()), vec![Dynamic::String(x.clone())])
                         }
                         _ => unreachable!(rhs),
                     },
-                    Operator::Namespace => {
-                        let module_name = lhs.to_string();
-                        let module = self.modules.get(&module_name).cloned();
-
-                        if let Some(module) = module {
-                            match rhs.as_ref() {
-                                Expression::Identifier(name) => {
-                                    if let Some(variable) = module.variables.get(name) {
-                                        return variable.clone();
-                                    } else {
-                                        panic!(
-                                            "Variable with name {} doesn't exist in {}",
-                                            name, module_name
-                                        );
-                                    }
-                                }
-                                _ => {}
-                            };
-                        } else {
-                            panic!("Module with name {} doesn't exist", module_name);
-                        }
-
-                        unreachable!()
-                    }
                     Operator::Assign => {
                         let path_str = lhs.to_string();
                         let path_tokens = path_str.split(".").collect::<Vec<&str>>();
@@ -207,11 +173,7 @@ impl Interpreter {
                     let field_name = args[0].clone().as_str().unwrap();
 
                     if let Some(f) = class.static_functions.get(&field_name).cloned() {
-                        Dynamic::RustFunction {
-                            name: f.name.clone(),
-                            scope: Some(f.scope.clone()),
-                            callback: Arc::new(move |i, arg| Some(f.invoke(i, arg))),
-                        }
+                        f.into()
                     } else {
                         panic!(
                             "The class {} doesn't have a static function called {}",
@@ -489,21 +451,25 @@ impl Interpreter {
             Ast::ImportStatement(path) => {
                 let mod_name = self.module_path_to_name(path);
                 let file_path = self.module_path_to_file_path(path);
-                if let Some(module) = self.module_cache.get(&file_path) {
-                    self.modules.insert(mod_name.clone(), module.clone());
+                if let Some(module) = self.module_cache.get(&file_path).cloned() {
+                    self.get_scope_mut().set(mod_name, Dynamic::Module(module));
                 } else {
-                    self.with_clean_state(Scope::default(), Some(file_path.clone()), |i| {
-                        let mut parser = Parser::new();
-                        let content = std::fs::read_to_string(&file_path).unwrap();
+                    let module =
+                        self.with_clean_state(Scope::default(), Some(file_path.clone()), |i| {
+                            let mut parser = Parser::new();
+                            let content = std::fs::read_to_string(&file_path).unwrap();
 
-                        parser.set_source(file_path.clone(), &content);
+                            parser.set_source(file_path.clone(), &content);
 
-                        let program = parser.parse();
-                        let module = i.execute(&program);
+                            let program = parser.parse();
+                            let module = i.execute(&program);
 
-                        i.module_cache.insert(file_path.clone(), module.clone());
-                        i.modules.insert(mod_name.clone(), module);
-                    });
+                            i.module_cache.insert(file_path.clone(), module.clone());
+
+                            module
+                        });
+
+                    self.get_scope_mut().set(mod_name, Dynamic::Module(module));
                 }
             }
             Ast::ExportStatement(ast) => {
@@ -517,6 +483,18 @@ impl Interpreter {
                         }
                         _ => unreachable!(),
                     },
+                    Ast::VariableDefinition(name, _) => {
+                        self.exported_variables.push(name.clone());
+                        self.execute_stmt(ast);
+                    }
+                    Ast::FunctionDefinition(name, _, _) => {
+                        self.exported_variables.push(name.clone());
+                        self.execute_stmt(ast);
+                    }
+                    Ast::ClassDefinition(name, _) => {
+                        self.exported_classes.push(name.clone());
+                        self.execute_stmt(ast);
+                    }
                     _ => todo!(),
                 };
             }
@@ -591,6 +569,18 @@ fn create_default_classes() -> HashMap<String, Class> {
                     unreachable!()
                 }
             })
+            .set_op_impl(Operator::Equal, |_, this, args| {
+                let rhs = &args[0];
+
+                if let Dynamic::Number(this) = this {
+                    match rhs {
+                        Dynamic::Number(x) => Dynamic::Boolean(&this == x),
+                        _ => todo!(),
+                    }
+                } else {
+                    unreachable!()
+                }
+            })
             .set_op_impl(Operator::GreaterThan, |_, this, args| {
                 let rhs = &args[0];
 
@@ -638,23 +628,84 @@ fn create_default_classes() -> HashMap<String, Class> {
                 } else {
                     unreachable!()
                 }
-            })
+            }),
     );
     classes.push(
-        Class::new("string").set_op_impl(Operator::Add, |_, this, args| {
-            let rhs = &args[0];
+        Class::new("string")
+            .set_op_impl(Operator::Add, |_, this, args| {
+                let rhs = &args[0];
 
-            if let Dynamic::String(this) = this {
-                match rhs {
-                    Dynamic::String(x) => Dynamic::String(format!("{}{}", this, x)),
-                    Dynamic::Number(x) => Dynamic::String(format!("{}{}", this, x)),
-                    Dynamic::Boolean(x) => Dynamic::String(format!("{}{}", this, x)),
-                    _ => todo!(),
+                if let Dynamic::String(this) = this {
+                    match rhs {
+                        Dynamic::String(x) => Dynamic::String(format!("{}{}", this, x)),
+                        Dynamic::Number(x) => Dynamic::String(format!("{}{}", this, x)),
+                        Dynamic::Boolean(x) => Dynamic::String(format!("{}{}", this, x)),
+                        _ => todo!(),
+                    }
+                } else {
+                    unreachable!()
                 }
-            } else {
-                unreachable!()
-            }
-        }),
+            })
+            .set_op_impl(Operator::Equal, |_, this, args| {
+                let rhs = &args[0];
+
+                if let Dynamic::String(this) = this {
+                    match rhs {
+                        Dynamic::String(x) => Dynamic::Boolean(&this == x),
+                        _ => todo!(),
+                    }
+                } else {
+                    unreachable!()
+                }
+            })
+            .set_op_impl(Operator::GreaterThan, |_, this, args| {
+                let rhs = &args[0];
+
+                if let Dynamic::String(this) = this {
+                    match rhs {
+                        Dynamic::String(x) => Dynamic::Boolean(&this > x),
+                        _ => todo!(),
+                    }
+                } else {
+                    unreachable!()
+                }
+            })
+            .set_op_impl(Operator::GreaterThanOrEqual, |_, this, args| {
+                let rhs = &args[0];
+
+                if let Dynamic::String(this) = this {
+                    match rhs {
+                        Dynamic::String(x) => Dynamic::Boolean(&this >= x),
+                        _ => todo!(),
+                    }
+                } else {
+                    unreachable!()
+                }
+            })
+            .set_op_impl(Operator::LessThan, |_, this, args| {
+                let rhs = &args[0];
+
+                if let Dynamic::String(this) = this {
+                    match rhs {
+                        Dynamic::String(x) => Dynamic::Boolean(&this < x),
+                        _ => todo!(),
+                    }
+                } else {
+                    unreachable!()
+                }
+            })
+            .set_op_impl(Operator::LessThanOrEqual, |_, this, args| {
+                let rhs = &args[0];
+
+                if let Dynamic::String(this) = this {
+                    match rhs {
+                        Dynamic::String(x) => Dynamic::Boolean(&this <= x),
+                        _ => todo!(),
+                    }
+                } else {
+                    unreachable!()
+                }
+            }),
     );
     classes.push(
         Class::new("array")
@@ -668,6 +719,37 @@ fn create_default_classes() -> HashMap<String, Class> {
                 }
 
                 this
+            })
+            .set_op_impl(Operator::Equal, |_, this, args| {
+                let rhs = &args[0];
+
+                todo!();
+
+                if let Dynamic::Array(this) = this {
+                    match rhs {
+                        Dynamic::Array(x) => Dynamic::Boolean(true),
+                        _ => todo!(),
+                    }
+                } else {
+                    unreachable!()
+                }
+            })
+            .set_op_impl(Operator::Add, |_interp, this, args| {
+                if let Dynamic::Array(items_ref) = &this {
+                    let items = items_ref.lock().unwrap();
+                    match args[0].clone() {
+                        Dynamic::Array(x) => Dynamic::new_array(
+                            items
+                                .clone()
+                                .into_iter()
+                                .chain(x.lock().unwrap().clone())
+                                .collect_vec(),
+                        ),
+                        _ => todo!(),
+                    }
+                } else {
+                    unreachable!()
+                }
             })
             .set_op_impl(Operator::Index, |_interp, this, args| {
                 if let Dynamic::Array(items_ref) = &this {
@@ -684,6 +766,16 @@ fn create_default_classes() -> HashMap<String, Class> {
             }),
     );
     classes.push(Class::new("null"));
+    classes.push(Class::new("module"));
+    classes.push(
+        Class::new("class").set_op_impl(Operator::Constructor, |i, this, args| {
+            if let Dynamic::Class(this) = this {
+                Dynamic::new_instance(&this.name, Default::default())
+            } else {
+                unreachable!()
+            }
+        }),
+    );
     classes.push(Class::new("object"));
     classes.push(Class::new("boolean"));
     classes.push(

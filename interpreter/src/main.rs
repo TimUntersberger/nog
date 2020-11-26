@@ -61,12 +61,6 @@ mod parser;
 mod scope;
 mod token;
 
-/// # Ideas
-///
-/// ## Comment code
-///
-/// What if we have something like `///` in rust for nog. This could make it possible to extract
-/// documentation from the AST, if we ever need to support generating documentation/lsp.
 pub fn main() {
     let root_path = [
         std::env::current_dir().unwrap().to_str().unwrap(),

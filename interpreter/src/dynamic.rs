@@ -6,7 +6,10 @@ use std::{
     sync::Mutex,
 };
 
-use super::{ast::Ast, expression::Expression, interpreter::Interpreter, scope::Scope};
+use super::{
+    ast::Ast, class::Class, expression::Expression, interpreter::Interpreter, module::Module,
+    scope::Scope,
+};
 
 pub mod object_builder;
 
@@ -18,6 +21,8 @@ pub enum Dynamic {
     Lazy(Expression),
     Array(Arc<Mutex<Vec<Dynamic>>>),
     Object(Arc<Mutex<HashMap<String, Dynamic>>>),
+    Module(Module),
+    Class(Class),
     Function {
         name: String,
         arg_names: Vec<String>,
@@ -54,6 +59,13 @@ impl Dynamic {
                 let fields = fields_ref.lock().unwrap();
                 fields.get(key).cloned().unwrap_or_default()
             }
+            Dynamic::Module(module) => module
+                .variables
+                .get(key)
+                .cloned()
+                .or_else(|| module.functions.get(key).map(|x| x.clone().into()))
+                .or_else(|| module.classes.get(key).map(|x| x.clone().into()))
+                .unwrap_or_default(),
             _ => Dynamic::Null,
         }
     }
@@ -108,7 +120,9 @@ impl Dynamic {
             Dynamic::String(_) => "string",
             Dynamic::Number(_) => "number",
             Dynamic::Lazy(_) => "lazy",
+            Dynamic::Module(_) => "module",
             Dynamic::Boolean(_) => "boolean",
+            Dynamic::Class(_) => "class",
             Dynamic::Array(_) => "array",
             Dynamic::Object(_) => "object",
             Dynamic::ClassInstance(name, _) => name,
@@ -199,6 +213,8 @@ impl Display for Dynamic {
             Dynamic::Boolean(boolean) => boolean.to_string(),
             Dynamic::String(string) => format!(r#""{}""#, string),
             Dynamic::Lazy(expr) => expr.to_string(),
+            Dynamic::Module(module) => format!("module {:#?}", module),
+            Dynamic::Class(class) => format!("class {}", class.name),
             Dynamic::Array(items_ref) => {
                 let items = items_ref.lock().unwrap();
                 if items.is_empty() {

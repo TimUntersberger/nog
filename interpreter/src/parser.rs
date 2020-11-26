@@ -279,10 +279,13 @@ impl<'a> Parser<'a> {
                 Token::ClassIdentifier(data) => {
                     Ast::Expression(Expression::ClassIdentifier(data.value.to_string()))
                 }
+                Token::Var(_) => self.parse_var_definition()?,
+                Token::Class(_) => self.parse_class_definition()?,
+                Token::Fn(_) => self.parse_fn_definition()?,
                 Token::Identifier(data) => {
                     Ast::Expression(Expression::Identifier(data.value.to_string()))
                 }
-                _ => panic!("Expected either a class or a variable"),
+                _ => panic!("Expected either a class, variable or function"),
             };
 
             Ok(Ast::ExportStatement(Box::new(ast)))

@@ -35,79 +35,19 @@ impl Class {
             fields.insert(key.clone(), value.clone());
             value.clone()
         })
-        .set_op_impl(Operator::Dot, |interp, this, args| {
-            let class_name = this.type_name();
-            let fields_ref = match &this {
-                Dynamic::ClassInstance(_, fields) => fields.clone(),
-                Dynamic::Object(fields) => fields.clone(),
-                _ => Default::default(),
-            };
-            let fields = fields_ref.lock().unwrap();
-
-            let rhs = &args[0];
-
-            match rhs {
-                Dynamic::String(x) => fields
-                    .get(x)
-                    .cloned()
-                    .or_else(|| {
-                        interp
-                            .classes
-                            .get(&class_name)
-                            .cloned()
-                            .and_then(|class| class.functions.get(x).cloned())
-                            .map(|method| Dynamic::RustFunction {
-                                name: x.clone(),
-                                scope: None,
-                                callback: Arc::new(move |i, args| {
-                                    Some(method.invoke(i, this.clone(), args))
-                                }),
-                            })
-                    })
-                    .unwrap_or_default()
-                    .clone(),
-                Dynamic::Array(vec_ref) => {
-                    unreachable!();
-                    //let vec = vec_ref.lock().unwrap();
-                    ////TODO: Can no longer assume that this is a string
-                    //let fn_name = vec[0].clone().as_str().unwrap();
-                    //let args = vec[1].clone().as_array().unwrap();
-
-                    //if class_name == "object" {
-                    //    if let Some(var) = fields.get(&fn_name) {
-                    //        match var {
-                    //            Dynamic::RustFunction { callback, .. } => {
-                    //                callback(interp, args).unwrap_or_default()
-                    //            }
-                    //            Dynamic::Function {
-                    //                body,
-                    //                arg_names,
-                    //                scope,
-                    //                ..
-                    //            } => interp.call_fn(
-                    //                None,
-                    //                Some(scope.clone()),
-                    //                arg_names,
-                    //                &args,
-                    //                body,
-                    //            ),
-                    //            _ => todo!(),
-                    //        }
-                    //    } else {
-                    //        todo!("{}", fn_name)
-                    //    }
-                    //} else {
-                    //    let class = interp.classes.get(&class_name).unwrap().clone();
-
-                    //    if let Some(method) = class.functions.get(&fn_name) {
-                    //        method.invoke(interp, this, args)
-                    //    } else {
-                    //        todo!("{}", fn_name)
-                    //    }
-                    //}
-                }
-                _ => todo!(),
-            }
+        .set_op_impl(Operator::Dot, |_, this, args| {
+            let field = args[0].clone().as_str().unwrap();
+            this.get_field(&field)
+        })
+        .set_op_impl(Operator::And, |_, this, args| {
+            let lhs = this.is_true();
+            let rhs = args[0].is_true();
+            Dynamic::Boolean(lhs && rhs)
+        })
+        .set_op_impl(Operator::Or, |_, this, args| {
+            let lhs = this.is_true();
+            let rhs = args[0].is_true();
+            Dynamic::Boolean(lhs || rhs)
         })
     }
 
@@ -153,7 +93,6 @@ impl Class {
 
 impl Into<Dynamic> for Class {
     fn into(self) -> Dynamic {
-        let fields = HashMap::new();
-        Dynamic::new_object(fields)
+        Dynamic::Class(self)
     }
 }
