@@ -1,4 +1,4 @@
-use log::debug;
+use log::{debug,error};
 
 use crate::{
     event::Event, system::NativeWindow, system::SystemResult,
@@ -15,7 +15,10 @@ pub fn handle(state: &mut AppState) -> SystemResult {
         .and_then(|g| g.remove_by_window_id(window.id).map(|t| (g.id, t)))
         .map(|(id, mut window)| {
             debug!("Unmanaging window '{}' | {}", window.title, window.id);
-            window.cleanup();
+            match window.cleanup() {
+                Err(e) => error!("Error cleaning up window {} {:?}", window.id, e),
+                _ => ()
+            }
 
             id
         });

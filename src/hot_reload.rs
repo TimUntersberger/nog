@@ -2,7 +2,7 @@ use std::{sync::Arc, thread, time::Duration};
 
 use parking_lot::Mutex;
 
-use crate::{bar, config::Config, startup, system::SystemResult, task_bar, AppState, keybindings::KbManager};
+use crate::{bar, config::Config, startup, system::SystemResult, AppState, keybindings::KbManager};
 
 pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> SystemResult {
     let mut state = state_arc.lock();

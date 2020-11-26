@@ -11,7 +11,6 @@ use crate::{
     tile_grid::{
         text_renderer::TextRenderer, node::Node, node::NodeInfo, 
         graph_wrapper::GraphWrapper, tile_render_info::TileRenderInfo,
-        store::Store
     },
 };
 use std::cmp;
@@ -484,7 +483,8 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     }
     pub fn close_focused(&mut self) -> Option<NativeWindow> {
         if let Some(focused_node) = self.focused_id.map(|id| self.graph.node(id)) {
-            self.remove_by_window_id(focused_node.get_window().id);
+            let window_id = focused_node.get_window().id;
+            self.remove_by_window_id(window_id);
         }
 
         None

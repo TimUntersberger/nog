@@ -11,6 +11,7 @@ use crate::{
 };
 use std::cmp::Ordering;
 use task_bar::{Taskbar, TaskbarPosition};
+use log::error;
 
 #[derive(Default, Debug, Clone)]
 pub struct Display {
@@ -224,10 +225,13 @@ pub fn init(config: &Config) -> Vec<Display> {
         Store::save(i, grid.to_string());
 
         if config.remove_title_bar {
-            grid.modify_windows(|window| {
-                window.remove_title_bar(config.use_border)?;
-                Ok(())
-            });
+            match grid.modify_windows(|window| {
+                      window.remove_title_bar(config.use_border)?;
+                      Ok(())
+                  }) {
+                Err(e) => error!("Error while removing title bar {:?}", e),
+                _ => ()
+            }
         }
 
         if let Some(d) = displays.get_mut((monitor - 1) as usize) {
