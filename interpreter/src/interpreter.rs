@@ -725,5 +725,27 @@ pub fn create_default_variables() -> HashMap<String, Dynamic> {
         .function("typeof", |_, args| {
             args.get(0).map(|a| a.type_name().into())
         })
+        .function("range", |_, args| {
+            Some(match args.len() {
+                1 => {
+                    let count = number!(args[0]);
+                    let mut items = Vec::new();
+                    for i in 0..count {
+                        items.push(Dynamic::Number(i));
+                    }
+                    Dynamic::new_array(items)
+                },
+                2 => {
+                    let start = number!(args[0]);
+                    let count = number!(args[1]);
+                    let mut items = Vec::new();
+                    for i in start..start+count {
+                        items.push(Dynamic::Number(i));
+                    }
+                    Dynamic::new_array(items)
+                },
+                _ => todo!()
+            })
+        })
         .build()
 }
