@@ -122,17 +122,6 @@ impl<'a> Parser<'a> {
         Ok(args)
     }
 
-    fn parse_fn_call(&mut self) -> Result<Ast, String> {
-        let ident = match self.lexer.next() {
-            Some(Token::Identifier(data)) => data.value.to_string(),
-            _ => todo!(),
-        };
-
-        consume!(self.lexer, Token::LParan, "(")?;
-
-        Ok(Ast::FunctionCall(ident, self.parse_args()?))
-    }
-
     fn parse_fn_definition(&mut self) -> Result<Ast, String> {
         consume!(self.lexer, Token::Fn, "fn")?;
         let name = consume!(self.lexer, Token::Identifier, "identifier")?;
@@ -160,6 +149,15 @@ impl<'a> Parser<'a> {
             args.iter().map(|a| a.to_string()).collect(),
             body,
         ))
+    }
+
+    fn parse_while_statement(&mut self) -> Result<Ast, String> {
+        let prev_token = consume!(self.lexer, Token::While, "while")?;
+        let cond = self.parse_expr(Some(prev_token))?;
+        consume!(self.lexer, Token::LCurly, "{", true)?;
+        let block = self.parse_stmts()?;
+
+        Ok(Ast::WhileStatement(cond, block))
     }
 
     fn parse_if(&mut self) -> Result<Ast, String> {
@@ -307,6 +305,34 @@ impl<'a> Parser<'a> {
         Ok(Ast::ReturnStatement(value))
     }
 
+    fn parse_documentation(&mut self) -> Result<Ast, String> {
+        let mut lines = Vec::new();
+        let mut line = Vec::new();
+
+        consume!(self.lexer, Token::TripleSlash, "///").unwrap();
+
+        while let Some(token) = self.lexer.next() {
+            match token {
+                Token::NewLine(_) => {
+                    lines.push(line.join(" "));
+                    line = Vec::new();
+                    if let Some(Token::TripleSlash(_)) = self.lexer.peek() {
+                        self.lexer.next();
+                    } else {
+                        break;
+                    }
+                },
+                _ => {
+                    line.push(token.text().to_string())
+                }
+            }
+        }
+
+        dbg!(&lines);
+
+        Ok(Ast::Documentation(lines))
+    }
+
     fn parse_var_definition(&mut self) -> Result<Ast, String> {
         consume!(self.lexer, Token::Var, "var")?;
         let ident = consume!(self.lexer, Token::Identifier, "identifier")?;
@@ -335,7 +361,11 @@ impl<'a> Parser<'a> {
                     }
                     continue;
                 }
+                Token::TripleSlash(_) => self.parse_documentation(),
                 Token::Return(_) => self.parse_return_statement(),
+                Token::Break(_) => Ok(Ast::BreakStatement),
+                Token::Continue(_) => Ok(Ast::ContinueStatement),
+                Token::While(_) => self.parse_while_statement(),
                 Token::Class(_) => self.parse_class_definition(),
                 Token::Var(_) => self.parse_var_definition(),
                 Token::Op(_) => self.parse_op_implementation(),
@@ -361,23 +391,22 @@ impl<'a> Parser<'a> {
                 Token::Identifier(_) => {
                     if let Some(token) = self.lexer.peek() {
                         match token {
-                            Token::LParan(_) => self.parse_expr(None).map(|x| Ast::Expression(x)),
                             Token::Equal(_) => self.parse_var_assignment(),
                             Token::Dot(_) | Token::DoubleColon(_) => {
                                 Ok(Ast::Expression(self.parse_expr(None)?))
-                            }
-                            _ => unreachable!(token.text()),
+                            },
+                            _ => self.parse_expr(None).map(|x| Ast::Expression(x)),
                         }
                     } else {
                         unreachable!()
                     }
                 }
                 Token::RCurly(_) => {
+                    self.lexer.next();
                     if depth == 0 {
                         break;
                     } else {
                         depth -= 1;
-                        self.lexer.next();
                         continue;
                     }
                 }
@@ -437,6 +466,29 @@ mod test {
                 (Expression::BooleanLiteral(true), vec![]),
                 (Expression::BooleanLiteral(true), vec![]),
             ]),
+        );
+    }
+
+    #[test]
+    pub fn while_loop_with_if_stmt() {
+        expect(
+            r#"
+                while true {
+                    if true {}
+                    print();
+                }
+            "#,
+            WhileStatement(
+                Expression::BooleanLiteral(true),
+                vec![
+                    IfStatement(vec![(Expression::BooleanLiteral(true), vec![])]),
+                    Expression(Expression::PostOp(
+                        Box::new(Expression::Identifier("print".into())),
+                        "()".into(),
+                        Some(Box::new(Expression::ArrayLiteral(vec![]))),
+                    )),
+                ],
+            ),
         );
     }
 }

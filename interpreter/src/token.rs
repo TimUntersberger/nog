@@ -57,10 +57,18 @@ pub enum Token<'a> {
     StringLiteral(TokenData<&'a str>),
     #[token("#", str_token_data)]
     Hash(TokenData<&'a str>),
+    #[token("++", str_token_data)]
+    PlusPlus(TokenData<&'a str>),
+    #[token("--", str_token_data)]
+    MinusMinus(TokenData<&'a str>),
+    #[token("///", str_token_data)]
+    TripleSlash(TokenData<&'a str>),
     #[token("export", str_token_data)]
     Export(TokenData<&'a str>),
     #[token("static", str_token_data)]
     Static(TokenData<&'a str>),
+    #[token("while", str_token_data)]
+    While(TokenData<&'a str>),
     #[token("var", str_token_data)]
     Var(TokenData<&'a str>),
     #[token("=>", str_token_data)]
@@ -69,6 +77,18 @@ pub enum Token<'a> {
     Class(TokenData<&'a str>),
     #[token("import", str_token_data)]
     Import(TokenData<&'a str>),
+    #[token("break", str_token_data)]
+    Break(TokenData<&'a str>),
+    #[token("+", str_token_data)]
+    Plus(TokenData<&'a str>),
+    #[token("-", str_token_data)]
+    Minus(TokenData<&'a str>),
+    #[token("*", str_token_data)]
+    Star(TokenData<&'a str>),
+    #[token("/", str_token_data)]
+    Slash(TokenData<&'a str>),
+    #[token("continue", str_token_data)]
+    Continue(TokenData<&'a str>),
     #[token("op", str_token_data)]
     Op(TokenData<&'a str>),
     #[token("null", str_token_data)]
@@ -82,8 +102,6 @@ pub enum Token<'a> {
         location: lexer.span()
     }))]
     BooleanLiteral(TokenData<bool>),
-    #[regex("(\\+|-|!|\\?|\\*|/)", str_token_data)]
-    Symbol(TokenData<&'a str>),
     #[token("=", str_token_data)]
     Equal(TokenData<&'a str>),
     #[token("return", str_token_data)]
@@ -158,13 +176,19 @@ impl<'a> Token<'a> {
             | Token::NEQ(x)
             | Token::Colon(x)
             | Token::DoubleColon(x)
+            | Token::TripleSlash(x)
             | Token::Export(x)
             | Token::Static(x)
             | Token::Hash(x)
             | Token::Return(x)
+            | Token::Plus(x)
+            | Token::Minus(x)
+            | Token::Star(x)
+            | Token::Slash(x)
             | Token::Comment(x)
+            | Token::While(x)
             | Token::Import(x)
-            | Token::Symbol(x)
+            | Token::Continue(x)
             | Token::SemiColon(x)
             | Token::LParan(x)
             | Token::RParan(x)
@@ -173,7 +197,10 @@ impl<'a> Token<'a> {
             | Token::LCurly(x)
             | Token::And(x)
             | Token::Or(x)
+            | Token::PlusPlus(x)
+            | Token::MinusMinus(x)
             | Token::RCurly(x)
+            | Token::Break(x)
             | Token::NewLine(x)
             | Token::Equal(x)
             | Token::Arrow(x)

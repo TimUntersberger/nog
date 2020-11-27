@@ -184,13 +184,8 @@ where
 
     fn query(&mut self, token: &Self::Input, _: &mut Peekable<&mut I>) -> pratt::Result<Affix> {
         let res = match token {
-            Token::Symbol(data) => match data.value {
-                "+" => Affix::Infix(Precedence(3), Associativity::Left),
-                "-" => Affix::Infix(Precedence(3), Associativity::Left),
-                "*" => Affix::Infix(Precedence(4), Associativity::Left),
-                "/" => Affix::Infix(Precedence(4), Associativity::Left),
-                _ => unreachable!(data.value),
-            },
+            Token::Plus(_) | Token::Minus(_) => Affix::Infix(Precedence(3), Associativity::Left),
+            Token::Star(_) | Token::Slash(_) => Affix::Infix(Precedence(4), Associativity::Left),
             Token::GT(_)
             | Token::GTE(_)
             | Token::LT(_)
@@ -216,6 +211,7 @@ where
                 Token::ClassIdentifier(_) => Affix::Postfix(Precedence(10)),
                 _ => Affix::Nilfix,
             },
+            Token::MinusMinus(_) | Token::PlusPlus(_) => Affix::Postfix(Precedence(10)),
             Token::Arrow(_) => Affix::Nilfix,
             Token::RParan(_) => Affix::Nilfix,
             Token::Hash(_) => Affix::Nilfix,
@@ -414,6 +410,12 @@ where
                     "{}".into(),
                     Some(Box::new(Expression::ObjectLiteral(fields))),
                 ))
+            }
+            Token::MinusMinus(_) => {
+                Ok(Expression::PostOp(Box::new(lhs), "--".into(), None))
+            }
+            Token::PlusPlus(_) => {
+                Ok(Expression::PostOp(Box::new(lhs), "++".into(), None))
             }
             _ => todo!(),
         }
@@ -847,6 +849,30 @@ mod test {
                 class("User"),
                 "{}",
                 Some(object(hashmap! {"test" => number(1)}))
+            )
+        );
+    }
+
+    #[test]
+    fn minus_minus() {
+        assert_eq!(
+            parse("test--"),
+            post(
+                ident("test"),
+                "--",
+                None
+            )
+        );
+    }
+
+    #[test]
+    fn plus_plus() {
+        assert_eq!(
+            parse("test++"),
+            post(
+                ident("test"),
+                "++",
+                None
             )
         );
     }

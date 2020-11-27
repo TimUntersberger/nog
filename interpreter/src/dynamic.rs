@@ -142,6 +142,74 @@ impl Dynamic {
     }
 }
 
+impl std::ops::Add for Dynamic {
+    type Output = Dynamic;
+
+    fn add(self, other: Dynamic) -> Self::Output {
+        match self {
+            Dynamic::Number(x) => match other {
+                Dynamic::Number(y) => (x + y).into(),
+                _ => Dynamic::Null,
+            },
+            Dynamic::String(x) => match other {
+                Dynamic::String(y) => format!("{}{}", x, y).into(),
+                Dynamic::Boolean(y) => format!("{}{}", x, y).into(),
+                Dynamic::Number(y) => format!("{}{}", x, y).into(),
+                _ => Dynamic::Null,
+            },
+            Dynamic::Array(x) => match other {
+                Dynamic::Array(y) => Dynamic::new_array(
+                    x.lock()
+                        .unwrap()
+                        .clone()
+                        .into_iter()
+                        .chain(y.lock().unwrap().clone())
+                        .collect_vec(),
+                ),
+                _ => Dynamic::Null,
+            },
+            _ => Dynamic::Null,
+        }
+        .into()
+    }
+}
+
+impl std::cmp::PartialEq for Dynamic {
+    fn eq(&self, other: &Dynamic) -> bool {
+        match self {
+            Dynamic::Number(x) => match other {
+                Dynamic::Number(y) => x == y,
+                _ => false,
+            },
+            Dynamic::String(x) => match other {
+                Dynamic::String(y) => x == y,
+                _ => false,
+            },
+            Dynamic::Boolean(x) => match other {
+                Dynamic::Boolean(y) => x == y,
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+}
+
+impl std::cmp::PartialOrd for Dynamic {
+    fn partial_cmp(&self, other: &Dynamic) -> Option<std::cmp::Ordering> {
+        match self {
+            Dynamic::Number(x) => match other {
+                Dynamic::Number(y) => Some(x.cmp(y)),
+                _ => None,
+            },
+            Dynamic::String(x) => match other {
+                Dynamic::String(y) => Some(x.cmp(y)),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+}
+
 impl From<Expression> for Dynamic {
     fn from(expr: Expression) -> Self {
         Dynamic::Lazy(expr)
@@ -173,6 +241,24 @@ impl<T: Into<Dynamic>> Into<Dynamic> for Vec<T> {
 impl From<String> for Dynamic {
     fn from(val: String) -> Self {
         Dynamic::String(val)
+    }
+}
+
+impl From<i32> for Dynamic {
+    fn from(val: i32) -> Self {
+        Dynamic::Number(val)
+    }
+}
+
+impl From<()> for Dynamic {
+    fn from(_: ()) -> Self {
+        Dynamic::Null
+    }
+}
+
+impl From<bool> for Dynamic {
+    fn from(val: bool) -> Self {
+        Dynamic::Boolean(val)
     }
 }
 
