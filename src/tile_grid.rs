@@ -10,7 +10,7 @@ use crate::{
     system::WindowId,
     tile_grid::{
         text_renderer::TextRenderer, node::Node, node::NodeInfo, 
-        graph_wrapper::GraphWrapper, tile_render_info::TileRenderInfo,
+        graph_wrapper::GraphWrapper, tile_render_info::TileRenderInfo
     },
 };
 use std::cmp;
@@ -935,8 +935,8 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                 Node::Row(info) => { self.graph.swap_node(node_id, Node::column(info.order, info.size)); },
                 _ => ()
             }
-         }
-     }
+        }
+    }
     /// Iterates nodes in tile grid and removes any that are no longer valid windows
     pub fn remove_empty_tiles(&mut self) {
         for node_id in self.graph.nodes() {
@@ -983,7 +983,11 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
         if target.len() == 0 { return; }
 
         self.inner_from_string(&target[..], None);
-        self.remove_empty_tiles();
+
+        #[cfg(not(test))] // TODO: Need to refactor Window to be able to fake calls in unit tests
+        {
+            self.remove_empty_tiles();
+        }
     }
     fn inner_from_string(&mut self, target: &str, parent_id: Option<usize>) -> usize {
         // intended to get the matching brace when nested children occur [ [ [ ] ] ]

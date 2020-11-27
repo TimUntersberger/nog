@@ -1,5 +1,6 @@
 use crate::{bar, popup, system::SystemResult, tile_grid::store::Store};
 use crate::{info, AppState};
+use log::error;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
@@ -52,11 +53,25 @@ pub fn turn_work_mode_on(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
         state = state_arc.lock();
     }
 
+    let remove_title_bar = state.config.remove_title_bar;
+    let use_border = state.config.use_border;
     let mut stored_grids: Vec<String> = Store::load().into_iter().rev().collect();
     for display in state.displays.iter_mut() {
         for grid in display.grids.iter_mut() {
             grid.from_string(stored_grids.pop().unwrap_or("".into()));
             Store::save(grid.id, grid.to_string());
+
+            if remove_title_bar {
+                match grid.modify_windows(|window| {
+                          window.remove_title_bar(use_border)?;
+                          Ok(())
+                      }) {
+                    Err(e) => error!("Error while removing title bar {:?}", e),
+                    _ => ()
+                }
+            }
+
+            grid.hide(); // hides all the windows just loaded into the grid
         }
     }
 

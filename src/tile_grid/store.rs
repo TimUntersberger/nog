@@ -1,8 +1,6 @@
 use std::{fs,path::PathBuf};
 use log::{info,error};
 
-// TODO: need to hide tiles after loading them so they aren't visible if user is on an empty workspace (like workspace 1 when nog loads)
-
 const TEMPLATE: &'static str = "\n\n\n\n\n\n\n\n\n\n"; // TODO: check for OS compatability? 
 pub struct Store { }
 
@@ -15,7 +13,7 @@ impl Store {
             path = dirs::config_dir().expect("Failed to get config directory");
 
             path.push("nog");
-            path.push("grid.nog");
+            path.push("workspaces.grid");
         }
 
         path
