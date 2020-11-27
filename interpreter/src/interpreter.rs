@@ -157,6 +157,21 @@ impl Interpreter {
 
     fn eval(&mut self, expr: &Expression) -> Dynamic {
         match expr {
+            Expression::PreOp(op, rhs) => {
+                let value = self.eval(rhs);
+                match op.as_str() {
+                    "-" => match value {
+                        Dynamic::Number(x) => (-x).into(),
+                        _ => Dynamic::Null
+                    },
+                    "+" => match value {
+                        Dynamic::Number(x) => (x).into(),
+                        _ => Dynamic::Null
+                    },
+                    "!" => (!value.is_true()).into(),
+                    _ => Dynamic::Null
+                }
+            },
             Expression::PostOp(lhs, op, arg) => {
                 let op = Operator::from_str(op).unwrap();
                 let value = self.eval(lhs);
@@ -179,7 +194,7 @@ impl Interpreter {
                         Operator::Increment | Operator::Decrement => {
                             let ident = lhs.to_string();
                             self.assign_variable(ident, res.clone());
-                        },
+                        }
                         _ => {}
                     };
 
@@ -473,6 +488,46 @@ impl Interpreter {
             Ast::ReturnStatement(expr) => {
                 self.return_expr = Some(expr.clone());
             }
+            Ast::PlusAssignment(name, expr) => {
+                let new_value = self.eval(
+                    &Expression::BinaryOp(
+                        Box::new(Expression::Identifier(name.into())), 
+                        "+".into(), 
+                        Box::new(expr.clone())
+                    )
+                );
+                self.assign_variable(name.clone(), new_value);
+            },
+            Ast::MinusAssignment(name, expr) => {
+                let new_value = self.eval(
+                    &Expression::BinaryOp(
+                        Box::new(Expression::Identifier(name.into())), 
+                        "-".into(), 
+                        Box::new(expr.clone())
+                    )
+                );
+                self.assign_variable(name.clone(), new_value);
+            },
+            Ast::TimesAssignment(name, expr) => {
+                let new_value = self.eval(
+                    &Expression::BinaryOp(
+                        Box::new(Expression::Identifier(name.into())), 
+                        "*".into(), 
+                        Box::new(expr.clone())
+                    )
+                );
+                self.assign_variable(name.clone(), new_value);
+            },
+            Ast::DivideAssignment(name, expr) => {
+                let new_value = self.eval(
+                    &Expression::BinaryOp(
+                        Box::new(Expression::Identifier(name.into())), 
+                        "/".into(), 
+                        Box::new(expr.clone())
+                    )
+                );
+                self.assign_variable(name.clone(), new_value);
+            },
             Ast::BreakStatement => {
                 self.broken = true;
             }
@@ -593,13 +648,11 @@ impl Interpreter {
 fn create_default_classes() -> HashMap<String, Class> {
     let mut classes = Vec::new();
 
-    classes.push(Class::new("number")
-                 .set_op_impl(Operator::Increment, |_, this, _| {
-                    number!(this) + 1
-                })
-                 .set_op_impl(Operator::Decrement, |_, this, _| {
-                    number!(this) - 1
-                }));
+    classes.push(
+        Class::new("number")
+            .set_op_impl(Operator::Increment, |_, this, _| number!(this) + 1)
+            .set_op_impl(Operator::Decrement, |_, this, _| number!(this) - 1),
+    );
     classes.push(Class::new("string"));
     classes.push(
         Class::new("array")

@@ -166,13 +166,13 @@ impl<'a> Parser<'a> {
         let prev_token = consume!(self.lexer, Token::If, "if")?;
         let cond = self.parse_expr(Some(prev_token))?;
         consume!(self.lexer, Token::LCurly, "{", true)?;
+
         let block = self.parse_stmts()?;
         branches.push((cond, block));
 
         while let Some(token) = &self.lexer.peek() {
             match token {
                 Token::ElseIf(_) => {
-                    self.lexer.next();
                     let prev_token = consume!(self.lexer, Token::ElseIf, "elif")?;
                     let cond = self.parse_expr(Some(prev_token))?;
                     consume!(self.lexer, Token::LCurly, "{", true)?;
@@ -180,7 +180,6 @@ impl<'a> Parser<'a> {
                     branches.push((cond, block));
                 }
                 Token::Else(_) => {
-                    self.lexer.next();
                     consume!(self.lexer, Token::Else, "else")?;
                     let cond = Expression::BooleanLiteral(true);
                     consume!(self.lexer, Token::LCurly, "{", true)?;
@@ -203,6 +202,38 @@ impl<'a> Parser<'a> {
         let value = self.parse_expr(Some(prev_token))?;
 
         Ok(Ast::VariableAssignment(ident, value))
+    }
+
+    fn parse_plus_assignment(&mut self) -> Result<Ast, String> {
+        let ident = consume!(self.lexer, Token::Identifier, "identifier")?;
+        let prev_token = consume!(self.lexer, Token::PlusEqual, "+=")?;
+        let value = self.parse_expr(Some(prev_token))?;
+
+        Ok(Ast::PlusAssignment(ident.text().to_string(), value))
+    }
+
+    fn parse_minus_assignment(&mut self) -> Result<Ast, String> {
+        let ident = consume!(self.lexer, Token::Identifier, "identifier")?;
+        let prev_token = consume!(self.lexer, Token::MinusEqual, "-=")?;
+        let value = self.parse_expr(Some(prev_token))?;
+
+        Ok(Ast::MinusAssignment(ident.text().to_string(), value))
+    }
+
+    fn parse_times_assignment(&mut self) -> Result<Ast, String> {
+        let ident = consume!(self.lexer, Token::Identifier, "identifier")?;
+        let prev_token = consume!(self.lexer, Token::StarEqual, "*=")?;
+        let value = self.parse_expr(Some(prev_token))?;
+
+        Ok(Ast::TimesAssignment(ident.text().to_string(), value))
+    }
+
+    fn parse_divide_assignment(&mut self) -> Result<Ast, String> {
+        let ident = consume!(self.lexer, Token::Identifier, "identifier")?;
+        let prev_token = consume!(self.lexer, Token::SlashEqual, "/=")?;
+        let value = self.parse_expr(Some(prev_token))?;
+
+        Ok(Ast::DivideAssignment(ident.text().to_string(), value))
     }
 
     fn parse_class_definition(&mut self) -> Result<Ast, String> {
@@ -321,10 +352,8 @@ impl<'a> Parser<'a> {
                     } else {
                         break;
                     }
-                },
-                _ => {
-                    line.push(token.text().to_string())
                 }
+                _ => line.push(token.text().to_string()),
             }
         }
 
@@ -392,9 +421,13 @@ impl<'a> Parser<'a> {
                     if let Some(token) = self.lexer.peek() {
                         match token {
                             Token::Equal(_) => self.parse_var_assignment(),
+                            Token::PlusEqual(_) => self.parse_plus_assignment(),
+                            Token::MinusEqual(_) => self.parse_minus_assignment(),
+                            Token::StarEqual(_) => self.parse_times_assignment(),
+                            Token::SlashEqual(_) => self.parse_divide_assignment(),
                             Token::Dot(_) | Token::DoubleColon(_) => {
                                 Ok(Ast::Expression(self.parse_expr(None)?))
-                            },
+                            }
                             _ => self.parse_expr(None).map(|x| Ast::Expression(x)),
                         }
                     } else {
@@ -466,6 +499,38 @@ mod test {
                 (Expression::BooleanLiteral(true), vec![]),
                 (Expression::BooleanLiteral(true), vec![]),
             ]),
+        );
+    }
+
+    #[test]
+    pub fn plus_shortcut() {
+        expect(
+            r#"test += 1"#,
+            PlusAssignment("test".into(), Expression::NumberLiteral(1)),
+        );
+    }
+
+    #[test]
+    pub fn minus_shortcut() {
+        expect(
+            r#"test -= 1"#,
+            MinusAssignment("test".into(), Expression::NumberLiteral(1)),
+        );
+    }
+
+    #[test]
+    pub fn times_shortcut() {
+        expect(
+            r#"test *= 1"#,
+            TimesAssignment("test".into(), Expression::NumberLiteral(1)),
+        );
+    }
+
+    #[test]
+    pub fn divide_shortcut() {
+        expect(
+            r#"test /= 1"#,
+            DivideAssignment("test".into(), Expression::NumberLiteral(1)),
         );
     }
 

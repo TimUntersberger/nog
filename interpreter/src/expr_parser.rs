@@ -176,15 +176,57 @@ fn parse_inside_parenthesis<'a>(
 
 impl<'a, I> PrattParser<I> for ExprParser<'a>
 where
-    I: Iterator<Item = Token<'a>>,
+    I: Iterator<Item = Token<'a>> + std::fmt::Debug,
 {
     type Error = pratt::NoError;
     type Output = Expression;
     type Input = Token<'a>;
 
+    fn led(
+        &mut self,
+        head: Self::Input,
+        tail: &mut Peekable<&mut I>,
+        info: Affix,
+        lhs: Self::Output,
+    ) -> Result<Self::Output, pratt::PrattError<Self::Input, Self::Error>> {
+        self.prev_token = head.clone();
+        match info {
+            Affix::Infix(precedence, associativity) => {
+                let precedence = Precedence(precedence.0 * 10);
+                let rhs = match associativity {
+                    Associativity::Left => self.parse_input(tail, precedence),
+                    Associativity::Right => self.parse_input(tail, Precedence(precedence.0 - 1)),
+                    Associativity::Neither => self.parse_input(tail, Precedence(precedence.0 + 1)),
+                };
+                self.infix(lhs, head, rhs?, tail)
+                    .map_err(pratt::PrattError::UserError)
+            }
+            Affix::Postfix(_) => self
+                .postfix(lhs, head, tail)
+                .map_err(pratt::PrattError::UserError),
+            Affix::Nilfix => Err(pratt::PrattError::UnexpectedNilfix(head)),
+            Affix::Prefix(_) => Err(pratt::PrattError::UnexpectedPrefix(head)),
+        }
+    }
+
     fn query(&mut self, token: &Self::Input, _: &mut Peekable<&mut I>) -> pratt::Result<Affix> {
         let res = match token {
-            Token::Plus(_) | Token::Minus(_) => Affix::Infix(Precedence(3), Associativity::Left),
+            Token::Plus(_) | Token::Minus(_) => match &self.prev_token {
+                Token::Error
+                | Token::Star(_)
+                | Token::Plus(_)
+                | Token::Minus(_)
+                | Token::Slash(_)
+                | Token::Equal(_)
+                | Token::PlusEqual(_)
+                | Token::MinusEqual(_)
+                | Token::StarEqual(_)
+                | Token::SlashEqual(_)
+                | Token::LParan(_)
+                | Token::LBracket(_)
+                | Token::Equal(_) => Affix::Prefix(Precedence(12)),
+                _ => Affix::Infix(Precedence(3), Associativity::Left),
+            },
             Token::Star(_) | Token::Slash(_) => Affix::Infix(Precedence(4), Associativity::Left),
             Token::GT(_)
             | Token::GTE(_)
@@ -197,6 +239,10 @@ where
             Token::Or(_) => Affix::Infix(Precedence(8), Associativity::Left),
             Token::DoubleColon(_) => Affix::Infix(Precedence(11), Associativity::Left),
             Token::Equal(_) => Affix::Infix(Precedence(1), Associativity::Neither),
+            Token::PlusEqual(_) => Affix::Infix(Precedence(1), Associativity::Neither),
+            Token::MinusEqual(_) => Affix::Infix(Precedence(1), Associativity::Neither),
+            Token::StarEqual(_) => Affix::Infix(Precedence(1), Associativity::Neither),
+            Token::SlashEqual(_) => Affix::Infix(Precedence(1), Associativity::Neither),
             Token::LParan(_) | Token::LBracket(_) => match &self.prev_token {
                 Token::LCurly(_)
                 | Token::RCurly(_)
@@ -204,6 +250,10 @@ where
                 | Token::LBracket(_)
                 | Token::Error
                 | Token::Equal(_)
+                | Token::PlusEqual(_)
+                | Token::MinusEqual(_)
+                | Token::StarEqual(_)
+                | Token::SlashEqual(_)
                 | Token::Comma(_) => Affix::Nilfix,
                 _ => Affix::Postfix(Precedence(10)),
             },
@@ -212,6 +262,7 @@ where
                 _ => Affix::Nilfix,
             },
             Token::MinusMinus(_) | Token::PlusPlus(_) => Affix::Postfix(Precedence(10)),
+            Token::ExclamationMark(_) => Affix::Prefix(Precedence(10)),
             Token::Arrow(_) => Affix::Nilfix,
             Token::RParan(_) => Affix::Nilfix,
             Token::Hash(_) => Affix::Nilfix,
@@ -225,6 +276,12 @@ where
             Token::Null(_) => Affix::Nilfix,
             _ => unreachable!("{:?}", token),
         };
+
+        match token {
+            Token::Star(_) | Token::Plus(_) | Token::Minus(_) => {}
+            _ => {}
+        }
+
         Ok(res)
     }
     fn primary(
@@ -374,11 +431,16 @@ where
     }
     fn prefix(
         &mut self,
-        _token: Self::Input,
-        _rhs: Self::Output,
+        token: Self::Input,
+        rhs: Self::Output,
         _: &mut Peekable<&mut I>,
     ) -> pratt::Result<Self::Output> {
-        todo!();
+        match token {
+            Token::ExclamationMark(_) => Ok(Expression::PreOp("!".into(), Box::new(rhs))),
+            Token::Minus(_) => Ok(Expression::PreOp("-".into(), Box::new(rhs))),
+            Token::Plus(_) => Ok(Expression::PreOp("+".into(), Box::new(rhs))),
+            _ => todo!(),
+        }
     }
     fn postfix(
         &mut self,
@@ -411,12 +473,8 @@ where
                     Some(Box::new(Expression::ObjectLiteral(fields))),
                 ))
             }
-            Token::MinusMinus(_) => {
-                Ok(Expression::PostOp(Box::new(lhs), "--".into(), None))
-            }
-            Token::PlusPlus(_) => {
-                Ok(Expression::PostOp(Box::new(lhs), "++".into(), None))
-            }
+            Token::MinusMinus(_) => Ok(Expression::PostOp(Box::new(lhs), "--".into(), None)),
+            Token::PlusPlus(_) => Ok(Expression::PostOp(Box::new(lhs), "++".into(), None)),
             _ => todo!(),
         }
     }
@@ -426,15 +484,13 @@ where
 mod test {
     use super::ExprParser;
     use crate::{ast::Ast, expression::Expression::*};
-    use crate::{expression::Expression, token::Token};
+    use crate::{expression::Expression, lexer::Lexer, token::Token};
     use logos::Logos;
     use pratt::PrattParser;
     use std::collections::HashMap;
 
     fn parse(input: &str) -> Expression {
-        ExprParser::default()
-            .parse(&mut Token::lexer(input))
-            .unwrap()
+        ExprParser::default().parse(&mut Lexer::new(input)).unwrap()
     }
 
     fn binary(lhs: Expression, op: &str, rhs: Expression) -> Expression {
@@ -443,6 +499,10 @@ mod test {
 
     fn post(lhs: Expression, op: &str, value: Option<Expression>) -> Expression {
         Expression::PostOp(Box::new(lhs), op.into(), value.map(|x| Box::new(x)))
+    }
+
+    fn pre(op: &str, lhs: Expression) -> Expression {
+        Expression::PreOp(op.into(), Box::new(lhs))
     }
 
     fn array(items: Vec<Expression>) -> Expression {
@@ -855,25 +915,29 @@ mod test {
 
     #[test]
     fn minus_minus() {
-        assert_eq!(
-            parse("test--"),
-            post(
-                ident("test"),
-                "--",
-                None
-            )
-        );
+        assert_eq!(parse("test--"), post(ident("test"), "--", None));
     }
 
     #[test]
     fn plus_plus() {
+        assert_eq!(parse("test++"), post(ident("test"), "++", None));
+    }
+
+    #[test]
+    fn not_op() {
+        assert_eq!(parse("!true"), pre("!", boolean(true)));
+    }
+
+    #[test]
+    fn negative_op() {
+        assert_eq!(parse("-2"), pre("-", number(2)));
+    }
+
+    #[test]
+    fn negative_op_inside_math() {
         assert_eq!(
-            parse("test++"),
-            post(
-                ident("test"),
-                "++",
-                None
-            )
+            parse("2 * -2 + 1"),
+            binary(binary(number(2), "*", pre("-", number(2))), "+", number(1))
         );
     }
 

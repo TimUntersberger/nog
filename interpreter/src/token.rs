@@ -59,6 +59,14 @@ pub enum Token<'a> {
     Hash(TokenData<&'a str>),
     #[token("++", str_token_data)]
     PlusPlus(TokenData<&'a str>),
+    #[token("+=", str_token_data)]
+    PlusEqual(TokenData<&'a str>),
+    #[token("-=", str_token_data)]
+    MinusEqual(TokenData<&'a str>),
+    #[token("*=", str_token_data)]
+    StarEqual(TokenData<&'a str>),
+    #[token("/=", str_token_data)]
+    SlashEqual(TokenData<&'a str>),
     #[token("--", str_token_data)]
     MinusMinus(TokenData<&'a str>),
     #[token("///", str_token_data)]
@@ -114,6 +122,8 @@ pub enum Token<'a> {
     Else(TokenData<&'a str>),
     #[token(",", str_token_data)]
     Comma(TokenData<&'a str>),
+    #[token("!", str_token_data)]
+    ExclamationMark(TokenData<&'a str>),
     #[token(".", str_token_data)]
     Dot(TokenData<&'a str>),
     #[token(":", str_token_data)]
@@ -173,6 +183,10 @@ impl<'a> Token<'a> {
             | Token::GT(x)
             | Token::GTE(x)
             | Token::EQ(x)
+            | Token::PlusEqual(x)
+            | Token::MinusEqual(x)
+            | Token::StarEqual(x)
+            | Token::SlashEqual(x)
             | Token::NEQ(x)
             | Token::Colon(x)
             | Token::DoubleColon(x)
@@ -202,6 +216,7 @@ impl<'a> Token<'a> {
             | Token::RCurly(x)
             | Token::Break(x)
             | Token::NewLine(x)
+            | Token::ExclamationMark(x)
             | Token::Equal(x)
             | Token::Arrow(x)
             | Token::Comma(x)

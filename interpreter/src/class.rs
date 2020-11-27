@@ -51,6 +51,9 @@ impl Class {
             Dynamic::Boolean(lhs || rhs)
         })
         .set_op_impl(Operator::Add, |_, this, args| this + args[0].clone())
+        .set_op_impl(Operator::Subtract, |_, this, args| this - args[0].clone())
+        .set_op_impl(Operator::Times, |_, this, args| this * args[0].clone())
+        .set_op_impl(Operator::Divide, |_, this, args| this / args[0].clone())
         .set_op_impl(Operator::Equal, |_, this, args| this == args[0])
         .set_op_impl(Operator::GreaterThan, |_, this, args| this > args[0])
         .set_op_impl(Operator::GreaterThanOrEqual, |_, this, args| {

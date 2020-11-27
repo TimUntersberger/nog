@@ -1,0 +1,10 @@
+var test = 1;
+print(test);
+test += 2;
+print(test);
+test -= 2;
+print(test);
+test *= 2;
+print(test);
+test /= 2;
+print(test);

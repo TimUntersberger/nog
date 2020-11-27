@@ -9,6 +9,7 @@ use super::ast::Ast;
 pub enum Expression {
     BinaryOp(Box<Expression>, String, Box<Expression>),
     PostOp(Box<Expression>, String, Option<Box<Expression>>),
+    PreOp(String, Box<Expression>),
     NumberLiteral(i32),
     ArrayLiteral(Vec<Expression>),
     ObjectLiteral(HashMap<String, Expression>),
@@ -43,6 +44,7 @@ impl Display for Expression {
                     _ => format!("{} {} {}", lhs.to_string(), op, rhs.to_string()),
                 },
                 Expression::PostOp(lhs, op, _value) => format!("{}{}", lhs.to_string(), op),
+                Expression::PreOp(op, lhs) => format!("{}{}", op, lhs.to_string()),
                 _ => "unknown".into(),
             }
         )

@@ -174,6 +174,51 @@ impl std::ops::Add for Dynamic {
     }
 }
 
+impl std::ops::Sub for Dynamic {
+    type Output = Dynamic;
+
+    fn sub(self, other: Dynamic) -> Self::Output {
+        match self {
+            Dynamic::Number(x) => match other {
+                Dynamic::Number(y) => (x - y).into(),
+                _ => Dynamic::Null,
+            },
+            _ => Dynamic::Null,
+        }
+        .into()
+    }
+}
+
+impl std::ops::Mul for Dynamic {
+    type Output = Dynamic;
+
+    fn mul(self, other: Dynamic) -> Self::Output {
+        match self {
+            Dynamic::Number(x) => match other {
+                Dynamic::Number(y) => (x * y).into(),
+                _ => Dynamic::Null,
+            },
+            _ => Dynamic::Null,
+        }
+        .into()
+    }
+}
+
+impl std::ops::Div for Dynamic {
+    type Output = Dynamic;
+
+    fn div(self, other: Dynamic) -> Self::Output {
+        match self {
+            Dynamic::Number(x) => match other {
+                Dynamic::Number(y) => (x / y).into(),
+                _ => Dynamic::Null,
+            },
+            _ => Dynamic::Null,
+        }
+        .into()
+    }
+}
+
 impl std::cmp::PartialEq for Dynamic {
     fn eq(&self, other: &Dynamic) -> bool {
         match self {

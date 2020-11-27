@@ -1,6 +1,9 @@
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum Operator {
     Add,
+    Subtract,
+    Divide,
+    Times,
     Dot,
     Assign,
     Increment,
@@ -24,6 +27,9 @@ impl Operator {
     pub fn from_str(s: &str) -> Option<Self> {
         Some(match s {
             "+" => Operator::Add,
+            "-" => Operator::Subtract,
+            "/" => Operator::Divide,
+            "*" => Operator::Times,
             "." => Operator::Dot,
             "=" => Operator::Assign,
             "++" => Operator::Increment,
@@ -48,6 +54,9 @@ impl Operator {
     pub fn method_name(&self) -> String {
         match self {
             Operator::Add => "add",
+            Operator::Subtract => "subtract",
+            Operator::Times => "multiply",
+            Operator::Divide => "divide",
             Operator::Dot => "dot",
             Operator::Assign => "set",
             Operator::Pipe => "pipe",
@@ -72,6 +81,9 @@ impl Operator {
     pub fn to_string(&self) -> String {
         match self {
             Operator::Add => "+",
+            Operator::Subtract => "-",
+            Operator::Times => "*",
+            Operator::Divide => "/",
             Operator::Dot => ".",
             Operator::Assign => "=",
             Operator::Pipe => "|>",
