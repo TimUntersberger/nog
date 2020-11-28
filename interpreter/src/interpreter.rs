@@ -388,7 +388,7 @@ impl Interpreter {
 
                     parser.set_source(file_path.clone(), &content);
 
-                    let program = parser.parse().unwrap();
+                    let program = parser.parse();
                     let module = i.execute(&program);
 
                     i.module_cache.insert(file_path.clone(), module.clone());
