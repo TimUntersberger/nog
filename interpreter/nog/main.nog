@@ -1,1 +1,16 @@
-print(range(3, 2));
+fn iter() {
+    var items = [1, 2, 3];
+    var index = 0;
+    return () => {
+        var current = items[index];
+        index++;
+        return current;
+    };
+}
+
+var next = iter();
+
+print(next());
+print(next());
+print(next());
+print(next());

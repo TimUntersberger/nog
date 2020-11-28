@@ -15,16 +15,16 @@ impl ObjectBuilder {
         }
     }
 
-    pub fn function(
+    pub fn function<T: Into<Dynamic>>(
         mut self,
         name: &str,
-        f: impl Fn(&mut Interpreter, Vec<Dynamic>) -> Option<Dynamic> + 'static,
+        f: impl Fn(&mut Interpreter, Vec<Dynamic>) -> T + 'static,
     ) -> Self {
         self.inner.insert(
             name.into(),
             Dynamic::RustFunction {
                 name: name.into(),
-                callback: Arc::new(f),
+                callback: Arc::new(move |a, b| Some(f(a, b).into())),
                 scope: None,
             },
         );

@@ -283,6 +283,12 @@ impl<T: Into<Dynamic>> Into<Dynamic> for Vec<T> {
     }
 }
 
+impl From<Module> for Dynamic {
+    fn from(val: Module) -> Self {
+        Dynamic::Module(val)
+    }
+}
+
 impl From<String> for Dynamic {
     fn from(val: String) -> Self {
         Dynamic::String(val)

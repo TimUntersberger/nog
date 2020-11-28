@@ -67,6 +67,8 @@ impl Interpreter {
     fn module_path_to_file_path(&self, module_path: &str) -> PathBuf {
         let mut path = PathBuf::new();
 
+
+
         path.push(&self.file_path.parent().unwrap());
 
         for part in module_path.split(".") {
@@ -373,6 +375,30 @@ impl Interpreter {
             field_value.unwrap_or_default().clone()
         }
     }
+    fn import_module(&mut self, path: &str) -> (String, Module) {
+        let mod_name = self.module_path_to_name(path);
+        let file_path = self.module_path_to_file_path(path);
+        if let Some(module) = self.module_cache.get(&file_path).cloned() {
+            (mod_name, module)
+        } else {
+            let module =
+                self.with_clean_state(Scope::default(), Some(file_path.clone()), |i| {
+                    let mut parser = Parser::new();
+                    let content = std::fs::read_to_string(&file_path).unwrap();
+
+                    parser.set_source(file_path.clone(), &content);
+
+                    let program = parser.parse().unwrap();
+                    let module = i.execute(&program);
+
+                    i.module_cache.insert(file_path.clone(), module.clone());
+
+                    module
+                });
+
+            (mod_name, module)
+        }
+    }
     fn execute_stmt(&mut self, stmt: &Ast) {
         match stmt {
             Ast::VariableDefinition(name, value) => {
@@ -539,28 +565,8 @@ impl Interpreter {
             }
             Ast::StaticFunctionDefinition(_, _, _) => unreachable!(),
             Ast::ImportStatement(path) => {
-                let mod_name = self.module_path_to_name(path);
-                let file_path = self.module_path_to_file_path(path);
-                if let Some(module) = self.module_cache.get(&file_path).cloned() {
-                    self.get_scope_mut().set(mod_name, Dynamic::Module(module));
-                } else {
-                    let module =
-                        self.with_clean_state(Scope::default(), Some(file_path.clone()), |i| {
-                            let mut parser = Parser::new();
-                            let content = std::fs::read_to_string(&file_path).unwrap();
-
-                            parser.set_source(file_path.clone(), &content);
-
-                            let program = parser.parse();
-                            let module = i.execute(&program);
-
-                            i.module_cache.insert(file_path.clone(), module.clone());
-
-                            module
-                        });
-
-                    self.get_scope_mut().set(mod_name, Dynamic::Module(module));
-                }
+                let (mod_name, module) = self.import_module(path);
+                self.get_scope_mut().set(mod_name, Dynamic::Module(module));
             }
             Ast::ExportStatement(ast) => {
                 match ast.as_ref() {
@@ -720,13 +726,16 @@ pub fn create_default_variables() -> HashMap<String, Dynamic> {
     ObjectBuilder::new()
         .function("print", |_, args| {
             println!("{}", args.iter().join(" "));
-            None
         })
         .function("typeof", |_, args| {
-            args.get(0).map(|a| a.type_name().into())
+            args[0].type_name()
+        })
+        .function("require", |i, args| {
+            let (_, module) = i.import_module(&args[0].clone().as_str().unwrap());
+            module
         })
         .function("range", |_, args| {
-            Some(match args.len() {
+            match args.len() {
                 1 => {
                     let count = number!(args[0]);
                     let mut items = Vec::new();
@@ -745,7 +754,7 @@ pub fn create_default_variables() -> HashMap<String, Dynamic> {
                     Dynamic::new_array(items)
                 },
                 _ => todo!()
-            })
+            }
         })
         .build()
 }
