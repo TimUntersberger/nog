@@ -21,14 +21,8 @@ pub struct Program<'a> {
     pub stmts: Vec<Ast>,
 }
 
-#[derive(Debug, Default)]
-pub struct InterpreterState {
-    pub mappings: HashMap<String, Dynamic>,
-}
-
 #[derive(Debug)]
 pub struct Interpreter {
-    pub state: InterpreterState,
     /// Contains the current file path to the file being interpreted
     pub file_path: PathBuf,
     pub source: String,
@@ -53,7 +47,6 @@ pub struct Interpreter {
 impl Interpreter {
     pub fn new() -> Self {
         Self {
-            state: Default::default(),
             file_path: Default::default(),
             source: Default::default(),
             broken: false,
