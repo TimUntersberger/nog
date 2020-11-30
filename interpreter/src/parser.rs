@@ -1,13 +1,48 @@
 use std::path::PathBuf;
 
 use super::{
-    ast::Ast, ast::ClassMember, expr_parser::ExprParser, expression::Expression,
-    interpreter::Program, lexer::Lexer, operator::Operator, token::Token,
+    ast::Ast,
+    ast::ClassMember,
+    expr_parser::ExprParser,
+    expression::Expression,
+    interpreter::Program,
+    lexer::Lexer,
+    operator::Operator,
+    token::{Token, TokenKind},
 };
 use pratt::PrattParser;
 
+#[derive(Debug, Clone)]
+pub enum ParseError {
+    UnexpectedToken {
+        expected: TokenKind,
+        actual: Option<Token>,
+    },
+    UnexpectedOperator(Token),
+}
+
+impl<'a> std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl<'a> From<pratt::PrattError<Token, ParseError>> for ParseError {
+    fn from(value: pratt::PrattError<Token, ParseError>) -> Self {
+        match value {
+            pratt::PrattError::UserError(e) => e,
+            pratt::PrattError::UnexpectedInfix(i) => Self::UnexpectedOperator(i),
+            pratt::PrattError::UnexpectedNilfix(_) => todo!(),
+            pratt::PrattError::UnexpectedPrefix(i) => Self::UnexpectedOperator(i),
+            pratt::PrattError::UnexpectedPostfix(i) => Self::UnexpectedOperator(i),
+            _ => todo!(),
+        }
+    }
+}
+
 pub struct Parser<'a> {
     path: PathBuf,
+    pub source: &'a str,
     pub lexer: itertools::MultiPeek<Lexer<'a>>,
     expr_parser: ExprParser<'a>,
 }
@@ -16,12 +51,13 @@ impl<'a> Parser<'a> {
     pub fn new() -> Self {
         Self {
             path: "".into(),
-            lexer: itertools::multipeek(Lexer::new("").into_iter()),
+            source: "",
+            lexer: itertools::multipeek(Lexer::new("", 0).into_iter()),
             expr_parser: ExprParser::default(),
         }
     }
 
-    fn parse_expr(&mut self, prev_token: Option<Token<'a>>) -> Result<Expression, String> {
+    fn parse_expr(&mut self, prev_token: Option<Token>) -> Result<Expression, ParseError> {
         let mut tokens = Vec::new();
         let mut paren_depth = 0;
         let mut curly_depth = 0;
@@ -29,34 +65,62 @@ impl<'a> Parser<'a> {
 
         self.lexer.reset_peek();
 
-        while let Some(token) = self.lexer.peek() {
-            match token {
-                Token::NewLine(_) => {
+        while let Some(token) = self.lexer.peek().cloned() {
+            match token.0 {
+                TokenKind::Fn
+                | TokenKind::Var
+                | TokenKind::Class
+                | TokenKind::While
+                | TokenKind::Return
+                | TokenKind::If => {
+                    if !tokens.is_empty() && paren_depth == 0 && curly_depth == 0 {
+                        break;
+                    }
+                }
+                TokenKind::NewLine => {
                     self.lexer.next();
                     continue;
                 }
-                Token::SemiColon(_) => {
+                TokenKind::SemiColon => {
                     if paren_depth == 0 && curly_depth == 0 {
                         break;
                     }
                 }
-                Token::LParan(_) => paren_depth += 1,
-                Token::RParan(_) => {
+                TokenKind::LParan => paren_depth += 1,
+                TokenKind::RParan => {
                     paren_depth -= 1;
                     if paren_depth == -1 {
                         break;
                     }
                 }
-                Token::LCurly(_) => {
-                    match previous_token {
-                        Some(Token::ClassIdentifier(_)) => {}
-                        Some(Token::Arrow(_)) => {}
-                        Some(Token::Hash(_)) => {}
-                        _ => break,
+                TokenKind::Identifier => {
+                    if let Some(prev_token) = previous_token {
+                        if paren_depth == 0 && curly_depth == 0 {
+                            match prev_token.0 {
+                                TokenKind::RParan
+                                | TokenKind::RCurly 
+                                | TokenKind::Identifier 
+                                | TokenKind::PlusPlus 
+                                | TokenKind::MinusMinus 
+                                | TokenKind::ClassIdentifier 
+                                | TokenKind::RBracket => break,
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+                TokenKind::LCurly => {
+                    if let Some(token) = previous_token {
+                        match token.0 {
+                            TokenKind::ClassIdentifier => {}
+                            TokenKind::Arrow => {}
+                            TokenKind::Hash => {}
+                            _ => break,
+                        }
                     }
                     curly_depth += 1
                 }
-                Token::RCurly(_) => {
+                TokenKind::RCurly => {
                     curly_depth -= 1;
                     if curly_depth == -1 {
                         break;
@@ -74,46 +138,46 @@ impl<'a> Parser<'a> {
 
         if let Some(token) = prev_token {
             self.expr_parser.prev_token = token;
+        } else {
+            self.expr_parser.prev_token = Token::default();
         }
 
         self.expr_parser
             .parse(&mut tokens.into_iter())
-            .map_err(|e| format!("{:?}", e))
+            .map_err(|e| e.into())
     }
 
-    fn parse_args(&mut self) -> Result<Vec<Expression>, String> {
+    fn parse_args(&mut self) -> Result<Vec<Expression>, ParseError> {
         let mut depth = 0;
         let mut args = Vec::new();
         let mut arg_tokens = Vec::new();
 
         while let Some(next) = self.lexer.next() {
-            match next {
-                Token::RBracket(_) | Token::RParan(_) | Token::RCurly(_) => {
+            match next.0 {
+                TokenKind::RBracket | TokenKind::RParan | TokenKind::RCurly => {
                     if depth != 0 {
                         depth -= 1;
                     } else {
                         if !arg_tokens.is_empty() {
                             args.push(
                                 self.expr_parser
-                                    .parse(&mut arg_tokens.clone().into_iter())
-                                    .map_err(|e| format!("{:?}", e))?,
+                                    .parse(&mut arg_tokens.clone().into_iter())?,
                             );
                         }
                         break;
                     }
                 }
-                Token::Comma(_) => {
+                TokenKind::Comma => {
                     if depth == 0 {
                         args.push(
                             self.expr_parser
-                                .parse(&mut arg_tokens.clone().into_iter())
-                                .map_err(|e| format!("{:?}", e))?,
+                                .parse(&mut arg_tokens.clone().into_iter())?,
                         );
                         arg_tokens.clear();
                         continue;
                     }
                 }
-                Token::LParan(_) | Token::LBracket(_) | Token::LCurly(_) => depth += 1,
+                TokenKind::LParan | TokenKind::LBracket | TokenKind::LCurly => depth += 1,
                 _ => {}
             }
             arg_tokens.push(next);
@@ -122,67 +186,90 @@ impl<'a> Parser<'a> {
         Ok(args)
     }
 
-    fn parse_fn_definition(&mut self) -> Result<Ast, String> {
-        consume!(self.lexer, Token::Fn, "fn")?;
-        let name = consume!(self.lexer, Token::Identifier, "identifier")?;
-        consume!(self.lexer, Token::LParan, "(")?;
+    fn consume(&mut self, kind: TokenKind) -> Result<Token, ParseError> {
+        if let Some(token) = self.lexer.next() {
+            if token.0 == kind {
+                Ok(token)
+            } else {
+                Err(ParseError::UnexpectedToken {
+                    actual: Some(token),
+                    expected: kind,
+                })
+            }
+        } else {
+            Err(ParseError::UnexpectedToken {
+                actual: None,
+                expected: kind,
+            })
+        }
+    }
+
+    fn text(&self, token: &Token) -> &'a str {
+        &self.source[token.1.clone()]
+    }
+
+    fn parse_fn_definition(&mut self) -> Result<Ast, ParseError> {
+        self.consume(TokenKind::Fn)?;
+        let name = self.consume(TokenKind::Identifier)?;
+        self.consume(TokenKind::LParan)?;
         let args = self.parse_args()?;
-        consume!(self.lexer, Token::LCurly, "{")?;
+        self.consume(TokenKind::LCurly)?;
         let body = self.parse_stmts()?;
         Ok(Ast::FunctionDefinition(
-            name.text().to_string(),
+            self.text(&name).into(),
             args.iter().map(|a| a.to_string()).collect(),
             body,
         ))
     }
 
-    fn parse_static_fn_definition(&mut self) -> Result<Ast, String> {
-        consume!(self.lexer, Token::Static, "static")?;
-        consume!(self.lexer, Token::Fn, "fn")?;
-        let name = consume!(self.lexer, Token::Identifier, "identifier")?;
-        consume!(self.lexer, Token::LParan, "(")?;
+    fn parse_static_fn_definition(&mut self) -> Result<Ast, ParseError> {
+        self.consume(TokenKind::Static)?;
+        self.consume(TokenKind::Fn)?;
+        let name = self.consume(TokenKind::Identifier)?;
+        self.consume(TokenKind::LParan)?;
         let args = self.parse_args()?;
-        consume!(self.lexer, Token::LCurly, "{")?;
+        self.consume(TokenKind::LCurly)?;
         let body = self.parse_stmts()?;
         Ok(Ast::StaticFunctionDefinition(
-            name.text().to_string(),
+            self.text(&name).into(),
             args.iter().map(|a| a.to_string()).collect(),
             body,
         ))
     }
 
-    fn parse_while_statement(&mut self) -> Result<Ast, String> {
-        let prev_token = consume!(self.lexer, Token::While, "while")?;
+    fn parse_while_statement(&mut self) -> Result<Ast, ParseError> {
+        let prev_token = self.consume(TokenKind::While)?;
         let cond = self.parse_expr(Some(prev_token))?;
-        consume!(self.lexer, Token::LCurly, "{", true)?;
+        //TODO: skip whitespace before
+        self.consume(TokenKind::LCurly)?;
         let block = self.parse_stmts()?;
 
         Ok(Ast::WhileStatement(cond, block))
     }
 
-    fn parse_if(&mut self) -> Result<Ast, String> {
+    fn parse_if(&mut self) -> Result<Ast, ParseError> {
         let mut branches = Vec::new();
 
-        let prev_token = consume!(self.lexer, Token::If, "if")?;
+        let prev_token = self.consume(TokenKind::If)?;
         let cond = self.parse_expr(Some(prev_token))?;
-        consume!(self.lexer, Token::LCurly, "{", true)?;
+        self.consume(TokenKind::LCurly)?;
 
         let block = self.parse_stmts()?;
         branches.push((cond, block));
 
         while let Some(token) = &self.lexer.peek() {
-            match token {
-                Token::ElseIf(_) => {
-                    let prev_token = consume!(self.lexer, Token::ElseIf, "elif")?;
+            match token.0 {
+                TokenKind::ElseIf => {
+                    let prev_token = self.consume(TokenKind::ElseIf)?;
                     let cond = self.parse_expr(Some(prev_token))?;
-                    consume!(self.lexer, Token::LCurly, "{", true)?;
+                    self.consume(TokenKind::LCurly)?;
                     let block = self.parse_stmts()?;
                     branches.push((cond, block));
                 }
-                Token::Else(_) => {
-                    consume!(self.lexer, Token::Else, "else")?;
-                    let cond = Expression::BooleanLiteral(true);
-                    consume!(self.lexer, Token::LCurly, "{", true)?;
+                TokenKind::Else => {
+                    self.consume(TokenKind::Else)?;
+                    let cond = Expression::BooleanLiteral("true".into());
+                    self.consume(TokenKind::LCurly)?;
                     let block = self.parse_stmts()?;
                     branches.push((cond, block));
                 }
@@ -193,53 +280,50 @@ impl<'a> Parser<'a> {
         Ok(Ast::IfStatement(branches))
     }
 
-    fn parse_var_assignment(&mut self) -> Result<Ast, String> {
-        let ident = match self.lexer.next() {
-            Some(Token::Identifier(data)) => data.value.to_string(),
-            _ => todo!(),
-        };
-        let prev_token = consume!(self.lexer, Token::Equal, "=")?;
+    fn parse_var_assignment(&mut self) -> Result<Ast, ParseError> {
+        let ident = self.consume(TokenKind::Identifier)?;
+        let prev_token = self.consume(TokenKind::Equal)?;
         let value = self.parse_expr(Some(prev_token))?;
 
-        Ok(Ast::VariableAssignment(ident, value))
+        Ok(Ast::VariableAssignment(self.text(&ident).into(), value))
     }
 
-    fn parse_plus_assignment(&mut self) -> Result<Ast, String> {
-        let ident = consume!(self.lexer, Token::Identifier, "identifier")?;
-        let prev_token = consume!(self.lexer, Token::PlusEqual, "+=")?;
+    fn parse_plus_assignment(&mut self) -> Result<Ast, ParseError> {
+        let ident = self.consume(TokenKind::Identifier)?;
+        let prev_token = self.consume(TokenKind::PlusEqual)?;
         let value = self.parse_expr(Some(prev_token))?;
 
-        Ok(Ast::PlusAssignment(ident.text().to_string(), value))
+        Ok(Ast::PlusAssignment(self.text(&ident).into(), value))
     }
 
-    fn parse_minus_assignment(&mut self) -> Result<Ast, String> {
-        let ident = consume!(self.lexer, Token::Identifier, "identifier")?;
-        let prev_token = consume!(self.lexer, Token::MinusEqual, "-=")?;
+    fn parse_minus_assignment(&mut self) -> Result<Ast, ParseError> {
+        let ident = self.consume(TokenKind::Identifier)?;
+        let prev_token = self.consume(TokenKind::MinusEqual)?;
         let value = self.parse_expr(Some(prev_token))?;
 
-        Ok(Ast::MinusAssignment(ident.text().to_string(), value))
+        Ok(Ast::MinusAssignment(self.text(&ident).into(), value))
     }
 
-    fn parse_times_assignment(&mut self) -> Result<Ast, String> {
-        let ident = consume!(self.lexer, Token::Identifier, "identifier")?;
-        let prev_token = consume!(self.lexer, Token::StarEqual, "*=")?;
+    fn parse_times_assignment(&mut self) -> Result<Ast, ParseError> {
+        let ident = self.consume(TokenKind::Identifier)?;
+        let prev_token = self.consume(TokenKind::StarEqual)?;
         let value = self.parse_expr(Some(prev_token))?;
 
-        Ok(Ast::TimesAssignment(ident.text().to_string(), value))
+        Ok(Ast::TimesAssignment(self.text(&ident).into(), value))
     }
 
-    fn parse_divide_assignment(&mut self) -> Result<Ast, String> {
-        let ident = consume!(self.lexer, Token::Identifier, "identifier")?;
-        let prev_token = consume!(self.lexer, Token::SlashEqual, "/=")?;
+    fn parse_divide_assignment(&mut self) -> Result<Ast, ParseError> {
+        let ident = self.consume(TokenKind::Identifier)?;
+        let prev_token = self.consume(TokenKind::SlashEqual)?;
         let value = self.parse_expr(Some(prev_token))?;
 
-        Ok(Ast::DivideAssignment(ident.text().to_string(), value))
+        Ok(Ast::DivideAssignment(self.text(&ident).into(), value))
     }
 
-    fn parse_class_definition(&mut self) -> Result<Ast, String> {
-        consume!(self.lexer, Token::Class, "class")?;
-        let name = consume!(self.lexer, Token::ClassIdentifier, "class identifier")?;
-        consume!(self.lexer, Token::LCurly, "{")?;
+    fn parse_class_definition(&mut self) -> Result<Ast, ParseError> {
+        self.consume(TokenKind::Class)?;
+        let name = self.consume(TokenKind::ClassIdentifier)?;
+        self.consume(TokenKind::LCurly)?;
         let body = self.parse_stmts()?;
         let members = body
             .iter()
@@ -258,24 +342,24 @@ impl<'a> Parser<'a> {
             })
             .collect::<Vec<ClassMember>>();
 
-        Ok(Ast::ClassDefinition(name.text().to_string(), members))
+        Ok(Ast::ClassDefinition(self.text(&name).into(), members))
     }
 
-    fn parse_op_implementation(&mut self) -> Result<Ast, String> {
-        consume!(self.lexer, Token::Op, "op")?;
+    fn parse_op_implementation(&mut self) -> Result<Ast, ParseError> {
+        self.consume(TokenKind::Op)?;
         let op = self
             .lexer
             .next()
-            .map(|t| t.text().to_string())
-            .map(|text| match text.as_str() {
+            .map(|t| self.text(&t))
+            .map(|text| match text {
                 "add" => Operator::Add,
                 "dot" => Operator::Dot,
                 _ => panic!("Unknown operator function {}", text),
             })
             .unwrap();
-        consume!(self.lexer, Token::LParan, "(")?;
+        self.consume(TokenKind::LParan)?;
         let args = self.parse_args()?;
-        consume!(self.lexer, Token::LCurly, "{")?;
+        self.consume(TokenKind::LCurly)?;
         let body = self.parse_stmts()?;
 
         Ok(Ast::OperatorImplementation(
@@ -285,13 +369,13 @@ impl<'a> Parser<'a> {
         ))
     }
 
-    fn parse_import_statement(&mut self) -> Result<Ast, String> {
-        consume!(self.lexer, Token::Import, "import")?;
+    fn parse_import_statement(&mut self) -> Result<Ast, ParseError> {
+        self.consume(TokenKind::Import)?;
         let mut tokens = Vec::new();
 
-        while let Some(token) = self.lexer.peek() {
-            match token {
-                Token::Dot(data) | Token::Identifier(data) => tokens.push(data.value.to_string()),
+        while let Some(token) = self.lexer.peek().cloned() {
+            match token.0 {
+                TokenKind::Dot | TokenKind::Identifier => tokens.push(self.text(&token)),
                 _ => break,
             }
             self.lexer.next();
@@ -300,19 +384,19 @@ impl<'a> Parser<'a> {
         Ok(Ast::ImportStatement(tokens.join("")))
     }
 
-    fn parse_export_statement(&mut self) -> Result<Ast, String> {
-        consume!(self.lexer, Token::Export, "export")?;
+    fn parse_export_statement(&mut self) -> Result<Ast, ParseError> {
+        self.consume(TokenKind::Export)?;
 
-        if let Some(token) = self.lexer.peek() {
-            let ast = match token {
-                Token::ClassIdentifier(data) => {
-                    Ast::Expression(Expression::ClassIdentifier(data.value.to_string()))
+        if let Some(token) = self.lexer.peek().cloned() {
+            let ast = match token.0 {
+                TokenKind::ClassIdentifier => {
+                    Ast::Expression(Expression::ClassIdentifier(self.text(&token).to_string()))
                 }
-                Token::Var(_) => self.parse_var_definition()?,
-                Token::Class(_) => self.parse_class_definition()?,
-                Token::Fn(_) => self.parse_fn_definition()?,
-                Token::Identifier(data) => {
-                    Ast::Expression(Expression::Identifier(data.value.to_string()))
+                TokenKind::Var => self.parse_var_definition()?,
+                TokenKind::Class => self.parse_class_definition()?,
+                TokenKind::Fn => self.parse_fn_definition()?,
+                TokenKind::Identifier => {
+                    Ast::Expression(Expression::Identifier(self.text(&token).to_string()))
                 }
                 _ => panic!("Expected either a class, variable or function"),
             };
@@ -323,90 +407,99 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_return_statement(&mut self) -> Result<Ast, String> {
-        let prev_token = consume!(self.lexer, Token::Return, "return")?;
+    fn parse_return_statement(&mut self) -> Result<Ast, ParseError> {
+        let prev_token = self.consume(TokenKind::Return)?;
 
-        let value = if let Some(Token::SemiColon(_)) = self.lexer.peek() {
-            Expression::Null
+        let value = if let Some(token) = self.lexer.peek() {
+            match token.0 {
+                TokenKind::SemiColon => Expression::Null,
+                _ => {
+                    self.lexer.reset_peek();
+                    self.parse_expr(Some(prev_token))?
+                }
+            }
         } else {
-            self.lexer.reset_peek();
-            self.parse_expr(Some(prev_token))?
+            todo!()
         };
 
         Ok(Ast::ReturnStatement(value))
     }
 
-    fn parse_documentation(&mut self) -> Result<Ast, String> {
+    fn parse_documentation(&mut self) -> Result<Ast, ParseError> {
         let mut lines = Vec::new();
         let mut line = Vec::new();
 
-        consume!(self.lexer, Token::TripleSlash, "///").unwrap();
+        self.consume(TokenKind::TripleSlash).unwrap();
 
         while let Some(token) = self.lexer.next() {
-            match token {
-                Token::NewLine(_) => {
+            match token.0 {
+                TokenKind::NewLine => {
                     lines.push(line.join(" "));
                     line = Vec::new();
-                    if let Some(Token::TripleSlash(_)) = self.lexer.peek() {
+                    if let Some(TokenKind::TripleSlash) = self.lexer.peek().map(|x| x.0.clone()) {
                         self.lexer.next();
                     } else {
                         break;
                     }
                 }
-                _ => line.push(token.text().to_string()),
+                _ => line.push(self.text(&token)),
             }
         }
-
-        dbg!(&lines);
 
         Ok(Ast::Documentation(lines))
     }
 
-    fn parse_var_definition(&mut self) -> Result<Ast, String> {
-        consume!(self.lexer, Token::Var, "var")?;
-        let ident = consume!(self.lexer, Token::Identifier, "identifier")?;
-        let value = if let Some(Token::SemiColon(_)) = self.lexer.peek() {
-            Expression::Null
+    fn parse_var_definition(&mut self) -> Result<Ast, ParseError> {
+        self.consume(TokenKind::Var)?;
+        let ident = self.consume(TokenKind::Identifier)?;
+
+        let value = if let Some(token) = self.lexer.peek() {
+            match token.0 {
+                TokenKind::SemiColon => Expression::Null,
+                _ => {
+                    self.consume(TokenKind::Equal)?;
+                    self.parse_expr(None)?
+                }
+            }
         } else {
-            let prev_token = consume!(self.lexer, Token::Equal, "=")?;
-            self.parse_expr(Some(prev_token))?
+            todo!()
         };
 
-        Ok(Ast::VariableDefinition(ident.text().to_string(), value))
+        Ok(Ast::VariableDefinition(self.text(&ident).into(), value))
     }
 
-    fn parse_stmts(&mut self) -> Result<Vec<Ast>, String> {
+    fn parse_stmts(&mut self) -> Result<Vec<Ast>, ParseError> {
         let mut stmts = Vec::new();
         let mut depth = 0;
 
         while let Some(token) = self.lexer.peek() {
-            let ast = match token {
-                Token::Comment(_) => {
+            let ast = match token.0 {
+                TokenKind::Comment => {
                     while let Some(token) = self.lexer.next() {
-                        match token {
-                            Token::NewLine(_) => break,
+                        match token.0 {
+                            TokenKind::NewLine => break,
                             _ => {}
                         }
                     }
                     continue;
                 }
-                Token::TripleSlash(_) => self.parse_documentation(),
-                Token::Return(_) => self.parse_return_statement(),
-                Token::Break(_) => Ok(Ast::BreakStatement),
-                Token::Continue(_) => Ok(Ast::ContinueStatement),
-                Token::While(_) => self.parse_while_statement(),
-                Token::Class(_) => self.parse_class_definition(),
-                Token::Var(_) => self.parse_var_definition(),
-                Token::Op(_) => self.parse_op_implementation(),
-                Token::Fn(_) => self.parse_fn_definition(),
-                Token::Static(_) => self.parse_static_fn_definition(),
-                Token::Import(_) => self.parse_import_statement(),
-                Token::Export(_) => self.parse_export_statement(),
-                Token::If(_) => self.parse_if(),
-                Token::ClassIdentifier(_) => {
+                TokenKind::TripleSlash => self.parse_documentation(),
+                TokenKind::Return => self.parse_return_statement(),
+                TokenKind::Break => Ok(Ast::BreakStatement),
+                TokenKind::Continue => Ok(Ast::ContinueStatement),
+                TokenKind::While => self.parse_while_statement(),
+                TokenKind::Class => self.parse_class_definition(),
+                TokenKind::Var => self.parse_var_definition(),
+                TokenKind::Op => self.parse_op_implementation(),
+                TokenKind::Fn => self.parse_fn_definition(),
+                TokenKind::Static => self.parse_static_fn_definition(),
+                TokenKind::Import => self.parse_import_statement(),
+                TokenKind::Export => self.parse_export_statement(),
+                TokenKind::If => self.parse_if(),
+                TokenKind::ClassIdentifier => {
                     if let Some(token) = self.lexer.peek() {
-                        match token {
-                            Token::LCurly(_) => {
+                        match token.0 {
+                            TokenKind::LCurly => {
                                 drop(token);
                                 self.lexer.reset_peek();
                                 Ok(Ast::Expression(self.parse_expr(None)?))
@@ -417,15 +510,15 @@ impl<'a> Parser<'a> {
                         unreachable!()
                     }
                 }
-                Token::Identifier(_) => {
+                TokenKind::Identifier => {
                     if let Some(token) = self.lexer.peek() {
-                        match token {
-                            Token::Equal(_) => self.parse_var_assignment(),
-                            Token::PlusEqual(_) => self.parse_plus_assignment(),
-                            Token::MinusEqual(_) => self.parse_minus_assignment(),
-                            Token::StarEqual(_) => self.parse_times_assignment(),
-                            Token::SlashEqual(_) => self.parse_divide_assignment(),
-                            Token::Dot(_) | Token::DoubleColon(_) => {
+                        match token.0 {
+                            TokenKind::Equal => self.parse_var_assignment(),
+                            TokenKind::PlusEqual => self.parse_plus_assignment(),
+                            TokenKind::MinusEqual => self.parse_minus_assignment(),
+                            TokenKind::StarEqual => self.parse_times_assignment(),
+                            TokenKind::SlashEqual => self.parse_divide_assignment(),
+                            TokenKind::Dot | TokenKind::DoubleColon => {
                                 Ok(Ast::Expression(self.parse_expr(None)?))
                             }
                             _ => self.parse_expr(None).map(|x| Ast::Expression(x)),
@@ -434,7 +527,7 @@ impl<'a> Parser<'a> {
                         unreachable!()
                     }
                 }
-                Token::RCurly(_) => {
+                TokenKind::RCurly => {
                     self.lexer.next();
                     if depth == 0 {
                         break;
@@ -455,15 +548,67 @@ impl<'a> Parser<'a> {
         Ok(stmts)
     }
 
-    pub fn set_source(&mut self, path: PathBuf, source: &'a str) {
-        self.path = path;
-        self.lexer = itertools::multipeek(Lexer::new(source));
+    fn position(&self, location: &std::ops::Range<usize>) -> Option<(usize, usize)> {
+        let mut lexer = Lexer::new(self.source, 0);
+        let mut line = 1;
+        let mut col_start = 1;
+
+        while let Some(token) = lexer.next() {
+            if token.1 == *location {
+                let col = location.start - col_start;
+                return Some((line, col));
+            }
+            match token.0 {
+                TokenKind::NewLine => {
+                    line += 1;
+                    col_start = token.1.start;
+                },
+                _ => {}
+            }
+        }
+
+        None
     }
 
-    pub fn parse(&'a mut self) -> Program {
-        Program {
-            path: self.path.clone(),
-            stmts: self.parse_stmts().unwrap(),
+    pub fn set_source(&mut self, path: PathBuf, source: &'a str, offset: usize) {
+        self.path = path;
+        self.source = source;
+        self.expr_parser.source = source;
+        self.lexer = itertools::multipeek(Lexer::new(source, offset));
+    }
+
+    pub fn parse(&'a mut self) -> Result<Program, String> {
+        match self.parse_stmts() {
+            Ok(stmts) => Ok(Program {
+                path: self.path.clone(),
+                source: self.source,
+                stmts,
+            }),
+            Err(e) => match e {
+                ParseError::UnexpectedOperator(token) => {
+                    let (line, col) = self.position(&token.1).unwrap();
+                    Err(format!(
+                        "Encountered unexpected operator '{}' at {},{}",
+                        self.text(&token),
+                        line,
+                        col
+                    ))
+                }
+                ParseError::UnexpectedToken { expected, actual } => {
+                    if let Some(actual) = actual {
+                        let (line, col) = self.position(&actual.1).unwrap();
+                        Err(format!(
+                            "Expected {:?}, but found {:?} at {},{}",
+                            expected,
+                            self.text(&actual),
+                            line,
+                            col
+                        ))
+                    } else {
+                        Err(format!("Expected {:?}, but found EOF", expected))
+                    }
+                },
+            },
         }
     }
 }
@@ -475,63 +620,48 @@ mod test {
     use crate::ast::Ast::*;
     use crate::expression::Expression;
     use crate::lexer::Lexer;
+    use crate::operator::Operator;
 
     fn expect(code: &str, ast: Ast) {
         let mut parser = Parser::new();
-        parser.lexer = itertools::multipeek(Lexer::new(code));
-        let prog = parser.parse();
+        parser.expr_parser.source = code;
+        parser.source = code;
+        parser.lexer = itertools::multipeek(Lexer::new(code, 0));
+        let prog = parser.parse().unwrap();
         assert_eq!(prog.stmts, vec![ast]);
     }
 
     #[test]
     pub fn if_stmt() {
-        expect(
-            r#"if true {}"#,
-            IfStatement(vec![(Expression::BooleanLiteral(true), vec![])]),
-        );
+        expect(r#"if true {}"#, IfStatement(vec![(true.into(), vec![])]));
     }
 
     #[test]
     pub fn if_stmt_with_else() {
         expect(
             r#"if true {} else {}"#,
-            IfStatement(vec![
-                (Expression::BooleanLiteral(true), vec![]),
-                (Expression::BooleanLiteral(true), vec![]),
-            ]),
+            IfStatement(vec![(true.into(), vec![]), (true.into(), vec![])]),
         );
     }
 
     #[test]
     pub fn plus_shortcut() {
-        expect(
-            r#"test += 1"#,
-            PlusAssignment("test".into(), Expression::NumberLiteral(1)),
-        );
+        expect(r#"test += 1"#, PlusAssignment("test".into(), 1.into()));
     }
 
     #[test]
     pub fn minus_shortcut() {
-        expect(
-            r#"test -= 1"#,
-            MinusAssignment("test".into(), Expression::NumberLiteral(1)),
-        );
+        expect(r#"test -= 1"#, MinusAssignment("test".into(), 1.into()));
     }
 
     #[test]
     pub fn times_shortcut() {
-        expect(
-            r#"test *= 1"#,
-            TimesAssignment("test".into(), Expression::NumberLiteral(1)),
-        );
+        expect(r#"test *= 1"#, TimesAssignment("test".into(), 1.into()));
     }
 
     #[test]
     pub fn divide_shortcut() {
-        expect(
-            r#"test /= 1"#,
-            DivideAssignment("test".into(), Expression::NumberLiteral(1)),
-        );
+        expect(r#"test /= 1"#, DivideAssignment("test".into(), 1.into()));
     }
 
     #[test]
@@ -544,12 +674,12 @@ mod test {
                 }
             "#,
             WhileStatement(
-                Expression::BooleanLiteral(true),
+                true.into(),
                 vec![
-                    IfStatement(vec![(Expression::BooleanLiteral(true), vec![])]),
+                    IfStatement(vec![(true.into(), vec![])]),
                     Expression(Expression::PostOp(
                         Box::new(Expression::Identifier("print".into())),
-                        "()".into(),
+                        Operator::Call,
                         Some(Box::new(Expression::ArrayLiteral(vec![]))),
                     )),
                 ],

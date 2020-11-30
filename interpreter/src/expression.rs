@@ -1,19 +1,21 @@
-use std::{collections::HashMap, fmt::Display};
-
 use itertools::Itertools;
+use std::collections::HashMap;
 
-use super::ast::Ast;
+use super::{
+    ast::Ast,
+    operator::Operator,
+    token::{Token, TokenKind},
+};
 
-/// TODO: replace String with &str
 #[derive(Clone, Debug, PartialEq)]
 pub enum Expression {
-    BinaryOp(Box<Expression>, String, Box<Expression>),
-    PostOp(Box<Expression>, String, Option<Box<Expression>>),
-    PreOp(String, Box<Expression>),
-    NumberLiteral(i32),
+    BinaryOp(Box<Expression>, Operator, Box<Expression>),
+    PostOp(Box<Expression>, Operator, Option<Box<Expression>>),
+    PreOp(Operator, Box<Expression>),
+    NumberLiteral(String),
     ArrayLiteral(Vec<Expression>),
     ObjectLiteral(HashMap<String, Expression>),
-    BooleanLiteral(bool),
+    BooleanLiteral(String),
     StringLiteral(String),
     Identifier(String),
     ClassIdentifier(String),
@@ -22,31 +24,60 @@ pub enum Expression {
     ClassInstantiation(String, HashMap<String, Expression>),
 }
 
-impl Display for Expression {
+impl std::fmt::Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "{}",
             match self {
-                Expression::Identifier(x) => x.clone(),
-                Expression::ClassIdentifier(x) => x.clone(),
-                Expression::StringLiteral(x) => format!("\"{}\"", x.clone()),
-                Expression::NumberLiteral(x) => x.to_string(),
-                Expression::ArrowFunction(arg_names, _) => format!(
-                    "({}) => {{ ... }}",
-                    arg_names.iter().map(|a| a.to_string()).join(", ")
+                Self::Null => "null".into(),
+                Self::Identifier(text)
+                | Self::ClassIdentifier(text)
+                | Self::StringLiteral(text)
+                | Self::NumberLiteral(text)
+                | Self::BooleanLiteral(text) => text.clone(),
+                Self::ArrayLiteral(items) => format!(
+                    "[{}]",
+                    items.into_iter().map(|expr| expr.to_string()).join(", ")
                 ),
-                Expression::BooleanLiteral(x) => x.to_string(),
-                //TODO: might have to modify the to string for function call expressions
-                Expression::BinaryOp(lhs, op, rhs) => match op.as_str() {
-                    "." => format!("{}{}{}", lhs.to_string(), op, rhs.to_string()),
-                    "()" => format!("{}({})", lhs.to_string(), rhs.to_string()),
-                    _ => format!("{} {} {}", lhs.to_string(), op, rhs.to_string()),
+                Self::ObjectLiteral(fields) => format!(
+                    "#{{{}}}",
+                    fields
+                        .iter()
+                        .map(|(k, v)| format!("{}: {}", k, v.to_string()))
+                        .join("\n")
+                ),
+                Self::ArrowFunction(args, _) =>
+                    format!("({}) => {{ ... }}", args.into_iter().join(", ")),
+                Self::ClassInstantiation(name, fields) => format!(
+                    "{}{{{}}}",
+                    name,
+                    fields
+                        .iter()
+                        .map(|(k, v)| format!("{}: {}", k, v.to_string()))
+                        .join("\n")
+                ),
+                Self::PreOp(op, expr) => format!("{}{}", op.to_string(), expr.to_string()),
+                Self::BinaryOp(lhs, op, rhs) => match op {
+                    Operator::Dot =>
+                        format!("{}{}{}", lhs.to_string(), op.to_string(), rhs.to_string()),
+                    Operator::Call => format!("{}({})", lhs.to_string(), rhs.to_string()),
+                    _ => format!("{} {} {}", lhs.to_string(), op.to_string(), rhs.to_string()),
                 },
-                Expression::PostOp(lhs, op, _value) => format!("{}{}", lhs.to_string(), op),
-                Expression::PreOp(op, lhs) => format!("{}{}", op, lhs.to_string()),
-                _ => "unknown".into(),
+                Self::PostOp(lhs, op, _value) => format!("{}{}", lhs.to_string(), op.to_string()),
             }
         )
+    }
+}
+
+impl From<i32> for Expression {
+    fn from(val: i32) -> Self {
+        Expression::NumberLiteral(val.to_string())
+    }
+}
+
+impl From<bool> for Expression {
+    fn from(val: bool) -> Self {
+        Expression::BooleanLiteral(val.to_string())
     }
 }

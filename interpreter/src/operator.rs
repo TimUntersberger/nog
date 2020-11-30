@@ -1,3 +1,5 @@
+use super::token::TokenKind;
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum Operator {
     Add,
@@ -105,3 +107,49 @@ impl Operator {
         .into()
     }
 }
+
+impl From<TokenKind> for Operator {
+    fn from(value: TokenKind) -> Self {
+        match value {
+            TokenKind::Plus => Operator::Add,
+            TokenKind::PlusPlus => Operator::Increment,
+            TokenKind::Minus => Operator::Subtract,
+            TokenKind::MinusMinus => Operator::Decrement,
+            TokenKind::Star => Operator::Times,
+            TokenKind::Slash => Operator::Divide,
+            TokenKind::Dot => Operator::Dot,
+            TokenKind::Equal => Operator::Assign,
+            TokenKind::ExclamationMark => Operator::Not,
+            TokenKind::NEQ => Operator::NotEqual,
+            TokenKind::EQ => Operator::Equal,
+            TokenKind::And => Operator::And,
+            TokenKind::Or => Operator::Or,
+            TokenKind::GT => Operator::GreaterThan,
+            TokenKind::LT => Operator::LessThan,
+            TokenKind::GTE => Operator::GreaterThanOrEqual,
+            TokenKind::LTE => Operator::LessThanOrEqual,
+            _ => todo!("{:?}", value),
+        }
+    }
+}
+// "+" => Operator::Add,
+//           "-" => Operator::Subtract,
+//           "/" => Operator::Divide,
+//           "*" => Operator::Times,
+//           "." => Operator::Dot,
+//           "=" => Operator::Assign,
+//           "++" => Operator::Increment,
+//           "--" => Operator::Decrement,
+//           "|>" => Operator::Pipe,
+//           "[]" => Operator::Index,
+//           "()" => Operator::Call,
+//           "{}" => Operator::Constructor,
+//           ">" => Operator::GreaterThan,
+//           ">=" => Operator::GreaterThanOrEqual,
+//           "<" => Operator::LessThan,
+//           "<=" => Operator::LessThanOrEqual,
+//           "==" => Operator::Equal,
+//           "!=" => Operator::NotEqual,
+//           "!" => Operator::Not,
+//           "&&" => Operator::And,
+//           "||" => Operator::Or,

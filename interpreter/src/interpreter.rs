@@ -9,13 +9,15 @@ use super::{
     operator::Operator,
     parser::Parser,
     scope::Scope,
+    token::{Token, TokenKind},
 };
 use itertools::Itertools;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 #[derive(Debug)]
-pub struct Program {
+pub struct Program<'a> {
     pub path: PathBuf,
+    pub source: &'a str,
     pub stmts: Vec<Ast>,
 }
 
@@ -29,6 +31,7 @@ pub struct Interpreter {
     pub state: InterpreterState,
     /// Contains the current file path to the file being interpreted
     pub file_path: PathBuf,
+    pub source: String,
     /// This is true if a break statement was encountered until it is consumed
     pub broken: bool,
     /// This is true if a continue statement was encountered until it is consumed
@@ -52,6 +55,7 @@ impl Interpreter {
         Self {
             state: Default::default(),
             file_path: Default::default(),
+            source: Default::default(),
             broken: false,
             continued: false,
             default_classes: create_default_classes(),
@@ -66,8 +70,6 @@ impl Interpreter {
     }
     fn module_path_to_file_path(&self, module_path: &str) -> PathBuf {
         let mut path = PathBuf::new();
-
-
 
         path.push(&self.file_path.parent().unwrap());
 
@@ -157,25 +159,28 @@ impl Interpreter {
         }
     }
 
+    fn text(&self, token: &Token) -> &str {
+        &self.source[token.1.clone()]
+    }
+
     fn eval(&mut self, expr: &Expression) -> Dynamic {
         match expr {
             Expression::PreOp(op, rhs) => {
                 let value = self.eval(rhs);
-                match op.as_str() {
-                    "-" => match value {
+                match op {
+                    Operator::Subtract => match value {
                         Dynamic::Number(x) => (-x).into(),
-                        _ => Dynamic::Null
+                        _ => Dynamic::Null,
                     },
-                    "+" => match value {
+                    Operator::Add => match value {
                         Dynamic::Number(x) => (x).into(),
-                        _ => Dynamic::Null
+                        _ => Dynamic::Null,
                     },
-                    "!" => (!value.is_true()).into(),
-                    _ => Dynamic::Null
+                    Operator::Not => (!value.is_true()).into(),
+                    _ => Dynamic::Null,
                 }
-            },
+            }
             Expression::PostOp(lhs, op, arg) => {
-                let op = Operator::from_str(op).unwrap();
                 let value = self.eval(lhs);
 
                 let arg = arg.as_ref().map(|arg| self.eval(arg.as_ref()));
@@ -206,7 +211,6 @@ impl Interpreter {
                 }
             }
             Expression::BinaryOp(lhs, op, rhs) => {
-                let op = Operator::from_str(op).unwrap();
                 let (class_name, is_static) = match lhs.as_ref() {
                     Expression::ClassIdentifier(x) => (Some(x), true),
                     _ => (None, false),
@@ -214,7 +218,7 @@ impl Interpreter {
                 let (lhs, args) = match op {
                     Operator::Dot => match rhs.as_ref() {
                         Expression::ClassIdentifier(x) | Expression::Identifier(x) => {
-                            (self.eval(lhs.as_ref()), vec![Dynamic::String(x.clone())])
+                            (self.eval(lhs.as_ref()), vec![Dynamic::String(x.into())])
                         }
                         _ => unreachable!(rhs),
                     },
@@ -259,11 +263,11 @@ impl Interpreter {
                     }
                 }
             }
-            Expression::NumberLiteral(x) => Dynamic::Number(x.clone()),
-            Expression::BooleanLiteral(x) => Dynamic::Boolean(x.clone()),
-            Expression::StringLiteral(x) => Dynamic::String(x.clone()),
+            Expression::NumberLiteral(x) => Dynamic::Number(x.parse().unwrap()),
+            Expression::BooleanLiteral(x) => Dynamic::Boolean(x == "true"),
+            Expression::StringLiteral(x) => Dynamic::String(x.into()),
             Expression::Null => Dynamic::Null,
-            Expression::Identifier(key) => self.find(&key).clone(),
+            Expression::Identifier(key) => self.find(key).clone(),
             Expression::ClassIdentifier(name) => self
                 .classes
                 .get(name)
@@ -289,12 +293,12 @@ impl Interpreter {
             Expression::ObjectLiteral(fields) => Dynamic::new_object(
                 fields
                     .into_iter()
-                    .map(|(k, v)| (k.clone(), self.eval(v)))
+                    .map(|(k, v)| (k.into(), self.eval(v)))
                     .collect(),
             ),
             Expression::ArrowFunction(arg_names, body) => Dynamic::Function {
                 name: "<anonymous function>".into(),
-                arg_names: arg_names.clone(),
+                arg_names: arg_names.into_iter().map(|t| t.into()).collect(),
                 body: body.clone(),
                 scope: (&self.scopes).into(),
             },
@@ -381,20 +385,19 @@ impl Interpreter {
         if let Some(module) = self.module_cache.get(&file_path).cloned() {
             (mod_name, module)
         } else {
-            let module =
-                self.with_clean_state(Scope::default(), Some(file_path.clone()), |i| {
-                    let mut parser = Parser::new();
-                    let content = std::fs::read_to_string(&file_path).unwrap();
+            let module = self.with_clean_state(Scope::default(), Some(file_path.clone()), |i| {
+                let mut parser = Parser::new();
+                let content = std::fs::read_to_string(&file_path).unwrap();
 
-                    parser.set_source(file_path.clone(), &content);
+                parser.set_source(file_path.clone(), &content, 0);
 
-                    let program = parser.parse();
-                    let module = i.execute(&program);
+                let program = parser.parse().unwrap();
+                let module = i.execute(&program);
 
-                    i.module_cache.insert(file_path.clone(), module.clone());
+                i.module_cache.insert(file_path.clone(), module.clone());
 
-                    module
-                });
+                module
+            });
 
             (mod_name, module)
         }
@@ -515,45 +518,37 @@ impl Interpreter {
                 self.return_expr = Some(expr.clone());
             }
             Ast::PlusAssignment(name, expr) => {
-                let new_value = self.eval(
-                    &Expression::BinaryOp(
-                        Box::new(Expression::Identifier(name.into())), 
-                        "+".into(), 
-                        Box::new(expr.clone())
-                    )
-                );
+                let new_value = self.eval(&Expression::BinaryOp(
+                    Box::new(Expression::Identifier(name.into())),
+                    Operator::Add,
+                    Box::new(expr.clone()),
+                ));
                 self.assign_variable(name.clone(), new_value);
-            },
+            }
             Ast::MinusAssignment(name, expr) => {
-                let new_value = self.eval(
-                    &Expression::BinaryOp(
-                        Box::new(Expression::Identifier(name.into())), 
-                        "-".into(), 
-                        Box::new(expr.clone())
-                    )
-                );
+                let new_value = self.eval(&Expression::BinaryOp(
+                    Box::new(Expression::Identifier(name.into())),
+                    Operator::Subtract,
+                    Box::new(expr.clone()),
+                ));
                 self.assign_variable(name.clone(), new_value);
-            },
+            }
             Ast::TimesAssignment(name, expr) => {
-                let new_value = self.eval(
-                    &Expression::BinaryOp(
-                        Box::new(Expression::Identifier(name.into())), 
-                        "*".into(), 
-                        Box::new(expr.clone())
-                    )
-                );
+                let new_value = self.eval(&Expression::BinaryOp(
+                    Box::new(Expression::Identifier(name.into())),
+                    Operator::Times,
+                    Box::new(expr.clone()),
+                ));
                 self.assign_variable(name.clone(), new_value);
-            },
+            }
             Ast::DivideAssignment(name, expr) => {
-                let new_value = self.eval(
-                    &Expression::BinaryOp(
-                        Box::new(Expression::Identifier(name.into())), 
-                        "/".into(), 
-                        Box::new(expr.clone())
-                    )
-                );
+                let new_value = self.eval(&Expression::BinaryOp(
+                    Box::new(Expression::Identifier(name.into())),
+                    Operator::Divide,
+                    Box::new(expr.clone()),
+                ));
                 self.assign_variable(name.clone(), new_value);
-            },
+            }
             Ast::BreakStatement => {
                 self.broken = true;
             }
@@ -572,10 +567,10 @@ impl Interpreter {
                 match ast.as_ref() {
                     Ast::Expression(expr) => match expr {
                         Expression::Identifier(x) => {
-                            self.exported_variables.push(x.clone());
+                            self.exported_variables.push(x.into());
                         }
                         Expression::ClassIdentifier(x) => {
-                            self.exported_classes.push(x.clone());
+                            self.exported_classes.push(x.into());
                         }
                         _ => unreachable!(),
                     },
@@ -608,6 +603,7 @@ impl Interpreter {
 
     pub fn execute(&mut self, prog: &Program) -> Module {
         self.file_path = prog.path.clone();
+        self.source = prog.source.to_string();
         self.execute_stmts(&prog.stmts);
 
         let mut variables = HashMap::new();
@@ -727,34 +723,30 @@ pub fn create_default_variables() -> HashMap<String, Dynamic> {
         .function("print", |_, args| {
             println!("{}", args.iter().join(" "));
         })
-        .function("typeof", |_, args| {
-            args[0].type_name()
-        })
+        .function("typeof", |_, args| args[0].type_name())
         .function("require", |i, args| {
             let (_, module) = i.import_module(&args[0].clone().as_str().unwrap());
             module
         })
-        .function("range", |_, args| {
-            match args.len() {
-                1 => {
-                    let count = number!(args[0]);
-                    let mut items = Vec::new();
-                    for i in 0..count {
-                        items.push(Dynamic::Number(i));
-                    }
-                    Dynamic::new_array(items)
-                },
-                2 => {
-                    let start = number!(args[0]);
-                    let count = number!(args[1]);
-                    let mut items = Vec::new();
-                    for i in start..start+count {
-                        items.push(Dynamic::Number(i));
-                    }
-                    Dynamic::new_array(items)
-                },
-                _ => todo!()
+        .function("range", |_, args| match args.len() {
+            1 => {
+                let count = number!(args[0]);
+                let mut items = Vec::new();
+                for i in 0..count {
+                    items.push(Dynamic::Number(i));
+                }
+                Dynamic::new_array(items)
             }
+            2 => {
+                let start = number!(args[0]);
+                let count = number!(args[1]);
+                let mut items = Vec::new();
+                for i in start..start + count {
+                    items.push(Dynamic::Number(i));
+                }
+                Dynamic::new_array(items)
+            }
+            _ => todo!(),
         })
         .build()
 }

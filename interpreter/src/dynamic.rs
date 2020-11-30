@@ -349,7 +349,7 @@ impl Display for Dynamic {
         f.write_str(&match self {
             Dynamic::Boolean(boolean) => boolean.to_string(),
             Dynamic::String(string) => format!(r#""{}""#, string),
-            Dynamic::Lazy(expr) => expr.to_string(),
+            Dynamic::Lazy(expr) => todo!(),
             Dynamic::Module(module) => format!("module {:#?}", module),
             Dynamic::Class(class) => format!("class {}", class.name),
             Dynamic::Array(items_ref) => {

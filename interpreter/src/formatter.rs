@@ -5,7 +5,7 @@ use itertools::Itertools;
 use super::{ast::Ast, expression::Expression, interpreter::Program};
 
 pub struct Formatter<'a> {
-    prog: &'a Program,
+    prog: &'a Program<'a>,
     level: usize,
 }
 
@@ -37,7 +37,7 @@ impl<'a> Formatter<'a> {
             }
             Ast::VariableAssignment(_, _) => todo!(),
             Ast::IfStatement(_) => todo!(),
-            Ast::FunctionCall(name, args) => format!("{}({})", name, self.format_args(args)),
+            Ast::FunctionCall(name, args) => format!("{}({})", name, self.format_args(&args)),
             Ast::FunctionDefinition(name, args, block) => {
                 self.level += 1;
 

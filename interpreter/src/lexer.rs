@@ -1,11 +1,12 @@
-use super::token::Token;
+use super::token::{Token, TokenKind};
 use logos::Logos;
 
 #[derive(Clone)]
 pub struct Lexer<'a> {
-    inner: logos::Lexer<'a, Token<'a>>,
-    prev: Option<Token<'a>>,
-    current: Option<Token<'a>>,
+    inner: logos::Lexer<'a, TokenKind>,
+    offset: usize,
+    prev: Option<Token>,
+    current: Option<Token>,
 }
 
 impl<'a> std::fmt::Debug for Lexer<'a> {
@@ -19,9 +20,10 @@ impl<'a> std::fmt::Debug for Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(source: &'a str) -> Self {
+    pub fn new(source: &'a str, offset: usize) -> Self {
         Self {
-            inner: Token::lexer(source),
+            inner: TokenKind::lexer(source),
+            offset,
             current: None,
             prev: None,
         }
@@ -29,11 +31,20 @@ impl<'a> Lexer<'a> {
 }
 
 impl<'a> Iterator for Lexer<'a> {
-    type Item = Token<'a>;
+    type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.prev = self.current.clone();
-        self.current = self.inner.next();
+        self.current = self
+            .inner
+            .next()
+            .map(|kind| {
+                let mut span = self.inner.span();
+                span.start += self.offset;
+                span.end += self.offset;
+
+                (kind, span).into()
+            });
         self.current.clone()
     }
 }

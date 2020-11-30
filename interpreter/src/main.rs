@@ -4,29 +4,6 @@ use parser::Parser;
 #[macro_use]
 #[allow(unused_macros)]
 mod macros {
-    macro_rules! consume {
-        ($lexer: expr, $kind: path, $str: tt) => {
-            if let Some(token) = $lexer.next() {
-                if let $kind(_) = token {
-                    Ok(token)
-                } else {
-                    Err(format!("Expected {} found {}", $str, token.text()))
-                }
-            } else {
-                Err(format!("Expected {} found EOF", $str))
-            }
-        };
-        ($lexer: expr, $kind: path, $str: tt, true) => {{
-            while let Some(token) = $lexer.peek() {
-                match token {
-                    Token::NewLine(_) => $lexer.next(),
-                    _ => break,
-                };
-            }
-            consume!($lexer, $kind, $str)
-        }};
-    }
-
     /// Converts the given value into the inner value of the variant
     macro_rules! cast {
         ($enum: expr, $variant: path) => {
@@ -101,11 +78,16 @@ pub fn main() {
 
     let content = std::fs::read_to_string(&root_path).unwrap();
 
-    parser.set_source(root_path, &content);
+    parser.set_source(root_path, &content, 0);
 
-    let program = parser.parse();
+    match parser.parse() {
+        Ok(program) => {
+            // dbg!(&program);
 
-    dbg!(&program);
-
-    interpreter.execute(&program);
+            interpreter.execute(&program);
+        }
+        Err(e) => {
+            println!("ERROR: {}", e);
+        }
+    };
 }
