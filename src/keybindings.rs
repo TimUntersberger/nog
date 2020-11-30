@@ -33,7 +33,7 @@ enum ChanMessage {
 struct KbManagerInner {
     running: AtomicBool,
     stopped: AtomicBool,
-    keybindings: Vec<Keybinding>,
+    keybindings: Mutex<Vec<Keybinding>>,
     mode: Mutex<Mode>,
 }
 
@@ -43,26 +43,28 @@ impl KbManagerInner {
             running: AtomicBool::new(false),
             stopped: AtomicBool::new(false),
             mode: Mutex::new(None),
-            keybindings: kbs,
+            keybindings: Mutex::new(kbs),
         }
     }
 
     pub fn unregister_all(&self) {
-        self.keybindings.iter().for_each(api::unregister_keybinding);
+        self.keybindings.lock().iter().for_each(api::unregister_keybinding);
     }
 
-    pub fn get_keybinding(&self, key: Key, modifier: Modifier) -> Option<&Keybinding> {
+    pub fn get_keybinding(&self, key: Key, modifier: Modifier) -> Option<Keybinding> {
         let mode = self.mode.lock();
         self.keybindings
+            .lock()
             .iter()
             .find(|kb| kb.key == key && kb.modifier == modifier && kb.mode == *mode)
+            .map(|kb| kb.clone())
     }
 
-    pub fn get_keybindings_by<T: Fn(&&Keybinding) -> bool>(&self, f: T) -> Vec<&Keybinding> {
-        self.keybindings.iter().filter(f).collect()
+    pub fn get_keybindings_by<T: Fn(&&Keybinding) -> bool>(&self, f: T) -> Vec<Keybinding> {
+        self.keybindings.lock().iter().filter(f).map(|kb| kb.clone()).collect()
     }
 
-    pub fn get_keybindings_by_mode(&self, mode: Mode) -> Vec<&Keybinding> {
+    pub fn get_keybindings_by_mode(&self, mode: Mode) -> Vec<Keybinding> {
         self.get_keybindings_by(|kb| kb.mode == mode)
     }
 }
@@ -88,6 +90,9 @@ impl KbManager {
             sender,
             receiver: Arc::new(Mutex::new(receiver)),
         }
+    }
+    pub fn update_bindings(&mut self, kbs: Vec<Keybinding>) {
+        *self.inner.keybindings.lock() = kbs;
     }
     fn change_mode(&mut self, mode: Mode) {
         *self.inner.mode.lock() = mode.clone();
@@ -135,6 +140,7 @@ impl KbManager {
                             // exceptions like ToggleMode keybindings for this mode
                             inner
                                 .keybindings
+                                .lock()
                                 .iter()
                                 .filter(|kb| kb.mode == new_mode)
                                 .for_each(api::register_keybinding);
@@ -149,7 +155,7 @@ impl KbManager {
                             .event_channel
                             .sender
                             .clone()
-                            .send(Event::Keybinding(kb.clone()))
+                            .send(Event::Keybinding(kb))
                             .expect("Failed to send key event");
                     }
                 }
@@ -167,12 +173,12 @@ impl KbManager {
 }
 
 #[cfg(not(any(target_os = "windows", target_os = "linux")))]
-fn do_loop(inner: &Arc<KbManagerInner>) -> Option<&Keybinding> {
+fn do_loop(inner: &Arc<KbManagerInner>) -> Option<Keybinding> {
     todo!();
 }
 
 #[cfg(target_os = "windows")]
-fn do_loop(inner: &Arc<KbManagerInner>) -> Option<&Keybinding> {
+fn do_loop(inner: &Arc<KbManagerInner>) -> Option<Keybinding> {
     use winapi::um::winuser::WM_HOTKEY;
 
     if let Some(msg) = system::win::api::get_current_window_msg() {
