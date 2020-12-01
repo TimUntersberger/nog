@@ -22,6 +22,7 @@ pub enum KeybindingType {
     Focus(Direction),
     Resize(Direction, i32),
     Swap(Direction),
+    SwapColumnsAndRows,
     MoveIn(Direction),
     MoveOut(Direction),
     Callback(usize),

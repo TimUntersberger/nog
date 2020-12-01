@@ -309,6 +309,22 @@ Performing a `move_out("Up")` moves the focused Tile 3 _out_ of its parent colum
 bind "<key-combo>" move_out("<direction>");
 ```
 
+### SwapColumnsAndRows
+
+Turns all columns into rows and all rows into columns.
+
+#### Arguments
+
+| Position | Value  | Description                                                                                 |
+|----------|--------|---------------------------------------------------------------------------------------------|
+
+#### Usage
+
+```nog
+bind "<key-combo>" swap_columns_and_rows();
+```
+
+
 ### Split
 
 Changes the orientation of the current tile. Per default a new tile gets opened vertically.
