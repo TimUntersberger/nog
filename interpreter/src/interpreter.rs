@@ -31,6 +31,7 @@ pub struct Interpreter {
     /// This is true if a continue statement was encountered until it is consumed
     pub continued: bool,
     pub default_classes: HashMap<String, Class>,
+    pub modules: HashMap<String, Module>,
     pub classes: HashMap<String, Class>,
     pub default_variables: HashMap<String, Dynamic>,
     pub exported_variables: Vec<String>,
@@ -53,6 +54,7 @@ impl Interpreter {
             continued: false,
             default_classes: create_default_classes(),
             default_variables: create_default_variables(),
+            modules: HashMap::new(),
             classes: HashMap::new(),
             module_cache: HashMap::new(),
             exported_classes: Vec::new(),
@@ -87,6 +89,9 @@ impl Interpreter {
 
     pub fn add_class(&mut self, class: Class) {
         self.classes.insert(class.name.clone(), class);
+    }
+    pub fn add_module(&mut self, module: Module) {
+        self.modules.insert(module.name.clone(), module);
     }
     pub fn get_scope(&self) -> &Scope {
         self.scopes.iter().last().unwrap()
@@ -374,6 +379,11 @@ impl Interpreter {
     }
     fn import_module(&mut self, path: &str) -> (String, Module) {
         let mod_name = self.module_path_to_name(path);
+
+        if let Some(module) = self.modules.get(&mod_name).cloned() {
+            return (mod_name, module);
+        }
+
         let file_path = self.module_path_to_file_path(path);
         if let Some(module) = self.module_cache.get(&file_path).cloned() {
             (mod_name, module)
@@ -592,6 +602,18 @@ impl Interpreter {
                 break;
             }
         }
+    }
+
+    pub fn execute_file(&mut self, path: PathBuf) -> Result<(), String> {
+        let mut parser = Parser::new();
+
+        let content = std::fs::read_to_string(&path).unwrap();
+
+        parser.set_source(path, &content, 0);
+
+        self.execute(&parser.parse()?);
+
+        Ok(())
     }
 
     pub fn execute(&mut self, prog: &Program) -> Module {

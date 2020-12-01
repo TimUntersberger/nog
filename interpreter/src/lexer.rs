@@ -35,16 +35,13 @@ impl<'a> Iterator for Lexer<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.prev = self.current.clone();
-        self.current = self
-            .inner
-            .next()
-            .map(|kind| {
-                let mut span = self.inner.span();
-                span.start += self.offset;
-                span.end += self.offset;
+        self.current = self.inner.next().map(|kind| {
+            let mut span = self.inner.span();
+            span.start += self.offset;
+            span.end += self.offset;
 
-                (kind, span).into()
-            });
+            (kind, span).into()
+        });
         self.current.clone()
     }
 }

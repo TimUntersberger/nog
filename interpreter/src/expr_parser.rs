@@ -152,7 +152,7 @@ fn parse_arg_list(
     let mut arg = Vec::new();
     let mut depth = 0;
     while let Some(token) = rest.next() {
-        match token.0 {
+        match &token.0 {
             TokenKind::LParan | TokenKind::LBracket | TokenKind::LCurly => {
                 depth += 1;
             }
@@ -160,9 +160,10 @@ fn parse_arg_list(
                 depth -= 1;
             }
             TokenKind::Comma => {
+                parser.prev_token = token.clone();
                 if depth == 0 && !arg.is_empty() {
-                    parser.prev_token = token;
                     list.push(parser.parse(&mut arg.clone().into_iter()).unwrap());
+                    parser.prev_token = token.clone();
                     arg.clear();
                     continue;
                 }

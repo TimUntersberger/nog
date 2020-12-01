@@ -98,11 +98,11 @@ impl<'a> Parser<'a> {
                         if paren_depth == 0 && curly_depth == 0 {
                             match prev_token.0 {
                                 TokenKind::RParan
-                                | TokenKind::RCurly 
-                                | TokenKind::Identifier 
-                                | TokenKind::PlusPlus 
-                                | TokenKind::MinusMinus 
-                                | TokenKind::ClassIdentifier 
+                                | TokenKind::RCurly
+                                | TokenKind::Identifier
+                                | TokenKind::PlusPlus
+                                | TokenKind::MinusMinus
+                                | TokenKind::ClassIdentifier
                                 | TokenKind::RBracket => break,
                                 _ => {}
                             }
@@ -562,7 +562,7 @@ impl<'a> Parser<'a> {
                 TokenKind::NewLine => {
                     line += 1;
                     col_start = token.1.start;
-                },
+                }
                 _ => {}
             }
         }
@@ -607,7 +607,7 @@ impl<'a> Parser<'a> {
                     } else {
                         Err(format!("Expected {:?}, but found EOF", expected))
                     }
-                },
+                }
             },
         }
     }
