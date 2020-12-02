@@ -1,4 +1,4 @@
-use log::debug;
+use log::{debug,error};
 
 use crate::{
     event::Event, system::NativeWindow, system::SystemResult,
@@ -15,7 +15,10 @@ pub fn handle(state: &mut AppState) -> SystemResult {
         .and_then(|g| g.remove_by_window_id(window.id).map(|t| (g.id, t)))
         .map(|(id, mut window)| {
             debug!("Unmanaging window '{}' | {}", window.title, window.id);
-            window.cleanup();
+            match window.cleanup() {
+                Err(e) => error!("Error cleaning up window {} {:?}", window.id, e),
+                _ => ()
+            }
 
             id
         });
@@ -33,30 +36,6 @@ pub fn handle(state: &mut AppState) -> SystemResult {
             }))
             .expect("Failed to send WinEvent");
     }
-    // if let Some((grid, _)) =  {
-    //     let mut tile = grid.close_tile_by_window_id(window.id).unwrap();
-
-    //     tile.window.cleanup();
-
-    //     let display = state.get_current_display();
-
-    //     debug!(
-    //         "Unmanaging window '{}' | {}",
-    //         tile.window.title, tile.window.id
-    //     );
-
-    //     grid.draw_grid(display, &state.config);
-    //     display.refresh_grid(&state.config);
-    // } else {
-    //     state
-    //         .event_channel
-    //         .sender
-    //         .clone()
-    //         .send(Event::WinEvent(WinEvent {
-    //             typ: WinEventType::Show(true),
-    //             window,
-    //         }))?;
-    // }
 
     Ok(())
 }

@@ -20,6 +20,7 @@ pub mod graph_wrapper;
 pub mod node;
 pub mod tile_render_info;
 pub mod text_renderer;
+pub mod store;
 
 static FULL_SIZE: u32 = 120;
 static HALF_SIZE: u32 = FULL_SIZE / 2;
@@ -295,7 +296,10 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
         }
 
         if let Some(focused_id) = self.focused_id {
-            self.graph.node(focused_id).get_window().focus().expect("Failed to focus window");
+            match self.graph.node(focused_id).get_window().focus() {
+                Err(_) => info!("Failed focusing window in node {}", focused_id),
+                _ => ()
+            }
         }
         Ok(())
     }
@@ -479,7 +483,8 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     }
     pub fn close_focused(&mut self) -> Option<NativeWindow> {
         if let Some(focused_node) = self.focused_id.map(|id| self.graph.node(id)) {
-            self.remove_by_window_id(focused_node.get_window().id);
+            let window_id = focused_node.get_window().id;
+            self.remove_by_window_id(window_id);
         }
 
         None
@@ -930,6 +935,133 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                 Node::Row(info) => { self.graph.swap_node(node_id, Node::column(info.order, info.size)); },
                 _ => ()
             }
+        }
+    }
+    /// Iterates nodes in tile grid and removes any that are no longer valid windows
+    pub fn remove_empty_tiles(&mut self) {
+        for node_id in self.graph.nodes() {
+            if self.graph.node(node_id).is_tile() && !self.graph.node(node_id).get_window().is_window() {
+                self.focused_id = Some(node_id);
+                self.pop();
+            }
+        }
+    }
+    /// Returns a stringified version of the grid that follows this format:
+    /// tiles:    t#|#|#   (t)ile (#1)order (#2)size (#3) window ID   Example: t0|60|1 (a tile with order 0, size 60 and windowID 1)
+    /// columns:  c#|#[]   (c)olumn (#1)order (#2)size  [..] any children Example: c0|120[t0|60|1] (a column with order 0, size 120 and one child tile)
+    /// rows:     r#|#[]   (r)olumn (#1)order (#2)size  [..] any children Example: r0|120[t0|60|1] (a row with order 0, size 120 and one child tile)
+    ///     Grid          Tree                         String
+    ///                     c          
+    ///    11112222        / \
+    ///    11113333       t1  r        c0|120[t0|60|1,r1|60[t0|40|2,t1|40|3,t2|40|4]]
+    ///    11114444         / | \
+    ///                   t2 t3 t4
+    /// Note that the children arrays [] can nest columns and rows. 
+    pub fn to_string(&self) -> String {
+        match self.graph.get_root() {
+            Some(root) => self.inner_to_string(root),
+            _ => "".into()
+        }
+    }
+    fn inner_to_string(&self, id: usize) -> String {
+        match self.graph.node(id) {
+            Node::Column(_) | Node::Row(_) => format!("{}[{}]", self.graph.node(id).to_string(), self.stringify_children(id)),
+            Node::Tile(_) => self.graph.node(id).to_string()
+        }
+    }
+    fn stringify_children(&self, id: usize) -> String {
+        self.graph.get_sorted_children(id)
+                  .iter()
+                  .map(|child_id| self.inner_to_string(*child_id))
+                  .collect::<Vec::<String>>()
+                  .join(",")
+    }
+    /// Takes string formatted from the to_string function, parses it and populates the tile grid with the nodes and the right relationships 
+    /// Currently this will panic if the string isn't formatted correctly, although the strings passed into this function should be generated
+    /// by the to_string function. An incorrectly formatted string would indicate a bug in the to_string function.
+    pub fn from_string(&mut self, target: String) {
+        if target.len() == 0 { return; }
+
+        self.inner_from_string(&target[..], None);
+
+        #[cfg(not(test))] // TODO: Need to refactor Window to be able to fake calls in unit tests
+        {
+            self.remove_empty_tiles();
+        }
+    }
+    fn inner_from_string(&mut self, target: &str, parent_id: Option<usize>) -> usize {
+        // intended to get the matching brace when nested children occur [ [ [ ] ] ]
+        //                                                               ^         ^
+        let get_closing_brace_index = |s: &str| {
+            let mut bracket_count: usize = 0;
+            let mut index: usize = 0;
+
+            for c in s.chars() {
+                index += 1;
+                match c {
+                    '[' => bracket_count += 1,
+                    ']' => {
+                        bracket_count -= 1;
+                        if bracket_count == 0 {
+                            return index;
+                        }
+                    },
+                    _ => continue
+                }
+            }
+
+            index
+        };
+
+        match target.chars().nth(0).unwrap() {
+            't' => { // create tile node
+                let end_info_index = cmp::min(target.find(']').unwrap_or(target.len()), target.find(',').unwrap_or(target.len()));
+                let tile = &target[1..end_info_index];
+                let tile_information = tile.split("|").collect::<Vec::<&str>>();
+                let mut window = NativeWindow::from(WindowId::from(tile_information[2].parse::<i32>().unwrap()));
+
+                match window.init() {
+                    Err(_) => debug!("Failed to initialize window"),
+                    _ => ()
+                }
+
+                match parent_id {
+                    Some(id) => {
+                        let order = tile_information[0].parse::<u32>().unwrap();
+                        let size = tile_information[1].parse::<u32>().unwrap();
+                        let tile_node = Node::Tile((NodeInfo { order: order, size: size }, window));
+                        let tile_node_id = self.graph.add_node(tile_node);
+                        self.graph.connect(id, tile_node_id);
+                    },
+                    None => self.push(window) // simple case of just one tile in graph, so just push it in
+                }
+
+                end_info_index
+            },
+            character @ 'c' | character @ 'r' => { // create column or row node
+                let end_info_index = target.find('[').unwrap();
+                let node_information = &target[1..end_info_index].split("|").collect::<Vec::<&str>>();
+                let order = node_information[0].parse::<u32>().unwrap();
+                let size = node_information[1].parse::<u32>().unwrap();
+                let node_info = NodeInfo { order: order, size: size };
+                let node = if character == 'c' { Node::Column(node_info) } else { Node::Row(node_info) };
+                let node_id = self.graph.add_node(node);
+
+                if let Some(id) = parent_id {
+                    self.graph.connect(id, node_id);
+                }
+
+                let open_bracket_index = end_info_index;
+                let close_bracket_index = open_bracket_index + get_closing_brace_index(&target[open_bracket_index..]);
+                let mut current_index = open_bracket_index + 1;
+
+                while current_index < close_bracket_index {
+                    current_index += self.inner_from_string(&target[current_index..close_bracket_index], Some(node_id));
+                }
+
+                close_bracket_index
+            }
+            _ => 1 // some other character like a comma that can be skipped 
         }
     }
 }

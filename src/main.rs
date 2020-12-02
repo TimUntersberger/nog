@@ -146,7 +146,7 @@ impl Default for AppState {
         let config = Config::default();
         Self {
             work_mode: true,
-            displays: time!("initializing displays", display::init(&config)),
+            displays: Vec::<Display>::new(),
             keybindings_manager: KbManager::new(config.keybindings.clone()),
             event_channel: EventChannel::default(),
             additonal_rules: Vec::new(),
@@ -174,7 +174,7 @@ impl AppState {
     pub fn init(&mut self, config: Config) {
         self.config = config;
         self.work_mode = self.config.work_mode;
-        self.displays = display::init(&self.config);
+        self.displays = time!("initializing displays", display::init(&self.config));
         self.keybindings_manager = KbManager::new(self.config.keybindings.clone());
     }
 

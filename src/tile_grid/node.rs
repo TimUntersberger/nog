@@ -117,4 +117,12 @@ impl Node {
             _ => panic!("Attempt to take window of non-Tile node")
         }
     }
+
+    pub fn to_string(&self) -> String {
+        match self {
+            Node::Column(info) => format!("c{}|{}", info.order, info.size),
+            Node::Row(info) => format!("r{}|{}", info.order, info.size),
+            Node::Tile((info, window)) => format!("t{}|{}|{}", info.order, info.size, window.id),
+        }
+    }
 }

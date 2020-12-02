@@ -7,6 +7,7 @@ use crate::{
     system::{api, Rectangle},
     task_bar,
     tile_grid::TileGrid,
+    tile_grid::store::Store,
 };
 use std::cmp::Ordering;
 use task_bar::{Taskbar, TaskbarPosition};
@@ -126,6 +127,8 @@ impl Display {
     pub fn refresh_grid(&self, config: &Config) -> SystemResult {
         if let Some(g) = self.get_focused_grid() {
             g.draw_grid(self, config)?;
+
+            Store::save(g.id, g.to_string());
         }
 
         Ok(())
