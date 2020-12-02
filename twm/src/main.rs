@@ -5,13 +5,14 @@ extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
 
-use config::{rhai::engine::parse_config, rule::Rule, workspace_setting::WorkspaceSetting, Config};
+use config::{rule::Rule, workspace_setting::WorkspaceSetting, Config};
 use crossbeam_channel::select;
 use display::Display;
 use event::Event;
 use event::EventChannel;
 use event_handler::keybinding::toggle_work_mode;
 use hot_reload::update_config;
+use interpreter::{Dynamic, Function, Interpreter, Module};
 use keybindings::{
     key::Key, keybinding::Keybinding, keybinding_type::KeybindingType, modifier::Modifier,
     KbManager,
@@ -20,6 +21,7 @@ use log::debug;
 use log::{error, info};
 use parking_lot::{deadlock, Mutex};
 use popup::Popup;
+use std::path::PathBuf;
 use std::{process, sync::Arc};
 use std::{thread, time::Duration};
 use system::{DisplayId, SystemResult, WinEventListener, WindowId};
@@ -161,7 +163,6 @@ impl Default for AppState {
 
 impl AppState {
     pub fn new(config: Config) -> Self {
-        // let config = parse_config(event_channel.sender.clone())?;
         Self {
             work_mode: config.work_mode,
             displays: display::init(&config),
@@ -400,7 +401,86 @@ fn os_specific_setup(state: Arc<Mutex<AppState>>) {
     tray::create(state);
 }
 
-fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>> {
+fn parse_config(
+    state_arc: Arc<Mutex<AppState>>,
+    callbacks_arc: Arc<Mutex<Vec<Function>>>,
+    interpreter_arc: Arc<Mutex<Interpreter>>,
+) -> Result<Config, String> {
+    let config = Arc::new(Mutex::new(Config::default()));
+    let mut interpreter = Interpreter::new();
+    let cfg = config.clone();
+
+    interpreter.add_module(Module::new("nog").variable("version", "<VERSION>").function(
+        "map",
+        move |_i, args| {
+            use std::str::FromStr;
+            let mut kb = crate::keybindings::keybinding::Keybinding::from_str(
+                &args[0].clone().as_str().unwrap(),
+            )
+            .unwrap();
+            match &args[1] {
+                Dynamic::Function {
+                    body,
+                    scope,
+                    arg_names,
+                    name,
+                } => {
+                    let arg_names = arg_names.clone();
+                    let body = body.clone();
+                    let scope = scope.clone();
+
+                    let value =
+                        Function::new(&name.clone(), Some(scope.clone()), move |i, args| {
+                            i.call_fn(None, Some(scope.clone()), &arg_names, &args, &body)
+                        });
+
+                    let mut cbs = callbacks_arc.lock();
+                    let idx = cbs.len();
+                    cbs.push(value);
+                    kb.typ = crate::keybindings::keybinding_type::KeybindingType::Callback(idx);
+                }
+                _ => todo!(),
+            }
+            cfg.lock().add_keybinding(kb);
+        },
+    ));
+
+    let mut config_path: PathBuf = dirs::config_dir().unwrap_or_default();
+
+    config_path.push("nog");
+
+    if !config_path.exists() {
+        debug!("nog folder doesn't exist yet. Creating the folder");
+        std::fs::create_dir(config_path.clone()).map_err(|e| e.to_string())?;
+    }
+
+    config_path.push("config.ns");
+
+    if !config_path.exists() {
+        debug!("config file doesn't exist yet. Creating the file");
+        if let Ok(mut file) = std::fs::File::create(config_path.clone()) {
+            debug!("Initializing config with default values");
+            // file.write_all(include_bytes!("../../../assets/default_config.nog"))
+            //     .map_err(|e| e.to_string())?;
+        }
+    }
+
+    debug!("Running config file");
+
+    interpreter.execute_file(config_path).unwrap();
+
+    *interpreter_arc.lock() = interpreter;
+
+    let cfg = config.lock();
+
+    Ok(cfg.clone())
+}
+
+fn run(
+    state_arc: Arc<Mutex<AppState>>,
+    callbacks_arc: Arc<Mutex<Vec<Function>>>,
+    interpreter_arc: Arc<Mutex<Interpreter>>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let receiver = state_arc.lock().event_channel.receiver.clone();
     let sender = state_arc.lock().event_channel.sender.clone();
 
@@ -451,6 +531,10 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
                         event_handler::keybinding::handle(state_arc.clone(), kb);
                         Ok(())
                     },
+                    Event::CallCallback(idx) => {
+                        callbacks_arc.lock().get(idx).unwrap().invoke(&mut interpreter_arc.lock(), vec![]);
+                        Ok(())
+                    },
                     Event::RedrawAppBar => {
                         let windows = state_arc.lock().displays.iter().map(|d| d.appbar.as_ref()).flatten().map(|b| b.window.clone()).collect::<Vec<Window>>();
 
@@ -467,7 +551,7 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
                     },
                     Event::ReloadConfig => {
                         info!("Reloading Config");
-                        match parse_config(state_arc.clone()) {
+                        match parse_config(state_arc.clone(), callbacks_arc.clone(), interpreter_arc.clone()) {
                             Ok(new_config) => update_config(state_arc.clone(), new_config),
                             Err(e) => {
                                 sender.send(Event::NewPopup(Popup::new()
@@ -513,20 +597,26 @@ fn main() {
     logging::setup().expect("Failed to setup logging");
 
     let state_arc = Arc::new(Mutex::new(AppState::default()));
+    let callbacks_arc: Arc<Mutex<Vec<Function>>> = Arc::new(Mutex::new(Vec::new()));
+    let interpreter_arc = Arc::new(Mutex::new(Interpreter::new()));
 
     {
-        let config = parse_config(state_arc.clone())
-            .map_err(|e| {
-                let state_arc = state_arc.clone();
-                thread::spawn(move || {
-                    Popup::new()
-                        .with_padding(5)
-                        .with_text(&[&e, "", "(Press Alt+Q to close)"])
-                        .create(state_arc)
-                        .unwrap()
-                });
-            })
-            .unwrap_or_default();
+        let config = parse_config(
+            state_arc.clone(),
+            callbacks_arc.clone(),
+            interpreter_arc.clone(),
+        )
+        .map_err(|e| {
+            let state_arc = state_arc.clone();
+            thread::spawn(move || {
+                Popup::new()
+                    .with_padding(5)
+                    .with_text(&[&e, "", "(Press Alt+Q to close)"])
+                    .create(state_arc)
+                    .unwrap()
+            });
+        })
+        .unwrap_or_default();
         state_arc.lock().init(config)
     }
 
@@ -559,7 +649,11 @@ fn main() {
     .unwrap();
 
     let arc = state_arc.clone();
-    if let Err(e) = run(state_arc.clone()) {
+    if let Err(e) = run(
+        state_arc.clone(),
+        callbacks_arc.clone(),
+        interpreter_arc.clone(),
+    ) {
         error!("An error occured {:?}", e);
         if let Err(e) = on_quit(&mut arc.lock()) {
             error!("Something happend when cleaning up. {}", e);

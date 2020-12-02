@@ -7,6 +7,9 @@ pub struct Scope {
     pub variables: Rc<RefCell<HashMap<String, Dynamic>>>,
 }
 
+unsafe impl Send for Scope {}
+unsafe impl Sync for Scope {}
+
 impl Scope {
     pub fn set(&mut self, key: String, value: Dynamic) {
         self.variables.borrow_mut().insert(key, value);

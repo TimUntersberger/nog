@@ -814,35 +814,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nog-twm"
-version = "0.13.0"
-dependencies = [
- "bitflags",
- "chrono",
- "crossbeam-channel",
- "ctrlc",
- "derivative",
- "dirs",
- "flexi_logger",
- "lazy_static",
- "log",
- "notify",
- "num-derive",
- "num-traits",
- "parking_lot",
- "regex",
- "reqwest",
- "rhai",
- "serde",
- "serde_json",
- "strum",
- "strum_macros",
- "syn",
- "thiserror",
- "winapi 0.3.8",
-]
-
-[[package]]
 name = "notify"
 version = "4.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1512,6 +1483,36 @@ name = "try-lock"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
+
+[[package]]
+name = "twm"
+version = "0.13.0"
+dependencies = [
+ "bitflags",
+ "chrono",
+ "crossbeam-channel",
+ "ctrlc",
+ "derivative",
+ "dirs",
+ "flexi_logger",
+ "interpreter",
+ "lazy_static",
+ "log",
+ "notify",
+ "num-derive",
+ "num-traits",
+ "parking_lot",
+ "regex",
+ "reqwest",
+ "rhai",
+ "serde",
+ "serde_json",
+ "strum",
+ "strum_macros",
+ "syn",
+ "thiserror",
+ "winapi 0.3.8",
+]
 
 [[package]]
 name = "unicase"

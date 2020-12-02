@@ -21,7 +21,7 @@ pub struct Program<'a> {
     pub stmts: Vec<Ast>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Interpreter {
     /// Contains the current file path to the file being interpreted
     pub file_path: PathBuf,

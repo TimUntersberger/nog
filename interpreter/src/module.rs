@@ -31,7 +31,10 @@ impl Module {
         self
     }
 
-    pub fn function<R: Into<Dynamic>, T: Fn(&mut Interpreter, Vec<Dynamic>) -> R + 'static + Send>(
+    pub fn function<
+        R: Into<Dynamic>,
+        T: Fn(&mut Interpreter, Vec<Dynamic>) -> R + 'static + Send,
+    >(
         mut self,
         name: &str,
         value: T,

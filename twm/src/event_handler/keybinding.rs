@@ -127,7 +127,7 @@ pub fn handle(state_arc: Arc<Mutex<AppState>>, kb: Keybinding) -> SystemResult {
         }
         KeybindingType::Callback(idx) => {
             drop(state);
-            engine::call(idx)
+            sender.send(Event::CallCallback(idx)).unwrap();
         }
         KeybindingType::IgnoreTile => {
             if let Some(tile) = state.get_current_grid().unwrap().get_focused_tile() {

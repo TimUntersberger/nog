@@ -9,6 +9,9 @@ pub struct Function {
     pub inner: Arc<dyn Fn(&mut Interpreter, Vec<Dynamic>) -> Dynamic>,
 }
 
+unsafe impl Send for Function {}
+unsafe impl Sync for Function {}
+
 impl Function {
     pub fn invoke(&self, i: &mut Interpreter, args: Vec<Dynamic>) -> Dynamic {
         i.scopes.push(self.scope.clone());

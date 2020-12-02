@@ -295,6 +295,12 @@ impl From<String> for Dynamic {
     }
 }
 
+impl From<&str> for Dynamic {
+    fn from(val: &str) -> Self {
+        Dynamic::String(val.to_string())
+    }
+}
+
 impl From<i32> for Dynamic {
     fn from(val: i32) -> Self {
         Dynamic::Number(val)

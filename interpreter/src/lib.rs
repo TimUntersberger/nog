@@ -17,7 +17,7 @@ mod scope;
 mod token;
 
 pub use class::Class;
-pub use interpreter::Interpreter;
-pub use module::Module;
 pub use dynamic::Dynamic;
 pub use function::Function;
+pub use interpreter::Interpreter;
+pub use module::Module;
