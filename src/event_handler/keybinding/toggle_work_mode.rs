@@ -55,23 +55,24 @@ pub fn turn_work_mode_on(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
 
     let remove_title_bar = state.config.remove_title_bar;
     let use_border = state.config.use_border;
-    let mut stored_grids: Vec<String> = Store::load().into_iter().rev().collect();
+    let stored_grids: Vec<String> = Store::load();
     for display in state.displays.iter_mut() {
         for grid in display.grids.iter_mut() {
-            grid.from_string(stored_grids.pop().unwrap_or("".into()));
-            Store::save(grid.id, grid.to_string());
+            if let Some(stored_grid) = stored_grids.get((grid.id - 1) as usize) {
+                grid.from_string(stored_grid);
+                Store::save(grid.id, grid.to_string());
 
-            if remove_title_bar {
-                match grid.modify_windows(|window| {
-                          window.remove_title_bar(use_border)?;
-                          Ok(())
-                      }) {
-                    Err(e) => error!("Error while removing title bar {:?}", e),
-                    _ => ()
+                if remove_title_bar {
+                    if let Err(e) = grid.modify_windows(|window| {
+                                        window.remove_title_bar(use_border)?;
+                                        Ok(())
+                                    }) {
+                        error!("Error while removing title bar {:?}", e);
+                    }
                 }
-            }
 
-            grid.hide(); // hides all the windows just loaded into the grid
+                grid.hide(); // hides all the windows just loaded into the grid
+            }
         }
     }
 
