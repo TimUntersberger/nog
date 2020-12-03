@@ -88,6 +88,8 @@ pub enum SystemError {
     GetForegroundWindow(SpecificError),
     #[error("Failed to launch a program")]
     LaunchProgram(String),
+    #[error("Failed to register keybinding")]
+    RegisterKeybinding(String),
     #[error("An error that is specific to the platform occured")]
     Native(#[from] SpecificError),
     #[error("An unknown error occured")]
