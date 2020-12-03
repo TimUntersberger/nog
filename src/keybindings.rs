@@ -1,4 +1,4 @@
-use crate::{event::Event, system, system::api, AppState};
+use crate::{event::Event, system, system::api, AppState, popup::Popup};
 use key::Key;
 use keybinding::Keybinding;
 use keybinding_type::KeybindingType;
@@ -109,6 +109,10 @@ impl KbManager {
     pub fn get_mode(&self) -> Mode {
         self.inner.clone().mode.lock().clone()
     }
+    fn show_keybinding_error(keybinding: &Keybinding, state_arc: Arc<Mutex<AppState>>) {
+        let message = format!("Failed to register {:?}.\nAnother running application may already have this binding registered.", &keybinding);
+        Popup::error(message, state_arc);
+    }
     pub fn start(&self, state_arc: Arc<Mutex<AppState>>) {
         let inner = self.inner.clone();
         let receiver = self.receiver.clone();
@@ -119,7 +123,11 @@ impl KbManager {
 
             for kb in inner.get_keybindings_by_mode(None) {
                 info!("Registering {:?}", kb);
-                api::register_keybinding(&kb);
+                api::register_keybinding(&kb)
+                    .map_err(|_| {
+                        let state_arc = state_arc.clone();
+                        KbManager::show_keybinding_error(&kb, state_arc); 
+                    });
             }
 
             loop {
@@ -143,7 +151,13 @@ impl KbManager {
                                 .lock()
                                 .iter()
                                 .filter(|kb| kb.mode == new_mode)
-                                .for_each(api::register_keybinding);
+                                .for_each(|kb| { 
+                                    api::register_keybinding(kb)
+                                        .map_err(|_| {
+                                            let state_arc = state_arc.clone();
+                                            KbManager::show_keybinding_error(&kb, state_arc); 
+                                        });
+                                });
                         }
                     };
                 }

@@ -12,10 +12,7 @@ use event::Event;
 use event::EventChannel;
 use event_handler::keybinding::toggle_work_mode;
 use hot_reload::update_config;
-use keybindings::{
-    key::Key, keybinding::Keybinding, keybinding_type::KeybindingType, modifier::Modifier,
-    KbManager,
-};
+use keybindings::KbManager;
 use log::debug;
 use log::{error, info};
 use parking_lot::{deadlock, Mutex};
@@ -513,13 +510,7 @@ fn main() {
         let config = parse_config(state_arc.clone())
             .map_err(|e| {
                 let state_arc = state_arc.clone();
-                thread::spawn(move || {
-                    Popup::new()
-                        .with_padding(5)
-                        .with_text(&[&e, "", "(Press Alt+Q to close)"])
-                        .create(state_arc)
-                        .unwrap()
-                });
+                Popup::error(e, state_arc);
             })
             .unwrap_or_default();
         state_arc.lock().init(config)

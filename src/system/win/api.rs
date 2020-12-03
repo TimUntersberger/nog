@@ -172,15 +172,18 @@ pub fn remove_launch_on_startup() {
     }
 }
 
-pub fn register_keybinding(kb: &Keybinding) {
+pub fn register_keybinding(kb: &Keybinding) -> SystemResult {
     unsafe {
-        nullable_to_result(RegisterHotKey(
-            std::ptr::null_mut(),
-            kb.get_id(),
-            kb.modifier.bits(),
-            kb.key as u32,
-        ))
-        .expect("Failed to register keybinding");
+        let result = nullable_to_result(RegisterHotKey(
+                                  std::ptr::null_mut(),
+                                  kb.get_id(),
+                                  kb.modifier.bits(),
+                                  kb.key as u32,
+                              ));
+        match result {
+            Err(_) => Err(SystemError::RegisterKeybinding(format!("{:?}",kb))),
+            _ => Ok(())
+        }
     }
 }
 
