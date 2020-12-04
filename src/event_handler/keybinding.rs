@@ -41,20 +41,22 @@ pub fn handle(state_arc: Arc<Mutex<AppState>>, kb: Keybinding) -> SystemResult {
             api::launch_program(cmd)?;
         }
         KeybindingType::MoveWorkspaceToMonitor(monitor) => {
-            let display = state.get_current_display_mut();
-            if let Some(grid) = display
-                .focused_grid_id
-                .and_then(|id| display.remove_grid_by_id(id))
-            {
-                let new_display = state
-                    .get_display_by_idx_mut(monitor)
-                    .expect("Monitor with specified idx doesn't exist");
+            if let Some(_) = state.get_display_by_idx(monitor) {
+                let display = state.get_current_display_mut();
+                if let Some(grid) = display
+                    .focused_grid_id
+                    .and_then(|id| display.remove_grid_by_id(id))
+                {
+                    let new_display = state
+                        .get_display_by_idx_mut(monitor)
+                        .expect("Monitor with specified idx doesn't exist");
 
-                let id = grid.id;
+                    let id = grid.id;
 
-                new_display.grids.push(grid);
-                new_display.focus_workspace(&config, id)?;
-                state.workspace_id = id;
+                    new_display.grids.push(grid);
+                    new_display.focus_workspace(&config, id)?;
+                    state.workspace_id = id;
+                }
             }
         }
         KeybindingType::CloseTile => close_tile::handle(&mut state)?,

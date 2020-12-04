@@ -224,15 +224,9 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
 
         removed_node.map(|x| x.take_window()) 
     }
-    /// Iterates and removes every node while resetting any windows that were managed
+    /// Calls cleanup on all managed windows
     pub fn cleanup(&mut self) -> SystemResult {
-        while !self.is_empty() {
-            self.focused_id = self.get_last_tile();
-
-            if let Some(mut window) = self.pop() {
-                window.cleanup()?;
-            }
-        }
+        self.modify_windows(|window| window.cleanup())?;
 
         Ok(())
     }
@@ -930,10 +924,13 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     }
     pub fn swap_columns_and_rows(&mut self) {
         for node_id in self.graph.nodes() {
-            match self.graph.node(node_id) {
-                Node::Column(info) => { self.graph.swap_node(node_id, Node::row(info.order, info.size)); },
-                Node::Row(info) => { self.graph.swap_node(node_id, Node::column(info.order, info.size)); },
-                _ => ()
+            let node = match self.graph.node(node_id) {
+                           Node::Column(info) => Some(Node::row(info.order, info.size)),
+                           Node::Row(info) => Some(Node::column(info.order, info.size)),
+                           _ => None
+                       };
+            if let Some(n) = node {
+                self.graph.swap_node(node_id, n);
             }
         }
     }
@@ -979,7 +976,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     /// Takes string formatted from the to_string function, parses it and populates the tile grid with the nodes and the right relationships 
     /// Currently this will panic if the string isn't formatted correctly, although the strings passed into this function should be generated
     /// by the to_string function. An incorrectly formatted string would indicate a bug in the to_string function.
-    pub fn from_string(&mut self, target: String) {
+    pub fn from_string(&mut self, target: &String) {
         if target.len() == 0 { return; }
 
         self.inner_from_string(&target[..], None);

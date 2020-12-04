@@ -53,29 +53,41 @@ pub fn turn_work_mode_on(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
         state = state_arc.lock();
     }
 
+    let mut focused_workspaces = Vec::<i32>::new();
     let remove_title_bar = state.config.remove_title_bar;
     let use_border = state.config.use_border;
-    let mut stored_grids: Vec<String> = Store::load().into_iter().rev().collect();
+    let stored_grids: Vec<String> = Store::load();
     for display in state.displays.iter_mut() {
         for grid in display.grids.iter_mut() {
-            grid.from_string(stored_grids.pop().unwrap_or("".into()));
-            Store::save(grid.id, grid.to_string());
+            if let Some(stored_grid) = stored_grids.get((grid.id - 1) as usize) {
+                grid.from_string(stored_grid);
+                Store::save(grid.id, grid.to_string());
 
-            if remove_title_bar {
-                match grid.modify_windows(|window| {
-                          window.remove_title_bar(use_border)?;
-                          Ok(())
-                      }) {
-                    Err(e) => error!("Error while removing title bar {:?}", e),
-                    _ => ()
+                if remove_title_bar {
+                    if let Err(e) = grid.modify_windows(|window| {
+                                        window.remove_title_bar(use_border)?;
+                                        Ok(())
+                                    }) {
+                        error!("Error while removing title bar {:?}", e);
+                    }
                 }
-            }
 
-            grid.hide(); // hides all the windows just loaded into the grid
+                grid.hide(); // hides all the windows just loaded into the grid
+            }
+        }
+
+        if let Some(id) = display.focused_grid_id {
+            focused_workspaces.push(id); 
         }
     }
 
-    state.change_workspace(1, false);
+    if !focused_workspaces.is_empty() {  // re-focus to show each display's focused workspace
+        for id in focused_workspaces.iter().rev() {
+            state.change_workspace(*id, false);
+        }
+    } else { // otherwise just focus first workspace
+        state.change_workspace(1, false);
+    }
 
     info!("Registering windows event handler");
     state.window_event_listener.start(&state.event_channel);
