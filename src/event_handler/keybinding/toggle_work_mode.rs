@@ -53,6 +53,7 @@ pub fn turn_work_mode_on(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
         state = state_arc.lock();
     }
 
+    let mut focused_workspaces = Vec::<i32>::new();
     let remove_title_bar = state.config.remove_title_bar;
     let use_border = state.config.use_border;
     let stored_grids: Vec<String> = Store::load();
@@ -74,9 +75,19 @@ pub fn turn_work_mode_on(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
                 grid.hide(); // hides all the windows just loaded into the grid
             }
         }
+
+        if let Some(id) = display.focused_grid_id {
+            focused_workspaces.push(id); 
+        }
     }
 
-    state.change_workspace(1, false);
+    if !focused_workspaces.is_empty() {  // re-focus to show each display's focused workspace
+        for id in focused_workspaces.iter().rev() {
+            state.change_workspace(*id, false);
+        }
+    } else { // otherwise just focus first workspace
+        state.change_workspace(1, false);
+    }
 
     info!("Registering windows event handler");
     state.window_event_listener.start(&state.event_channel);
