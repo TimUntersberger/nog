@@ -7,8 +7,8 @@ use std::{
 };
 
 use super::{
-    ast::Ast, class::Class, expression::Expression, interpreter::Interpreter, module::Module,
-    scope::Scope,
+    ast::Ast, class::Class, expression::Expression, function::Function, interpreter::Interpreter,
+    module::Module, scope::Scope,
 };
 
 pub mod object_builder;
@@ -55,7 +55,7 @@ impl Dynamic {
                 let fields = fields_ref.lock().unwrap();
                 fields.get(key).cloned().unwrap_or_default()
             }
-            Dynamic::ClassInstance(_, fields_ref) => {
+            Dynamic::ClassInstance(name, fields_ref) => {
                 let fields = fields_ref.lock().unwrap();
                 fields.get(key).cloned().unwrap_or_default()
             }
@@ -83,7 +83,12 @@ impl Dynamic {
                 }
             }
             Dynamic::ClassInstance(_, fields) => {
-                todo!();
+                let mut fields = fields.lock().unwrap();
+                if fields.contains_key(key) {
+                    fields.insert(key.to_string(), value)
+                } else {
+                    None
+                }
             }
             _ => None,
         }
@@ -104,6 +109,23 @@ impl Dynamic {
     pub fn as_array(self) -> Option<Vec<Dynamic>> {
         match self {
             Dynamic::Array(items) => Some(items.lock().unwrap().clone()),
+            _ => None,
+        }
+    }
+
+    pub fn as_fn(self) -> Option<Function> {
+        match self {
+            Dynamic::Function {
+                name,
+                scope,
+                body,
+                arg_names,
+            } => Some(Function::new(&name, Some(scope.clone()), move |i, args| {
+                let body = body.clone();
+                let arg_names = arg_names.clone();
+                let scope = scope.clone();
+                i.call_fn(None, Some(scope), &arg_names, &args, &body)
+            })),
             _ => None,
         }
     }
@@ -234,6 +256,10 @@ impl std::cmp::PartialEq for Dynamic {
                 Dynamic::Boolean(y) => x == y,
                 _ => false,
             },
+            Dynamic::Null => match other {
+                Dynamic::Null => true,
+                _ => false,
+            },
             _ => false,
         }
     }
@@ -292,6 +318,12 @@ impl From<Module> for Dynamic {
 impl From<String> for Dynamic {
     fn from(val: String) -> Self {
         Dynamic::String(val)
+    }
+}
+
+impl From<char> for Dynamic {
+    fn from(val: char) -> Self {
+        Dynamic::String(val.into())
     }
 }
 
@@ -354,7 +386,7 @@ impl Display for Dynamic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&match self {
             Dynamic::Boolean(boolean) => boolean.to_string(),
-            Dynamic::String(string) => format!(r#""{}""#, string),
+            Dynamic::String(string) => string.clone(),
             Dynamic::Lazy(expr) => todo!(),
             Dynamic::Module(module) => format!("module {:#?}", module),
             Dynamic::Class(class) => format!("class {}", class.name),
@@ -372,13 +404,13 @@ impl Display for Dynamic {
             Dynamic::Object(fields_ref) => {
                 let fields = fields_ref.lock().unwrap();
                 if fields.is_empty() {
-                    "{}".to_string()
+                    "#{}".to_string()
                 } else {
                     format!(
-                        "{{\n{}\n}}",
+                        "#{{\n{}\n}}",
                         fields
                             .iter()
-                            .map(|(k, v)| indent(format!("{}: {}", k, v)))
+                            .map(|(k, v)| indent(format!("\"{}\": {}", k, v)))
                             .join("\n")
                     )
                 }

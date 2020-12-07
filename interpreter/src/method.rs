@@ -22,6 +22,15 @@ impl Method {
             inner: Arc::new(f),
         }
     }
+
+    pub fn into_dynamic(&self, this: Dynamic) -> Dynamic {
+        let f = self.inner.clone();
+        Dynamic::RustFunction {
+            name: self.name.clone(),
+            scope: None,
+            callback: Arc::new(move |i, args| Some((f)(i, this.clone(), args))),
+        }
+    }
 }
 
 impl Debug for Method {

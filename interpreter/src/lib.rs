@@ -1,11 +1,13 @@
 #[macro_use]
-mod macros;
+#[macro_export]
+pub mod macros;
 
 mod ast;
 mod class;
 mod dynamic;
 mod expr_parser;
 mod expression;
+mod formatter;
 mod function;
 mod interpreter;
 mod lexer;

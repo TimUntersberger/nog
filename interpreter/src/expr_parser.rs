@@ -25,7 +25,12 @@ impl<'a> Default for ExprParser<'a> {
 
 impl<'a> ExprParser<'a> {
     fn text(&self, token: &Token) -> &'a str {
-        &self.source[token.1.clone()]
+        if token.0 == TokenKind::StringLiteral {
+            let loc = token.1.start + 1..token.1.end - 1;
+            &self.source[loc]
+        } else {
+            &self.source[token.1.clone()]
+        }
     }
     fn new(source: &'a str) -> Self {
         Self {
@@ -75,7 +80,18 @@ fn parse_inside_curlies<'a, I: Iterator<Item = Token>>(
             _ => {}
         };
 
-        let ident = consume(rest, TokenKind::Identifier).unwrap();
+        let token = token.clone();
+
+        let ident = if let Some(token) = rest.next() {
+            match token.0 {
+                TokenKind::Identifier | TokenKind::StringLiteral => Ok(parser.text(&token)),
+                _ => Err(ParseError::Unknown(token.1)),
+            }
+        } else {
+            Err(ParseError::Unknown(token.1.clone()))
+        }
+        .unwrap();
+
         consume(rest, TokenKind::Colon).unwrap();
 
         let mut tokens = Vec::new();
@@ -102,7 +118,7 @@ fn parse_inside_curlies<'a, I: Iterator<Item = Token>>(
 
         let value = parser.parse(&mut tokens.into_iter()).unwrap();
 
-        fields.insert(parser.text(&ident).to_string(), value);
+        fields.insert(ident.to_string(), value);
     }
 
     fields
@@ -176,6 +192,59 @@ fn parse_arg_list(
         list.push(parser.parse(&mut arg.into_iter()).unwrap());
     }
     list
+}
+
+fn parse_arrow_fn<T: Iterator<Item = Token>>(
+    parser: &mut ExprParser,
+    rest: &mut Peekable<T>,
+    arg_names: Vec<String>,
+) -> Result<Expression, ParseError> {
+    rest.next();
+
+    // If next token curly then treat it as code block, else parse expression
+    if let Some(token) = rest.peek() {
+        if token.0 == TokenKind::LCurly {
+            rest.next();
+            let mut level = 0;
+            let mut body_tokens = Vec::new();
+            while let Some(token) = rest.next() {
+                match token.0 {
+                    TokenKind::LCurly => level += 1,
+                    TokenKind::RCurly => {
+                        if level == 0 {
+                            break;
+                        } else {
+                            level -= 1;
+                        }
+                    }
+                    _ => body_tokens.push(token),
+                };
+            }
+            
+            let source = body_tokens.iter().map(|t| &parser.source[t.1.clone()]).join(" ");
+            let mut parser = Parser::new();
+            parser.set_source(
+                "".into(),
+                &source,
+                0, //TODO: body_tokens.iter().next().unwrap_or_default().1.end,
+            );
+            return Ok(Expression::ArrowFunction(
+                arg_names,
+                parser.parse().unwrap().stmts,
+            ));
+        } else {
+            let mut tokens = Vec::new();
+            while let Some(token) = rest.next() {
+                tokens.push(token);
+            }
+            return Ok(Expression::ArrowFunction(
+                arg_names,
+                vec![Ast::ReturnStatement(parser.parse(&mut tokens.into_iter())?)],
+            ));
+        }
+    }
+
+    todo!()
 }
 
 fn parse_inside_parenthesis(
@@ -270,7 +339,7 @@ where
             | TokenKind::LT
             | TokenKind::LTE
             | TokenKind::EQ
-            | TokenKind::NEQ => Affix::Infix(Precedence(2), Associativity::Left),
+            | TokenKind::NEQ => Affix::Infix(Precedence(9), Associativity::Left),
             TokenKind::Dot => Affix::Infix(Precedence(11), Associativity::Left),
             TokenKind::And => Affix::Infix(Precedence(8), Associativity::Left),
             TokenKind::Or => Affix::Infix(Precedence(8), Associativity::Left),
@@ -306,6 +375,8 @@ where
             TokenKind::Hash => Affix::Nilfix,
             TokenKind::RCurly => Affix::Nilfix,
             TokenKind::RBracket => Affix::Nilfix,
+            TokenKind::Import => Affix::Nilfix,
+            TokenKind::NewLine => Affix::Nilfix,
             TokenKind::NumberLiteral => Affix::Nilfix,
             TokenKind::StringLiteral => Affix::Nilfix,
             TokenKind::ClassIdentifier => Affix::Nilfix,
@@ -332,7 +403,13 @@ where
         Ok(match token.0 {
             TokenKind::NumberLiteral => Expression::NumberLiteral(text),
             TokenKind::StringLiteral => {
-                Expression::StringLiteral(text.as_str()[1..text.len() - 1].to_string())
+                let raw = text
+                    .clone()
+                    .replace("\\\\", "\\")
+                    .replace("\\\"", "\"")
+                    .replace("\\r", "\r")
+                    .replace("\\n", "\n");
+                Expression::StringLiteral(raw)
             }
             TokenKind::BooleanLiteral => Expression::BooleanLiteral(text),
             TokenKind::Null => Expression::Null,
@@ -366,7 +443,17 @@ where
                 Expression::ObjectLiteral(fields)
             }
             TokenKind::ClassIdentifier => Expression::ClassIdentifier(text),
-            TokenKind::Identifier => Expression::Identifier(text),
+            TokenKind::Identifier => {
+                if let Some(token) = rest.peek().cloned() {
+                    match token.0 {
+                        TokenKind::Arrow => {
+                            return parse_arrow_fn(self, rest, vec![text]);
+                        }
+                        _ => {}
+                    }
+                }
+                Expression::Identifier(text)
+            }
             TokenKind::LParan => {
                 let mut depth = 0;
                 let mut tokens = Vec::new();
@@ -392,54 +479,11 @@ where
                 if let Some(token) = rest.peek() {
                     match token.0 {
                         TokenKind::Arrow => {
-                            rest.next();
-                            let arg_names =
-                                tokens.iter().map(|t| self.text(t).to_string()).collect();
-                            // If next token curly then treat it as code block, else parse expression
-                            if let Some(token) = rest.peek() {
-                                if token.0 == TokenKind::LCurly {
-                                    rest.next();
-                                    let mut level = 0;
-                                    let mut body_tokens = Vec::new();
-                                    while let Some(token) = rest.next() {
-                                        match token.0 {
-                                            TokenKind::LCurly => level += 1,
-                                            TokenKind::RCurly => {
-                                                if level == 0 {
-                                                    break;
-                                                } else {
-                                                    level -= 1;
-                                                }
-                                            }
-                                            _ => body_tokens.push(token),
-                                        };
-                                    }
-                                    let source = body_tokens.iter().map(|t| self.text(t)).join(" ");
-                                    let mut parser = Parser::new();
-                                    parser.set_source(
-                                        "".into(),
-                                        &source,
-                                        0, //TODO: body_tokens.iter().next().unwrap_or_default().1.end,
-                                    );
-                                    return Ok(Expression::ArrowFunction(
-                                        arg_names,
-                                        parser.parse().unwrap().stmts,
-                                    ));
-                                } else {
-                                    let mut tokens = Vec::new();
-                                    while let Some(token) = rest.next() {
-                                        tokens.push(token);
-                                    }
-                                    return Ok(Expression::ArrowFunction(
-                                        arg_names,
-                                        vec![Ast::ReturnStatement(
-                                            self.parse(&mut tokens.into_iter())?,
-                                        )],
-                                    ));
-                                }
-                            }
-
-                            todo!()
+                            return parse_arrow_fn(
+                                self,
+                                rest,
+                                tokens.iter().map(|t| self.text(t).to_string()).collect(),
+                            );
                         }
                         _ => {
                             //TODO: handle error
@@ -902,6 +946,14 @@ mod test {
     }
 
     #[test]
+    fn advanced_index_operator_usage4() {
+        assert_eq!(
+            parse(r#"f[0][0]"#),
+            index_op(index_op(ident("f"), number(0)), number(0))
+        );
+    }
+
+    #[test]
     fn constructor_op() {
         assert_eq!(
             parse("User{}"),
@@ -951,6 +1003,27 @@ mod test {
     #[test]
     fn negative_op() {
         assert_eq!(parse("-2"), pre("-", number(2)));
+    }
+
+    #[test]
+    fn function_method() {
+        assert_eq!(
+            parse("range(10).for_each(i => print(i))"),
+            call_op(
+                binary(
+                    call_op(ident("range"), vec![number(10)]),
+                    ".",
+                    ident("for_each")
+                ),
+                vec![Expression::ArrowFunction(
+                    vec!["i".into()],
+                    vec![Ast::ReturnStatement(call_op(
+                        ident("print"),
+                        vec![ident("i")]
+                    ))]
+                )]
+            )
+        );
     }
 
     #[test]

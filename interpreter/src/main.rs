@@ -1,4 +1,5 @@
 use crate::interpreter::Interpreter;
+use itertools::Itertools;
 use parser::Parser;
 
 #[macro_use]
@@ -39,8 +40,7 @@ pub fn main() {
 
     match parser.parse() {
         Ok(program) => {
-            // dbg!(&program);
-
+            program.print();
             interpreter.execute(&program);
         }
         Err(e) => {

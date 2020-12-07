@@ -11,6 +11,7 @@ use super::{
     token::{Token, TokenKind},
 };
 use pratt::PrattParser;
+use std::ops::Range;
 
 #[derive(Debug, Clone)]
 pub enum ParseError {
@@ -19,6 +20,7 @@ pub enum ParseError {
         actual: Option<Token>,
     },
     UnexpectedOperator(Token),
+    Unknown(Range<usize>),
 }
 
 impl<'a> std::fmt::Display for ParseError {
@@ -61,7 +63,7 @@ impl<'a> Parser<'a> {
         let mut tokens = Vec::new();
         let mut paren_depth = 0;
         let mut curly_depth = 0;
-        let mut previous_token: Option<Token> = None;
+        let mut previous_token: Option<Token> = prev_token.clone();
 
         self.lexer.reset_peek();
 
@@ -71,8 +73,15 @@ impl<'a> Parser<'a> {
                 | TokenKind::Var
                 | TokenKind::Class
                 | TokenKind::While
+                | TokenKind::Import
                 | TokenKind::Return
+                | TokenKind::ElseIf
                 | TokenKind::If => {
+                    if !tokens.is_empty() && paren_depth == 0 && curly_depth == 0 {
+                        break;
+                    }
+                }
+                TokenKind::Comment => {
                     if !tokens.is_empty() && paren_depth == 0 && curly_depth == 0 {
                         break;
                     }
@@ -100,6 +109,9 @@ impl<'a> Parser<'a> {
                                 TokenKind::RParan
                                 | TokenKind::RCurly
                                 | TokenKind::Identifier
+                                | TokenKind::StringLiteral
+                                | TokenKind::NumberLiteral
+                                | TokenKind::BooleanLiteral
                                 | TokenKind::PlusPlus
                                 | TokenKind::MinusMinus
                                 | TokenKind::ClassIdentifier
@@ -190,6 +202,8 @@ impl<'a> Parser<'a> {
         if let Some(token) = self.lexer.next() {
             if token.0 == kind {
                 Ok(token)
+            } else if token.0 == TokenKind::NewLine {
+                self.consume(kind)
             } else {
                 Err(ParseError::UnexpectedToken {
                     actual: Some(token),
@@ -257,8 +271,11 @@ impl<'a> Parser<'a> {
         let block = self.parse_stmts()?;
         branches.push((cond, block));
 
-        while let Some(token) = &self.lexer.peek() {
+        while let Some(token) = dbg!(self.lexer.peek()) {
             match token.0 {
+                TokenKind::NewLine => {
+                    self.lexer.next();
+                }
                 TokenKind::ElseIf => {
                     let prev_token = self.consume(TokenKind::ElseIf)?;
                     let cond = self.parse_expr(Some(prev_token))?;
@@ -276,6 +293,8 @@ impl<'a> Parser<'a> {
                 _ => break,
             }
         }
+
+        self.lexer.reset_peek();
 
         Ok(Ast::IfStatement(branches))
     }
@@ -373,12 +392,14 @@ impl<'a> Parser<'a> {
         self.consume(TokenKind::Import)?;
         let mut tokens = Vec::new();
 
-        while let Some(token) = self.lexer.peek().cloned() {
+        while let Some(token) = self.lexer.peek() {
             match token.0 {
-                TokenKind::Dot | TokenKind::Identifier => tokens.push(self.text(&token)),
+                TokenKind::Dot | TokenKind::Identifier => {
+                    let token = self.lexer.next().unwrap();
+                    tokens.push(self.text(&token))
+                }
                 _ => break,
             }
-            self.lexer.next();
         }
 
         Ok(Ast::ImportStatement(tokens.join("")))
@@ -427,22 +448,31 @@ impl<'a> Parser<'a> {
 
     fn parse_documentation(&mut self) -> Result<Ast, ParseError> {
         let mut lines = Vec::new();
-        let mut line = Vec::new();
+        let mut line = (0, 0);
 
         self.consume(TokenKind::TripleSlash).unwrap();
 
         while let Some(token) = self.lexer.next() {
             match token.0 {
                 TokenKind::NewLine => {
-                    lines.push(line.join(" "));
-                    line = Vec::new();
+                    lines.push(self.source[line.0..line.1].to_string());
+                    line = (0, 0);
                     if let Some(TokenKind::TripleSlash) = self.lexer.peek().map(|x| x.0.clone()) {
                         self.lexer.next();
                     } else {
+                        self.lexer.reset_peek();
                         break;
                     }
                 }
-                _ => line.push(self.text(&token)),
+                _ => {
+                    if line.0 == 0 {
+                        line.0 = token.1.start;
+                    }
+
+                    if token.1.end > line.1 {
+                        line.1 = token.1.end;
+                    }
+                },
             }
         }
 
@@ -593,6 +623,10 @@ impl<'a> Parser<'a> {
                         line,
                         col
                     ))
+                }
+                ParseError::Unknown(loc) => {
+                    let (line, col) = self.position(&loc).unwrap();
+                    Err(format!("Encountered an unknown error at {},{}", line, col))
                 }
                 ParseError::UnexpectedToken { expected, actual } => {
                     if let Some(actual) = actual {

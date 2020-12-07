@@ -1,0 +1,26 @@
+class GridGroup {
+    var parent;
+    var focused;
+    var children = [];
+}
+
+class GridNode {
+    var window;
+}
+
+fn organizer(current, action) {
+    if action.type == "new_window" {
+        current.children.push(GridNode{window: action.payload})
+        current.focused = action.payload
+    } elif action.type == "del_window" {
+        current.children
+    }
+    return current
+}
+
+var grid = GridGroup{}
+
+print(organizer(grid, #{
+    type: "new_window",
+    payload: 1
+}))

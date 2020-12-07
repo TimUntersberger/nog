@@ -36,19 +36,29 @@ impl Class {
             fields.insert(key.clone(), value.clone());
             value.clone()
         })
-        .set_op_impl(Operator::Dot, |_, this, args| {
+        .set_op_impl(Operator::Dot, |i, this, args| {
             let field = args[0].clone().as_str().unwrap();
+            let class_name = this.type_name();
+
+            if class_name != "module" {
+                if let Some(class) = i.find_class(&class_name) {
+                    if let Some(f) = class.functions.get(&field) {
+                        return f.into_dynamic(this);
+                    }
+                }
+            }
+
             this.get_field(&field)
         })
         .set_op_impl(Operator::And, |_, this, args| {
             let lhs = this.is_true();
             let rhs = args[0].is_true();
-            Dynamic::Boolean(lhs && rhs)
+            lhs && rhs
         })
         .set_op_impl(Operator::Or, |_, this, args| {
             let lhs = this.is_true();
             let rhs = args[0].is_true();
-            Dynamic::Boolean(lhs || rhs)
+            lhs || rhs
         })
         .set_op_impl(Operator::Add, |_, this, args| this + args[0].clone())
         .set_op_impl(Operator::Subtract, |_, this, args| this - args[0].clone())
@@ -61,6 +71,8 @@ impl Class {
         })
         .set_op_impl(Operator::LessThan, |_, this, args| this < args[0])
         .set_op_impl(Operator::LessThanOrEqual, |_, this, args| this <= args[0])
+        .set_op_impl(Operator::NotEqual, |_, this, args| this != args[0])
+        .set_op_impl(Operator::LessThanOrEqual, |_, this, args| this <= args[0])
     }
 
     pub fn add_field(mut self, name: &str, default: Expression) -> Self {
@@ -68,13 +80,15 @@ impl Class {
         self
     }
 
-    pub fn add_function(
+    pub fn add_function<T: Into<Dynamic>>(
         mut self,
         name: &str,
-        f: impl Fn(&mut Interpreter, Dynamic, Vec<Dynamic>) -> Dynamic + 'static,
+        f: impl Fn(&mut Interpreter, Dynamic, Vec<Dynamic>) -> T + 'static,
     ) -> Self {
-        self.functions
-            .insert(name.to_string(), Method::new(name, f));
+        self.functions.insert(
+            name.to_string(),
+            Method::new(name, move |a, b, c| f(a, b, c).into()),
+        );
         self
     }
 

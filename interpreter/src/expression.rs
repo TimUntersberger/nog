@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 use super::{
     ast::Ast,
+    formatter::Formatter,
     operator::Operator,
     token::{Token, TokenKind},
 };
@@ -29,43 +30,7 @@ impl std::fmt::Display for Expression {
         write!(
             f,
             "{}",
-            match self {
-                Self::Null => "null".into(),
-                Self::Identifier(text)
-                | Self::ClassIdentifier(text)
-                | Self::StringLiteral(text)
-                | Self::NumberLiteral(text)
-                | Self::BooleanLiteral(text) => text.clone(),
-                Self::ArrayLiteral(items) => format!(
-                    "[{}]",
-                    items.into_iter().map(|expr| expr.to_string()).join(", ")
-                ),
-                Self::ObjectLiteral(fields) => format!(
-                    "#{{{}}}",
-                    fields
-                        .iter()
-                        .map(|(k, v)| format!("{}: {}", k, v.to_string()))
-                        .join("\n")
-                ),
-                Self::ArrowFunction(args, _) =>
-                    format!("({}) => {{ ... }}", args.into_iter().join(", ")),
-                Self::ClassInstantiation(name, fields) => format!(
-                    "{}{{{}}}",
-                    name,
-                    fields
-                        .iter()
-                        .map(|(k, v)| format!("{}: {}", k, v.to_string()))
-                        .join("\n")
-                ),
-                Self::PreOp(op, expr) => format!("{}{}", op.to_string(), expr.to_string()),
-                Self::BinaryOp(lhs, op, rhs) => match op {
-                    Operator::Dot =>
-                        format!("{}{}{}", lhs.to_string(), op.to_string(), rhs.to_string()),
-                    Operator::Call => format!("{}({})", lhs.to_string(), rhs.to_string()),
-                    _ => format!("{} {} {}", lhs.to_string(), op.to_string(), rhs.to_string()),
-                },
-                Self::PostOp(lhs, op, _value) => format!("{}{}", lhs.to_string(), op.to_string()),
-            }
+            Formatter::new(&Default::default()).format_expr(self)
         )
     }
 }

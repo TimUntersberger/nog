@@ -4,6 +4,7 @@ use super::{
     class::Class,
     dynamic::{object_builder::ObjectBuilder, Dynamic},
     expression::Expression,
+    formatter::Formatter,
     function::Function,
     module::Module,
     operator::Operator,
@@ -19,6 +20,30 @@ pub struct Program<'a> {
     pub path: PathBuf,
     pub source: &'a str,
     pub stmts: Vec<Ast>,
+}
+
+impl<'a> Default for Program<'a> {
+    fn default() -> Self {
+        Self {
+            path: Default::default(),
+            source: Default::default(),
+            stmts: Default::default(),
+        }
+    }
+}
+
+impl<'a> Program<'a> {
+    pub fn print(&self) {
+        println!(
+            "{}\n",
+            Formatter::new(self)
+                .format()
+                .split("\n")
+                .enumerate()
+                .map(|(i, line)| format!("{:03} | {}", i + 1, line))
+                .join("\n")
+        );
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -54,7 +79,7 @@ impl Interpreter {
             continued: false,
             default_classes: create_default_classes(),
             default_variables: create_default_variables(),
-            modules: HashMap::new(),
+            modules: create_default_modules(),
             classes: HashMap::new(),
             module_cache: HashMap::new(),
             exported_classes: Vec::new(),
@@ -72,7 +97,7 @@ impl Interpreter {
             path.push(part);
         }
 
-        path.set_extension("nog");
+        path.set_extension("ns");
 
         path
     }
@@ -81,7 +106,7 @@ impl Interpreter {
         module_path.split(".").last().unwrap().to_string()
     }
 
-    fn find_class(&self, name: &str) -> Option<&Class> {
+    pub fn find_class(&self, name: &str) -> Option<&Class> {
         self.classes
             .get(name)
             .or_else(|| self.default_classes.get(name))
@@ -235,6 +260,7 @@ impl Interpreter {
                 };
 
                 if is_static {
+                    dbg!(&class_name);
                     let class = self.find_class(class_name.unwrap()).unwrap();
                     let field_name = args[0].clone().as_str().unwrap();
 
@@ -377,33 +403,40 @@ impl Interpreter {
             field_value.unwrap_or_default().clone()
         }
     }
-    fn import_module(&mut self, path: &str) -> (String, Module) {
-        let mod_name = self.module_path_to_name(path);
+    fn import(&mut self, path: &str) -> (String, Dynamic) {
+        let mut mod_parts = path.split(".");
 
-        if let Some(module) = self.modules.get(&mod_name).cloned() {
-            return (mod_name, module);
+        let root_name = mod_parts.next().unwrap();
+        let root_path = self.module_path_to_file_path(path);
+        let root_mod: Dynamic = match self.modules.get(root_name).cloned() {
+            Some(module) => module.into(),
+            None => match self.module_cache.get(&root_path).cloned() {
+                Some(module) => module.into(),
+                None => self.with_clean_state(Scope::default(), Some(root_path.clone()), |i| {
+                    let mut parser = Parser::new();
+                    let content = std::fs::read_to_string(&root_path).unwrap();
+
+                    parser.set_source(root_path.clone(), &content, 0);
+
+                    let program = parser.parse().unwrap();
+                    let module = i.execute(&program);
+
+                    i.module_cache.insert(root_path.clone(), module.clone());
+
+                    module.into()
+                }),
+            },
+        };
+
+        let mut res = root_mod;
+        let mut name = root_name;
+
+        while let Some(sub_mod_name) = mod_parts.next() {
+            res = res.get_field(sub_mod_name);
+            name = sub_mod_name;
         }
 
-        let file_path = self.module_path_to_file_path(path);
-        if let Some(module) = self.module_cache.get(&file_path).cloned() {
-            (mod_name, module)
-        } else {
-            let module = self.with_clean_state(Scope::default(), Some(file_path.clone()), |i| {
-                let mut parser = Parser::new();
-                let content = std::fs::read_to_string(&file_path).unwrap();
-
-                parser.set_source(file_path.clone(), &content, 0);
-
-                let program = parser.parse().unwrap();
-                let module = i.execute(&program);
-
-                i.module_cache.insert(file_path.clone(), module.clone());
-
-                module
-            });
-
-            (mod_name, module)
-        }
+        (name.into(), res)
     }
     fn execute_stmt(&mut self, stmt: &Ast) {
         match stmt {
@@ -563,8 +596,8 @@ impl Interpreter {
             }
             Ast::StaticFunctionDefinition(_, _, _) => unreachable!(),
             Ast::ImportStatement(path) => {
-                let (mod_name, module) = self.import_module(path);
-                self.get_scope_mut().set(mod_name, Dynamic::Module(module));
+                let (mod_name, module) = self.import(path);
+                self.get_scope_mut().set(mod_name, module);
             }
             Ast::ExportStatement(ast) => {
                 match ast.as_ref() {
@@ -611,7 +644,11 @@ impl Interpreter {
 
         parser.set_source(path, &content, 0);
 
-        self.execute(&parser.parse()?);
+        let program = parser.parse()?;
+
+        program.print();
+
+        self.execute(&program);
 
         Ok(())
     }
@@ -670,7 +707,19 @@ fn create_default_classes() -> HashMap<String, Class> {
             .set_op_impl(Operator::Increment, |_, this, _| number!(this) + 1)
             .set_op_impl(Operator::Decrement, |_, this, _| number!(this) - 1),
     );
-    classes.push(Class::new("string"));
+    classes.push(
+        Class::new("string")
+            .set_op_impl(Operator::Index, |_, this, args| {
+                let this = string!(this);
+                let idx = number!(args[0]);
+
+                this.chars().skip(idx as usize).next().unwrap_or_default()
+            })
+            .add_function("len", |_, this, _| {
+                let this = string!(this);
+                this.len() as i32
+            }),
+    );
     classes.push(
         Class::new("array")
             .add_function("push", |_, this, args| {
@@ -684,6 +733,31 @@ fn create_default_classes() -> HashMap<String, Class> {
 
                 this
             })
+            .add_function("len", |_, this, _| {
+                let this_ref = array!(this);
+                let this = this_ref.lock().unwrap();
+
+                this.len() as i32
+            })
+            .add_function("map", |i, this, args| {
+                let items_ref = array!(this.clone());
+                let items = items_ref.lock().unwrap();
+                let cb = args[0].clone().as_fn().unwrap();
+
+                items
+                    .iter()
+                    .map(|item| cb.invoke(i, vec![item.clone()]))
+                    .collect::<Vec<Dynamic>>()
+            })
+            .add_function("for_each", |i, this, args| {
+                let items_ref = array!(this.clone());
+                let items = items_ref.lock().unwrap();
+                let cb = args[0].clone().as_fn().unwrap();
+
+                for item in items.iter() {
+                    cb.invoke(i, vec![item.clone()]);
+                }
+            })
             .set_op_impl(Operator::Index, |_interp, this, args| {
                 let this_ref = array!(this);
                 let this = this_ref.lock().unwrap();
@@ -696,14 +770,33 @@ fn create_default_classes() -> HashMap<String, Class> {
     classes.push(Class::new("module"));
     classes.push(
         Class::new("class").set_op_impl(Operator::Constructor, |i, this, args| {
+            let fields_ref = object!(&args[0]);
+            let fields = fields_ref.lock().unwrap();
             if let Dynamic::Class(this) = this {
-                Dynamic::new_instance(&this.name, Default::default())
+                Dynamic::new_instance(
+                    &this.name,
+                    this.fields
+                        .iter()
+                        .map(|(k, v)| (k.clone(), fields.get(k).cloned().unwrap_or(i.eval(v))))
+                        .collect(),
+                )
             } else {
                 unreachable!()
             }
         }),
     );
-    classes.push(Class::new("object"));
+    classes.push(
+        Class::new("object").set_op_impl(Operator::Index, |_, this, args| {
+            let field = args[0].clone().as_str().unwrap();
+
+            this.get_field(&field)
+        }).add_function("keys", |_, this, _| {
+            let this_ref = object!(this);
+            let this = this_ref.lock().unwrap();
+
+            this.keys().cloned().collect::<Vec<String>>()
+        })
+    );
     classes.push(Class::new("boolean"));
     classes.push(
         Class::new("function").set_op_impl(Operator::Call, |i, this, args| {
@@ -733,6 +826,25 @@ fn create_default_classes() -> HashMap<String, Class> {
     classes.into_iter().map(|c| (c.name.clone(), c)).collect()
 }
 
+pub fn create_default_modules() -> HashMap<String, Module> {
+    let mut map = HashMap::new();
+
+    map.insert(
+        "std".into(),
+        Module::new("std").variable(
+            "fs",
+            Module::new("fs").function("read_file", |i, args| {
+                let mut cwd = std::env::current_dir().unwrap();
+                let rel_path = string!(&args[0]);
+                cwd.push(rel_path);
+                std::fs::read_to_string(cwd).unwrap()
+            }),
+        ),
+    );
+
+    map
+}
+
 pub fn create_default_variables() -> HashMap<String, Dynamic> {
     ObjectBuilder::new()
         .function("print", |_, args| {
@@ -740,7 +852,7 @@ pub fn create_default_variables() -> HashMap<String, Dynamic> {
         })
         .function("typeof", |_, args| args[0].type_name())
         .function("require", |i, args| {
-            let (_, module) = i.import_module(&args[0].clone().as_str().unwrap());
+            let (_, module) = i.import(&args[0].clone().as_str().unwrap());
             module
         })
         .function("range", |_, args| match args.len() {

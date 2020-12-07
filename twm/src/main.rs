@@ -4,9 +4,13 @@
 extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
+#[macro_use]
+extern crate interpreter;
 
 use config::{rule::Rule, workspace_setting::WorkspaceSetting, Config};
 use crossbeam_channel::select;
+use direction::Direction;
+use regex::Regex;
 use display::Display;
 use event::Event;
 use event::EventChannel;
@@ -21,13 +25,17 @@ use log::debug;
 use log::{error, info};
 use parking_lot::{deadlock, Mutex};
 use popup::Popup;
+use split_direction::SplitDirection;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::{process, sync::Arc};
 use std::{thread, time::Duration};
+use system::NativeWindow;
 use system::{DisplayId, SystemResult, WinEventListener, WindowId};
 use task_bar::Taskbar;
 use tile::Tile;
 use tile_grid::TileGrid;
+use win_event_handler::{win_event::WinEvent, win_event_type::WinEventType};
 use window::Window;
 
 pub const NOG_BAR_NAME: &'static str = "nog_bar";
@@ -192,6 +200,267 @@ impl AppState {
         }
 
         Ok(())
+    }
+
+    pub fn move_workspace_to_monitor(&mut self, monitor: i32) -> SystemResult {
+        let display = self.get_current_display_mut();
+
+        if let Some(grid) = display
+            .focused_grid_id
+            .and_then(|id| display.remove_grid_by_id(id))
+        {
+            let config = self.config.clone();
+            let new_display = self
+                .get_display_by_idx_mut(monitor)
+                .expect("Monitor with specified idx doesn't exist");
+
+            let id = grid.id;
+
+            new_display.grids.push(grid);
+            new_display.focus_workspace(&config, id)?;
+            self.workspace_id = id;
+        }
+
+        Ok(())
+    }
+
+    pub fn minimize_window(&mut self) -> SystemResult {
+        let grid = self.get_current_grid_mut().unwrap();
+
+        if let Some(tile) = grid.get_focused_tile_mut() {
+            let id = tile.window.id;
+
+            tile.window.minimize()?;
+            tile.window.cleanup()?;
+
+            grid.close_tile_by_window_id(id);
+        }
+
+        Ok(())
+    }
+
+    pub fn close_window(&mut self) -> SystemResult {
+        let grid = self.get_current_grid_mut().unwrap();
+
+        if let Some(tile) = grid.get_focused_tile_mut() {
+            let id = tile.window.id;
+
+            tile.window.cleanup()?;
+            tile.window.close()?;
+
+            grid.close_tile_by_window_id(id);
+        }
+
+        Ok(())
+    }
+
+    pub fn ignore_window(&mut self) -> SystemResult {
+        if let Some(tile) = self.get_current_grid().unwrap().get_focused_tile() {
+            let mut rule = Rule::default();
+
+            let process_name = tile.window.get_process_name();
+            let pattern = format!("^{}$", process_name);
+
+            debug!("Adding rule with pattern {}", pattern);
+
+            rule.pattern = regex::Regex::new(&pattern).expect("Failed to build regex");
+            rule.manage = false;
+
+            self.additonal_rules.push(rule);
+
+            self.toggle_floating();
+        }
+
+        Ok(())
+    }
+
+    pub fn move_window_to_workspace(&mut self, id: i32) -> SystemResult {
+        let grid = self.get_current_grid_mut().unwrap();
+        grid.focused_window_id
+            .and_then(|id| grid.close_tile_by_window_id(id))
+            .map(|tile| {
+                self.get_grid_by_id_mut(id).unwrap().split(tile.window);
+                self.change_workspace(id, false);
+            });
+
+        Ok(())
+    }
+
+    pub fn toggle_fullscreen(&mut self) -> SystemResult {
+        let config = self.config.clone();
+        let display = self.get_current_display_mut();
+        display.get_focused_grid_mut().unwrap().toggle_fullscreen();
+        display.refresh_grid(&config)?;
+
+        Ok(())
+    }
+
+    pub fn enter_work_mode(&mut self) -> SystemResult {
+        if self.config.remove_task_bar {
+            info!("Hiding taskbar");
+            self.hide_taskbars();
+        }
+
+        if self.config.display_app_bar {
+            todo!();
+            //bar::create::create(state_arc.clone());
+        }
+
+        self.change_workspace(1, false);
+
+        info!("Registering windows event handler");
+        self.window_event_listener.start(&self.event_channel);
+
+        Ok(())
+    }
+
+    pub fn leave_work_mode(&mut self) -> SystemResult {
+        self.window_event_listener.stop();
+
+        popup::cleanup()?;
+
+        if self.config.display_app_bar {
+            todo!()
+            //bar::close_all(state_arc.clone());
+        }
+
+        if self.config.remove_task_bar {
+            self.show_taskbars();
+        }
+
+        self.cleanup()?;
+        Ok(())
+    }
+
+    pub fn toggle_work_mode(&mut self) -> SystemResult {
+        self.work_mode = !self.work_mode;
+
+        if !self.work_mode {
+            self.leave_work_mode()?;
+        } else {
+            self.enter_work_mode()?;
+        }
+
+        Ok(())
+    }
+
+    pub fn swap(&mut self, direction: Direction) -> SystemResult {
+        let config = self.config.clone();
+        let display = self.get_current_display_mut();
+
+        if let Some(grid) = display.get_focused_grid_mut() {
+            grid.swap(direction);
+            display.refresh_grid(&config);
+        }
+
+        Ok(())
+    }
+
+    pub fn focus(&mut self, direction: Direction) -> SystemResult {
+        let config = self.config.clone();
+        let display = self.get_current_display_mut();
+
+        if let Some(grid) = display.get_focused_grid_mut() {
+            grid.focus(direction)?;
+            display.refresh_grid(&config);
+        }
+
+        Ok(())
+    }
+
+    pub fn resize(&mut self, direction: Direction, amount: i32) -> SystemResult {
+        let config = self.config.clone();
+        let display = self.get_current_display_mut();
+
+        if let Some(grid) = display.get_focused_grid_mut() {
+            if let Some(tile) = grid.get_focused_tile() {
+                match direction {
+                    Direction::Left | Direction::Right => tile
+                        .column
+                        .map(|v| grid.resize_column(v, direction, amount)),
+                    _ => tile.row.map(|v| grid.resize_row(v, direction, amount)),
+                };
+
+                info!("Resizing in the direction {:?} by {}", direction, amount);
+
+                display.refresh_grid(&config);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn set_split_direction(&mut self, direction: SplitDirection) -> SystemResult {
+        let display = self.get_current_display_mut();
+        if let Some(grid) = display.get_focused_grid_mut() {
+            grid.set_focused_split_direction(direction);
+        }
+        Ok(())
+    }
+
+    pub fn toggle_floating(&mut self) -> SystemResult {
+        let config = self.config.clone();
+
+        let window =
+            NativeWindow::get_foreground_window().expect("Failed to get foreground window");
+        // The id of the grid that contains the window
+        let maybe_grid_id = self
+            .find_window(window.id)
+            .and_then(|(g, _)| g.close_tile_by_window_id(window.id).map(|t| (g.id, t)))
+            .map(|(id, mut t)| {
+                debug!("Unmanaging window '{}' | {}", t.window.title, t.window.id);
+                t.window.cleanup();
+
+                id
+            });
+
+        if let Some((d, _)) = maybe_grid_id.and_then(|id| self.find_grid(id)) {
+            d.refresh_grid(&config);
+        } else {
+            self.event_channel
+                .sender
+                .clone()
+                .send(Event::WinEvent(WinEvent {
+                    typ: WinEventType::Show(true),
+                    window,
+                }))
+                .expect("Failed to send WinEvent");
+        }
+
+        Ok(())
+    }
+
+    pub fn reset_column(&mut self) -> SystemResult {
+        let config = self.config.clone();
+        let display = self.get_current_display_mut();
+
+        if let Some(g) = display.get_focused_grid_mut() {
+            g.reset_column();
+        }
+        display.refresh_grid(&config)?;
+
+        Ok(())
+    }
+
+    pub fn reset_row(&mut self) -> SystemResult {
+        let config = self.config.clone();
+        let display = self.get_current_display_mut();
+
+        if let Some(g) = display.get_focused_grid_mut() {
+            g.reset_row();
+        }
+        display.refresh_grid(&config)?;
+
+        Ok(())
+    }
+
+    pub fn toggle_mode(&mut self, mode: String) {
+        if self.keybindings_manager.get_mode() == Some(mode.clone()) {
+            info!("Disabling {} mode", mode);
+            self.keybindings_manager.leave_mode();
+        } else {
+            info!("Enabling {} mode", mode);
+            self.keybindings_manager.enter_mode(&mode);
+        }
     }
 
     pub fn get_workspace_settings(&self, id: i32) -> Option<&WorkspaceSetting> {
@@ -408,42 +677,246 @@ fn parse_config(
 ) -> Result<Config, String> {
     let config = Arc::new(Mutex::new(Config::default()));
     let mut interpreter = Interpreter::new();
+
+    let mut workspace = Module::new("workspace");
+
+    let state = state_arc.clone();
+    workspace = workspace.function("change", move |_, args| {
+        let idx = number!(args[0]);
+        let mut state = state.lock();
+
+        state.change_workspace(idx, true)
+    });
+
+    let state = state_arc.clone();
+    workspace = workspace.function("move_to_monitor", move |_, args| {
+        state.lock().move_workspace_to_monitor(number!(args[0]));
+    });
+
+    let state = state_arc.clone();
+    workspace = workspace.function("toggle_fullscreen", move |_, args| {
+        state.lock().toggle_fullscreen();
+    });
+
+    let state = state_arc.clone();
+    workspace = workspace.function("reset_row", move |_, args| {
+        state.lock().reset_row();
+    });
+
+    let state = state_arc.clone();
+    workspace = workspace.function("reset_col", move |_, args| {
+        state.lock().reset_column();
+    });
+
+    let state = state_arc.clone();
+    workspace = workspace.function("move_in", move |_, args| {
+        state.lock().reset_column();
+    });
+
+    let state = state_arc.clone();
+    workspace = workspace.function("move_out", move |_, args| {});
+
+    let state = state_arc.clone();
+    workspace = workspace.function("focus", move |_, args| {
+        state
+            .lock()
+            .focus(Direction::from_str(string!(&args[0])).unwrap());
+    });
+
+    let state = state_arc.clone();
+    workspace = workspace.function("swap", move |_, args| {
+        state
+            .lock()
+            .swap(Direction::from_str(string!(&args[0])).unwrap());
+    });
+
+    let mut window = Module::new("window");
+
+    let state = state_arc.clone();
+    window = window.function("get_title", move |_i, _args| {
+        let state = state.lock();
+
+        state
+            .get_current_grid()
+            .and_then(|g| g.get_focused_tile())
+            .and_then(|t| t.window.get_title().ok())
+            .unwrap_or_default()
+    });
+
+    let state = state_arc.clone();
+    window = window.function("minimize", move |_i, _args| {
+        state.lock().minimize_window();
+    });
+
+    let state = state_arc.clone();
+    window = window.function("set_split_direction", move |_i, args| {
+        state
+            .lock()
+            .set_split_direction(SplitDirection::from_str(string!(&args[0])).unwrap());
+    });
+
+    let state = state_arc.clone();
+    window = window.function("toggle_floating", move |_i, _args| {
+        state.lock().toggle_floating();
+    });
+
+    let state = state_arc.clone();
+    window = window.function("ignore", move |_i, _args| {
+        state.lock().ignore_window();
+    });
+
+    let state = state_arc.clone();
+    window = window.function("close", move |_i, _args| {
+        state.lock().close_window();
+    });
+
+    let state = state_arc.clone();
+    window = window.function("move_to_workspace", move |_i, args| {
+        state.lock().move_window_to_workspace(number!(args[0]));
+    });
+
+    let mut config_mod = Module::new("config");
+
+    let state = state_arc.clone();
+    config_mod = config_mod.function("increment", move |_i, args| {
+        let (field, amount) = match args.len() {
+            1 => (string!(&args[0]), 1),
+            _ => (string!(&args[0]), *number!(&args[1])),
+        };
+
+        update_config(
+            state.clone(),
+            state.lock().config.increment_field(field, amount),
+        );
+    });
+
+    let state = state_arc.clone();
+    config_mod = config_mod.function("decrement", move |_i, args| {
+        let (field, amount) = match args.len() {
+            1 => (string!(&args[0]), -1),
+            _ => (string!(&args[0]), *number!(&args[1])),
+        };
+
+        update_config(
+            state.clone(),
+            state.lock().config.decrement_field(field, amount),
+        );
+    });
+
+    let state = state_arc.clone();
+    config_mod = config_mod.function("toggle", move |_i, args| {
+        update_config(
+            state.clone(),
+            state.lock().config.toggle_field(string!(&args[0])),
+        );
+    });
+
+    let mut rules = Module::new("rules");
+
     let cfg = config.clone();
+    rules = rules.function("ignore", move |_, args| {
+        let mut rule = Rule::default();
+        rule.pattern = Regex::from_str(string!(&args[0])).unwrap();
+        rule.manage = false;
 
-    interpreter.add_module(Module::new("nog").variable("version", "<VERSION>").function(
-        "map",
-        move |_i, args| {
-            use std::str::FromStr;
-            let mut kb = crate::keybindings::keybinding::Keybinding::from_str(
-                &args[0].clone().as_str().unwrap(),
-            )
-            .unwrap();
-            match &args[1] {
-                Dynamic::Function {
-                    body,
-                    scope,
-                    arg_names,
-                    name,
-                } => {
-                    let arg_names = arg_names.clone();
-                    let body = body.clone();
-                    let scope = scope.clone();
+        cfg.lock().rules.push(rule);
+    });
 
-                    let value =
-                        Function::new(&name.clone(), Some(scope.clone()), move |i, args| {
-                            i.call_fn(None, Some(scope.clone()), &arg_names, &args, &body)
-                        });
+    let cfg = config.clone();
+    rules = rules.function("match", move |_, args| {
+        let mut rule = Rule::default();
+        rule.pattern = Regex::from_str(string!(&args[0])).unwrap();
 
-                    let mut cbs = callbacks_arc.lock();
-                    let idx = cbs.len();
-                    cbs.push(value);
-                    kb.typ = crate::keybindings::keybinding_type::KeybindingType::Callback(idx);
-                }
-                _ => todo!(),
+        let settings_ref = object!(&args[1]);
+        let settings = settings_ref.lock().unwrap();
+
+        for (key, value) in settings.iter() {
+            match key.as_str() {
+                "has_custom_titlebar" => {
+                    rule.has_custom_titlebar = *boolean!(value);
+                },
+                "chromium" => {
+                    rule.chromium = *boolean!(value);
+                },
+                "firefox" => {
+                    rule.firefox = *boolean!(value);
+                },
+                "manage" => {
+                    rule.manage = *boolean!(value);
+                },
+                "workspace_id" => {
+                    rule.workspace_id = *number!(value);
+                },
+                _ => todo!("{}", key)
             }
-            cfg.lock().add_keybinding(kb);
-        },
-    ));
+        }
+
+        cfg.lock().rules.push(rule);
+    });
+
+    let mut root = Module::new("nog")
+        .variable("version", "<VERSION")
+        .variable("workspace", workspace)
+        .variable("rules", rules)
+        .variable("window", window)
+        .variable("config", config_mod);
+
+    let state = state_arc.clone();
+    root = root.function("quit", move |_i, _args| {
+        state.lock().event_channel.sender.send(Event::Exit);
+    });
+
+    let state = state_arc.clone();
+    root = root.function("toggle_work_mode", move |_i, _args| {
+        state.lock().toggle_work_mode();
+    });
+
+    root = root.function("launch", move |_i, args| {
+        system::api::launch_program(string!(&args[0]).clone());
+    });
+
+    let cfg = config.clone();
+    root = root.function("bind", move |_i, args| {
+        let mut kb = Keybinding::from_str(&args[0].clone().as_str().unwrap()).unwrap();
+        match &args[1] {
+            Dynamic::Function {
+                body,
+                scope,
+                arg_names,
+                name,
+            } => {
+                let arg_names = arg_names.clone();
+                let body = body.clone();
+                let scope = scope.clone();
+
+                let value = Function::new(&name.clone(), Some(scope.clone()), move |i, args| {
+                    i.call_fn(None, Some(scope.clone()), &arg_names, &args, &body)
+                });
+
+                let mut cbs = callbacks_arc.lock();
+                let idx = cbs.len();
+                cbs.push(value);
+                kb.typ = KeybindingType::Callback(idx);
+            },
+            Dynamic::RustFunction { name, callback, scope } => {
+                let callback = callback.clone();
+
+                let value = Function::new(name, scope.clone(), move |i, args| {
+                    let args = args.clone();
+                    callback(i, args).unwrap_or_default()
+                });
+
+                let mut cbs = callbacks_arc.lock();
+                let idx = cbs.len();
+                cbs.push(value);
+                kb.typ = KeybindingType::Callback(idx);
+            }
+            _ => todo!("{:?}", &args[1]),
+        }
+        cfg.lock().add_keybinding(kb);
+    });
+
+    interpreter.add_module(root);
 
     let mut config_path: PathBuf = dirs::config_dir().unwrap_or_default();
 

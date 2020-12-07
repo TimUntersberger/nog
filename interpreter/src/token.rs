@@ -9,7 +9,7 @@ pub enum TokenKind {
     ClassIdentifier,
     #[regex("[0-9]+")]
     NumberLiteral,
-    #[regex(r#""([^"\\]|\\t|\\u|\\n|\\")*""#)]
+    #[regex(r#""([^"\\]|\\r|\\t|\\u|\\n|\\")*""#)]
     StringLiteral,
     #[token("#")]
     Hash,
