@@ -126,10 +126,17 @@ impl Dynamic {
                 let scope = scope.clone();
                 i.call_fn(None, Some(scope), &arg_names, &args, &body)
             })),
+            Dynamic::RustFunction { name, scope, callback } => {
+                let callback = callback.clone();
+
+                Some(Function::new(&name, scope.clone(), move |i, args| {
+                    let args = args.clone();
+                    callback(i, args).unwrap_or_default()
+                }))
+            }
             _ => None,
         }
     }
-
     pub fn as_str(self) -> Option<String> {
         match self {
             Dynamic::String(string) => Some(string),
