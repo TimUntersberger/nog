@@ -1,9 +1,13 @@
-use super::{key::Key, keybinding_type::KeybindingType, modifier::Modifier};
+use super::{key::Key, modifier::Modifier};
 use std::{fmt::Debug, str::FromStr};
 
 #[derive(Clone)]
 pub struct Keybinding {
-    pub typ: KeybindingType,
+    /// This variable defines whether the keybinding should be active when outside of the work mode
+    /// or not
+    pub always_active: bool,
+    /// This is the id of the callback in the global callbacks store
+    pub callback_id: usize,
     pub mode: Option<String>,
     pub key: Key,
     pub modifier: Modifier,
@@ -42,7 +46,8 @@ impl FromStr for Keybinding {
             .ok_or(format!("Invalid key {}", raw_key))?;
 
         Ok(Self {
-            typ: KeybindingType::Quit,
+            always_active: false,
+            callback_id: 0,
             mode: None,
             modifier,
             key,
@@ -55,18 +60,20 @@ impl Debug for Keybinding {
         let modifier_str = format!("{:?}", self.modifier).replace(" | ", "+");
         if modifier_str == "(empty)" {
             f.write_str(&format!(
-                "Keybinding({:?}, {}, {}, {:?})",
+                "Keybinding({:?}, {}, {}, {}, {:?})",
                 self.key,
-                self.typ,
+                self.callback_id,
+                self.always_active,
                 self.get_id(),
                 self.mode
             ))
         } else {
             f.write_str(&format!(
-                "Keybinding({}+{:?}, {}, {}, {:?})",
+                "Keybinding({}+{:?}, {}, {}, {}, {:?})",
                 modifier_str,
                 self.key,
-                self.typ,
+                self.callback_id,
+                self.always_active,
                 self.get_id(),
                 self.mode
             ))

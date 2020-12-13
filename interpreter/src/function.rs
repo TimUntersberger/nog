@@ -1,19 +1,16 @@
 use std::{fmt::Debug, sync::Arc};
 
-use super::{dynamic::Dynamic, interpreter::Interpreter, scope::Scope};
+use super::{dynamic::Dynamic, interpreter::Interpreter, scope::Scope, runtime_error::RuntimeResult};
 
 #[derive(Clone)]
 pub struct Function {
     pub name: String,
     pub scope: Scope,
-    pub inner: Arc<dyn Fn(&mut Interpreter, Vec<Dynamic>) -> Dynamic>,
+    pub inner: Arc<dyn Fn(&mut Interpreter, Vec<Dynamic>) -> RuntimeResult + Send + Sync>,
 }
 
-unsafe impl Send for Function {}
-unsafe impl Sync for Function {}
-
 impl Function {
-    pub fn invoke(&self, i: &mut Interpreter, args: Vec<Dynamic>) -> Dynamic {
+    pub fn invoke(&self, i: &mut Interpreter, args: Vec<Dynamic>) -> RuntimeResult {
         i.scopes.push(self.scope.clone());
         let res = (self.inner)(i, args);
         i.scopes.pop();
@@ -22,7 +19,7 @@ impl Function {
 
     pub fn new<T>(name: &str, scope: Option<Scope>, f: T) -> Self
     where
-        T: Fn(&mut Interpreter, Vec<Dynamic>) -> Dynamic + 'static,
+        T: Fn(&mut Interpreter, Vec<Dynamic>) -> RuntimeResult + 'static + Send + Sync,
     {
         Self {
             name: name.to_string(),
@@ -43,7 +40,7 @@ impl Into<Dynamic> for Function {
         Dynamic::RustFunction {
             name: self.name.clone(),
             scope: Some(self.scope.clone()),
-            callback: Arc::new(move |i, arg| Some(self.invoke(i, arg))),
+            callback: Arc::new(move |i, arg| self.invoke(i, arg)),
         }
     }
 }

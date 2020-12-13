@@ -20,12 +20,19 @@ pub enum ParseError {
         actual: Option<Token>,
     },
     UnexpectedOperator(Token),
+    Raw(String),
     Unknown(Range<usize>),
 }
 
 impl<'a> std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(f, "{:?}", self)
+    }
+}
+
+impl<'a> From<String> for ParseError {
+    fn from(value: String) -> Self {
+        Self::Raw(value)
     }
 }
 
@@ -45,6 +52,7 @@ impl<'a> From<pratt::PrattError<Token, ParseError>> for ParseError {
 pub struct Parser<'a> {
     path: PathBuf,
     pub source: &'a str,
+    pub offset: usize,
     pub lexer: itertools::MultiPeek<Lexer<'a>>,
     expr_parser: ExprParser<'a>,
 }
@@ -54,6 +62,7 @@ impl<'a> Parser<'a> {
         Self {
             path: "".into(),
             source: "",
+            offset: 0,
             lexer: itertools::multipeek(Lexer::new("", 0).into_iter()),
             expr_parser: ExprParser::default(),
         }
@@ -123,11 +132,13 @@ impl<'a> Parser<'a> {
                 }
                 TokenKind::LCurly => {
                     if let Some(token) = previous_token {
-                        match token.0 {
-                            TokenKind::ClassIdentifier => {}
-                            TokenKind::Arrow => {}
-                            TokenKind::Hash => {}
-                            _ => break,
+                        if paren_depth == 0 && curly_depth == 0 {
+                            match token.0 {
+                                TokenKind::ClassIdentifier => {}
+                                TokenKind::Arrow => {}
+                                TokenKind::Hash => {}
+                                _ => break,
+                            }
                         }
                     }
                     curly_depth += 1
@@ -219,7 +230,12 @@ impl<'a> Parser<'a> {
     }
 
     fn text(&self, token: &Token) -> &'a str {
-        &self.source[token.1.clone()]
+        self.text_at(token.1.clone())
+    }
+
+    fn text_at(&self, range: Range<usize>) -> &'a str {
+        let loc = range.start - self.offset..range.end - self.offset;
+        &self.source[loc]
     }
 
     fn parse_fn_definition(&mut self) -> Result<Ast, ParseError> {
@@ -271,7 +287,7 @@ impl<'a> Parser<'a> {
         let block = self.parse_stmts()?;
         branches.push((cond, block));
 
-        while let Some(token) = dbg!(self.lexer.peek()) {
+        while let Some(token) = self.lexer.peek() {
             match token.0 {
                 TokenKind::NewLine => {
                     self.lexer.next();
@@ -446,33 +462,60 @@ impl<'a> Parser<'a> {
         Ok(Ast::ReturnStatement(value))
     }
 
-    fn parse_documentation(&mut self) -> Result<Ast, ParseError> {
+    fn parse_comment(&mut self) -> Result<Ast, ParseError> {
         let mut lines = Vec::new();
-        let mut line = (0, 0);
 
-        self.consume(TokenKind::TripleSlash).unwrap();
+        let token = self.consume(TokenKind::Comment).unwrap();
+
+        let mut line = (token.1.end, 0);
 
         while let Some(token) = self.lexer.next() {
             match token.0 {
                 TokenKind::NewLine => {
-                    lines.push(self.source[line.0..line.1].to_string());
-                    line = (0, 0);
-                    if let Some(TokenKind::TripleSlash) = self.lexer.peek().map(|x| x.0.clone()) {
-                        self.lexer.next();
+                    lines.push(self.text_at(line.0..line.1).to_string());
+                    if let Some(TokenKind::Comment) = self.lexer.peek().map(|x| x.0.clone()) {
+                        let token = self.lexer.next().unwrap();
+                        line = (token.1.end, 0);
                     } else {
                         self.lexer.reset_peek();
                         break;
                     }
                 }
                 _ => {
-                    if line.0 == 0 {
-                        line.0 = token.1.start;
-                    }
-
                     if token.1.end > line.1 {
                         line.1 = token.1.end;
                     }
-                },
+                }
+            }
+        }
+
+        Ok(Ast::Comment(lines))
+    }
+
+    fn parse_documentation(&mut self) -> Result<Ast, ParseError> {
+        let mut lines = Vec::new();
+
+        let token = self.consume(TokenKind::TripleSlash).unwrap();
+
+        let mut line = (token.1.end, 0);
+
+        while let Some(token) = self.lexer.next() {
+            match token.0 {
+                TokenKind::NewLine => {
+                    lines.push(self.source[line.0..line.1].to_string());
+                    if let Some(TokenKind::TripleSlash) = self.lexer.peek().map(|x| x.0.clone()) {
+                        let token = self.lexer.next().unwrap();
+                        line = (token.1.end, 0);
+                    } else {
+                        self.lexer.reset_peek();
+                        break;
+                    }
+                }
+                _ => {
+                    if token.1.end > line.1 {
+                        line.1 = token.1.end;
+                    }
+                }
             }
         }
 
@@ -504,15 +547,7 @@ impl<'a> Parser<'a> {
 
         while let Some(token) = self.lexer.peek() {
             let ast = match token.0 {
-                TokenKind::Comment => {
-                    while let Some(token) = self.lexer.next() {
-                        match token.0 {
-                            TokenKind::NewLine => break,
-                            _ => {}
-                        }
-                    }
-                    continue;
-                }
+                TokenKind::Comment => self.parse_comment(),
                 TokenKind::TripleSlash => self.parse_documentation(),
                 TokenKind::Return => self.parse_return_statement(),
                 TokenKind::Break => Ok(Ast::BreakStatement),
@@ -579,7 +614,7 @@ impl<'a> Parser<'a> {
     }
 
     fn position(&self, location: &std::ops::Range<usize>) -> Option<(usize, usize)> {
-        let mut lexer = Lexer::new(self.source, 0);
+        let mut lexer = Lexer::new(self.source, self.offset);
         let mut line = 1;
         let mut col_start = 1;
 
@@ -604,6 +639,8 @@ impl<'a> Parser<'a> {
         self.path = path;
         self.source = source;
         self.expr_parser.source = source;
+        self.expr_parser.offset = offset;
+        self.offset = offset;
         self.lexer = itertools::multipeek(Lexer::new(source, offset));
     }
 
@@ -624,6 +661,7 @@ impl<'a> Parser<'a> {
                         col
                     ))
                 }
+                ParseError::Raw(msg) => Err(msg),
                 ParseError::Unknown(loc) => {
                     let (line, col) = self.position(&loc).unwrap();
                     Err(format!("Encountered an unknown error at {},{}", line, col))

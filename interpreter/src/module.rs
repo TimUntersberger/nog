@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use super::{
-    class::Class, dynamic::Dynamic, function::Function, interpreter::Interpreter, scope::Scope,
+    class::Class, dynamic::Dynamic, function::Function, interpreter::Interpreter,
+    runtime_error::RuntimeResult, scope::Scope,
 };
 
 #[derive(Debug, Clone)]
@@ -33,14 +34,14 @@ impl Module {
 
     pub fn function<
         R: Into<Dynamic>,
-        T: Fn(&mut Interpreter, Vec<Dynamic>) -> R + 'static + Send,
+        T: Fn(&mut Interpreter, Vec<Dynamic>) -> RuntimeResult<R> + 'static + Send + Sync,
     >(
         mut self,
         name: &str,
         value: T,
     ) -> Self {
         let value: Dynamic = Function::new(name, Some(self.scope.clone()), move |i, args| {
-            value(i, args).into()
+            value(i, args).map(|x| x.into())
         })
         .into();
         self.variables.insert(name.to_string(), value.clone());

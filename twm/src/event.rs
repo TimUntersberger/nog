@@ -11,7 +11,13 @@ pub enum Event {
     Keybinding(Keybinding),
     WinEvent(WinEvent),
     NewPopup(Popup),
-    CallCallback(usize),
+    CallCallback {
+        idx: usize, 
+        /// This is required, because the callbacks run in a seperate thread and mode callbacks
+        /// have to notify the keybindings manager that they finished executing so it can register
+        /// all of the mode specific bindings
+        is_mode_callback: bool
+    },
     ToggleAppbar(DisplayId),
     UpdateBarSections(DisplayId, ItemSection, ItemSection, ItemSection),
     ChangeWorkspace(i32, bool),

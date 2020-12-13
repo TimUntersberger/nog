@@ -8,15 +8,17 @@ use std::{
 
 use super::{
     ast::Ast, class::Class, expression::Expression, function::Function, interpreter::Interpreter,
-    module::Module, scope::Scope,
+    module::Module, operator::Operator, runtime_error::RuntimeResult, scope::Scope,
 };
 
 pub mod object_builder;
 
+pub type Number = i32;
+
 #[derive(Clone)]
 pub enum Dynamic {
     String(String),
-    Number(i32),
+    Number(Number),
     Boolean(bool),
     Lazy(Expression),
     Array(Arc<Mutex<Vec<Dynamic>>>),
@@ -31,7 +33,7 @@ pub enum Dynamic {
     },
     RustFunction {
         name: String,
-        callback: Arc<dyn Fn(&mut Interpreter, Vec<Dynamic>) -> Option<Dynamic>>,
+        callback: Arc<dyn Fn(&mut Interpreter, Vec<Dynamic>) -> RuntimeResult + Send + Sync>,
         scope: Option<Scope>,
     },
     ClassInstance(String, Arc<Mutex<HashMap<String, Dynamic>>>),
@@ -126,17 +128,22 @@ impl Dynamic {
                 let scope = scope.clone();
                 i.call_fn(None, Some(scope), &arg_names, &args, &body)
             })),
-            Dynamic::RustFunction { name, scope, callback } => {
+            Dynamic::RustFunction {
+                name,
+                scope,
+                callback,
+            } => {
                 let callback = callback.clone();
 
                 Some(Function::new(&name, scope.clone(), move |i, args| {
                     let args = args.clone();
-                    callback(i, args).unwrap_or_default()
+                    callback(i, args)
                 }))
             }
             _ => None,
         }
     }
+
     pub fn as_str(self) -> Option<String> {
         match self {
             Dynamic::String(string) => Some(string),
@@ -146,18 +153,18 @@ impl Dynamic {
 
     pub fn type_name(&self) -> String {
         match self {
-            Dynamic::String(_) => "string",
-            Dynamic::Number(_) => "number",
-            Dynamic::Lazy(_) => "lazy",
-            Dynamic::Module(_) => "module",
-            Dynamic::Boolean(_) => "boolean",
-            Dynamic::Class(_) => "class",
-            Dynamic::Array(_) => "array",
-            Dynamic::Object(_) => "object",
+            Dynamic::String(_) => "String",
+            Dynamic::Number(_) => "Number",
+            Dynamic::Lazy(_) => "Lazy",
+            Dynamic::Module(_) => "Module",
+            Dynamic::Boolean(_) => "Boolean",
+            Dynamic::Class(_) => "Class",
+            Dynamic::Array(_) => "Array",
+            Dynamic::Object(_) => "Object",
             Dynamic::ClassInstance(name, _) => name,
-            Dynamic::Function { .. } => "function",
-            Dynamic::RustFunction { .. } => "extern function",
-            Dynamic::Null => "null",
+            Dynamic::Function { .. } => "Function",
+            Dynamic::RustFunction { .. } => "RustFunction",
+            Dynamic::Null => "Null",
         }
         .into()
     }
@@ -340,8 +347,8 @@ impl From<&str> for Dynamic {
     }
 }
 
-impl From<i32> for Dynamic {
-    fn from(val: i32) -> Self {
+impl From<Number> for Dynamic {
+    fn from(val: Number) -> Self {
         Dynamic::Number(val)
     }
 }

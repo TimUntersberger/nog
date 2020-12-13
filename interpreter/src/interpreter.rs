@@ -2,18 +2,19 @@ use super::{
     ast::Ast,
     ast::ClassMember,
     class::Class,
-    dynamic::{object_builder::ObjectBuilder, Dynamic},
+    dynamic::{object_builder::ObjectBuilder, Dynamic, Number},
     expression::Expression,
     formatter::Formatter,
     function::Function,
     module::Module,
     operator::Operator,
     parser::Parser,
+    runtime_error::*,
     scope::Scope,
     token::{Token, TokenKind},
 };
 use itertools::Itertools;
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, iter, path::PathBuf, sync::Arc, time::Instant};
 
 #[derive(Debug)]
 pub struct Program<'a> {
@@ -35,12 +36,15 @@ impl<'a> Default for Program<'a> {
 impl<'a> Program<'a> {
     pub fn print(&self) {
         println!(
-            "{}\n",
-            Formatter::new(self)
-                .format()
-                .split("\n")
-                .enumerate()
-                .map(|(i, line)| format!("{:03} | {}", i + 1, line))
+            "file  {}\n",
+            iter::once(self.path.to_str().unwrap().to_string())
+                .chain(
+                    Formatter::new(self)
+                        .format()
+                        .split("\n")
+                        .enumerate()
+                        .map(|(i, line)| format!("{:03} | {}", i + 1, line))
+                )
                 .join("\n")
         );
     }
@@ -50,6 +54,8 @@ impl<'a> Program<'a> {
 pub struct Interpreter {
     /// Contains the current file path to the file being interpreted
     pub file_path: PathBuf,
+    /// Whether to print debug information
+    pub debug: bool,
     pub source: String,
     /// This is true if a break statement was encountered until it is consumed
     pub broken: bool,
@@ -62,9 +68,9 @@ pub struct Interpreter {
     pub exported_variables: Vec<String>,
     pub exported_classes: Vec<String>,
     pub module_cache: HashMap<PathBuf, Module>,
-    /// This may contain an expression if a return statement was parsed. This gets consumed when a
+    /// This may contain a dynamic if a return statement was parsed. This gets consumed when a
     /// function definition finishes parsing
-    pub return_expr: Option<Expression>,
+    pub return_value: Option<Dynamic>,
     /// This represents the scope hierachy where the scope at index 0 is the global scope and every
     /// scope after the first one is a subscope of the previous one
     pub scopes: Vec<Scope>,
@@ -76,6 +82,7 @@ impl Interpreter {
             file_path: Default::default(),
             source: Default::default(),
             broken: false,
+            debug: false,
             continued: false,
             default_classes: create_default_classes(),
             default_variables: create_default_variables(),
@@ -84,7 +91,7 @@ impl Interpreter {
             module_cache: HashMap::new(),
             exported_classes: Vec::new(),
             exported_variables: Vec::new(),
-            return_expr: None,
+            return_value: None,
             scopes: vec![Scope::default()],
         }
     }
@@ -125,6 +132,30 @@ impl Interpreter {
         self.scopes.iter_mut().last().unwrap()
     }
 
+    pub fn instantiate_class(
+        &mut self,
+        name: &str,
+        values: &HashMap<String, Dynamic>,
+    ) -> RuntimeResult {
+        if let Some(class_fields) = self.find_class(name).map(|c| c.fields.clone()) {
+            let mut fields = HashMap::new();
+            for (name, default) in class_fields {
+                fields.insert(
+                    name.clone(),
+                    values
+                        .get(&name)
+                        .map(|x| Ok(x.clone()))
+                        .unwrap_or_else(|| self.eval(&default))?,
+                );
+            }
+            Ok(Dynamic::new_instance(name, fields))
+        } else {
+            Err(RuntimeError::ClassNotFound {
+                name: name.to_string(),
+            })
+        }
+    }
+
     fn with_clean_state<T>(
         &mut self,
         scope: Scope,
@@ -134,10 +165,10 @@ impl Interpreter {
         let file_path = self.file_path.clone();
         let scopes = self.scopes.clone();
         let classes = self.classes.clone();
-        let return_expr = self.return_expr.clone();
+        let return_value = self.return_value.clone();
 
         self.file_path = new_file_path.unwrap_or(file_path.clone());
-        self.return_expr = None;
+        self.return_value = None;
         self.classes = HashMap::new();
         self.scopes = vec![scope];
 
@@ -145,7 +176,7 @@ impl Interpreter {
 
         self.scopes = scopes;
         self.classes = self.classes.clone().into_iter().chain(classes).collect();
-        self.return_expr = return_expr;
+        self.return_value = return_value;
         self.file_path = file_path;
 
         result
@@ -186,11 +217,11 @@ impl Interpreter {
         &self.source[token.1.clone()]
     }
 
-    fn eval(&mut self, expr: &Expression) -> Dynamic {
+    fn eval(&mut self, expr: &Expression) -> RuntimeResult {
         match expr {
             Expression::PreOp(op, rhs) => {
-                let value = self.eval(rhs);
-                match op {
+                let value = self.eval(rhs)?;
+                Ok(match op {
                     Operator::Subtract => match value {
                         Dynamic::Number(x) => (-x).into(),
                         _ => Dynamic::Null,
@@ -201,10 +232,10 @@ impl Interpreter {
                     },
                     Operator::Not => (!value.is_true()).into(),
                     _ => Dynamic::Null,
-                }
+                })
             }
             Expression::PostOp(lhs, op, arg) => {
-                let value = self.eval(lhs);
+                let value = self.eval(lhs)?;
 
                 let arg = arg.as_ref().map(|arg| self.eval(arg.as_ref()));
 
@@ -215,10 +246,10 @@ impl Interpreter {
                         self,
                         value,
                         match op {
-                            Operator::Call => arg.and_then(|x| x.as_array()).unwrap(),
-                            _ => vec![arg.unwrap_or_default()],
+                            Operator::Call => arg.unwrap()?.as_array().unwrap(),
+                            _ => vec![arg.unwrap_or(Ok(Default::default()))?],
                         },
-                    );
+                    )?;
 
                     match op {
                         Operator::Increment | Operator::Decrement => {
@@ -228,9 +259,9 @@ impl Interpreter {
                         _ => {}
                     };
 
-                    res
+                    Ok(res)
                 } else {
-                    Dynamic::Null
+                    Err(RuntimeError::OperatorNotImplemented { class: class.name, operator: op.clone() })
                 }
             }
             Expression::BinaryOp(lhs, op, rhs) => {
@@ -241,7 +272,7 @@ impl Interpreter {
                 let (lhs, args) = match op {
                     Operator::Dot => match rhs.as_ref() {
                         Expression::ClassIdentifier(x) | Expression::Identifier(x) => {
-                            (self.eval(lhs.as_ref()), vec![Dynamic::String(x.into())])
+                            (self.eval(lhs.as_ref())?, vec![Dynamic::String(x.into())])
                         }
                         _ => unreachable!(rhs),
                     },
@@ -252,20 +283,19 @@ impl Interpreter {
                         let path = path_tokens[0..path_tokens_len - 1].join(".");
                         let field = path_tokens[path_tokens_len - 1];
                         (
-                            self.eval(&Expression::Identifier(path.to_string())),
-                            vec![Dynamic::String(field.into()), self.eval(rhs.as_ref())],
+                            self.eval(&Expression::Identifier(path.to_string()))?,
+                            vec![Dynamic::String(field.into()), self.eval(rhs.as_ref())?],
                         )
                     }
-                    _ => (self.eval(lhs.as_ref()), vec![self.eval(rhs.as_ref())]),
+                    _ => (self.eval(lhs.as_ref())?, vec![self.eval(rhs.as_ref())?]),
                 };
 
                 if is_static {
-                    dbg!(&class_name);
                     let class = self.find_class(class_name.unwrap()).unwrap();
                     let field_name = args[0].clone().as_str().unwrap();
 
                     if let Some(f) = class.static_functions.get(&field_name).cloned() {
-                        f.into()
+                        Ok(f.into())
                     } else {
                         panic!(
                             "The class {} doesn't have a static function called {}",
@@ -275,6 +305,10 @@ impl Interpreter {
                     }
                 } else {
                     let class = self.find_class(&lhs.type_name()).unwrap();
+
+                    if class.name == "Null" {
+                        return Err(RuntimeError::OperatorNotImplemented { class: class.name.clone(), operator: op.clone() });
+                    }
 
                     if let Some(f) = class.get_op_impl(&op).cloned() {
                         f.invoke(self, lhs, args)
@@ -287,55 +321,40 @@ impl Interpreter {
                     }
                 }
             }
-            Expression::NumberLiteral(x) => Dynamic::Number(x.parse().unwrap()),
-            Expression::BooleanLiteral(x) => Dynamic::Boolean(x == "true"),
-            Expression::StringLiteral(x) => Dynamic::String(x.into()),
-            Expression::Null => Dynamic::Null,
-            Expression::Identifier(key) => self.find(key).clone(),
-            Expression::ClassIdentifier(name) => self
-                .classes
-                .get(name)
+            Expression::NumberLiteral(x) => Ok(Dynamic::Number(x.parse().unwrap())),
+            Expression::BooleanLiteral(x) => Ok(Dynamic::Boolean(x == "true")),
+            Expression::StringLiteral(x) => Ok(Dynamic::String(x.into())),
+            Expression::Null => Ok(Dynamic::Null),
+            Expression::Identifier(key) => Ok(self.find(key).clone()),
+            Expression::ClassIdentifier(name) => Ok(self
+                .find_class(name)
                 .map(|c| c.clone().into())
-                .unwrap_or_default(),
-            Expression::ClassInstantiation(name, values) => {
-                if let Some(class_fields) = self.find_class(name).map(|c| c.fields.clone()) {
-                    let mut fields = HashMap::new();
-                    for (name, default) in class_fields {
-                        fields.insert(
-                            name.clone(),
-                            self.eval(&values.get(&name).unwrap_or(&default)),
-                        );
-                    }
-                    Dynamic::new_instance(name, fields)
-                } else {
-                    panic!("Class {} doesn't exist", name);
-                }
-            }
+                .unwrap_or_default()),
+            Expression::ClassInstantiation(name, values) => unreachable!(),
             Expression::ArrayLiteral(items) => {
-                Dynamic::new_array(items.iter().map(|expr| self.eval(expr)).collect())
+                items.iter().map(|expr| self.eval(expr)).collect::<RuntimeResult<Vec<Dynamic>>>().map(|x| Dynamic::new_array(x))
             }
-            Expression::ObjectLiteral(fields) => Dynamic::new_object(
-                fields
-                    .into_iter()
-                    .map(|(k, v)| (k.into(), self.eval(v)))
-                    .collect(),
-            ),
-            Expression::ArrowFunction(arg_names, body) => Dynamic::Function {
+            Expression::ObjectLiteral(fields) => {
+                let mut evaluated_fields = HashMap::new();
+
+                for (k, v) in fields {
+                    evaluated_fields.insert(k.clone(), self.eval(v)?);
+                }
+
+                Ok(Dynamic::new_object(evaluated_fields))
+            },
+            Expression::ArrowFunction(arg_names, body) => Ok(Dynamic::Function {
                 name: "<anonymous function>".into(),
                 arg_names: arg_names.into_iter().map(|t| t.into()).collect(),
                 body: body.clone(),
                 scope: (&self.scopes).into(),
-            },
+            }),
         }
     }
     fn consume_return_value(&mut self) -> Dynamic {
-        let result = self
-            .return_expr
-            .clone()
-            .map(|expr| self.eval(&expr))
-            .unwrap_or_default();
-        self.return_expr = None;
-        result
+        let result = self.return_value.clone();
+        self.return_value = None;
+        result.unwrap_or_default()
     }
     pub fn call_fn(
         &mut self,
@@ -344,13 +363,13 @@ impl Interpreter {
         arg_names: &Vec<String>,
         args: &Vec<Dynamic>,
         body: &Vec<Ast>,
-    ) -> Dynamic {
+    ) -> RuntimeResult {
         let mut f_scope = scope.unwrap_or_default();
         for (arg_name, arg) in arg_names.iter().zip(args.iter()) {
             f_scope.set(
                 arg_name.clone(),
                 match arg {
-                    Dynamic::Lazy(expr) => self.eval(expr),
+                    Dynamic::Lazy(expr) => self.eval(expr)?,
                     x => x.clone(),
                 },
             );
@@ -359,10 +378,10 @@ impl Interpreter {
             f_scope.set("this".to_string(), this);
         }
         self.scopes.push(f_scope);
-        self.execute_stmts(&body);
+        self.execute_stmts(&body)?;
         let result = self.consume_return_value();
         self.scopes.pop();
-        result
+        Ok(result)
     }
 
     fn find(&mut self, key: &str) -> Dynamic {
@@ -403,7 +422,7 @@ impl Interpreter {
             field_value.unwrap_or_default().clone()
         }
     }
-    fn import(&mut self, path: &str) -> (String, Dynamic) {
+    fn import(&mut self, path: &str) -> RuntimeResult<(String, Dynamic)> {
         let mut mod_parts = path.split(".");
 
         let root_name = mod_parts.next().unwrap();
@@ -419,12 +438,15 @@ impl Interpreter {
                     parser.set_source(root_path.clone(), &content, 0);
 
                     let program = parser.parse().unwrap();
-                    let module = i.execute(&program);
+
+                    program.print();
+
+                    let module = i.execute(&program)?;
 
                     i.module_cache.insert(root_path.clone(), module.clone());
 
-                    module.into()
-                }),
+                    Ok(module.into())
+                })?,
             },
         };
 
@@ -436,17 +458,18 @@ impl Interpreter {
             name = sub_mod_name;
         }
 
-        (name.into(), res)
+        Ok((name.into(), res))
     }
-    fn execute_stmt(&mut self, stmt: &Ast) {
+    fn execute_stmt(&mut self, stmt: &Ast) -> RuntimeResult<()> {
         match stmt {
             Ast::VariableDefinition(name, value) => {
-                let value = self.eval(value);
+                let value = self.eval(value)?;
                 self.get_scope_mut().set(name.clone(), value)
             }
             Ast::Documentation(_) => {}
+            Ast::Comment(_) => {}
             Ast::VariableAssignment(name, value) => {
-                let value = self.eval(value);
+                let value = self.eval(value)?;
                 self.assign_variable(name.clone(), value)
             }
             Ast::FunctionCall(name, arg_values) => match self.find(name).clone() {
@@ -462,10 +485,16 @@ impl Interpreter {
                         &arg_names,
                         &arg_values.iter().map(|a| a.into()).collect(),
                         &body,
-                    );
+                    )?;
                 }
                 Dynamic::RustFunction { callback, .. } => {
-                    let args = arg_values.iter().map(|a| self.eval(a)).collect();
+                    let mut args = Vec::new();
+                    for res in  arg_values.iter().map(|a| self.eval(a)) {
+                        match res {
+                            Ok(value) => args.push(value),
+                            Err(e) => return Err(e)
+                        };
+                    }
                     callback(self, args).unwrap_or_default();
                 }
                 actual => panic!("Expected {} to be a function, but it is a {}", name, actual),
@@ -485,18 +514,18 @@ impl Interpreter {
             }
             Ast::IfStatement(branches) => {
                 for (cond, block) in branches {
-                    if self.eval(cond).is_true() {
+                    if self.eval(cond)?.is_true() {
                         self.scopes.push(Scope::default());
-                        self.execute_stmts(block);
+                        self.execute_stmts(block)?;
                         self.scopes.pop();
                         break;
                     }
                 }
             }
             Ast::WhileStatement(cond, block) => {
-                while !self.broken && self.eval(cond).is_true() {
+                while !self.broken && self.eval(cond)?.is_true() {
                     self.scopes.push(Scope::default());
-                    self.execute_stmts(block);
+                    self.execute_stmts(block)?;
                     self.scopes.pop();
                     self.continued = false;
                 }
@@ -538,10 +567,10 @@ impl Interpreter {
                                     }
                                     f_scope.set("this".into(), this);
                                     interp.scopes.push(f_scope);
-                                    interp.execute_stmts(&body);
+                                    interp.execute_stmts(&body)?;
                                     let result = interp.consume_return_value();
                                     interp.scopes.pop();
-                                    result
+                                    Ok(result)
                                 });
                         }
                     }
@@ -551,14 +580,14 @@ impl Interpreter {
             }
             Ast::OperatorImplementation(_, _, _) => unreachable!(),
             Ast::ReturnStatement(expr) => {
-                self.return_expr = Some(expr.clone());
+                self.return_value = Some(self.eval(expr)?);
             }
             Ast::PlusAssignment(name, expr) => {
                 let new_value = self.eval(&Expression::BinaryOp(
                     Box::new(Expression::Identifier(name.into())),
                     Operator::Add,
                     Box::new(expr.clone()),
-                ));
+                ))?;
                 self.assign_variable(name.clone(), new_value);
             }
             Ast::MinusAssignment(name, expr) => {
@@ -566,7 +595,7 @@ impl Interpreter {
                     Box::new(Expression::Identifier(name.into())),
                     Operator::Subtract,
                     Box::new(expr.clone()),
-                ));
+                ))?;
                 self.assign_variable(name.clone(), new_value);
             }
             Ast::TimesAssignment(name, expr) => {
@@ -574,7 +603,7 @@ impl Interpreter {
                     Box::new(Expression::Identifier(name.into())),
                     Operator::Times,
                     Box::new(expr.clone()),
-                ));
+                ))?;
                 self.assign_variable(name.clone(), new_value);
             }
             Ast::DivideAssignment(name, expr) => {
@@ -582,7 +611,7 @@ impl Interpreter {
                     Box::new(Expression::Identifier(name.into())),
                     Operator::Divide,
                     Box::new(expr.clone()),
-                ));
+                ))?;
                 self.assign_variable(name.clone(), new_value);
             }
             Ast::BreakStatement => {
@@ -592,11 +621,11 @@ impl Interpreter {
                 self.continued = true;
             }
             Ast::Expression(expr) => {
-                self.eval(expr);
+                self.eval(expr)?;
             }
             Ast::StaticFunctionDefinition(_, _, _) => unreachable!(),
             Ast::ImportStatement(path) => {
-                let (mod_name, module) = self.import(path);
+                let (mod_name, module) = self.import(path)?;
                 self.get_scope_mut().set(mod_name, module);
             }
             Ast::ExportStatement(ast) => {
@@ -612,29 +641,33 @@ impl Interpreter {
                     },
                     Ast::VariableDefinition(name, _) => {
                         self.exported_variables.push(name.clone());
-                        self.execute_stmt(ast);
+                        self.execute_stmt(ast)?;
                     }
                     Ast::FunctionDefinition(name, _, _) => {
                         self.exported_variables.push(name.clone());
-                        self.execute_stmt(ast);
+                        self.execute_stmt(ast)?;
                     }
                     Ast::ClassDefinition(name, _) => {
                         self.exported_classes.push(name.clone());
-                        self.execute_stmt(ast);
+                        self.execute_stmt(ast)?;
                     }
                     _ => todo!(),
                 };
             }
         }
+
+        Ok(())
     }
 
-    fn execute_stmts(&mut self, stmts: &Vec<Ast>) {
+    fn execute_stmts(&mut self, stmts: &Vec<Ast>) -> RuntimeResult<()> {
         for stmt in stmts {
-            self.execute_stmt(stmt);
-            if self.return_expr.is_some() || self.broken || self.continued {
+            self.execute_stmt(stmt)?;
+            if self.return_value.is_some() || self.broken || self.continued {
                 break;
             }
         }
+
+        Ok(())
     }
 
     pub fn execute_file(&mut self, path: PathBuf) -> Result<(), String> {
@@ -646,17 +679,20 @@ impl Interpreter {
 
         let program = parser.parse()?;
 
-        program.print();
+        if self.debug {
+            program.print();
+        }
 
-        self.execute(&program);
+        self.execute(&program).map_err(|e| e.message())?;
 
         Ok(())
     }
 
-    pub fn execute(&mut self, prog: &Program) -> Module {
+    pub fn execute(&mut self, prog: &Program) -> RuntimeResult<Module> {
+        let now = Instant::now();
         self.file_path = prog.path.clone();
         self.source = prog.source.to_string();
-        self.execute_stmts(&prog.stmts);
+        self.execute_stmts(&prog.stmts)?;
 
         let mut variables = HashMap::new();
         let mut classes = HashMap::new();
@@ -689,13 +725,18 @@ impl Interpreter {
             classes.insert(class_name, value.clone());
         }
 
-        Module {
+        if self.debug {
+            let elapsed = now.elapsed();
+            println!("Executing {:?} took {:?}", self.file_path, elapsed);
+        }
+
+        Ok(Module {
             name: "".into(),
             variables,
             scope: self.scopes.first().unwrap().clone(),
             functions,
             classes,
-        }
+        })
     }
 }
 
@@ -703,103 +744,155 @@ fn create_default_classes() -> HashMap<String, Class> {
     let mut classes = Vec::new();
 
     classes.push(
-        Class::new("number")
-            .set_op_impl(Operator::Increment, |_, this, _| number!(this) + 1)
-            .set_op_impl(Operator::Decrement, |_, this, _| number!(this) - 1),
+        Class::new("Number")
+            .set_op_impl(Operator::Increment, |_, this, _| {
+                number!(this).map(|x| x + 1)
+            })
+            .set_op_impl(Operator::Decrement, |_, this, _| {
+                number!(this).map(|x| x - 1)
+            })
+            .add_static_function("from", |_, args| Ok(match &args[0] {
+                Dynamic::String(x) => x.parse::<Number>().unwrap().into(),
+                _ => ().into(),
+            })),
     );
     classes.push(
-        Class::new("string")
+        Class::new("String")
             .set_op_impl(Operator::Index, |_, this, args| {
-                let this = string!(this);
-                let idx = number!(args[0]);
+                let this = string!(this)?;
+                let idx = number!(args[0])?;
 
-                this.chars().skip(idx as usize).next().unwrap_or_default()
+                Ok(this.chars().skip(idx as usize).next().unwrap_or_default())
             })
             .add_function("len", |_, this, _| {
-                let this = string!(this);
-                this.len() as i32
+                let this = string!(this)?;
+                Ok(this.len() as Number)
+            })
+            .add_function("split", |_, this, args| {
+                let sep = string!(&args[0])?;
+                let this = string!(this)?;
+                Ok(this.split(sep).map(|x| x.into()).collect::<Vec<String>>())
             }),
     );
     classes.push(
-        Class::new("array")
+        Class::new("Array")
             .add_function("push", |_, this, args| {
-                if let Dynamic::Array(items_ref) = &this {
-                    for arg in args {
-                        items_ref.lock().unwrap().push(arg.clone());
-                    }
-                } else {
-                    unreachable!()
+                let this_ref = array!(this)?;
+                let mut this = this_ref.lock().unwrap();
+
+                for arg in args {
+                    this.push(arg.clone());
                 }
 
-                this
+                Ok(())
             })
             .add_function("len", |_, this, _| {
-                let this_ref = array!(this);
+                let this_ref = array!(this)?;
                 let this = this_ref.lock().unwrap();
 
-                this.len() as i32
+                Ok(this.len() as Number)
             })
             .add_function("map", |i, this, args| {
-                let items_ref = array!(this.clone());
+                let items_ref = array!(this.clone())?;
                 let items = items_ref.lock().unwrap();
                 let cb = args[0].clone().as_fn().unwrap();
 
-                items
-                    .iter()
-                    .map(|item| cb.invoke(i, vec![item.clone()]))
-                    .collect::<Vec<Dynamic>>()
+                let mut result = Vec::new();
+
+                for item in items.iter() {
+                    let mapped_item = cb.invoke(i, vec![item.clone()])?;
+                    result.push(mapped_item);
+                }
+
+                Ok(result)
+            })
+            .add_function("fold", |i, this, args| {
+                let items_ref = array!(this.clone())?;
+                let items = items_ref.lock().unwrap();
+                let initial = args[0].clone();
+                let cb = args[1].clone().as_fn().unwrap();
+
+                let mut acc = initial;
+
+                for item in items.iter() {
+                    acc = cb.invoke(i, vec![acc, item.clone()])?;
+                }
+
+                Ok(acc)
+            })
+            .add_function("filter", |i, this, args| {
+                let items_ref = array!(this.clone())?;
+                let items = items_ref.lock().unwrap();
+                let cb = args[0].clone().as_fn().unwrap();
+
+                let mut result = Vec::new();
+
+                for item in items.iter().cloned() {
+                    let passed = cb.invoke(i, vec![item.clone()])?.is_true();
+                    if passed {
+                        result.push(item);
+                    }
+                }
+
+                Ok(result)
+            })
+            .add_function("contains", |i, this, args| {
+                let items_ref = array!(this.clone())?;
+                let items = items_ref.lock().unwrap();
+                let value = &args[0];
+
+                Ok(items.iter().find(|i| i == &value).is_some())
             })
             .add_function("for_each", |i, this, args| {
-                let items_ref = array!(this.clone());
+                let items_ref = array!(this.clone())?;
                 let items = items_ref.lock().unwrap();
                 let cb = args[0].clone().as_fn().unwrap();
 
                 for item in items.iter() {
-                    cb.invoke(i, vec![item.clone()]);
+                    cb.invoke(i, vec![item.clone()])?;
                 }
+
+                Ok(())
             })
             .set_op_impl(Operator::Index, |_interp, this, args| {
-                let this_ref = array!(this);
+                let this_ref = array!(this)?;
                 let this = this_ref.lock().unwrap();
-                let other = number!(args[0]);
+                let other = number!(args[0])?;
 
-                this.get(other as usize).cloned().unwrap_or_default()
+                Ok(this.get(other as usize).cloned().unwrap_or_default())
             }),
     );
-    classes.push(Class::new("null"));
-    classes.push(Class::new("module"));
+    classes.push(Class::new("Null"));
+    classes.push(Class::new("Module"));
     classes.push(
-        Class::new("class").set_op_impl(Operator::Constructor, |i, this, args| {
-            let fields_ref = object!(&args[0]);
+        Class::new("Class").set_op_impl(Operator::Constructor, |i, this, args| {
+            let fields_ref = object!(&args[0])?;
             let fields = fields_ref.lock().unwrap();
             if let Dynamic::Class(this) = this {
-                Dynamic::new_instance(
-                    &this.name,
-                    this.fields
-                        .iter()
-                        .map(|(k, v)| (k.clone(), fields.get(k).cloned().unwrap_or(i.eval(v))))
-                        .collect(),
-                )
+                i.instantiate_class(&this.name, &fields)
             } else {
                 unreachable!()
             }
         }),
     );
     classes.push(
-        Class::new("object").set_op_impl(Operator::Index, |_, this, args| {
-            let field = args[0].clone().as_str().unwrap();
+        Class::new("Object")
+            .set_op_impl(Operator::Index, |_, this, args| {
+                let field = args[0].clone().as_str().unwrap();
 
-            this.get_field(&field)
-        }).add_function("keys", |_, this, _| {
-            let this_ref = object!(this);
-            let this = this_ref.lock().unwrap();
+                Ok(this.get_field(&field))
+            })
+            .add_function("keys", |_, this, _| {
+                let this_ref = object!(this)?;
+                let this = this_ref.lock().unwrap();
 
-            this.keys().cloned().collect::<Vec<String>>()
-        })
+                Ok(this.keys().cloned().collect::<Vec<String>>())
+            }),
     );
-    classes.push(Class::new("boolean"));
+    classes.push(Class::new("Boolean"));
+    classes.push(Class::new("Result"));
     classes.push(
-        Class::new("function").set_op_impl(Operator::Call, |i, this, args| {
+        Class::new("Function").set_op_impl(Operator::Call, |i, this, args| {
             if let Dynamic::Function {
                 arg_names,
                 scope,
@@ -814,9 +907,9 @@ fn create_default_classes() -> HashMap<String, Class> {
         }),
     );
     classes.push(
-        Class::new("extern function").set_op_impl(Operator::Call, |i, this, args| {
+        Class::new("RustFunction").set_op_impl(Operator::Call, |i, this, args| {
             if let Dynamic::RustFunction { callback, .. } = this {
-                callback(i, args).unwrap_or_default()
+                Ok(callback(i, args).unwrap_or_default())
             } else {
                 unreachable!();
             }
@@ -835,9 +928,9 @@ pub fn create_default_modules() -> HashMap<String, Module> {
             "fs",
             Module::new("fs").function("read_file", |i, args| {
                 let mut cwd = std::env::current_dir().unwrap();
-                let rel_path = string!(&args[0]);
+                let rel_path = string!(&args[0])?;
                 cwd.push(rel_path);
-                std::fs::read_to_string(cwd).unwrap()
+                Ok(std::fs::read_to_string(cwd).unwrap())
             }),
         ),
     );
@@ -849,29 +942,31 @@ pub fn create_default_variables() -> HashMap<String, Dynamic> {
     ObjectBuilder::new()
         .function("print", |_, args| {
             println!("{}", args.iter().join(" "));
+
+            Ok(())
         })
-        .function("typeof", |_, args| args[0].type_name())
+        .function("typeof", |_, args| Ok(args[0].type_name()))
         .function("require", |i, args| {
-            let (_, module) = i.import(&args[0].clone().as_str().unwrap());
-            module
+            let (_, module) = i.import(&args[0].clone().as_str().unwrap())?;
+            Ok(module)
         })
         .function("range", |_, args| match args.len() {
             1 => {
-                let count = number!(args[0]);
+                let count = number!(args[0])?;
                 let mut items = Vec::new();
                 for i in 0..count {
                     items.push(Dynamic::Number(i));
                 }
-                Dynamic::new_array(items)
+                Ok(Dynamic::new_array(items))
             }
             2 => {
-                let start = number!(args[0]);
-                let count = number!(args[1]);
+                let start = number!(args[0])?;
+                let count = number!(args[1])?;
                 let mut items = Vec::new();
                 for i in start..start + count {
                     items.push(Dynamic::Number(i));
                 }
-                Dynamic::new_array(items)
+                Ok(Dynamic::new_array(items))
             }
             _ => todo!(),
         })

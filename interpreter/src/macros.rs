@@ -1,11 +1,14 @@
 /// Converts the given value into the inner value of the variant
 #[macro_export]
 macro_rules! cast {
-    ($enum: expr, $variant: path) => {
+    ($enum: expr, $variant: path, $expected: tt) => {
         if let $variant(x) = $enum {
-            x
+            Ok(x)
         } else {
-            unreachable!()
+            Err(RuntimeError::UnexpectedType {
+                expected: $expected.into(),
+                actual: $enum.type_name(),
+            })
         }
     };
 }
@@ -14,7 +17,7 @@ macro_rules! cast {
 #[macro_export]
 macro_rules! number {
     ($enum: expr) => {
-        cast!($enum, Dynamic::Number)
+        cast!($enum, Dynamic::Number, "Number")
     };
 }
 
@@ -22,7 +25,7 @@ macro_rules! number {
 #[macro_export]
 macro_rules! object {
     ($enum: expr) => {
-        cast!($enum, Dynamic::Object)
+        cast!($enum, Dynamic::Object, "Object")
     };
 }
 
@@ -30,7 +33,7 @@ macro_rules! object {
 #[macro_export]
 macro_rules! boolean {
     ($enum: expr) => {
-        cast!($enum, Dynamic::Boolean)
+        cast!($enum, Dynamic::Boolean, "Boolean")
     };
 }
 
@@ -38,7 +41,7 @@ macro_rules! boolean {
 #[macro_export]
 macro_rules! string {
     ($enum: expr) => {
-        cast!($enum, Dynamic::String)
+        cast!($enum, Dynamic::String, "String")
     };
 }
 
@@ -46,7 +49,7 @@ macro_rules! string {
 #[macro_export]
 macro_rules! array {
     ($enum: expr) => {
-        cast!($enum, Dynamic::Array)
+        cast!($enum, Dynamic::Array, "Array")
     };
 }
 

@@ -18,6 +18,7 @@ mod method;
 mod module;
 mod operator;
 mod parser;
+mod runtime_error;
 mod scope;
 mod token;
 
@@ -41,10 +42,12 @@ pub fn main() {
     match parser.parse() {
         Ok(program) => {
             program.print();
-            interpreter.execute(&program);
+            if let Err(e) = interpreter.execute(&program) {
+                println!("RUNTIME ERROR: {}", e.message());
+            };
         }
         Err(e) => {
-            println!("ERROR: {}", e);
+            println!("PARSE ERROR: {}", e);
         }
     };
 }

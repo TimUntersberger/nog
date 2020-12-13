@@ -23,6 +23,7 @@ pub enum Ast {
     ClassDefinition(String, Vec<ClassMember>),
     FunctionCall(String, Vec<Expression>),
     ImportStatement(String),
+    Comment(Vec<String>),
     Documentation(Vec<String>),
     BreakStatement,
     ContinueStatement,

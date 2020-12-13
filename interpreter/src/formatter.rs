@@ -38,27 +38,54 @@ impl<'a> Formatter<'a> {
                     .join(", ")
             ),
             Expression::ObjectLiteral(fields) => format!(
-                "#{{\n{}\n}}",
-                fields
-                    .iter()
-                    .map(|(k, v)| format!("  \"{}\": {}", k, self.format_expr(v)))
-                    .join(",\n")
+                "#{{\n{}\n{}}}",
+                {
+                    self.level += 1;
+                    let body = fields
+                        .iter()
+                        .map(|(k, v)| {
+                            format!("{}\"{}\": {}", self.indentation(), k, self.format_expr(v))
+                        })
+                        .join(",\n");
+                    self.level -= 1;
+                    body
+                },
+                self.indentation()
             ),
             Expression::ArrowFunction(args, body) => {
-                self.level += 1;
-                let body = self.format_stmts(body);
-                self.level -= 1;
+                if body.len() == 1 {
+                    let body = body.get(0).unwrap();
+                    match body {
+                        Ast::ReturnStatement(expr) | Ast::Expression(expr) => {
+                            let body = self.format_expr(expr);
+                            format!(
+                                "{} => {}",
+                                if args.len() == 1 {
+                                    args[0].clone()
+                                } else {
+                                    format!("({})", self.format_args(args))
+                                },
+                                body
+                            )
+                        },
+                        actual => unreachable!("{:?}", actual)
+                    }
+                } else {
+                    self.level += 1;
+                    let body = self.format_stmts(body);
+                    self.level -= 1;
 
-                format!(
-                    "{} => {{\n{}\n{}}}",
-                    if args.len() == 1 {
-                        args[0].clone()
-                    } else {
-                        format!("({})", self.format_args(args))
-                    },
-                    body,
-                    self.indentation()
-                )
+                    format!(
+                        "{} => {{\n{}\n{}}}",
+                        if args.len() == 1 {
+                            args[0].clone()
+                        } else {
+                            format!("({})", self.format_args(args))
+                        },
+                        body,
+                        self.indentation()
+                    )
+                }
             }
             Expression::ClassInstantiation(name, fields) => format!(
                 "{}{{{}}}",
@@ -125,8 +152,17 @@ impl<'a> Formatter<'a> {
             Ast::VariableAssignment(name, value) => {
                 format!("{} = {}", name, self.format_expr(value))
             }
+            Ast::Documentation(lines) => lines
+                .iter()
+                .map(|line| format!("///{}", line))
+                .join(&format!("\n{}", self.indentation())),
+            Ast::Comment(lines) => lines
+                .iter()
+                .map(|line| format!("//{}", line))
+                .join(&format!("\n{}", self.indentation())),
             Ast::BreakStatement => "break".into(),
             Ast::ReturnStatement(expr) => format!("return {}", self.format_expr(expr)),
+            Ast::ExportStatement(stmt) => format!("export {}", self.format_ast(stmt)),
             Ast::ImportStatement(path) => format!("import {}", path),
             Ast::IfStatement(branches) => branches
                 .iter()

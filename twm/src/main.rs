@@ -10,25 +10,21 @@ extern crate interpreter;
 use config::{rule::Rule, workspace_setting::WorkspaceSetting, Config};
 use crossbeam_channel::select;
 use direction::Direction;
-use regex::Regex;
 use display::Display;
 use event::Event;
 use event::EventChannel;
-use event_handler::keybinding::toggle_work_mode;
 use hot_reload::update_config;
-use interpreter::{Dynamic, Function, Interpreter, Module};
-use keybindings::{
-    key::Key, keybinding::Keybinding, keybinding_type::KeybindingType, modifier::Modifier,
-    KbManager,
-};
+use interpreter::{Dynamic, Function, Interpreter, Module, RuntimeError};
+use keybindings::{keybinding::Keybinding, KbManager};
 use log::debug;
 use log::{error, info};
 use parking_lot::{deadlock, Mutex};
 use popup::Popup;
+use regex::Regex;
 use split_direction::SplitDirection;
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::{process, sync::Arc};
+use std::{process, sync::atomic::AtomicBool, sync::Arc};
 use std::{thread, time::Duration};
 use system::NativeWindow;
 use system::{DisplayId, SystemResult, WinEventListener, WindowId};
@@ -159,7 +155,10 @@ impl Default for AppState {
         Self {
             work_mode: true,
             displays: time!("initializing displays", display::init(&config)),
-            keybindings_manager: KbManager::new(config.keybindings.clone()),
+            keybindings_manager: KbManager::new(
+                config.keybindings.clone(),
+                config.mode_handlers.clone(),
+            ),
             event_channel: EventChannel::default(),
             additonal_rules: Vec::new(),
             window_event_listener: WinEventListener::default(),
@@ -174,7 +173,10 @@ impl AppState {
         Self {
             work_mode: config.work_mode,
             displays: display::init(&config),
-            keybindings_manager: KbManager::new(config.keybindings.clone()),
+            keybindings_manager: KbManager::new(
+                config.keybindings.clone(),
+                config.mode_handlers.clone(),
+            ),
             event_channel: EventChannel::default(),
             additonal_rules: Vec::new(),
             window_event_listener: WinEventListener::default(),
@@ -186,7 +188,10 @@ impl AppState {
         self.config = config;
         self.work_mode = self.config.work_mode;
         self.displays = display::init(&self.config);
-        self.keybindings_manager = KbManager::new(self.config.keybindings.clone());
+        self.keybindings_manager = KbManager::new(
+            self.config.keybindings.clone(),
+            self.config.mode_handlers.clone(),
+        );
     }
 
     /// TODO: maybe rename this function
@@ -295,50 +300,57 @@ impl AppState {
         Ok(())
     }
 
-    pub fn enter_work_mode(&mut self) -> SystemResult {
-        if self.config.remove_task_bar {
+    pub fn enter_work_mode(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
+        let mut this = state_arc.lock();
+        if this.config.remove_task_bar {
             info!("Hiding taskbar");
-            self.hide_taskbars();
+            this.hide_taskbars();
         }
 
-        if self.config.display_app_bar {
-            todo!();
-            //bar::create::create(state_arc.clone());
+        if this.config.display_app_bar {
+            drop(this);
+            bar::create::create(state_arc.clone());
+            this = state_arc.lock();
         }
 
-        self.change_workspace(1, false);
+        this.change_workspace(1, false);
 
         info!("Registering windows event handler");
-        self.window_event_listener.start(&self.event_channel);
+        this.window_event_listener.start(&this.event_channel);
 
         Ok(())
     }
 
-    pub fn leave_work_mode(&mut self) -> SystemResult {
-        self.window_event_listener.stop();
+    pub fn leave_work_mode(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
+        let mut this = state_arc.lock();
+        this.window_event_listener.stop();
 
         popup::cleanup()?;
 
-        if self.config.display_app_bar {
-            todo!()
-            //bar::close_all(state_arc.clone());
+        if this.config.display_app_bar {
+            drop(this);
+            bar::close_all(state_arc.clone());
+            this = state_arc.lock();
         }
 
-        if self.config.remove_task_bar {
-            self.show_taskbars();
+        if this.config.remove_task_bar {
+            this.show_taskbars();
         }
 
-        self.cleanup()?;
+        this.cleanup()?;
         Ok(())
     }
 
-    pub fn toggle_work_mode(&mut self) -> SystemResult {
-        self.work_mode = !self.work_mode;
+    pub fn toggle_work_mode(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
+        let mut this = state_arc.lock();
+        this.work_mode = !this.work_mode;
 
-        if !self.work_mode {
-            self.leave_work_mode()?;
+        if !this.work_mode {
+            drop(this);
+            Self::leave_work_mode(state_arc)?;
         } else {
-            self.enter_work_mode()?;
+            drop(this);
+            Self::enter_work_mode(state_arc)?;
         }
 
         Ok(())
@@ -670,64 +682,131 @@ fn os_specific_setup(state: Arc<Mutex<AppState>>) {
     tray::create(state);
 }
 
+fn kb_from_args(callbacks_arc: Arc<Mutex<Vec<Function>>>, args: Vec<Dynamic>) -> Keybinding {
+    let mut kb = Keybinding::from_str(&args[0].clone().as_str().unwrap()).unwrap();
+    match &args[1] {
+        Dynamic::Function {
+            body,
+            scope,
+            arg_names,
+            name,
+        } => {
+            let arg_names = arg_names.clone();
+            let body = body.clone();
+            let scope = scope.clone();
+
+            let value = Function::new(&name.clone(), Some(scope.clone()), move |i, args| {
+                i.call_fn(None, Some(scope.clone()), &arg_names, &args, &body)
+            });
+
+            let mut cbs = callbacks_arc.lock();
+            let idx = cbs.len();
+            cbs.push(value);
+            kb.callback_id = idx;
+        }
+        Dynamic::RustFunction {
+            name,
+            callback,
+            scope,
+        } => {
+            let callback = callback.clone();
+
+            let value = Function::new(name, scope.clone(), move |i, args| {
+                let args = args.clone();
+                callback(i, args)
+            });
+
+            let mut cbs = callbacks_arc.lock();
+            let idx = cbs.len();
+            cbs.push(value);
+            kb.callback_id = idx;
+        }
+        _ => todo!("{:?}", &args[1]),
+    }
+    kb
+}
+
 fn parse_config(
     state_arc: Arc<Mutex<AppState>>,
     callbacks_arc: Arc<Mutex<Vec<Function>>>,
     interpreter_arc: Arc<Mutex<Interpreter>>,
 ) -> Result<Config, String> {
     let config = Arc::new(Mutex::new(Config::default()));
+    let is_init = Arc::new(AtomicBool::new(true));
     let mut interpreter = Interpreter::new();
 
     let mut workspace = Module::new("workspace");
 
     let state = state_arc.clone();
     workspace = workspace.function("change", move |_, args| {
-        let idx = number!(args[0]);
+        let idx = number!(args[0])?;
         let mut state = state.lock();
 
-        state.change_workspace(idx, true)
+        state.change_workspace(idx, true);
+
+        Ok(Dynamic::Null)
     });
 
     let state = state_arc.clone();
     workspace = workspace.function("move_to_monitor", move |_, args| {
-        state.lock().move_workspace_to_monitor(number!(args[0]));
+        state.lock().move_workspace_to_monitor(number!(args[0])?);
+        Ok(Dynamic::Null)
     });
 
     let state = state_arc.clone();
     workspace = workspace.function("toggle_fullscreen", move |_, args| {
         state.lock().toggle_fullscreen();
+        Ok(Dynamic::Null)
     });
 
     let state = state_arc.clone();
     workspace = workspace.function("reset_row", move |_, args| {
         state.lock().reset_row();
+        Ok(Dynamic::Null)
     });
 
     let state = state_arc.clone();
     workspace = workspace.function("reset_col", move |_, args| {
         state.lock().reset_column();
+        Ok(Dynamic::Null)
     });
 
     let state = state_arc.clone();
     workspace = workspace.function("move_in", move |_, args| {
-        state.lock().reset_column();
+        Ok(Dynamic::Null)
     });
 
     let state = state_arc.clone();
-    workspace = workspace.function("move_out", move |_, args| {});
+    workspace = workspace.function("move_out", move |_, args| {
+        Ok(Dynamic::Null)
+    });
 
     let state = state_arc.clone();
     workspace = workspace.function("focus", move |_, args| {
         state
             .lock()
-            .focus(Direction::from_str(string!(&args[0])).unwrap());
+            .focus(Direction::from_str(string!(&args[0])?).unwrap());
+
+        Ok(Dynamic::Null)
+    });
+
+    let state = state_arc.clone();
+    workspace = workspace.function("resize", move |_, args| {
+        state.lock().resize(
+            Direction::from_str(string!(&args[0])?).unwrap(),
+            number!(args[1])?,
+        );
+
+        Ok(Dynamic::Null)
     });
 
     let state = state_arc.clone();
     workspace = workspace.function("swap", move |_, args| {
         state
             .lock()
-            .swap(Direction::from_str(string!(&args[0])).unwrap());
+            .swap(Direction::from_str(string!(&args[0])?).unwrap());
+
+        Ok(Dynamic::Null)
     });
 
     let mut window = Module::new("window");
@@ -736,79 +815,150 @@ fn parse_config(
     window = window.function("get_title", move |_i, _args| {
         let state = state.lock();
 
-        state
+        Ok(state
             .get_current_grid()
             .and_then(|g| g.get_focused_tile())
             .and_then(|t| t.window.get_title().ok())
-            .unwrap_or_default()
+            .unwrap_or_default())
     });
 
     let state = state_arc.clone();
     window = window.function("minimize", move |_i, _args| {
         state.lock().minimize_window();
+        Ok(Dynamic::Null)
     });
 
     let state = state_arc.clone();
     window = window.function("set_split_direction", move |_i, args| {
         state
             .lock()
-            .set_split_direction(SplitDirection::from_str(string!(&args[0])).unwrap());
+            .set_split_direction(SplitDirection::from_str(string!(&args[0])?).unwrap());
+        Ok(Dynamic::Null)
     });
 
     let state = state_arc.clone();
     window = window.function("toggle_floating", move |_i, _args| {
         state.lock().toggle_floating();
+        Ok(Dynamic::Null)
     });
 
     let state = state_arc.clone();
     window = window.function("ignore", move |_i, _args| {
         state.lock().ignore_window();
+        Ok(Dynamic::Null)
     });
 
     let state = state_arc.clone();
     window = window.function("close", move |_i, _args| {
         state.lock().close_window();
+        Ok(Dynamic::Null)
     });
 
     let state = state_arc.clone();
     window = window.function("move_to_workspace", move |_i, args| {
-        state.lock().move_window_to_workspace(number!(args[0]));
+        state.lock().move_window_to_workspace(number!(args[0])?);
+        Ok(Dynamic::Null)
     });
 
     let mut config_mod = Module::new("config");
 
     let state = state_arc.clone();
+    let cfg = config.clone();
+    let init = is_init.clone();
     config_mod = config_mod.function("increment", move |_i, args| {
         let (field, amount) = match args.len() {
-            1 => (string!(&args[0]), 1),
-            _ => (string!(&args[0]), *number!(&args[1])),
+            1 => (string!(&args[0])?, 1),
+            _ => (string!(&args[0])?, *number!(&args[1])?),
         };
 
-        update_config(
-            state.clone(),
-            state.lock().config.increment_field(field, amount),
-        );
+        if init.load(std::sync::atomic::Ordering::SeqCst) {
+            cfg.lock().set(string!(&args[0])?, string!(&args[1])?);
+        } else {
+            let mut cfg = cfg.lock().clone();
+            cfg.increment_field(field, amount);
+            update_config(state.clone(), cfg);
+        }
+        Ok(Dynamic::Null)
     });
 
     let state = state_arc.clone();
+    let cfg = config.clone();
+    let init = is_init.clone();
     config_mod = config_mod.function("decrement", move |_i, args| {
         let (field, amount) = match args.len() {
-            1 => (string!(&args[0]), -1),
-            _ => (string!(&args[0]), *number!(&args[1])),
+            1 => (string!(&args[0])?, -1),
+            _ => (string!(&args[0])?, *number!(&args[1])?),
         };
 
-        update_config(
-            state.clone(),
-            state.lock().config.decrement_field(field, amount),
-        );
+        if init.load(std::sync::atomic::Ordering::SeqCst) {
+            cfg.lock().set(string!(&args[0])?, string!(&args[1])?);
+        } else {
+            let mut cfg = cfg.lock().clone();
+            cfg.decrement_field(field, amount);
+            update_config(state.clone(), cfg);
+        }
+
+        Ok(Dynamic::Null)
     });
 
     let state = state_arc.clone();
+    let cfg = config.clone();
+    let init = is_init.clone();
     config_mod = config_mod.function("toggle", move |_i, args| {
-        update_config(
-            state.clone(),
-            state.lock().config.toggle_field(string!(&args[0])),
-        );
+        if init.load(std::sync::atomic::Ordering::SeqCst) {
+            cfg.lock().set(string!(&args[0])?, string!(&args[1])?);
+        } else {
+            let mut cfg = cfg.lock().clone();
+            cfg.toggle_field(string!(&args[0])?);
+            update_config(state.clone(), cfg);
+        }
+
+        Ok(Dynamic::Null)
+    });
+
+    let cfg = config.clone();
+    let state = state_arc.clone();
+    let init = is_init.clone();
+    config_mod = config_mod.function("set", move |_i, args| {
+        if init.load(std::sync::atomic::Ordering::SeqCst) {
+            cfg.lock().set(string!(&args[0])?, string!(&args[1])?);
+        } else {
+            let mut cfg = cfg.lock().clone();
+            cfg.set(string!(&args[0])?, string!(&args[1])?);
+            update_config(state.clone(), cfg);
+        }
+
+        Ok(Dynamic::Null)
+    });
+
+    let cfg = config.clone();
+    let state = state_arc.clone();
+    let init = is_init.clone();
+    config_mod = config_mod.function("enable", move |_i, args| {
+        if init.load(std::sync::atomic::Ordering::SeqCst) {
+            cfg.lock().set(string!(&args[0])?, "true");
+        } else {
+            let mut cfg = cfg.lock().clone();
+            cfg.set(string!(&args[0])?, "true");
+            update_config(state.clone(), cfg);
+        }
+
+        Ok(Dynamic::Null)
+    });
+
+    let cfg = config.clone();
+    let state = state_arc.clone();
+    let init = is_init.clone();
+    config_mod = config_mod.function("disable", move |_i, args| {
+        if init.load(std::sync::atomic::Ordering::SeqCst) {
+            cfg.lock().set(string!(&args[0])?, "false");
+        } else {
+            let mut cfg = cfg.lock().clone();
+            cfg.set(string!(&args[0])?, "false");
+            update_config(state.clone(), cfg);
+        }
+
+        Ok(Dynamic::Null)
     });
 
     let mut rules = Module::new("rules");
@@ -816,42 +966,46 @@ fn parse_config(
     let cfg = config.clone();
     rules = rules.function("ignore", move |_, args| {
         let mut rule = Rule::default();
-        rule.pattern = Regex::from_str(string!(&args[0])).unwrap();
+        rule.pattern = Regex::from_str(string!(&args[0])?).unwrap();
         rule.manage = false;
 
         cfg.lock().rules.push(rule);
+
+        Ok(Dynamic::Null)
     });
 
     let cfg = config.clone();
     rules = rules.function("match", move |_, args| {
         let mut rule = Rule::default();
-        rule.pattern = Regex::from_str(string!(&args[0])).unwrap();
+        rule.pattern = Regex::from_str(string!(&args[0])?).unwrap();
 
-        let settings_ref = object!(&args[1]);
+        let settings_ref = object!(&args[1])?;
         let settings = settings_ref.lock().unwrap();
 
         for (key, value) in settings.iter() {
             match key.as_str() {
                 "has_custom_titlebar" => {
-                    rule.has_custom_titlebar = *boolean!(value);
-                },
+                    rule.has_custom_titlebar = *boolean!(value)?;
+                }
                 "chromium" => {
-                    rule.chromium = *boolean!(value);
-                },
+                    rule.chromium = *boolean!(value)?;
+                }
                 "firefox" => {
-                    rule.firefox = *boolean!(value);
-                },
+                    rule.firefox = *boolean!(value)?;
+                }
                 "manage" => {
-                    rule.manage = *boolean!(value);
-                },
+                    rule.manage = *boolean!(value)?;
+                }
                 "workspace_id" => {
-                    rule.workspace_id = *number!(value);
-                },
-                _ => todo!("{}", key)
+                    rule.workspace_id = *number!(value)?;
+                }
+                _ => todo!("{}", key),
             }
         }
 
         cfg.lock().rules.push(rule);
+
+        Ok(Dynamic::Null)
     });
 
     let mut root = Module::new("nog")
@@ -864,56 +1018,75 @@ fn parse_config(
     let state = state_arc.clone();
     root = root.function("quit", move |_i, _args| {
         state.lock().event_channel.sender.send(Event::Exit);
+
+        Ok(Dynamic::Null)
     });
 
     let state = state_arc.clone();
     root = root.function("toggle_work_mode", move |_i, _args| {
-        state.lock().toggle_work_mode();
+        AppState::toggle_work_mode(state.clone());
+        Ok(Dynamic::Null)
+    });
+
+    let state = state_arc.clone();
+    root = root.function("toggle_mode", move |_i, args| {
+        state.lock().toggle_mode(string!(&args[0])?.clone());
+        Ok(Dynamic::Null)
     });
 
     root = root.function("launch", move |_i, args| {
-        system::api::launch_program(string!(&args[0]).clone());
+        system::api::launch_program(string!(&args[0])?.clone());
+        Ok(Dynamic::Null)
+    });
+
+    let cbs = callbacks_arc.clone();
+    let cfg = config.clone();
+    let state = state_arc.clone();
+
+    root = root.function("mode", move |i, args| {
+        let cbs_arc = cbs.clone();
+        let cfg = cfg.clone();
+
+        let mode = string!(&args[0])?.clone();
+        let mut cb = args[1].clone().as_fn().unwrap();
+        let state2 = state.clone();
+
+        let bind_fn = Function::new("bind", None, move |_, args| {
+            // THIS FUNCTION
+            let mut kb = kb_from_args(cbs_arc.clone(), args);
+            kb.mode = Some(mode.clone());
+            state2.lock().keybindings_manager.add_mode_keybinding(kb);
+            Ok(Dynamic::Null)
+        });
+
+        cb.scope.set("bind".into(), bind_fn.into());
+
+        let idx = cbs.lock().len();
+        cbs.lock().push(cb);
+        cfg.lock()
+            .mode_handlers
+            .insert(string!(&args[0])?.clone(), idx);
+
+        Ok(())
     });
 
     let cfg = config.clone();
+    let cbs = callbacks_arc.clone();
     root = root.function("bind", move |_i, args| {
-        let mut kb = Keybinding::from_str(&args[0].clone().as_str().unwrap()).unwrap();
-        match &args[1] {
-            Dynamic::Function {
-                body,
-                scope,
-                arg_names,
-                name,
-            } => {
-                let arg_names = arg_names.clone();
-                let body = body.clone();
-                let scope = scope.clone();
-
-                let value = Function::new(&name.clone(), Some(scope.clone()), move |i, args| {
-                    i.call_fn(None, Some(scope.clone()), &arg_names, &args, &body)
-                });
-
-                let mut cbs = callbacks_arc.lock();
-                let idx = cbs.len();
-                cbs.push(value);
-                kb.typ = KeybindingType::Callback(idx);
-            },
-            Dynamic::RustFunction { name, callback, scope } => {
-                let callback = callback.clone();
-
-                let value = Function::new(name, scope.clone(), move |i, args| {
-                    let args = args.clone();
-                    callback(i, args).unwrap_or_default()
-                });
-
-                let mut cbs = callbacks_arc.lock();
-                let idx = cbs.len();
-                cbs.push(value);
-                kb.typ = KeybindingType::Callback(idx);
-            }
-            _ => todo!("{:?}", &args[1]),
-        }
+        let kb = kb_from_args(cbs.clone(), args);
         cfg.lock().add_keybinding(kb);
+
+        Ok(())
+    });
+
+    let cfg = config.clone();
+    let cbs = callbacks_arc.clone();
+    root = root.function("xbind", move |_i, args| {
+        let mut kb = kb_from_args(cbs.clone(), args);
+        kb.always_active = true;
+        cfg.lock().add_keybinding(kb);
+
+        Ok(())
     });
 
     interpreter.add_module(root);
@@ -946,6 +1119,8 @@ fn parse_config(
 
     let cfg = config.lock();
 
+    is_init.store(false, std::sync::atomic::Ordering::SeqCst);
+
     Ok(cfg.clone())
 }
 
@@ -964,7 +1139,9 @@ fn run(
 
     os_specific_setup(state_arc.clone());
 
-    toggle_work_mode::initialize(state_arc.clone())?;
+    if state_arc.lock().config.work_mode {
+        AppState::enter_work_mode(state_arc.clone());
+    }
 
     info!("Listening for keybindings");
     state_arc
@@ -1001,11 +1178,17 @@ fn run(
                         Ok(())
                     },
                     Event::Keybinding(kb) => {
-                        event_handler::keybinding::handle(state_arc.clone(), kb);
+                        sender.send(Event::CallCallback { idx: kb.callback_id, is_mode_callback: false } ).unwrap();
                         Ok(())
                     },
-                    Event::CallCallback(idx) => {
-                        callbacks_arc.lock().get(idx).unwrap().invoke(&mut interpreter_arc.lock(), vec![]);
+                    Event::CallCallback { idx, is_mode_callback } => {
+                        let cb = callbacks_arc.lock().get(idx).unwrap().clone();
+                        if let Err(e) = cb.invoke(&mut interpreter_arc.lock(), vec![]) {
+                            error!("{}", e.message());
+                        }
+                        if is_mode_callback {
+                            state_arc.lock().keybindings_manager.sender.send(keybindings::ChanMessage::ModeCbExecuted);
+                        }
                         Ok(())
                     },
                     Event::RedrawAppBar => {

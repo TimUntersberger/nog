@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::Arc, sync::Mutex};
 
 use crate::interpreter::Interpreter;
+use crate::runtime_error::RuntimeResult;
 
 use super::Dynamic;
 
@@ -18,13 +19,15 @@ impl ObjectBuilder {
     pub fn function<T: Into<Dynamic>>(
         mut self,
         name: &str,
-        f: impl Fn(&mut Interpreter, Vec<Dynamic>) -> T + 'static,
+        f: impl Fn(&mut Interpreter, Vec<Dynamic>) -> RuntimeResult<T> + 'static + Send + Sync,
     ) -> Self {
         self.inner.insert(
             name.into(),
             Dynamic::RustFunction {
                 name: name.into(),
-                callback: Arc::new(move |a, b| Some(f(a, b).into())),
+                callback: Arc::new(move |a, b| {
+                    f(a, b).map(|x| x.into())
+                }),
                 scope: None,
             },
         );

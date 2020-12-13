@@ -15,6 +15,7 @@ mod method;
 mod module;
 mod operator;
 mod parser;
+mod runtime_error;
 mod scope;
 mod token;
 
@@ -22,4 +23,5 @@ pub use class::Class;
 pub use dynamic::Dynamic;
 pub use function::Function;
 pub use interpreter::Interpreter;
+pub use runtime_error::RuntimeError;
 pub use module::Module;

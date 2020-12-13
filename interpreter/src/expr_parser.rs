@@ -14,27 +14,30 @@ use super::{
 
 pub struct ExprParser<'a> {
     pub prev_token: Token,
+    pub offset: usize,
     pub source: &'a str,
 }
 
 impl<'a> Default for ExprParser<'a> {
     fn default() -> Self {
-        Self::new("")
+        Self::new("", 0)
     }
 }
 
 impl<'a> ExprParser<'a> {
     fn text(&self, token: &Token) -> &'a str {
+        let loc = token.1.start - self.offset..token.1.end - self.offset;
         if token.0 == TokenKind::StringLiteral {
-            let loc = token.1.start + 1..token.1.end - 1;
+            let loc = loc.start + 1..loc.end - 1;
             &self.source[loc]
         } else {
-            &self.source[token.1.clone()]
+            &self.source[loc]
         }
     }
-    fn new(source: &'a str) -> Self {
+    fn new(source: &'a str, offset: usize) -> Self {
         Self {
             prev_token: Default::default(),
+            offset,
             source,
         }
     }
@@ -206,8 +209,16 @@ fn parse_arrow_fn<T: Iterator<Item = Token>>(
         if token.0 == TokenKind::LCurly {
             rest.next();
             let mut level = 0;
-            let mut body_tokens = Vec::new();
+            let mut source_range = (0, 0);
+
             while let Some(token) = rest.next() {
+                if source_range.0 == 0 {
+                    source_range.0 = token.1.start - parser.offset;
+                }
+
+                if source_range.1 < token.1.end {
+                    source_range.1 = token.1.end - parser.offset;
+                }
                 match token.0 {
                     TokenKind::LCurly => level += 1,
                     TokenKind::RCurly => {
@@ -217,21 +228,15 @@ fn parse_arrow_fn<T: Iterator<Item = Token>>(
                             level -= 1;
                         }
                     }
-                    _ => body_tokens.push(token),
+                    _ => {}
                 };
             }
-            
-            let source = body_tokens.iter().map(|t| &parser.source[t.1.clone()]).join(" ");
+
+            let source = &parser.source[source_range.0..source_range.1];
+
             let mut parser = Parser::new();
-            parser.set_source(
-                "".into(),
-                &source,
-                0, //TODO: body_tokens.iter().next().unwrap_or_default().1.end,
-            );
-            return Ok(Expression::ArrowFunction(
-                arg_names,
-                parser.parse().unwrap().stmts,
-            ));
+            parser.set_source("".into(), source, source_range.0);
+            return Ok(Expression::ArrowFunction(arg_names, parser.parse()?.stmts));
         } else {
             let mut tokens = Vec::new();
             while let Some(token) = rest.next() {
@@ -274,6 +279,7 @@ fn parse_inside_parenthesis(
         }
         tokens.push(token.clone());
     }
+
     vec![]
 }
 
@@ -321,6 +327,7 @@ where
             TokenKind::Plus | TokenKind::Minus => match &self.prev_token.0 {
                 TokenKind::Error
                 | TokenKind::Star
+                | TokenKind::Comma
                 | TokenKind::Plus
                 | TokenKind::Minus
                 | TokenKind::Slash
@@ -331,18 +338,18 @@ where
                 | TokenKind::LParan
                 | TokenKind::LBracket
                 | TokenKind::Equal => Affix::Prefix(Precedence(12)),
-                _ => Affix::Infix(Precedence(3), Associativity::Left),
+                _ => Affix::Infix(Precedence(4), Associativity::Left),
             },
-            TokenKind::Star | TokenKind::Slash => Affix::Infix(Precedence(4), Associativity::Left),
+            TokenKind::Star | TokenKind::Slash => Affix::Infix(Precedence(5), Associativity::Left),
             TokenKind::GT
             | TokenKind::GTE
             | TokenKind::LT
             | TokenKind::LTE
             | TokenKind::EQ
-            | TokenKind::NEQ => Affix::Infix(Precedence(9), Associativity::Left),
+            | TokenKind::NEQ => Affix::Infix(Precedence(3), Associativity::Left),
             TokenKind::Dot => Affix::Infix(Precedence(11), Associativity::Left),
-            TokenKind::And => Affix::Infix(Precedence(8), Associativity::Left),
-            TokenKind::Or => Affix::Infix(Precedence(8), Associativity::Left),
+            TokenKind::And => Affix::Infix(Precedence(2), Associativity::Left),
+            TokenKind::Or => Affix::Infix(Precedence(2), Associativity::Left),
             TokenKind::DoubleColon => Affix::Infix(Precedence(11), Associativity::Left),
             TokenKind::Equal => Affix::Infix(Precedence(1), Associativity::Neither),
             TokenKind::PlusEqual => Affix::Infix(Precedence(1), Associativity::Neither),
@@ -482,7 +489,11 @@ where
                             return parse_arrow_fn(
                                 self,
                                 rest,
-                                tokens.iter().map(|t| self.text(t).to_string()).collect(),
+                                tokens
+                                    .iter()
+                                    .filter(|t| t.0 != TokenKind::Comma)
+                                    .map(|t| self.text(t).to_string())
+                                    .collect(),
                             );
                         }
                         _ => {
@@ -495,7 +506,7 @@ where
                     return self.parse(&mut tokens.into_iter()).map_err(|x| x.into());
                 }
             }
-            _ => unreachable!(),
+            _ => unreachable!("{:?}", token),
         })
     }
     fn infix(
@@ -567,7 +578,7 @@ mod test {
     use std::collections::HashMap;
 
     fn parse(input: &str) -> Expression {
-        ExprParser::new(input)
+        ExprParser::new(input, 0)
             .parse(&mut Lexer::new(input, 0))
             .unwrap()
     }
@@ -848,10 +859,18 @@ mod test {
     }
 
     #[test]
-    fn arrow_fn_with_args() {
+    fn arrow_fn_with_1_arg() {
         assert_eq!(
             parse(r#"(test) => {}"#),
             ArrowFunction(vec!["test".into()], vec![])
+        );
+    }
+
+    #[test]
+    fn arrow_fn_with_args() {
+        assert_eq!(
+            parse(r#"(test, test) => {}"#),
+            ArrowFunction(vec!["test".into(), "test".into()], vec![])
         );
     }
 
@@ -982,6 +1001,14 @@ mod test {
                 "{}",
                 Some(object(hashmap! {"test" => number(1)}))
             )
+        );
+    }
+
+    #[test]
+    fn precedence_1() {
+        assert_eq!(
+            parse("i < len / 2"),
+            binary(ident("i"), "<", binary(ident("len"), "/", number(2)))
         );
     }
 

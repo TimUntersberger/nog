@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Debug};
 
 use super::{
     dynamic::Dynamic, expression::Expression, function::Function, interpreter::Interpreter,
-    method::Method, operator::Operator,
+    method::Method, operator::Operator, runtime_error::RuntimeResult,
 };
 
 #[derive(Clone, Debug)]
@@ -34,7 +34,7 @@ impl Class {
             };
             let mut fields = fields_ref.lock().unwrap();
             fields.insert(key.clone(), value.clone());
-            value.clone()
+            Ok(value.clone())
         })
         .set_op_impl(Operator::Dot, |i, this, args| {
             let field = args[0].clone().as_str().unwrap();
@@ -43,36 +43,42 @@ impl Class {
             if class_name != "module" {
                 if let Some(class) = i.find_class(&class_name) {
                     if let Some(f) = class.functions.get(&field) {
-                        return f.into_dynamic(this);
+                        return Ok(f.into_dynamic(this));
                     }
                 }
             }
 
-            this.get_field(&field)
+            Ok(this.get_field(&field))
         })
         .set_op_impl(Operator::And, |_, this, args| {
             let lhs = this.is_true();
             let rhs = args[0].is_true();
-            lhs && rhs
+            Ok(lhs && rhs)
         })
         .set_op_impl(Operator::Or, |_, this, args| {
             let lhs = this.is_true();
             let rhs = args[0].is_true();
-            lhs || rhs
+            Ok(lhs || rhs)
         })
-        .set_op_impl(Operator::Add, |_, this, args| this + args[0].clone())
-        .set_op_impl(Operator::Subtract, |_, this, args| this - args[0].clone())
-        .set_op_impl(Operator::Times, |_, this, args| this * args[0].clone())
-        .set_op_impl(Operator::Divide, |_, this, args| this / args[0].clone())
-        .set_op_impl(Operator::Equal, |_, this, args| this == args[0])
-        .set_op_impl(Operator::GreaterThan, |_, this, args| this > args[0])
+        .set_op_impl(Operator::Add, |_, this, args| Ok(this + args[0].clone()))
+        .set_op_impl(Operator::Subtract, |_, this, args| {
+            Ok(this - args[0].clone())
+        })
+        .set_op_impl(Operator::Times, |_, this, args| Ok(this * args[0].clone()))
+        .set_op_impl(Operator::Divide, |_, this, args| Ok(this / args[0].clone()))
+        .set_op_impl(Operator::Equal, |_, this, args| Ok(this == args[0]))
+        .set_op_impl(Operator::GreaterThan, |_, this, args| Ok(this > args[0]))
         .set_op_impl(Operator::GreaterThanOrEqual, |_, this, args| {
-            this >= args[0]
+            Ok(this >= args[0])
         })
-        .set_op_impl(Operator::LessThan, |_, this, args| this < args[0])
-        .set_op_impl(Operator::LessThanOrEqual, |_, this, args| this <= args[0])
-        .set_op_impl(Operator::NotEqual, |_, this, args| this != args[0])
-        .set_op_impl(Operator::LessThanOrEqual, |_, this, args| this <= args[0])
+        .set_op_impl(Operator::LessThan, |_, this, args| Ok(this < args[0]))
+        .set_op_impl(Operator::LessThanOrEqual, |_, this, args| {
+            Ok(this <= args[0])
+        })
+        .set_op_impl(Operator::NotEqual, |_, this, args| Ok(this != args[0]))
+        .set_op_impl(Operator::LessThanOrEqual, |_, this, args| {
+            Ok(this <= args[0])
+        })
     }
 
     pub fn add_field(mut self, name: &str, default: Expression) -> Self {
@@ -83,11 +89,13 @@ impl Class {
     pub fn add_function<T: Into<Dynamic>>(
         mut self,
         name: &str,
-        f: impl Fn(&mut Interpreter, Dynamic, Vec<Dynamic>) -> T + 'static,
+        f: impl Fn(&mut Interpreter, Dynamic, Vec<Dynamic>) -> RuntimeResult<T> + 'static + Send + Sync,
     ) -> Self {
         self.functions.insert(
             name.to_string(),
-            Method::new(name, move |a, b, c| f(a, b, c).into()),
+            Method::new(name, move |a, b, c| {
+                f(a, b, c).map(|x| x.into())
+            }),
         );
         self
     }
@@ -95,7 +103,7 @@ impl Class {
     pub fn add_static_function(
         mut self,
         name: &str,
-        f: impl Fn(&mut Interpreter, Vec<Dynamic>) -> Dynamic + 'static,
+        f: impl Fn(&mut Interpreter, Vec<Dynamic>) -> RuntimeResult + 'static + Send + Sync,
     ) -> Self {
         self.static_functions
             .insert(name.to_string(), Function::new(name, None, f));
@@ -105,12 +113,14 @@ impl Class {
     pub fn set_op_impl<T: Into<Dynamic>>(
         mut self,
         op: Operator,
-        f: impl Fn(&mut Interpreter, Dynamic, Vec<Dynamic>) -> T + 'static,
+        f: impl Fn(&mut Interpreter, Dynamic, Vec<Dynamic>) -> RuntimeResult<T> + 'static + Send + Sync,
     ) -> Self {
         let op_method_name = op.method_name();
         self.op_impls.insert(
             op,
-            Method::new(&op_method_name, move |a, b, c| f(a, b, c).into()),
+            Method::new(&op_method_name, move |a, b, c| {
+                f(a, b, c).map(|x| x.into())
+            }),
         );
         self
     }
