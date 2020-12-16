@@ -14,27 +14,6 @@ pub fn handle(state: &mut AppState, mut window: NativeWindow, force: bool) -> Sy
         return Ok(());
     }
 
-    window.init()?;
-
-    let parent = window.get_parent_window();
-
-    for rule in config.rules.iter().chain(state.additonal_rules.iter()) {
-        // checks for path
-        let process_name = if rule.pattern.to_string().contains('\\') {
-            window.get_process_path()
-        } else {
-            window.get_process_name()
-        };
-
-        let window_name = window.title.clone();
-
-        if rule.pattern.is_match(&process_name) || rule.pattern.is_match(&window_name) {
-            debug!("Rule({:?}) matched!", rule.pattern);
-            window.rule = Some(rule.clone());
-            break;
-        }
-    }
-
     let grid_allows_managing = {
         let display = state.get_current_display();
         if let Some(grid) = display.get_focused_grid() {
@@ -44,6 +23,13 @@ pub fn handle(state: &mut AppState, mut window: NativeWindow, force: bool) -> Sy
         }
     };
 
+    let rules = config.rules.iter()
+                            .chain(state.additonal_rules.iter())
+                            .collect();
+
+    window.set_matching_rule(&rules);
+
+    let parent = window.get_parent_window();
     let rule = window.rule.clone().unwrap_or_default();
     let should_manage =
         force || (rule.manage && parent.is_err() && window.should_manage() && grid_allows_managing);
@@ -54,9 +40,7 @@ pub fn handle(state: &mut AppState, mut window: NativeWindow, force: bool) -> Sy
             state.change_workspace(rule.workspace_id, false);
         }
 
-        if config.remove_title_bar {
-            window.remove_title_bar(config.use_border)?;
-        }
+        window.init(config.remove_title_bar, config.use_border)?;
 
         let display = state.get_current_display_mut();
         if let Some(grid) = display.get_focused_grid_mut() {

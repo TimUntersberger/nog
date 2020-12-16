@@ -33,7 +33,7 @@ use std::{thread, time::Duration};
 use system::NativeWindow;
 use system::{DisplayId, SystemResult, WinEventListener, WindowId};
 use task_bar::Taskbar;
-use tile_grid::TileGrid;
+use tile_grid::{TileGrid, store::Store};
 use win_event_handler::{win_event::WinEvent, win_event_type::WinEventType};
 use window::Window;
 
@@ -319,7 +319,46 @@ impl AppState {
             this = state_arc.lock();
         }
 
-        this.change_workspace(1, false);
+        let mut focused_workspaces = Vec::<i32>::new();
+        let remove_title_bar = this.config.remove_title_bar;
+        let use_border = this.config.use_border;
+        let stored_grids: Vec<String> = Store::load();
+        let rules = this.config.rules.clone();
+        let additional_rules = this.additonal_rules.clone();
+        for display in this.displays.iter_mut() {
+            for grid in display.grids.iter_mut() {
+                if let Some(stored_grid) = stored_grids.get((grid.id - 1) as usize) {	
+                    grid.from_string(stored_grid);
+                    Store::save(grid.id, grid.to_string());
+
+                    if let Err(e) = grid.modify_windows(|window| {
+                                let rules = rules.iter()
+                                                 .chain(additional_rules.iter())
+                                                 .collect();
+                                window.set_matching_rule(rules);
+                                window.init(remove_title_bar, use_border)?;
+
+                                Ok(())
+                            }) {
+                        error!("Error while initializing window {:?}", e);
+                    }
+                }
+
+                grid.hide(); // hides all the windows just loaded into the grid
+            }
+
+            if let Some(id) = display.focused_grid_id {
+                focused_workspaces.push(id);
+            }
+        }
+
+        if !focused_workspaces.is_empty() { // re-focus to show each display's focused workspace
+            for id in focused_workspaces.iter().rev() {
+                this.change_workspace(*id, false);
+            } 
+        } else { // otherwise just focus first workspace
+            this.change_workspace(1, false);
+        }
 
         info!("Registering windows event handler");
         this.window_event_listener.start(&this.event_channel);
