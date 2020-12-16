@@ -3,7 +3,7 @@ use crate::{
     NOG_POPUP_NAME,
 };
 use parking_lot::Mutex;
-use std::{fmt::Debug, sync::Arc, thread::JoinHandle};
+use std::{fmt::Debug, sync::Arc, thread, thread::JoinHandle};
 
 static POPUP: Mutex<Option<Popup>> = Mutex::new(None);
 
@@ -37,6 +37,16 @@ impl Popup {
             text: Vec::new(),
             actions: Vec::new(),
         }
+    }
+
+    pub fn error(msg: String, state_arc: Arc<Mutex<AppState>>) {
+        thread::spawn(move || {
+            Popup::new()
+                .with_padding(5)
+                .with_text(&[&msg, "", "(Press Alt+Q to close)"])
+                .create(state_arc)
+                .unwrap()
+        });
     }
 
     pub fn with_text(mut self, text: &[&str]) -> Self {

@@ -85,10 +85,7 @@ unsafe extern "system" fn enum_windows_task_bars_cb(hwnd: HWND, l_param: LPARAM)
 
     if is_task_bar {
         window.init().expect("Failed to init taskbar window");
-        taskbars.push(Taskbar {
-            window,
-            position: TaskbarPosition::default(),
-        });
+        taskbars.push(Taskbar::new(window));
     }
 
     1
@@ -174,17 +171,17 @@ pub fn remove_launch_on_startup() {
     }
 }
 
-pub fn register_keybinding(kb: &Keybinding) {
+pub fn register_keybinding(kb: &Keybinding) -> SystemResult {
     unsafe {
-        let res = nullable_to_result(RegisterHotKey(
+        let result = nullable_to_result(RegisterHotKey(
             std::ptr::null_mut(),
             kb.get_id(),
             kb.modifier.bits(),
             kb.key as u32,
         ));
-        if let Err(_) = res {
-            error!("Failed to register keybinding {:?}", kb);
-            print_last_error();
+        match result {
+            Err(_) => Err(SystemError::RegisterKeybinding(format!("{:?}", kb))),
+            _ => Ok(()),
         }
     }
 }

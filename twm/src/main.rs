@@ -198,9 +198,7 @@ impl AppState {
     pub fn cleanup(&mut self) -> SystemResult {
         for d in self.displays.iter_mut() {
             for grid in d.grids.iter_mut() {
-                for tile in grid.tiles.iter_mut() {
-                    tile.window.cleanup()?;
-                }
+                grid.cleanup()?;
             }
         }
 
@@ -230,40 +228,44 @@ impl AppState {
     }
 
     pub fn minimize_window(&mut self) -> SystemResult {
+        let config = self.config.clone();
         let grid = self.get_current_grid_mut().unwrap();
 
-        if let Some(tile) = grid.get_focused_tile_mut() {
-            let id = tile.window.id;
+        grid.modify_focused_window(|window| {
+            window.minimize()?;
+            window.cleanup()
+        })?;
 
-            tile.window.minimize()?;
-            tile.window.cleanup()?;
+        grid.close_focused();
 
-            grid.close_tile_by_window_id(id);
-        }
+        let display = self.get_current_display_mut();
+        display.refresh_grid(&config)?;
 
         Ok(())
     }
 
     pub fn close_window(&mut self) -> SystemResult {
+        let config = self.config.clone();
         let grid = self.get_current_grid_mut().unwrap();
 
-        if let Some(tile) = grid.get_focused_tile_mut() {
-            let id = tile.window.id;
+        grid.modify_focused_window(|window| {
+            window.cleanup()?;
+            window.close()
+        })?;
 
-            tile.window.cleanup()?;
-            tile.window.close()?;
+        grid.close_focused();
 
-            grid.close_tile_by_window_id(id);
-        }
+        let display = self.get_current_display_mut();
+        display.refresh_grid(&config)?;
 
         Ok(())
     }
 
     pub fn ignore_window(&mut self) -> SystemResult {
-        if let Some(tile) = self.get_current_grid().unwrap().get_focused_tile() {
+        if let Some(window) = self.get_current_grid().unwrap().get_focused_window() {
             let mut rule = Rule::default();
 
-            let process_name = tile.window.get_process_name();
+            let process_name = window.get_process_name();
             let pattern = format!("^{}$", process_name);
 
             debug!("Adding rule with pattern {}", pattern);
@@ -281,10 +283,11 @@ impl AppState {
 
     pub fn move_window_to_workspace(&mut self, id: i32) -> SystemResult {
         let grid = self.get_current_grid_mut().unwrap();
-        grid.focused_window_id
-            .and_then(|id| grid.close_tile_by_window_id(id))
-            .map(|tile| {
-                self.get_grid_by_id_mut(id).unwrap().split(tile.window);
+        let window = grid.pop();
+
+        window
+            .map(|window| {
+                self.get_grid_by_id_mut(id).unwrap().push(window);
                 self.change_workspace(id, false);
             });
 
@@ -361,7 +364,7 @@ impl AppState {
         let display = self.get_current_display_mut();
 
         if let Some(grid) = display.get_focused_grid_mut() {
-            grid.swap(direction);
+            grid.swap_focused(direction);
             display.refresh_grid(&config);
         }
 
@@ -383,21 +386,13 @@ impl AppState {
     pub fn resize(&mut self, direction: Direction, amount: i32) -> SystemResult {
         let config = self.config.clone();
         let display = self.get_current_display_mut();
-        dbg!(&display);
 
         if let Some(grid) = display.get_focused_grid_mut() {
-            dbg!(&grid);
-            if let Some(tile) = grid.get_focused_tile() {
-                match direction {
-                    Direction::Left | Direction::Right => tile
-                        .column
-                        .map(|v| grid.resize_column(v, direction, amount)),
-                    _ => tile.row.map(|v| grid.resize_row(v, direction, amount)),
-                };
-
+            if !config.ignore_fullscreen_actions || !grid.is_fullscreened() {
+                grid.trade_size_with_neighbor(grid.focused_id, direction, amount);
                 info!("Resizing in the direction {:?} by {}", direction, amount);
 
-                display.refresh_grid(&config);
+                display.refresh_grid(&config)?;
             }
         }
         Ok(())
@@ -406,7 +401,7 @@ impl AppState {
     pub fn set_split_direction(&mut self, direction: SplitDirection) -> SystemResult {
         let display = self.get_current_display_mut();
         if let Some(grid) = display.get_focused_grid_mut() {
-            grid.set_focused_split_direction(direction);
+            grid.next_axis = direction;
         }
         Ok(())
     }
@@ -419,15 +414,16 @@ impl AppState {
         // The id of the grid that contains the window
         let maybe_grid_id = self
             .find_window(window.id)
-            .and_then(|(g, _)| g.close_tile_by_window_id(window.id).map(|t| (g.id, t)))
-            .map(|(id, mut t)| {
-                debug!("Unmanaging window '{}' | {}", t.window.title, t.window.id);
-                t.window.cleanup();
+            .and_then(|g| g.remove_by_window_id(window.id).map(|w| (g.id, w)))
+            .map(|(id, mut w)| {
+                debug!("Unmanaging window '{}' | {}", w.title, w.id);
+
+                w.cleanup();
 
                 id
             });
 
-        if let Some((d, _)) = maybe_grid_id.and_then(|id| self.find_grid(id)) {
+        if let Some(d) = maybe_grid_id.and_then(|id| self.find_grid(id)) {
             d.refresh_grid(&config);
         } else {
             self.event_channel
@@ -491,7 +487,7 @@ impl AppState {
     pub fn change_workspace(&mut self, id: i32, _force: bool) {
         let config = self.config.clone();
         let current = self.get_current_display().id;
-        if let Some((d, _)) = self.find_grid(id) {
+        if let Some(d) = self.find_grid(id) {
             let new = d.id;
             d.focus_workspace(&config, id);
             self.workspace_id = id;
@@ -546,10 +542,10 @@ impl AppState {
 
     /// Returns the display containing the grid and the grid
     /// TODO: only return display
-    pub fn find_grid(&mut self, id: i32) -> Option<(&mut Display, TileGrid)> {
+    pub fn find_grid(&mut self, id: i32) -> Option<&mut Display> {
         for d in self.displays.iter_mut() {
-            if let Some(grid) = d.grids.iter().find(|g| g.id == id).cloned() {
-                return Some((d, grid));
+            if let Some(_) = d.grids.iter().find(|g| g.id == id) {
+                return Some(d);
             }
         }
         None
@@ -557,15 +553,14 @@ impl AppState {
 
     /// Returns the grid containing the window and its corresponding tile
     /// TODO: only return grid
-    pub fn find_window(&mut self, id: WindowId) -> Option<(&mut TileGrid, Tile)> {
+    pub fn find_window(&mut self, id: WindowId) -> Option<&mut TileGrid> {
         for d in self.displays.iter_mut() {
             for g in d.grids.iter_mut() {
-                if let Some(tile) = g.tiles.iter().find(|t| t.window.id == id).cloned() {
-                    return Some((g, tile));
+                if g.contains(id) {
+                    return Some(g);
                 }
             }
         }
-
         None
     }
 
@@ -815,8 +810,8 @@ fn parse_config(
 
         Ok(state
             .get_current_grid()
-            .and_then(|g| g.get_focused_tile())
-            .and_then(|t| t.window.get_title().ok())
+            .and_then(|g| g.get_focused_window())
+            .and_then(|w| w.get_title().ok())
             .unwrap_or_default())
     });
 

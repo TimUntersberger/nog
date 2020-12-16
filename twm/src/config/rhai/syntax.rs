@@ -29,6 +29,7 @@ fn set_config(config: &mut Config, key: String, value: Dynamic) {
     set!(i32, config, inner_gap, key, value);
     set!(bool, config, remove_title_bar, key, value);
     set!(bool, config, remove_task_bar, key, value);
+    set!(bool, config, ignore_fullscreen_actions, key, value);
     set!(bool, config, display_app_bar, key, value);
     if key == "update_interval" {
         if value.type_name() != "i32" {

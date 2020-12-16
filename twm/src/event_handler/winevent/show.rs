@@ -35,8 +35,18 @@ pub fn handle(state: &mut AppState, mut window: NativeWindow, force: bool) -> Sy
         }
     }
 
+    let grid_allows_managing = {
+        let display = state.get_current_display();
+        if let Some(grid) = display.get_focused_grid() {
+            !config.ignore_fullscreen_actions || !grid.is_fullscreened()
+        } else {
+            false
+        }
+    };
+
     let rule = window.rule.clone().unwrap_or_default();
-    let should_manage = force || (rule.manage && parent.is_err() && window.should_manage());
+    let should_manage =
+        force || (rule.manage && parent.is_err() && window.should_manage() && grid_allows_managing);
 
     if should_manage {
         debug!("Managing window");
@@ -50,7 +60,7 @@ pub fn handle(state: &mut AppState, mut window: NativeWindow, force: bool) -> Sy
 
         let display = state.get_current_display_mut();
         if let Some(grid) = display.get_focused_grid_mut() {
-            grid.split(window);
+            grid.push(window);
         }
         display.refresh_grid(&config)?;
     }

@@ -49,6 +49,15 @@ pub fn init(engine: &mut Engine) {
     engine.register_fn("swap", |direction: String| {
         KeybindingType::Swap(Direction::from_str(&direction).unwrap())
     });
+    engine.register_fn("swap_columns_and_rows", || {
+        KeybindingType::SwapColumnsAndRows
+    });
+    engine.register_fn("move_in", |direction: String| {
+        KeybindingType::MoveIn(Direction::from_str(&direction).unwrap())
+    });
+    engine.register_fn("move_out", |direction: String| {
+        KeybindingType::MoveOut(Direction::from_str(&direction).unwrap())
+    });
     engine.register_fn("resize", |direction: String, amount: i32| {
         KeybindingType::Resize(Direction::from_str(&direction).unwrap(), amount)
     });

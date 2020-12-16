@@ -1,5 +1,6 @@
 use crate::{
-    config::Config, display::Display, system::SystemResult, tile::Tile, tile_grid::TileGrid,
+    config::Config, display::Display, system::NativeWindow, system::SystemResult,
+    tile_grid::TileGrid,
 };
 
 pub use win::WinRenderer as NativeRenderer;
@@ -10,9 +11,13 @@ pub trait Renderer {
     fn render<TRenderer: Renderer>(
         &self,
         grid: &TileGrid<TRenderer>,
-        tile: &Tile,
+        window: &NativeWindow,
         config: &Config,
         display: &Display,
+        x: i32,
+        y: i32,
+        width: i32,
+        height: i32,
     ) -> SystemResult;
     /// Converts the percentage to the real pixel value of the current display
     fn percentage_to_real(&self, p: i32, display: &Display, config: &Config) -> i32 {

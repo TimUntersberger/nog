@@ -1,5 +1,4 @@
-use crate::{system::NativeWindow, AppState};
-use log::info;
+use crate::system::NativeWindow;
 
 #[derive(Debug, Clone, Copy)]
 pub enum TaskbarPosition {
@@ -19,10 +18,17 @@ impl Default for TaskbarPosition {
 #[derive(Debug, Clone)]
 pub struct Taskbar {
     pub window: NativeWindow,
-    pub position: TaskbarPosition,
+    position: TaskbarPosition,
 }
 
 impl Taskbar {
+    pub fn new(window: NativeWindow) -> Self {
+        Taskbar {
+            window,
+            position: TaskbarPosition::default(),
+        }
+    }
+
     pub fn get_position(&self) -> TaskbarPosition {
         let tb_rect = self
             .window

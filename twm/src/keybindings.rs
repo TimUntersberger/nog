@@ -1,4 +1,4 @@
-use crate::{event::Event, system, system::api, AppState};
+use crate::{event::Event, popup::Popup, system, system::api, AppState};
 use key::Key;
 use keybinding::Keybinding;
 use log::{debug, info};
@@ -57,8 +57,13 @@ impl KbManagerInner {
         self.keybindings.iter().for_each(api::unregister_keybinding);
     }
 
-    pub fn register_all(&self) {
-        self.keybindings.iter().for_each(api::register_keybinding);
+    pub fn register_all(&self, state_arc: Arc<Mutex<AppState>>) {
+        let state = state_arc.clone();
+        self.keybindings.iter().for_each(|kb| {
+            api::register_keybinding(kb).map_err(|_| {
+                KbManager::show_keybinding_error(&kb, state.clone());
+            });
+        });
     }
 
     pub fn get_keybinding(&self, key: Key, modifier: Modifier) -> Option<Keybinding> {
@@ -116,11 +121,20 @@ impl KbManager {
     }
     pub fn add_mode_keybinding(&mut self, kb: Keybinding) {
         if let Some(mode) = self.get_mode() {
-            self.inner.mode_keybindings.lock().get_mut(&mode).unwrap().push(kb);
+            self.inner
+                .mode_keybindings
+                .lock()
+                .get_mut(&mode)
+                .unwrap()
+                .push(kb);
         }
     }
     pub fn get_mode(&self) -> Mode {
         self.inner.mode.lock().clone()
+    }
+    fn show_keybinding_error(keybinding: &Keybinding, state_arc: Arc<Mutex<AppState>>) {
+        let message = format!("Failed to register {:?}.\nAnother running application may already have this binding registered.", &keybinding);
+        Popup::error(message, state_arc);
     }
     pub fn start(&self, state_arc: Arc<Mutex<AppState>>) {
         let inner = self.inner.clone();
@@ -132,7 +146,10 @@ impl KbManager {
 
             for kb in &inner.keybindings {
                 info!("Registering {:?}", kb);
-                api::register_keybinding(kb);
+                api::register_keybinding(&kb).map_err(|_| {
+                    let state_arc = state_arc.clone();
+                    KbManager::show_keybinding_error(&kb, state_arc);
+                });
             }
 
             loop {
@@ -155,7 +172,10 @@ impl KbManager {
                                 if !inner.mode_keybindings.lock().contains_key(mode) {
                                     if let Some(id) = inner.mode_handlers.get(mode) {
                                         let sender = state.lock().event_channel.sender.clone();
-                                        inner.mode_keybindings.lock().insert(mode.clone(), Vec::new());
+                                        inner
+                                            .mode_keybindings
+                                            .lock()
+                                            .insert(mode.clone(), Vec::new());
 
                                         sender
                                             .send(Event::CallCallback {
@@ -172,7 +192,10 @@ impl KbManager {
                                 let kbs = kbs_lock.get(mode).unwrap();
 
                                 for kb in kbs.iter() {
-                                    api::register_keybinding(kb);
+                                    api::register_keybinding(kb).map_err(|_| {
+                                        let state_arc = state_arc.clone();
+                                        KbManager::show_keybinding_error(&kb, state_arc);
+                                    });
                                 }
                             } else {
                                 let mut mode_lock = inner.mode.lock();
@@ -185,7 +208,7 @@ impl KbManager {
 
                                 *mode_lock = new_mode.clone();
 
-                                inner.register_all();
+                                inner.register_all(state_arc.clone());
                             }
                         }
                     };
@@ -199,7 +222,7 @@ impl KbManager {
                             .event_channel
                             .sender
                             .clone()
-                            .send(Event::Keybinding(kb.clone()))
+                            .send(Event::Keybinding(kb))
                             .expect("Failed to send key event");
                     }
                 }

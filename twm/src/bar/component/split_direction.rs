@@ -8,8 +8,7 @@ pub fn create(vertical: String, horizontal: String) -> Component {
             ctx.state
                 .get_display_by_id(ctx.display.id)
                 .and_then(|d| d.get_focused_grid())
-                .and_then(|g| g.get_focused_tile())
-                .map(|t| match t.split_direction {
+                .map(|w| match w.next_axis {
                     SplitDirection::Horizontal => horizontal.clone(),
                     SplitDirection::Vertical => vertical.clone(),
                 })

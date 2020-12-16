@@ -1509,6 +1509,7 @@ dependencies = [
  "num-derive",
  "num-traits",
  "parking_lot",
+ "petgraph",
  "regex",
  "reqwest",
  "rhai",

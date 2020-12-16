@@ -222,6 +222,9 @@ impl Window {
             nullable_to_result(GetWindowRect(self.id.into(), &mut temp)).map(|_| temp.into())
         }
     }
+    pub fn is_window(&self) -> bool {
+        unsafe { IsWindow(self.id.into()) != 0 }
+    }
     pub fn reset_style(&mut self) {
         self.style = self.original_style;
     }

@@ -1,4 +1,4 @@
-use std::{sync::Arc, thread, time::Duration};
+use std::sync::Arc;
 
 use parking_lot::Mutex;
 
@@ -50,22 +50,24 @@ pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> Sys
 
     if old_config.remove_title_bar && !state.config.remove_title_bar {
         for grid in state.get_grids_mut().iter_mut() {
-            for tile in &mut grid.tiles {
-                tile.window.reset_style();
-                tile.window
+            grid.modify_windows(|window| {
+                window.reset_style();
+                window
                     .update_style()
                     .expect("Failed to update style of window");
-            }
+                Ok(())
+            })?;
         }
     } else if !old_config.remove_title_bar && state.config.remove_title_bar {
         let use_border = old_config.use_border;
         for grid in state.get_grids_mut() {
-            for tile in &mut grid.tiles {
-                tile.window.remove_title_bar(use_border)?;
-                tile.window
+            grid.modify_windows(|window| {
+                window.remove_title_bar(use_border)?;
+                window
                     .update_style()
                     .expect("Failed to update style of window");
-            }
+                Ok(())
+            })?;
         }
     }
 

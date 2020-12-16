@@ -26,6 +26,7 @@ pub struct Config {
     pub inner_gap: i32,
     pub remove_title_bar: bool,
     pub remove_task_bar: bool,
+    pub ignore_fullscreen_actions: bool,
     pub display_app_bar: bool,
     pub bar: BarConfig,
     pub workspace_settings: Vec<WorkspaceSetting>,
@@ -55,6 +56,7 @@ impl Default for Config {
             multi_monitor: false,
             remove_task_bar: true,
             display_app_bar: true,
+            ignore_fullscreen_actions: false,
             bar: BarConfig::default(),
             mode_handlers: HashMap::new(),
             mode_meta: HashMap::new(),
@@ -121,16 +123,19 @@ impl Config {
             "remove_title_bar" => self.remove_title_bar = !self.remove_title_bar,
             "remove_task_bar" => self.remove_task_bar = !self.remove_task_bar,
             "display_app_bar" => self.display_app_bar = !self.display_app_bar,
+            "ignore_fullscreen_actions" => {
+                self.ignore_fullscreen_actions = !self.ignore_fullscreen_actions
+            }
             _ => error!("Attempt to toggle unknown field: {}", field),
         }
     }
 
     pub fn add_keybinding(&mut self, keybinding: Keybinding) {
-        if let Some(kb) = self
-            .keybindings
-            .iter_mut()
-            .find(|kb| kb.key == keybinding.key && kb.modifier == keybinding.modifier)
-        {
+        if let Some(kb) = self.keybindings.iter_mut().find(|kb| {
+            kb.key == keybinding.key
+                && kb.modifier == keybinding.modifier
+                && kb.mode == keybinding.mode
+        }) {
             kb.always_active = kb.always_active;
             kb.callback_id = kb.callback_id;
             kb.mode = keybinding.mode;
@@ -147,6 +152,7 @@ impl Config {
             "launch_on_startup" => config.launch_on_startup = value,
             "remove_title_bar" => config.remove_title_bar = value,
             "remove_task_bar" => config.remove_task_bar = value,
+            "ignore_fullscreen_actions" => config.ignore_fullscreen_actions = value,
             "display_app_bar" => config.display_app_bar = value,
             _ => error!("Attempt to set unknown field: {}", field),
         }
