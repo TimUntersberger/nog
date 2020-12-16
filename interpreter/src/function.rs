@@ -1,6 +1,8 @@
 use std::{fmt::Debug, sync::Arc};
 
-use super::{dynamic::Dynamic, interpreter::Interpreter, scope::Scope, runtime_error::RuntimeResult};
+use super::{
+    dynamic::Dynamic, interpreter::Interpreter, runtime_error::RuntimeResult, scope::Scope,
+};
 
 #[derive(Clone)]
 pub struct Function {

@@ -5,7 +5,7 @@ use super::operator::Operator;
 pub enum RuntimeError {
     ClassNotFound { name: String },
     UnexpectedType { expected: String, actual: String },
-    OperatorNotImplemented { class: String, operator: Operator }
+    OperatorNotImplemented { class: String, operator: Operator },
 }
 
 impl RuntimeError {
@@ -17,9 +17,11 @@ impl RuntimeError {
             RuntimeError::UnexpectedType { expected, actual } => {
                 format!("Expected type {}, but found {}", &expected, &actual)
             }
-            RuntimeError::OperatorNotImplemented { class, operator } => {
-                format!("Class {} doesn't have operator {} implemented", &class, &operator.to_string())
-            }
+            RuntimeError::OperatorNotImplemented { class, operator } => format!(
+                "Class {} doesn't have operator {} implemented",
+                &class,
+                &operator.to_string()
+            ),
         }
     }
 }

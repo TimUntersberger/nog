@@ -248,7 +248,7 @@ impl<'a> Parser<'a> {
         Ok(Ast::FunctionDefinition(
             self.text(&name).into(),
             args.iter().map(|a| a.to_string()).collect(),
-            body,
+            body
         ))
     }
 
@@ -263,7 +263,7 @@ impl<'a> Parser<'a> {
         Ok(Ast::StaticFunctionDefinition(
             self.text(&name).into(),
             args.iter().map(|a| a.to_string()).collect(),
-            body,
+            body
         ))
     }
 

@@ -27,7 +27,7 @@ pub type Mode = Option<String>;
 pub enum ChanMessage {
     Stop,
     ChangeMode(Mode),
-    ModeCbExecuted
+    ModeCbExecuted,
 }
 
 struct KbManagerInner {
@@ -37,7 +37,7 @@ struct KbManagerInner {
     /// Key is mode name and value is the callback id
     mode_handlers: HashMap<String, usize>,
     keybindings: Vec<Keybinding>,
-    mode_keybindings: Mutex<Vec<Keybinding>>,
+    mode_keybindings: Mutex<HashMap<String, Vec<Keybinding>>>,
     mode: Mutex<Mode>,
 }
 
@@ -49,7 +49,7 @@ impl KbManagerInner {
             stopped: AtomicBool::new(false),
             mode: Mutex::new(None),
             keybindings: kbs,
-            mode_keybindings: Mutex::new(Vec::new()),
+            mode_keybindings: Mutex::new(HashMap::new()),
         }
     }
 
@@ -64,10 +64,16 @@ impl KbManagerInner {
     pub fn get_keybinding(&self, key: Key, modifier: Modifier) -> Option<Keybinding> {
         let mode = self.mode.lock();
         match mode.as_ref() {
-            Some(mode) => self.mode_keybindings.lock().iter()
+            Some(mode) => self
+                .mode_keybindings
+                .lock()
+                .get(mode)
+                .unwrap()
+                .iter()
                 .find(|kb| kb.key == key && kb.modifier == modifier)
                 .map(|kb| kb.clone()),
-            None => self.keybindings
+            None => self
+                .keybindings
                 .iter()
                 .find(|kb| kb.key == key && kb.modifier == modifier)
                 .map(|kb| kb.clone()),
@@ -98,9 +104,8 @@ impl KbManager {
         }
     }
     fn change_mode(&mut self, mode: Mode) {
-        *self.inner.mode.lock() = mode.clone();
         self.sender
-            .send(ChanMessage::ChangeMode(mode))
+            .send(ChanMessage::ChangeMode(mode.clone()))
             .expect("Failed to change mode of kb manager");
     }
     pub fn enter_mode(&mut self, mode: &str) {
@@ -110,7 +115,9 @@ impl KbManager {
         self.change_mode(None);
     }
     pub fn add_mode_keybinding(&mut self, kb: Keybinding) {
-        self.inner.mode_keybindings.lock().push(kb);
+        if let Some(mode) = self.get_mode() {
+            self.inner.mode_keybindings.lock().get_mut(&mode).unwrap().push(kb);
+        }
     }
     pub fn get_mode(&self) -> Mode {
         self.inner.mode.lock().clone()
@@ -143,28 +150,41 @@ impl KbManager {
                             // Unregister all keybindings to ensure a clean state
                             inner.unregister_all();
 
-                            if let Some(mode) = new_mode {
-                                if let Some(id) = inner.mode_handlers.get(&mode) {
-                                    let sender = state.lock().event_channel.sender.clone();
+                            if let Some(mode) = new_mode.as_ref() {
+                                *inner.mode.lock() = new_mode.clone();
+                                if !inner.mode_keybindings.lock().contains_key(mode) {
+                                    if let Some(id) = inner.mode_handlers.get(mode) {
+                                        let sender = state.lock().event_channel.sender.clone();
+                                        inner.mode_keybindings.lock().insert(mode.clone(), Vec::new());
 
-                                    println!("kb manager calls {}", id);
-                                    sender.send(Event::CallCallback { idx: *id, is_mode_callback: true }).unwrap();
+                                        sender
+                                            .send(Event::CallCallback {
+                                                idx: *id,
+                                                is_mode_callback: true,
+                                            })
+                                            .unwrap();
 
-                                    receiver.recv().unwrap();
-
-                                    let mode_kbs = inner.mode_keybindings.lock();
-
-                                    for kb in mode_kbs.iter() {
-                                        println!("Registering mode keybinding {:#?}", kb);
-                                        api::register_keybinding(kb);
+                                        receiver.recv().unwrap();
                                     }
                                 }
+
+                                let kbs_lock = inner.mode_keybindings.lock();
+                                let kbs = kbs_lock.get(mode).unwrap();
+
+                                for kb in kbs.iter() {
+                                    api::register_keybinding(kb);
+                                }
                             } else {
-                                let mut kbs = inner.mode_keybindings.lock();
+                                let mut mode_lock = inner.mode.lock();
+                                let kbs_lock = inner.mode_keybindings.lock();
+                                let kbs = kbs_lock.get(mode_lock.as_ref().unwrap()).unwrap();
+
                                 for kb in kbs.iter() {
                                     api::unregister_keybinding(kb);
                                 }
-                                kbs.clear();
+
+                                *mode_lock = new_mode.clone();
+
                                 inner.register_all();
                             }
                         }

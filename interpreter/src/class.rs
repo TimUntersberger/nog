@@ -93,9 +93,7 @@ impl Class {
     ) -> Self {
         self.functions.insert(
             name.to_string(),
-            Method::new(name, move |a, b, c| {
-                f(a, b, c).map(|x| x.into())
-            }),
+            Method::new(name, move |a, b, c| f(a, b, c).map(|x| x.into())),
         );
         self
     }
@@ -118,9 +116,7 @@ impl Class {
         let op_method_name = op.method_name();
         self.op_impls.insert(
             op,
-            Method::new(&op_method_name, move |a, b, c| {
-                f(a, b, c).map(|x| x.into())
-            }),
+            Method::new(&op_method_name, move |a, b, c| f(a, b, c).map(|x| x.into())),
         );
         self
     }

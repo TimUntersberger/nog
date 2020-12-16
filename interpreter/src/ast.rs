@@ -1,4 +1,5 @@
 use super::{expression::Expression, operator::Operator};
+use std::ops::Range;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClassMember {
@@ -32,3 +33,21 @@ pub enum Ast {
     StaticFunctionDefinition(String, Vec<String>, Vec<Ast>),
     FunctionDefinition(String, Vec<String>, Vec<Ast>),
 }
+
+// impl Ast {
+//     pub fn location(&self) -> Range<usize> {
+//         match self {
+//             Ast::ReturnStatement(_, range)
+//             | Ast::Expression(_, range) 
+//             | Ast::WhileStatement(_, _, range) 
+//             | Ast::VariableAssignment(_, _, range) 
+//             | Ast::VariableDefinition(_, _, range) 
+//             | Ast::PlusAssignment(_, _, range) 
+//             | Ast::MinusAssignment(_, _, range) 
+//             | Ast::TimesAssignment(_, _, range) 
+//             | Ast::DivideAssignment(_, _, range) 
+//             | Ast::IfStatement(_, range) => range.clone(),
+//             _ => todo!("{:?}", self)
+//         }
+//     }
+// }

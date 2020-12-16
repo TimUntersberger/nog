@@ -261,7 +261,10 @@ impl Interpreter {
 
                     Ok(res)
                 } else {
-                    Err(RuntimeError::OperatorNotImplemented { class: class.name, operator: op.clone() })
+                    Err(RuntimeError::OperatorNotImplemented {
+                        class: class.name,
+                        operator: op.clone(),
+                    })
                 }
             }
             Expression::BinaryOp(lhs, op, rhs) => {
@@ -307,7 +310,10 @@ impl Interpreter {
                     let class = self.find_class(&lhs.type_name()).unwrap();
 
                     if class.name == "Null" {
-                        return Err(RuntimeError::OperatorNotImplemented { class: class.name.clone(), operator: op.clone() });
+                        return Err(RuntimeError::OperatorNotImplemented {
+                            class: class.name.clone(),
+                            operator: op.clone(),
+                        });
                     }
 
                     if let Some(f) = class.get_op_impl(&op).cloned() {
@@ -331,9 +337,11 @@ impl Interpreter {
                 .map(|c| c.clone().into())
                 .unwrap_or_default()),
             Expression::ClassInstantiation(name, values) => unreachable!(),
-            Expression::ArrayLiteral(items) => {
-                items.iter().map(|expr| self.eval(expr)).collect::<RuntimeResult<Vec<Dynamic>>>().map(|x| Dynamic::new_array(x))
-            }
+            Expression::ArrayLiteral(items) => items
+                .iter()
+                .map(|expr| self.eval(expr))
+                .collect::<RuntimeResult<Vec<Dynamic>>>()
+                .map(|x| Dynamic::new_array(x)),
             Expression::ObjectLiteral(fields) => {
                 let mut evaluated_fields = HashMap::new();
 
@@ -342,7 +350,7 @@ impl Interpreter {
                 }
 
                 Ok(Dynamic::new_object(evaluated_fields))
-            },
+            }
             Expression::ArrowFunction(arg_names, body) => Ok(Dynamic::Function {
                 name: "<anonymous function>".into(),
                 arg_names: arg_names.into_iter().map(|t| t.into()).collect(),
@@ -489,10 +497,10 @@ impl Interpreter {
                 }
                 Dynamic::RustFunction { callback, .. } => {
                     let mut args = Vec::new();
-                    for res in  arg_values.iter().map(|a| self.eval(a)) {
+                    for res in arg_values.iter().map(|a| self.eval(a)) {
                         match res {
                             Ok(value) => args.push(value),
-                            Err(e) => return Err(e)
+                            Err(e) => return Err(e),
                         };
                     }
                     callback(self, args).unwrap_or_default();
@@ -751,10 +759,12 @@ fn create_default_classes() -> HashMap<String, Class> {
             .set_op_impl(Operator::Decrement, |_, this, _| {
                 number!(this).map(|x| x - 1)
             })
-            .add_static_function("from", |_, args| Ok(match &args[0] {
-                Dynamic::String(x) => x.parse::<Number>().unwrap().into(),
-                _ => ().into(),
-            })),
+            .add_static_function("from", |_, args| {
+                Ok(match &args[0] {
+                    Dynamic::String(x) => x.parse::<Number>().unwrap().into(),
+                    _ => ().into(),
+                })
+            }),
     );
     classes.push(
         Class::new("String")

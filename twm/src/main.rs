@@ -383,8 +383,10 @@ impl AppState {
     pub fn resize(&mut self, direction: Direction, amount: i32) -> SystemResult {
         let config = self.config.clone();
         let display = self.get_current_display_mut();
+        dbg!(&display);
 
         if let Some(grid) = display.get_focused_grid_mut() {
+            dbg!(&grid);
             if let Some(tile) = grid.get_focused_tile() {
                 match direction {
                     Direction::Left | Direction::Right => tile
@@ -772,14 +774,10 @@ fn parse_config(
     });
 
     let state = state_arc.clone();
-    workspace = workspace.function("move_in", move |_, args| {
-        Ok(Dynamic::Null)
-    });
+    workspace = workspace.function("move_in", move |_, args| Ok(Dynamic::Null));
 
     let state = state_arc.clone();
-    workspace = workspace.function("move_out", move |_, args| {
-        Ok(Dynamic::Null)
-    });
+    workspace = workspace.function("move_out", move |_, args| Ok(Dynamic::Null));
 
     let state = state_arc.clone();
     workspace = workspace.function("focus", move |_, args| {
@@ -1178,6 +1176,7 @@ fn run(
                         Ok(())
                     },
                     Event::Keybinding(kb) => {
+                        debug!("Received keybinding {:?}", kb);
                         sender.send(Event::CallCallback { idx: kb.callback_id, is_mode_callback: false } ).unwrap();
                         Ok(())
                     },

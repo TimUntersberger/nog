@@ -2,7 +2,7 @@ use flexi_logger::{opt_format, Age, Cleanup, Criterion, Duplicate, Logger, Namin
 use std::path::PathBuf;
 
 #[cfg(debug_assertions)]
-const DEBUG: &'static str = "nog=debug,nog::keybindings=error";
+const DEBUG: &'static str = "nog=debug,nog::keybindings=debug";
 
 #[cfg(not(debug_assertions))]
 const DEBUG: &'static str = "nog=debug";

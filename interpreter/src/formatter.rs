@@ -67,8 +67,8 @@ impl<'a> Formatter<'a> {
                                 },
                                 body
                             )
-                        },
-                        actual => unreachable!("{:?}", actual)
+                        }
+                        actual => unreachable!("{:?}", actual),
                     }
                 } else {
                     self.level += 1;

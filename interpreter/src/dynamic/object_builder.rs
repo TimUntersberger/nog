@@ -25,9 +25,7 @@ impl ObjectBuilder {
             name.into(),
             Dynamic::RustFunction {
                 name: name.into(),
-                callback: Arc::new(move |a, b| {
-                    f(a, b).map(|x| x.into())
-                }),
+                callback: Arc::new(move |a, b| f(a, b).map(|x| x.into())),
                 scope: None,
             },
         );

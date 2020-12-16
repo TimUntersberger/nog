@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use super::{runtime_error::RuntimeResult, dynamic::Dynamic, interpreter::Interpreter};
+use super::{dynamic::Dynamic, interpreter::Interpreter, runtime_error::RuntimeResult};
 
 #[derive(Default, Debug, Clone)]
 pub struct Scope {

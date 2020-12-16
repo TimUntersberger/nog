@@ -6,7 +6,7 @@ pub struct Lexer<'a> {
     inner: logos::Lexer<'a, TokenKind>,
     offset: usize,
     prev: Option<Token>,
-    current: Option<Token>,
+    pub current: Option<Token>,
 }
 
 impl<'a> std::fmt::Debug for Lexer<'a> {

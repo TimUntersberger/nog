@@ -77,7 +77,6 @@ pub fn get_display_dpi(id: DisplayId) -> u32 {
 
     dpi_x
 }
-
 unsafe extern "system" fn enum_windows_task_bars_cb(hwnd: HWND, l_param: LPARAM) -> BOOL {
     let taskbars = &mut *(l_param as *mut Vec<Taskbar>);
     let mut window: Window = hwnd.into();
@@ -177,13 +176,16 @@ pub fn remove_launch_on_startup() {
 
 pub fn register_keybinding(kb: &Keybinding) {
     unsafe {
-        nullable_to_result(RegisterHotKey(
+        let res = nullable_to_result(RegisterHotKey(
             std::ptr::null_mut(),
             kb.get_id(),
             kb.modifier.bits(),
             kb.key as u32,
-        ))
-        .expect("Failed to register keybinding");
+        ));
+        if let Err(_) = res {
+            error!("Failed to register keybinding {:?}", kb);
+            print_last_error();
+        }
     }
 }
 
