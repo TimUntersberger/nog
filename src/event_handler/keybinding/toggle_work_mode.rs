@@ -57,19 +57,22 @@ pub fn turn_work_mode_on(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
     let remove_title_bar = state.config.remove_title_bar;
     let use_border = state.config.use_border;
     let stored_grids: Vec<String> = Store::load();
+    let rules = state.config.rules.clone();
+    let additional_rules = state.additonal_rules.clone();
     for display in state.displays.iter_mut() {
         for grid in display.grids.iter_mut() {
             if let Some(stored_grid) = stored_grids.get((grid.id - 1) as usize) {
                 grid.from_string(stored_grid);
                 Store::save(grid.id, grid.to_string());
 
-                if remove_title_bar {
-                    if let Err(e) = grid.modify_windows(|window| {
-                                        window.remove_title_bar(use_border)?;
-                                        Ok(())
-                                    }) {
-                        error!("Error while removing title bar {:?}", e);
-                    }
+                if let Err(e) = grid.modify_windows(|window| {
+                                    let rules = rules.iter().chain(additional_rules.iter()).collect();
+                                    window.set_matching_rule(rules);
+                                    window.init(remove_title_bar, use_border)?;
+
+                                    Ok(())
+                                }) {
+                    error!("Error while initializing window {:?}", e);
                 }
 
                 grid.hide(); // hides all the windows just loaded into the grid

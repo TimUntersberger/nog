@@ -224,9 +224,12 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
 
         removed_node.map(|x| x.take_window()) 
     }
-    /// Calls cleanup on all managed windows
+    /// Calls cleanup on all managed windows and clears the tile_grid
     pub fn cleanup(&mut self) -> SystemResult {
         self.modify_windows(|window| window.cleanup())?;
+        self.graph.clear();
+        self.focused_id = None;
+        self.fullscreen_id = None;
 
         Ok(())
     }
@@ -1015,12 +1018,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                 let end_info_index = cmp::min(target.find(']').unwrap_or(target.len()), target.find(',').unwrap_or(target.len()));
                 let tile = &target[1..end_info_index];
                 let tile_information = tile.split("|").collect::<Vec::<&str>>();
-                let mut window = NativeWindow::from(WindowId::from(tile_information[2].parse::<i32>().unwrap()));
-
-                match window.init() {
-                    Err(_) => debug!("Failed to initialize window"),
-                    _ => ()
-                }
+                let window = NativeWindow::from(WindowId::from(tile_information[2].parse::<i32>().unwrap()));
 
                 match parent_id {
                     Some(id) => {
