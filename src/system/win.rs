@@ -150,8 +150,10 @@ impl Window {
         !self.is_hidden()
     }
     pub fn should_manage(&self) -> bool {
-        self.original_style.contains(GwlStyle::CAPTION)
-            && !self.exstyle.contains(GwlExStyle::DLGMODALFRAME)
+        match (self.get_style(), self.get_ex_style()) {
+            (Ok(style), Ok(ex_style)) => style.contains(GwlStyle::CAPTION) && !ex_style.contains(GwlExStyle::DLGMODALFRAME),
+            _ => false
+        }
     }
     pub fn remove_title_bar(&mut self, use_border: bool) -> SystemResult {
         let rule = self.rule.clone().unwrap_or_default();
