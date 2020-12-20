@@ -3,13 +3,18 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 
 use crate::{
-    bar, config::Config, keybindings::KbManager, startup, system::SystemResult, task_bar, AppState,
+    bar, event::Event, config::Config, keybindings::KbManager, startup, system::SystemResult, task_bar, AppState,
 };
 
 pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> SystemResult {
     state_arc.lock().keybindings_manager.stop();
 
+    // need to sleep here, because for some reason the unregister keybinding stuff is not
+    // synchronous
+    sleep!(20);
+
     let mut state = state_arc.lock();
+
     let work_mode = state.work_mode;
     let old_config = state.config.clone();
     let mut draw_app_bar = false;

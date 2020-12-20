@@ -730,6 +730,7 @@ fn parse_config(
     callbacks_arc: Arc<Mutex<Vec<Function>>>,
     interpreter_arc: Arc<Mutex<Interpreter>>,
 ) -> Result<Config, String> {
+    callbacks_arc.lock().clear();
     let config = Arc::new(Mutex::new(Config::default()));
     let is_init_inner = Arc::new(AtomicBool::new(true));
     let is_init_inner2 = is_init_inner.clone();
