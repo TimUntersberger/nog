@@ -1,4 +1,6 @@
 use crate::{display::Display, AppState};
+use interpreter::{Dynamic, Interpreter, RuntimeError, RuntimeResult};
+use parking_lot::Mutex;
 use std::{any::Any, fmt::Debug, sync::Arc};
 
 pub mod active_mode;
@@ -48,8 +50,8 @@ impl ComponentText {
 pub struct Component {
     pub name: String,
     pub is_clickable: bool,
-    render_fn: Arc<dyn Fn(RenderContext) -> Vec<ComponentText> + Send + Sync>,
-    on_click_fn: Option<Arc<dyn Fn(OnClickContext) -> () + Send + Sync>>,
+    render_fn: Arc<dyn Fn(RenderContext) -> RuntimeResult<Vec<ComponentText>> + Send + Sync>,
+    on_click_fn: Option<Arc<dyn Fn(OnClickContext) -> RuntimeResult<()> + Send + Sync>>,
 }
 
 impl Default for Component {
@@ -57,7 +59,7 @@ impl Default for Component {
         Self {
             name: "Default".into(),
             is_clickable: false,
-            render_fn: Arc::new(|_| vec![]),
+            render_fn: Arc::new(|_| Ok(vec![])),
             on_click_fn: None,
         }
     }
@@ -79,7 +81,7 @@ pub struct OnClickContext<'a> {
 impl Component {
     pub fn new(
         name: &str,
-        render_fn: impl Fn(RenderContext) -> Vec<ComponentText> + Send + Sync + 'static,
+        render_fn: impl Fn(RenderContext) -> RuntimeResult<Vec<ComponentText>> + Send + Sync + 'static,
     ) -> Self {
         Self {
             name: name.into(),
@@ -89,24 +91,60 @@ impl Component {
         }
     }
 
+    pub fn from_dynamic(i: Arc<Mutex<Interpreter>>, d: Dynamic) -> RuntimeResult<Self> {
+        let obj_ref = object!(d)?;
+        let obj = obj_ref.lock().unwrap();
+        let name = string!(obj.get("name").ok_or(
+            "nog.bar.register_component requires the object to have a name field of type String"
+        )?)?;
+
+        let render_fn = obj.get("render").ok_or("nog.bar.register_component requires the object to have a render field that is a function")?.clone();
+        let on_click_fn = obj.get("on_click");
+
+        let i2 = i.clone();
+
+        let mut comp = Component::new(name, move |_| {
+            let f = render_fn.clone().as_fn()?;
+
+            Ok(f.invoke(&mut i2.lock(), vec![])?
+                .as_array()?
+                .iter()
+                .map(|d| match d {
+                    Dynamic::String(x) => ComponentText::new().with_display_text(x.clone()),
+                    x => unreachable!(x),
+                })
+                .collect())
+        });
+
+        if let Some(f) = on_click_fn {
+            let f = f.clone().as_fn()?;
+            let i2 = i.clone();
+            comp.with_on_click(move |_| f.invoke(&mut i2.lock(), vec![]).map(|_| {}));
+        }
+
+        Ok(comp)
+    }
+
     pub fn on_click(
         &self,
         display: &Display,
         state: &AppState,
         value: Arc<Box<dyn Any + Send + Sync>>,
         idx: usize,
-    ) {
+    ) -> RuntimeResult<()> {
         if let Some(f) = self.on_click_fn.clone() {
             f(OnClickContext {
                 display,
                 state,
                 value,
                 idx,
-            });
+            })?;
         }
+
+        Ok(())
     }
 
-    pub fn render(&self, display: &Display, state: &AppState) -> Vec<ComponentText> {
+    pub fn render(&self, display: &Display, state: &AppState) -> RuntimeResult<Vec<ComponentText>> {
         let f = self.render_fn.clone();
 
         f(RenderContext { display, state })
@@ -114,7 +152,7 @@ impl Component {
 
     pub fn with_on_click(
         &mut self,
-        f: impl Fn(OnClickContext) -> () + Send + Sync + 'static,
+        f: impl Fn(OnClickContext) -> RuntimeResult<()> + Send + Sync + 'static,
     ) -> &mut Self {
         self.is_clickable = true;
         self.on_click_fn = Some(Arc::new(f));

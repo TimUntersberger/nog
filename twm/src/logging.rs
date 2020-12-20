@@ -2,10 +2,10 @@ use flexi_logger::{opt_format, Age, Cleanup, Criterion, Duplicate, Logger, Namin
 use std::path::PathBuf;
 
 #[cfg(debug_assertions)]
-const DEBUG: &'static str = "nog=debug,nog::keybindings=debug";
+const DEBUG: &'static str = "twm=debug";
 
 #[cfg(not(debug_assertions))]
-const DEBUG: &'static str = "nog=debug";
+const DEBUG: &'static str = "twm=debug";
 
 pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
     #[allow(unused_mut)]

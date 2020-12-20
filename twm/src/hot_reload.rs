@@ -7,13 +7,13 @@ use crate::{
 };
 
 pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> SystemResult {
+    state_arc.lock().keybindings_manager.stop();
+
     let mut state = state_arc.lock();
     let work_mode = state.work_mode;
+    let old_config = state.config.clone();
     let mut draw_app_bar = false;
     let mut close_app_bars = false;
-    let old_config = state.config.clone();
-
-    state.keybindings_manager.stop();
 
     state.config = new_config;
     state.keybindings_manager = KbManager::new(

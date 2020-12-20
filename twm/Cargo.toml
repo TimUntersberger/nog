@@ -34,5 +34,6 @@ crossbeam-channel = "0.4"
 bitflags = "1.2"
 thiserror = "1.0"
 ctrlc = { version = "3.0", features = ["termination"] }
+itertools = "0.9.0"
 regex = "1"
 petgraph = "0.5.1"

@@ -29,6 +29,7 @@ impl<'a> Formatter<'a> {
             Expression::Identifier(text)
             | Expression::ClassIdentifier(text)
             | Expression::NumberLiteral(text)
+            | Expression::HexLiteral(text)
             | Expression::BooleanLiteral(text) => text.clone(),
             Expression::ArrayLiteral(items) => format!(
                 "[{}]",

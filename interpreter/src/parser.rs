@@ -44,7 +44,8 @@ impl<'a> From<pratt::PrattError<Token, ParseError>> for ParseError {
             pratt::PrattError::UnexpectedNilfix(_) => todo!(),
             pratt::PrattError::UnexpectedPrefix(i) => Self::UnexpectedOperator(i),
             pratt::PrattError::UnexpectedPostfix(i) => Self::UnexpectedOperator(i),
-            _ => todo!(),
+            pratt::PrattError::EmptyInput => Self::Raw("empty input".into()),
+            _ => todo!("{:?}", value),
         }
     }
 }
@@ -82,6 +83,7 @@ impl<'a> Parser<'a> {
                 | TokenKind::Var
                 | TokenKind::Class
                 | TokenKind::While
+                | TokenKind::Export
                 | TokenKind::Import
                 | TokenKind::Return
                 | TokenKind::ElseIf

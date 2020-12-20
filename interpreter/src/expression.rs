@@ -14,6 +14,7 @@ pub enum Expression {
     PostOp(Box<Expression>, Operator, Option<Box<Expression>>),
     PreOp(Operator, Box<Expression>),
     NumberLiteral(String),
+    HexLiteral(String),
     ArrayLiteral(Vec<Expression>),
     ObjectLiteral(HashMap<String, Expression>),
     BooleanLiteral(String),

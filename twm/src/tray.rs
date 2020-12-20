@@ -55,37 +55,40 @@ pub fn create(state: Arc<Mutex<AppState>>) {
 
     drop(state);
 
-    window.create(state_arc, false, move |event| match event {
-        WindowEvent::Create { id, .. } => {
-            add_icon(id.to_owned().into());
-        }
-        WindowEvent::Close { .. } => {
-            sender.send(Event::Exit).expect("Failed to send exit event");
-        }
-        WindowEvent::Native { msg, .. } => {
-            if msg.code == WM_COMMAND {
-                if let Some(id) = PopupId::from_u16(LOWORD(msg.params.0 as u32)) {
-                    match id {
-                        PopupId::Exit => unsafe {
-                            PostMessageW(msg.hwnd, WM_CLOSE, 0, 0);
-                            sender.send(Event::Exit).expect("Failed to send event");
-                        },
-                        PopupId::Reload => {
-                            sender
-                                .send(Event::ReloadConfig)
-                                .expect("Failed to send event");
+    window.create(state_arc, false, move |event| {
+        match event {
+            WindowEvent::Create { id, .. } => {
+                add_icon(id.to_owned().into());
+            }
+            WindowEvent::Close { .. } => {
+                sender.send(Event::Exit).expect("Failed to send exit event");
+            }
+            WindowEvent::Native { msg, .. } => {
+                if msg.code == WM_COMMAND {
+                    if let Some(id) = PopupId::from_u16(LOWORD(msg.params.0 as u32)) {
+                        match id {
+                            PopupId::Exit => unsafe {
+                                PostMessageW(msg.hwnd, WM_CLOSE, 0, 0);
+                                sender.send(Event::Exit).expect("Failed to send event");
+                            },
+                            PopupId::Reload => {
+                                sender
+                                    .send(Event::ReloadConfig)
+                                    .expect("Failed to send event");
+                            }
                         }
                     }
-                }
-            } else if msg.code == WM_APP && msg.params.1 as u32 == WM_RBUTTONUP {
-                unsafe {
-                    SetForegroundWindow(msg.hwnd);
-                    show_popup_menu(msg.hwnd);
-                    PostMessageW(msg.hwnd, WM_APP + 1, 0, 0);
+                } else if msg.code == WM_APP && msg.params.1 as u32 == WM_RBUTTONUP {
+                    unsafe {
+                        SetForegroundWindow(msg.hwnd);
+                        show_popup_menu(msg.hwnd);
+                        PostMessageW(msg.hwnd, WM_APP + 1, 0, 0);
+                    }
                 }
             }
+            _ => {}
         }
-        _ => {}
+        Ok(())
     });
 
     *WINDOW.lock() = Some(window);

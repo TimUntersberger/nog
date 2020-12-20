@@ -7,7 +7,8 @@ pub fn create() -> Component {
         let workspace_settings = ctx.state.config.workspace_settings.clone();
         let bar_color = ctx.state.config.bar.color;
 
-        ctx.display
+        Ok(ctx
+            .display
             .get_active_grids()
             .iter()
             .map(|grid| {
@@ -36,7 +37,7 @@ pub fn create() -> Component {
                     .with_value(grid.id)
                     .with_background_color(util::scale_color(bar_color, factor))
             })
-            .collect()
+            .collect())
     })
     .with_on_click(|ctx| {
         let id = *ctx.value.downcast_ref::<i32>().unwrap();
@@ -45,6 +46,8 @@ pub fn create() -> Component {
             .sender
             .clone()
             .send(Event::ChangeWorkspace(id, true));
+
+        Ok(())
     })
     .to_owned()
 }

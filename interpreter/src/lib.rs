@@ -24,4 +24,4 @@ pub use dynamic::Dynamic;
 pub use function::Function;
 pub use interpreter::Interpreter;
 pub use module::Module;
-pub use runtime_error::RuntimeError;
+pub use runtime_error::{RuntimeError, RuntimeResult};

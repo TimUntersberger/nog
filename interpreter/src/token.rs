@@ -13,6 +13,8 @@ pub enum TokenKind {
     StringLiteral,
     #[token("#")]
     Hash,
+    #[regex("0x[0-9a-fA-F]+")]
+    HexLiteral,
     #[token("++")]
     PlusPlus,
     #[token("+=")]

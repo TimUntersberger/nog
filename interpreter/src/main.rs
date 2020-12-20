@@ -1,6 +1,6 @@
 use crate::interpreter::Interpreter;
-use itertools::Itertools;
 use parser::Parser;
+use std::path::PathBuf;
 
 #[macro_use]
 mod macros;
@@ -23,17 +23,21 @@ mod scope;
 mod token;
 
 pub fn main() {
-    let root_path = [
+    let root_dir: PathBuf = [
         std::env::current_dir().unwrap().to_str().unwrap(),
         "interpreter",
         "nog",
-        "main.nog",
     ]
     .iter()
     .collect();
 
+    let mut root_path = root_dir.clone();
+    root_path.push("main.ns");
+
     let mut parser = Parser::new();
     let mut interpreter = Interpreter::new();
+
+    interpreter.source_locations.push(root_dir);
 
     let content = std::fs::read_to_string(&root_path).unwrap();
 

@@ -2,7 +2,8 @@ use std::ptr;
 
 use crate::{
     display::Display, keybindings::keybinding::Keybinding, system::DisplayId, system::Rectangle,
-    system::SystemError, system::SystemResult, task_bar::Taskbar, task_bar::TaskbarPosition, util,
+    system::SystemError, system::SystemResult, system::WindowId, task_bar::Taskbar,
+    task_bar::TaskbarPosition, util,
 };
 use log::{debug, error};
 use regex::Regex;
@@ -189,6 +190,12 @@ pub fn register_keybinding(kb: &Keybinding) -> SystemResult {
 pub fn unregister_keybinding(kb: &Keybinding) {
     unsafe {
         UnregisterHotKey(std::ptr::null_mut(), kb.get_id());
+    }
+}
+
+pub fn unregister_keybinding_of_win(id: WindowId, kb: &Keybinding) {
+    unsafe {
+        UnregisterHotKey(id.into(), kb.get_id());
     }
 }
 

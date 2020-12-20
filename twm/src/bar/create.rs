@@ -5,6 +5,7 @@ use crate::{
     config::Config, display::Display, event::Event, system::Rectangle, window::Api,
     window::WindowEvent, AppState, NOG_BAR_NAME,
 };
+use interpreter::RuntimeResult;
 use log::{debug, error, info};
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -48,9 +49,9 @@ fn draw_components(
     state: &AppState,
     mut offset: i32,
     components: &[Component],
-) {
+) -> RuntimeResult<()> {
     for component in components {
-        let component_texts = component.render(display, state);
+        let component_texts = component.render(display, state)?;
 
         for (_i, component_text) in component_texts.iter().enumerate() {
             let width = api
@@ -69,6 +70,8 @@ fn draw_components(
             draw_component_text(api, &rect, &state.config, &component_text);
         }
     }
+
+    Ok(())
 }
 
 fn components_to_section(
@@ -76,7 +79,7 @@ fn components_to_section(
     display: &Display,
     state: &AppState,
     components: &[Component],
-) -> ItemSection {
+) -> RuntimeResult<ItemSection> {
     let mut section = ItemSection::default();
     let mut component_offset = 0;
 
@@ -85,7 +88,7 @@ fn components_to_section(
         let mut component_text_offset = 0;
         let mut component_width = 0;
 
-        for component_text in component.render(display, state) {
+        for component_text in component.render(display, state)? {
             let width = api
                 .calculate_text_rect(&component_text.display_text)
                 .width();
@@ -109,7 +112,7 @@ fn components_to_section(
 
     section.right = component_offset;
 
-    section
+    Ok(section)
 }
 
 fn clear_section(api: &Api, config: &Config, left: i32, right: i32) {
@@ -156,8 +159,8 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
 
         let sender = sender.clone();
 
-        bar.window
-            .create(state_arc.clone(), true, move |event| match event {
+        bar.window.create(state_arc.clone(), true, move |event| {
+            match event {
                 WindowEvent::Native { msg, display, .. } => {
                     //TODO: make this cleaner
                     #[cfg(target_os = "windows")]
@@ -177,24 +180,24 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
                 WindowEvent::Click {
                     x, display, state, ..
                 } => {
-                    display
+                    for item in display
                         .appbar
                         .as_ref()
                         .and_then(|b| b.item_at_pos(*x).cloned())
-                        .map(|item| {
-                            if item.component.is_clickable {
-                                for (i, (width, text)) in item.cached_result.iter().enumerate() {
-                                    if width.0 <= *x && *x <= width.1 {
-                                        item.component.on_click(
-                                            display,
-                                            state,
-                                            text.value.clone(),
-                                            i,
-                                        );
-                                    }
+                    {
+                        if item.component.is_clickable {
+                            for (i, (width, text)) in item.cached_result.iter().enumerate() {
+                                if width.0 <= *x && *x <= width.1 {
+                                    item.component.on_click(
+                                        display,
+                                        state,
+                                        text.value.clone(),
+                                        i,
+                                    )?;
                                 }
                             }
-                        });
+                        }
+                    }
                 }
                 WindowEvent::MouseMove {
                     x, api, display, ..
@@ -228,14 +231,14 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
                             &display,
                             state,
                             &state.config.bar.components.left,
-                        );
+                        )?;
 
                         let mut center = components_to_section(
                             api,
                             &display,
                             state,
                             &state.config.bar.components.center,
-                        );
+                        )?;
 
                         center.left = working_area_width / 2 - center.right / 2;
                         center.right += center.left;
@@ -245,7 +248,7 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
                             &display,
                             state,
                             &state.config.bar.components.right,
-                        );
+                        )?;
                         right.left = working_area_width - right.right;
                         right.right += right.left;
 
@@ -255,21 +258,21 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
                             state,
                             left.left,
                             &state.config.bar.components.left,
-                        );
+                        )?;
                         draw_components(
                             api,
                             &display,
                             state,
                             center.left,
                             &state.config.bar.components.center,
-                        );
+                        )?;
                         draw_components(
                             api,
                             &display,
                             state,
                             right.left,
                             &state.config.bar.components.right,
-                        );
+                        )?;
 
                         if bar.left.width() > left.width() {
                             clear_section(api, &state.config, left.right, bar.left.right);
@@ -289,7 +292,10 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
                     }
                 }
                 _ => {}
-            });
+            }
+
+            Ok(())
+        });
 
         display.appbar = Some(bar);
     }

@@ -7,6 +7,7 @@ extern crate strum_macros;
 #[macro_use]
 extern crate interpreter;
 
+use bar::component::{Component, ComponentText};
 use config::{rule::Rule, workspace_setting::WorkspaceSetting, Config};
 use crossbeam_channel::select;
 use direction::Direction;
@@ -15,6 +16,7 @@ use event::Event;
 use event::EventChannel;
 use hot_reload::update_config;
 use interpreter::{Dynamic, Function, Interpreter, Module, RuntimeError};
+use itertools::Itertools;
 use keybindings::{keybinding::Keybinding, KbManager};
 use log::debug;
 use log::{error, info};
@@ -22,14 +24,15 @@ use parking_lot::{deadlock, Mutex};
 use popup::Popup;
 use regex::Regex;
 use split_direction::SplitDirection;
+use std::fs::ReadDir;
 use std::path::PathBuf;
+use std::process::Command;
 use std::str::FromStr;
 use std::{process, sync::atomic::AtomicBool, sync::Arc};
 use std::{thread, time::Duration};
 use system::NativeWindow;
 use system::{DisplayId, SystemResult, WinEventListener, WindowId};
 use task_bar::Taskbar;
-use tile::Tile;
 use tile_grid::TileGrid;
 use win_event_handler::{win_event::WinEvent, win_event_type::WinEventType};
 use window::Window;
@@ -285,11 +288,10 @@ impl AppState {
         let grid = self.get_current_grid_mut().unwrap();
         let window = grid.pop();
 
-        window
-            .map(|window| {
-                self.get_grid_by_id_mut(id).unwrap().push(window);
-                self.change_workspace(id, false);
-            });
+        window.map(|window| {
+            self.get_grid_by_id_mut(id).unwrap().push(window);
+            self.change_workspace(id, false);
+        });
 
         Ok(())
     }
@@ -729,8 +731,13 @@ fn parse_config(
     interpreter_arc: Arc<Mutex<Interpreter>>,
 ) -> Result<Config, String> {
     let config = Arc::new(Mutex::new(Config::default()));
-    let is_init = Arc::new(AtomicBool::new(true));
+    let is_init_inner = Arc::new(AtomicBool::new(true));
+    let is_init_inner2 = is_init_inner.clone();
+    let is_init = move || is_init_inner2.load(std::sync::atomic::Ordering::SeqCst);
     let mut interpreter = Interpreter::new();
+
+    interpreter.debug = true;
+    interpreter.source_locations = interpreter_arc.lock().source_locations.clone();
 
     let mut workspace = Module::new("workspace");
 
@@ -769,6 +776,35 @@ fn parse_config(
     });
 
     let state = state_arc.clone();
+    let cfg = config.clone();
+    let is_init2 = is_init.clone();
+
+    workspace = workspace.function("configure", move |_, args| {
+        let id = *number!(&args[0])?;
+        let config_ref = object!(&args[1])?;
+        let config = config_ref.lock().unwrap();
+        let mut settings = WorkspaceSetting::default();
+        settings.id = id;
+
+        for (key, val) in config.iter() {
+            match key.as_str() {
+                "text" => settings.text = string!(val)?.clone(),
+                "monitor" => settings.monitor = *number!(val)?,
+                _ => {}
+            }
+        }
+
+        if is_init2() {
+            cfg.lock().workspace_settings.push(settings);
+        } else {
+            state.lock().config.workspace_settings.push(settings);
+        }
+
+        Ok(Dynamic::Null)
+    });
+
+
+    let state = state_arc.clone();
     workspace = workspace.function("move_in", move |_, args| Ok(Dynamic::Null));
 
     let state = state_arc.clone();
@@ -802,6 +838,14 @@ fn parse_config(
         Ok(Dynamic::Null)
     });
 
+    let state = state_arc.clone();
+    workspace = workspace.function("set_split_direction", move |_i, args| {
+        state
+            .lock()
+            .set_split_direction(SplitDirection::from_str(string!(&args[0])?).unwrap());
+        Ok(Dynamic::Null)
+    });
+
     let mut window = Module::new("window");
 
     let state = state_arc.clone();
@@ -818,14 +862,6 @@ fn parse_config(
     let state = state_arc.clone();
     window = window.function("minimize", move |_i, _args| {
         state.lock().minimize_window();
-        Ok(Dynamic::Null)
-    });
-
-    let state = state_arc.clone();
-    window = window.function("set_split_direction", move |_i, args| {
-        state
-            .lock()
-            .set_split_direction(SplitDirection::from_str(string!(&args[0])?).unwrap());
         Ok(Dynamic::Null)
     });
 
@@ -853,18 +889,210 @@ fn parse_config(
         Ok(Dynamic::Null)
     });
 
+    let mut bar = Module::new("bar");
+    let i_arc = interpreter_arc.clone();
+    let state = state_arc.clone();
+    let cfg = config.clone();
+    let is_init2 = is_init.clone();
+
+    bar = bar.function("configure", move |i, args| {
+        let config_ref = object!(&args[0])?;
+        let config = config_ref.lock().unwrap();
+
+        for (key, val) in config.iter() {
+            match key.as_str() {
+                "height" => {
+                    if is_init2() {
+                        cfg.lock().bar.height = *number!(val)?;
+                    } else {
+                        state.lock().config.bar.height = *number!(val)?;
+                    }
+                }
+                "font_size" => {
+                    if is_init2() {
+                        cfg.lock().bar.font_size = *number!(val)?;
+                    } else {
+                        state.lock().config.bar.font_size = *number!(val)?;
+                    }
+                }
+                "font" => {
+                    if is_init2() {
+                        cfg.lock().bar.font = string!(val)?.clone();
+                    } else {
+                        state.lock().config.bar.font = string!(val)?.clone();
+                    }
+                }
+                "color" => {
+                    let mut color = *number!(val)?;
+                    #[cfg(target_os = "windows")]
+                    {
+                        color = window::convert_color_to_winapi(color as u32) as i32;
+                    }
+                    if is_init2() {
+                        cfg.lock().bar.color = color;
+                    } else {
+                        state.lock().config.bar.color = color;
+                    }
+                }
+                "components" => {
+                    let obj_ref = object!(val)?;
+                    let obj = obj_ref.lock().unwrap();
+
+                    for (key, val) in obj.iter() {
+                        let raw_comps = val.clone().as_array().unwrap();
+                        let mut comps = Vec::new();
+
+                        for raw_comp in raw_comps {
+                            let comp = Component::from_dynamic(i_arc.clone(), raw_comp)?;
+                            comps.push(comp);
+                        }
+
+                        if is_init2() {
+                            match key.as_ref() {
+                                "left" => cfg.lock().bar.components.left = comps,
+                                "center" => cfg.lock().bar.components.center = comps,
+                                "right" => cfg.lock().bar.components.right = comps,
+                                _ => {}
+                            }
+                        } else {
+                            match key.as_ref() {
+                                "left" => state.lock().config.bar.components.left = comps,
+                                "center" => state.lock().config.bar.components.center = comps,
+                                "right" => state.lock().config.bar.components.right = comps,
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        Ok(Dynamic::Null)
+    });
+
+    let mut plugin = Module::new("plugin");
+    let cfg = config.clone();
+
+    plugin = plugin.function("install", move |i, args| {
+        let name = string!(&args[0])?;
+        let url = format!("https://www.github.com/{}", &name);
+        let mut path = cfg.lock().plugins_path.clone();
+        path.push(name.split("/").join("_"));
+
+        if path.exists() {
+            debug!("{} is already installed", name);
+        } else {
+            debug!("Installing {} from {}", name, url);
+            Command::new("git")
+                .arg("clone")
+                .arg(&url)
+                .arg(&path)
+                .spawn()
+                .unwrap()
+                .wait()
+                .unwrap();
+
+            path.push("plugin");
+
+            i.source_locations.push(path.clone());
+        }
+        Ok(Dynamic::Null)
+    });
+
+    let cfg = config.clone();
+    plugin = plugin.function("update", move |_i, _args| {
+        for dir in get_plugins_path_iter() {
+            if let Ok(dir) = dir {
+                let name = dir.file_name().to_str().unwrap().to_string();
+
+                let mut path = cfg.lock().plugins_path.clone();
+                path.push(&name);
+
+                let name = name.split("_").join("/");
+                let url = format!("https://www.github.com/{}", name);
+
+                let output = Command::new("git")
+                    .arg("rev-parse")
+                    .arg("--is-inside-work-tree")
+                    .current_dir(&path)
+                    .output()
+                    .unwrap();
+
+                let is_git_repo = output.stdout.iter().map(|&x| x as char).count() != 0;
+
+                if !is_git_repo {
+                    debug!("{} is not a git repo", name);
+                    continue;
+                }
+
+                let output = Command::new("git")
+                    .arg("rev-list")
+                    .arg("HEAD...origin/master")
+                    .arg("--count")
+                    .current_dir(&path)
+                    .output()
+                    .unwrap();
+
+                let has_updates =
+                    output.stdout.iter().map(|&x| x as char).collect::<String>() != "0\n";
+
+                if has_updates {
+                    debug!("Updating {}", name);
+                    Command::new("git")
+                        .arg("pull")
+                        .arg(&url)
+                        .spawn()
+                        .unwrap()
+                        .wait()
+                        .unwrap();
+                } else {
+                    debug!("{} is up to date", &name);
+                }
+            }
+        }
+        Ok(Dynamic::Null)
+    });
+
+    let cfg = config.clone();
+    plugin = plugin.function("uninstall", move |_i, args| {
+        let name = string!(&args[0])?;
+        let mut path = cfg.lock().plugins_path.clone();
+        path.push(name.split("/").join("_"));
+
+        if path.exists() {
+            debug!("Uninstalling {}", name);
+            std::fs::remove_file(path).unwrap();
+        } else {
+            debug!("{} is not installed", name);
+        }
+        Ok(Dynamic::Null)
+    });
+
+    plugin = plugin.function("list", move |_, _| {
+        let mut list: Vec<String> = Vec::new();
+
+        for dir in get_plugins_path_iter() {
+            if let Ok(dir) = dir {
+                list.push(dir.path().to_str().unwrap().into());
+            }
+        }
+
+        Ok(list)
+    });
+
     let mut config_mod = Module::new("config");
 
     let state = state_arc.clone();
     let cfg = config.clone();
-    let init = is_init.clone();
+    let is_init2 = is_init.clone();
     config_mod = config_mod.function("increment", move |_i, args| {
         let (field, amount) = match args.len() {
             1 => (string!(&args[0])?, 1),
             _ => (string!(&args[0])?, *number!(&args[1])?),
         };
 
-        if init.load(std::sync::atomic::Ordering::SeqCst) {
+        if is_init2() {
             cfg.lock().set(string!(&args[0])?, string!(&args[1])?);
         } else {
             let mut cfg = cfg.lock().clone();
@@ -876,14 +1104,14 @@ fn parse_config(
 
     let state = state_arc.clone();
     let cfg = config.clone();
-    let init = is_init.clone();
+    let is_init2 = is_init.clone();
     config_mod = config_mod.function("decrement", move |_i, args| {
         let (field, amount) = match args.len() {
             1 => (string!(&args[0])?, -1),
             _ => (string!(&args[0])?, *number!(&args[1])?),
         };
 
-        if init.load(std::sync::atomic::Ordering::SeqCst) {
+        if is_init2() {
             cfg.lock().set(string!(&args[0])?, string!(&args[1])?);
         } else {
             let mut cfg = cfg.lock().clone();
@@ -896,9 +1124,9 @@ fn parse_config(
 
     let state = state_arc.clone();
     let cfg = config.clone();
-    let init = is_init.clone();
+    let is_init2 = is_init.clone();
     config_mod = config_mod.function("toggle", move |_i, args| {
-        if init.load(std::sync::atomic::Ordering::SeqCst) {
+        if is_init2() {
             cfg.lock().set(string!(&args[0])?, string!(&args[1])?);
         } else {
             let mut cfg = cfg.lock().clone();
@@ -911,9 +1139,9 @@ fn parse_config(
 
     let cfg = config.clone();
     let state = state_arc.clone();
-    let init = is_init.clone();
+    let is_init2 = is_init.clone();
     config_mod = config_mod.function("set", move |_i, args| {
-        if init.load(std::sync::atomic::Ordering::SeqCst) {
+        if is_init2() {
             cfg.lock().set(string!(&args[0])?, string!(&args[1])?);
         } else {
             let mut cfg = cfg.lock().clone();
@@ -926,9 +1154,9 @@ fn parse_config(
 
     let cfg = config.clone();
     let state = state_arc.clone();
-    let init = is_init.clone();
+    let is_init2 = is_init.clone();
     config_mod = config_mod.function("enable", move |_i, args| {
-        if init.load(std::sync::atomic::Ordering::SeqCst) {
+        if is_init2() {
             cfg.lock().set(string!(&args[0])?, "true");
         } else {
             let mut cfg = cfg.lock().clone();
@@ -941,9 +1169,9 @@ fn parse_config(
 
     let cfg = config.clone();
     let state = state_arc.clone();
-    let init = is_init.clone();
+    let is_init2 = is_init.clone();
     config_mod = config_mod.function("disable", move |_i, args| {
-        if init.load(std::sync::atomic::Ordering::SeqCst) {
+        if is_init2() {
             cfg.lock().set(string!(&args[0])?, "false");
         } else {
             let mut cfg = cfg.lock().clone();
@@ -1002,10 +1230,12 @@ fn parse_config(
     });
 
     let mut root = Module::new("nog")
-        .variable("version", "<VERSION")
+        .variable("version", "<VERSION>")
         .variable("workspace", workspace)
+        .variable("plugin", plugin)
         .variable("rules", rules)
         .variable("window", window)
+        .variable("bar", bar)
         .variable("config", config_mod);
 
     let state = state_arc.clone();
@@ -1085,13 +1315,26 @@ fn parse_config(
     interpreter.add_module(root);
 
     let mut config_path: PathBuf = dirs::config_dir().unwrap_or_default();
-
     config_path.push("nog");
+    let mut plugins_path = config_path.clone();
+    plugins_path.push("plugins");
+
+    config.lock().path = config_path.clone();
+    interpreter.source_locations.push(config_path.clone());
 
     if !config_path.exists() {
         debug!("nog folder doesn't exist yet. Creating the folder");
         std::fs::create_dir(config_path.clone()).map_err(|e| e.to_string())?;
     }
+
+    if !plugins_path.exists() {
+        debug!("plugins folder doesn't exist yet. Creating the folder");
+        std::fs::create_dir(plugins_path.clone()).map_err(|e| e.to_string())?;
+    }
+
+    config.lock().plugins_path = plugins_path.clone();
+
+    interpreter.source_locations.push(plugins_path.clone());
 
     config_path.push("config.ns");
 
@@ -1106,13 +1349,15 @@ fn parse_config(
 
     debug!("Running config file");
 
-    interpreter.execute_file(config_path).unwrap();
+    interpreter.execute_file(config_path)?;
 
     *interpreter_arc.lock() = interpreter;
 
     let cfg = config.lock();
 
-    is_init.store(false, std::sync::atomic::Ordering::SeqCst);
+    dbg!(&cfg.bar.color);
+
+    is_init_inner.store(false, std::sync::atomic::Ordering::SeqCst);
 
     Ok(cfg.clone())
 }
@@ -1133,7 +1378,7 @@ fn run(
     os_specific_setup(state_arc.clone());
 
     if state_arc.lock().config.work_mode {
-        AppState::enter_work_mode(state_arc.clone());
+        AppState::enter_work_mode(state_arc.clone())?;
     }
 
     info!("Listening for keybindings");
@@ -1148,7 +1393,7 @@ fn run(
                 let msg = maybe_msg.unwrap();
                 let _ = match msg {
                     Event::NewPopup(mut p) => {
-                        p.create(state_arc.clone());
+                        p.create(state_arc.clone())?;
                         Ok(())
                     },
                     Event::ToggleAppbar(display_id) => {
@@ -1204,10 +1449,7 @@ fn run(
                         match parse_config(state_arc.clone(), callbacks_arc.clone(), interpreter_arc.clone()) {
                             Ok(new_config) => update_config(state_arc.clone(), new_config),
                             Err(e) => {
-                                sender.send(Event::NewPopup(Popup::new()
-                                    .with_padding(5)
-                                    .with_text(&[&e])
-                                ));
+                                sender.send(Event::NewPopup(Popup::new_error(vec![e])));
                                 Ok(())
                             }
 
@@ -1242,13 +1484,36 @@ fn run(
     Ok(())
 }
 
+fn get_plugins_path_iter() -> ReadDir {
+    let mut plugins_path: PathBuf = dirs::config_dir().unwrap_or_default();
+    plugins_path.push("nog");
+    plugins_path.push("plugins");
+
+    plugins_path.read_dir().unwrap()
+}
+
+/// Fill source_locations of interpreter with plugin paths
+fn load_plugin_source_locations(i: &mut Interpreter) {
+    for dir in get_plugins_path_iter() {
+        if let Ok(dir) = dir {
+            let mut path = dir.path();
+            path.push("plugin");
+            i.source_locations.push(path);
+        }
+    }
+}
+
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
     logging::setup().expect("Failed to setup logging");
 
     let state_arc = Arc::new(Mutex::new(AppState::default()));
     let callbacks_arc: Arc<Mutex<Vec<Function>>> = Arc::new(Mutex::new(Vec::new()));
-    let interpreter_arc = Arc::new(Mutex::new(Interpreter::new()));
+    let mut interpreter = Interpreter::new();
+
+    load_plugin_source_locations(&mut interpreter);
+
+    let interpreter_arc = Arc::new(Mutex::new(interpreter));
 
     {
         let config = parse_config(
@@ -1258,13 +1523,7 @@ fn main() {
         )
         .map_err(|e| {
             let state_arc = state_arc.clone();
-            thread::spawn(move || {
-                Popup::new()
-                    .with_padding(5)
-                    .with_text(&[&e, "", "(Press Alt+Q to close)"])
-                    .create(state_arc)
-                    .unwrap()
-            });
+            Popup::error(vec![e], state_arc);
         })
         .unwrap_or_default();
         state_arc.lock().init(config)

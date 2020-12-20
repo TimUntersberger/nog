@@ -2,7 +2,7 @@ use crate::keybindings::keybinding::Keybinding;
 use bar_config::BarConfig;
 use log::error;
 use rule::Rule;
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, path::PathBuf, time::Duration};
 use update_channel::UpdateChannel;
 use workspace_setting::WorkspaceSetting;
 
@@ -15,6 +15,8 @@ pub mod workspace_setting;
 
 #[derive(Clone, Debug)]
 pub struct Config {
+    pub path: PathBuf,
+    pub plugins_path: PathBuf,
     pub use_border: bool,
     pub min_width: i32,
     pub min_height: i32,
@@ -44,6 +46,8 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            path: "".into(),
+            plugins_path: "".into(),
             launch_on_startup: false,
             min_height: 200,
             min_width: 200,

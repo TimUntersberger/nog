@@ -95,7 +95,7 @@ fn parse_inside_curlies<'a, I: Iterator<Item = Token>>(
         }
         .unwrap();
 
-        consume(rest, TokenKind::Colon).unwrap();
+        parser.prev_token = consume(rest, TokenKind::Colon).unwrap();
 
         let mut tokens = Vec::new();
         let mut depth = 0;
@@ -110,7 +110,11 @@ fn parse_inside_curlies<'a, I: Iterator<Item = Token>>(
                     }
                     depth -= 1
                 }
-                TokenKind::Comma => break,
+                TokenKind::Comma => {
+                    if depth == 0 {
+                        break;
+                    }
+                }
                 _ => {}
             }
 
@@ -239,8 +243,21 @@ fn parse_arrow_fn<T: Iterator<Item = Token>>(
             return Ok(Expression::ArrowFunction(arg_names, parser.parse()?.stmts));
         } else {
             let mut tokens = Vec::new();
-            while let Some(token) = rest.next() {
-                tokens.push(token);
+            let mut depth = 0;
+            while let Some(token) = rest.peek() {
+                match token.0 {
+                    TokenKind::RCurly => {
+                        if depth == 0 {
+                            break;
+                        }
+                        depth -= 1;
+                    },
+                    TokenKind::LCurly => {
+                        depth += 1;
+                    },
+                    _ => {}
+                };
+                tokens.push(rest.next().unwrap());
             }
             return Ok(Expression::ArrowFunction(
                 arg_names,
@@ -362,6 +379,7 @@ where
                 | TokenKind::LParan
                 | TokenKind::LBracket
                 | TokenKind::Return
+                | TokenKind::Colon
                 | TokenKind::Error
                 | TokenKind::Equal
                 | TokenKind::PlusEqual
@@ -384,6 +402,7 @@ where
             TokenKind::RBracket => Affix::Nilfix,
             TokenKind::Import => Affix::Nilfix,
             TokenKind::NewLine => Affix::Nilfix,
+            TokenKind::HexLiteral => Affix::Nilfix,
             TokenKind::NumberLiteral => Affix::Nilfix,
             TokenKind::StringLiteral => Affix::Nilfix,
             TokenKind::ClassIdentifier => Affix::Nilfix,
@@ -408,6 +427,7 @@ where
         self.prev_token = token.clone();
         let text = self.text(&token).to_string();
         Ok(match token.0 {
+            TokenKind::HexLiteral => Expression::HexLiteral(text),
             TokenKind::NumberLiteral => Expression::NumberLiteral(text),
             TokenKind::StringLiteral => {
                 let raw = text
@@ -423,24 +443,37 @@ where
             TokenKind::LBracket => {
                 let mut args = Vec::new();
                 let mut arg_tokens = Vec::new();
+                let mut depth = 0;
 
                 while let Some(next) = rest.next() {
-                    if let TokenKind::RBracket = next.0 {
-                        if !arg_tokens.is_empty() {
-                            args.push(self.parse(&mut arg_tokens.clone().into_iter())?);
-                        }
-                        break;
-                    } else if let TokenKind::Comma = next.0 {
-                        args.push(self.parse(&mut arg_tokens.clone().into_iter())?);
-                        arg_tokens.clear();
-                    } else {
-                        if let TokenKind::LBracket = next.0 {
-                            args.push(self.primary(next, rest)?);
-                            arg_tokens.clear();
-                        } else {
-                            arg_tokens.push(next);
-                        }
-                    }
+                    match next.0 {
+                        TokenKind::RBracket => {
+                            if depth == 0 {
+                                if !arg_tokens.is_empty() {
+                                    args.push(self.parse(&mut arg_tokens.clone().into_iter())?);
+                                }
+                                break;
+                            }
+
+                            depth -= 1;
+                        },
+                        TokenKind::Comma => {
+                            if depth == 0 {
+                                if !arg_tokens.is_empty() {
+                                    args.push(self.parse(&mut arg_tokens.clone().into_iter())?);
+                                }
+                                arg_tokens.clear();
+                                continue;
+                            }
+                        },
+                        TokenKind::RParan | TokenKind::RCurly => depth -= 1,
+                        TokenKind::LBracket | TokenKind::LCurly | TokenKind::LParan => {
+                            depth += 1;
+                        },
+                        _ => {}
+                    };
+
+                    arg_tokens.push(next);
                 }
 
                 Expression::ArrayLiteral(args)
@@ -524,8 +557,8 @@ where
     }
     fn prefix(
         &mut self,
-        token: Self::Input,
-        rhs: Self::Output,
+        token: Token,
+        rhs: Expression,
         _: &mut Peekable<&mut I>,
     ) -> Result<Self::Output, Self::Error> {
         Ok(Expression::PreOp(token.0.into(), Box::new(rhs)))
@@ -638,6 +671,10 @@ mod test {
 
     fn number(x: i32) -> Expression {
         Expression::NumberLiteral(x.to_string())
+    }
+
+    fn hex(x: i32) -> Expression {
+        Expression::HexLiteral(format!("0x{:x}", x))
     }
 
     fn boolean(x: bool) -> Expression {
@@ -795,15 +832,30 @@ mod test {
     }
 
     #[test]
+    fn hex_number() {
+        assert_eq!(parse(r"0x283123"), hex(0x283123));
+    }
+
+    #[test]
     fn object_literal() {
         assert_eq!(parse(r"#{}"), object(HashMap::new()));
     }
 
     #[test]
-    fn object_literal_with_fields() {
+    fn object_literal_with_fields_1() {
         assert_eq!(
             parse(r#"#{ username: "test" }"#),
             object(hashmap! { "username" => string("test") }),
+        );
+    }
+
+    #[test]
+    fn object_literal_with_fields_2() {
+        assert_eq!(
+            parse(r#"#{ username: "test", data: #{ left: 1 } }"#),
+            object(
+                hashmap! { "username" => string("test"), "data" => object(hashmap! { "left" => number(1) }) }
+            ),
         );
     }
 

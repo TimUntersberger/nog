@@ -52,6 +52,9 @@ impl<'a> Program<'a> {
 
 #[derive(Debug, Clone)]
 pub struct Interpreter {
+    /// Contains a list of directories, where the interpreter searches for source files when
+    /// importing
+    pub source_locations: Vec<PathBuf>,
     /// Contains the current file path to the file being interpreted
     pub file_path: PathBuf,
     /// Whether to print debug information
@@ -79,6 +82,7 @@ pub struct Interpreter {
 impl Interpreter {
     pub fn new() -> Self {
         Self {
+            source_locations: Vec::new(),
             file_path: Default::default(),
             source: Default::default(),
             broken: false,
@@ -95,18 +99,25 @@ impl Interpreter {
             scopes: vec![Scope::default()],
         }
     }
-    fn module_path_to_file_path(&self, module_path: &str) -> PathBuf {
-        let mut path = PathBuf::new();
 
-        path.push(&self.file_path.parent().unwrap());
+    fn module_path_to_file_path(&self, module_path: &str) -> Option<PathBuf> {
+        for dir_path in &self.source_locations {
+            let mut path = PathBuf::new();
 
-        for part in module_path.split(".") {
-            path.push(part);
+            path.push(dir_path);
+
+            for part in module_path.split(".") {
+                path.push(part);
+            }
+
+            path.set_extension("ns");
+
+            if path.exists() {
+                return Some(path);
+            }
         }
 
-        path.set_extension("ns");
-
-        path
+        None
     }
 
     fn module_path_to_name(&self, module_path: &str) -> String {
@@ -300,11 +311,10 @@ impl Interpreter {
                     if let Some(f) = class.static_functions.get(&field_name).cloned() {
                         Ok(f.into())
                     } else {
-                        panic!(
-                            "The class {} doesn't have a static function called {}",
-                            class_name.unwrap(),
-                            field_name
-                        );
+                        return Err(RuntimeError::StaticFunctionNotFound {
+                            class: class_name.unwrap().clone(),
+                            function_name: field_name
+                        });
                     }
                 } else {
                     let class = self.find_class(&lhs.type_name()).unwrap();
@@ -328,6 +338,9 @@ impl Interpreter {
                 }
             }
             Expression::NumberLiteral(x) => Ok(Dynamic::Number(x.parse().unwrap())),
+            Expression::HexLiteral(x) => {
+                Ok(Dynamic::Number(i32::from_str_radix(&x[2..], 16).unwrap()))
+            }
             Expression::BooleanLiteral(x) => Ok(Dynamic::Boolean(x == "true")),
             Expression::StringLiteral(x) => Ok(Dynamic::String(x.into())),
             Expression::Null => Ok(Dynamic::Null),
@@ -434,28 +447,44 @@ impl Interpreter {
         let mut mod_parts = path.split(".");
 
         let root_name = mod_parts.next().unwrap();
-        let root_path = self.module_path_to_file_path(path);
+
         let root_mod: Dynamic = match self.modules.get(root_name).cloned() {
             Some(module) => module.into(),
-            None => match self.module_cache.get(&root_path).cloned() {
-                Some(module) => module.into(),
-                None => self.with_clean_state(Scope::default(), Some(root_path.clone()), |i| {
-                    let mut parser = Parser::new();
-                    let content = std::fs::read_to_string(&root_path).unwrap();
+            None => {
+                let root_path =
+                    self.module_path_to_file_path(path)
+                        .ok_or(RuntimeError::ModuleNotFound {
+                            name: root_name.to_string(),
+                        })?;
 
-                    parser.set_source(root_path.clone(), &content, 0);
+                let is_debug = self.debug;
+                match self.module_cache.get(&root_path).cloned() {
+                    Some(module) => module.into(),
+                    None => self
+                        .with_clean_state(Scope::default(), Some(root_path.clone()), |i| {
+                            let mut parser = Parser::new();
+                            let content = std::fs::read_to_string(&root_path).unwrap();
 
-                    let program = parser.parse().unwrap();
+                            parser.set_source(root_path.clone(), &content, 0);
 
-                    program.print();
+                            let program = parser.parse()?;
 
-                    let module = i.execute(&program)?;
+                            if is_debug {
+                                program.print();
+                            }
 
-                    i.module_cache.insert(root_path.clone(), module.clone());
+                            match i.execute(&program) {
+                                Ok(module) => {
+                                    i.module_cache.insert(root_path.clone(), module.clone());
 
-                    Ok(module.into())
-                })?,
-            },
+                                    Ok(module)
+                                }
+                                x => x,
+                            }
+                        })?
+                        .into(),
+                }
+            }
         };
 
         let mut res = root_mod;
@@ -778,6 +807,13 @@ fn create_default_classes() -> HashMap<String, Class> {
                 let this = string!(this)?;
                 Ok(this.len() as Number)
             })
+            .add_static_function("from", |_, args| {
+                Ok(match &args[0] {
+                    Dynamic::Boolean(x) => x.to_string().into(),
+                    Dynamic::Number(x) => x.to_string().into(),
+                    _ => Dynamic::Null,
+                })
+            })
             .add_function("split", |_, this, args| {
                 let sep = string!(&args[0])?;
                 let this = string!(this)?;
@@ -959,6 +995,12 @@ pub fn create_default_variables() -> HashMap<String, Dynamic> {
         .function("require", |i, args| {
             let (_, module) = i.import(&args[0].clone().as_str().unwrap())?;
             Ok(module)
+        })
+        .function("atomic", |_, args| {
+            let inner = args[0].clone();
+            let mut wrapper = HashMap::new();
+            wrapper.insert("value".into(), inner);
+            Ok(Dynamic::new_object(wrapper))
         })
         .function("range", |_, args| match args.len() {
             1 => {

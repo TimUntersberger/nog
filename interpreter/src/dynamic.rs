@@ -7,8 +7,14 @@ use std::{
 };
 
 use super::{
-    ast::Ast, class::Class, expression::Expression, function::Function, interpreter::Interpreter,
-    module::Module, operator::Operator, runtime_error::RuntimeResult, scope::Scope,
+    ast::Ast,
+    class::Class,
+    expression::Expression,
+    function::Function,
+    interpreter::Interpreter,
+    module::Module,
+    runtime_error::{RuntimeError, RuntimeResult},
+    scope::Scope,
 };
 
 pub mod object_builder;
@@ -108,21 +114,24 @@ impl Dynamic {
         Dynamic::ClassInstance(name.to_string(), Arc::new(Mutex::new(fields)))
     }
 
-    pub fn as_array(self) -> Option<Vec<Dynamic>> {
+    pub fn as_array(self) -> RuntimeResult<Vec<Dynamic>> {
         match self {
-            Dynamic::Array(items) => Some(items.lock().unwrap().clone()),
-            _ => None,
+            Dynamic::Array(items) => Ok(items.lock().unwrap().clone()),
+            x => Err(RuntimeError::UnexpectedType {
+                expected: "Array".into(),
+                actual: x.type_name(),
+            }),
         }
     }
 
-    pub fn as_fn(self) -> Option<Function> {
+    pub fn as_fn(self) -> RuntimeResult<Function> {
         match self {
             Dynamic::Function {
                 name,
                 scope,
                 body,
                 arg_names,
-            } => Some(Function::new(&name, Some(scope.clone()), move |i, args| {
+            } => Ok(Function::new(&name, Some(scope.clone()), move |i, args| {
                 let body = body.clone();
                 let arg_names = arg_names.clone();
                 let scope = scope.clone();
@@ -135,19 +144,25 @@ impl Dynamic {
             } => {
                 let callback = callback.clone();
 
-                Some(Function::new(&name, scope.clone(), move |i, args| {
+                Ok(Function::new(&name, scope.clone(), move |i, args| {
                     let args = args.clone();
                     callback(i, args)
                 }))
             }
-            _ => None,
+            x => Err(RuntimeError::UnexpectedType {
+                expected: "Function".into(),
+                actual: x.type_name(),
+            }),
         }
     }
 
-    pub fn as_str(self) -> Option<String> {
+    pub fn as_str(self) -> RuntimeResult<String> {
         match self {
-            Dynamic::String(string) => Some(string),
-            _ => None,
+            Dynamic::String(string) => Ok(string),
+            x => Err(RuntimeError::UnexpectedType {
+                expected: "Function".into(),
+                actual: x.type_name(),
+            }),
         }
     }
 

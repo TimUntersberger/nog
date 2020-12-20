@@ -1,7 +1,7 @@
 use crate::{event::Event, popup::Popup, system, system::api, AppState};
 use key::Key;
 use keybinding::Keybinding;
-use log::{debug, info};
+use log::{debug, error, info};
 use modifier::Modifier;
 use num_traits::FromPrimitive;
 use parking_lot::Mutex;
@@ -54,16 +54,28 @@ impl KbManagerInner {
     }
 
     pub fn unregister_all(&self) {
-        self.keybindings.iter().for_each(api::unregister_keybinding);
+        self.keybindings.iter().for_each(|kb| {
+            info!("Unregistering {:?}", kb);
+            api::unregister_keybinding(kb);
+        });
     }
 
-    pub fn register_all(&self, state_arc: Arc<Mutex<AppState>>) {
-        let state = state_arc.clone();
-        self.keybindings.iter().for_each(|kb| {
-            api::register_keybinding(kb).map_err(|_| {
-                KbManager::show_keybinding_error(&kb, state.clone());
+    pub fn register_all(&self, kbs: &Vec<Keybinding>, state_arc: Arc<Mutex<AppState>>) {
+        let mut errors = Vec::new();
+
+        for kb in kbs {
+            info!("Registering {:?}", kb);
+            api::register_keybinding(&kb).map_err(|_| {
+                let state_arc = state_arc.clone();
+                let msg = KbManager::make_keybinding_error(&kb);
+                error!("{}", &msg);
+                errors.push(msg);
             });
-        });
+        }
+
+        if !errors.is_empty() {
+            Popup::error(errors, state_arc.clone());
+        }
     }
 
     pub fn get_keybinding(&self, key: Key, modifier: Modifier) -> Option<Keybinding> {
@@ -113,6 +125,9 @@ impl KbManager {
             .send(ChanMessage::ChangeMode(mode.clone()))
             .expect("Failed to change mode of kb manager");
     }
+    pub fn unregister_keybindings(&self) {
+        self.inner.unregister_all();
+    }
     pub fn enter_mode(&mut self, mode: &str) {
         self.change_mode(Some(mode.into()));
     }
@@ -129,12 +144,16 @@ impl KbManager {
                 .push(kb);
         }
     }
+    pub fn is_running(&self) -> bool {
+        self.inner.running.load(Ordering::SeqCst)
+    }
     pub fn get_mode(&self) -> Mode {
         self.inner.mode.lock().clone()
     }
-    fn show_keybinding_error(keybinding: &Keybinding, state_arc: Arc<Mutex<AppState>>) {
+    fn make_keybinding_error(keybinding: &Keybinding) -> String {
         let message = format!("Failed to register {:?}.\nAnother running application may already have this binding registered.", &keybinding);
-        Popup::error(message, state_arc);
+        error!("{}", &message);
+        message
     }
     pub fn start(&self, state_arc: Arc<Mutex<AppState>>) {
         let inner = self.inner.clone();
@@ -144,13 +163,7 @@ impl KbManager {
         thread::spawn(move || {
             let receiver = receiver.lock();
 
-            for kb in &inner.keybindings {
-                info!("Registering {:?}", kb);
-                api::register_keybinding(&kb).map_err(|_| {
-                    let state_arc = state_arc.clone();
-                    KbManager::show_keybinding_error(&kb, state_arc);
-                });
-            }
+            inner.register_all(&inner.keybindings, state.clone());
 
             loop {
                 if let Ok(msg) = receiver.try_recv() {
@@ -191,12 +204,7 @@ impl KbManager {
                                 let kbs_lock = inner.mode_keybindings.lock();
                                 let kbs = kbs_lock.get(mode).unwrap();
 
-                                for kb in kbs.iter() {
-                                    api::register_keybinding(kb).map_err(|_| {
-                                        let state_arc = state_arc.clone();
-                                        KbManager::show_keybinding_error(&kb, state_arc);
-                                    });
-                                }
+                                inner.register_all(&kbs, state.clone());
                             } else {
                                 let mut mode_lock = inner.mode.lock();
                                 let kbs_lock = inner.mode_keybindings.lock();
@@ -208,7 +216,7 @@ impl KbManager {
 
                                 *mode_lock = new_mode.clone();
 
-                                inner.register_all(state_arc.clone());
+                                inner.register_all(&inner.keybindings, state.clone());
                             }
                         }
                     };
@@ -227,11 +235,14 @@ impl KbManager {
                     }
                 }
 
-                thread::sleep(Duration::from_millis(100));
+                thread::sleep(Duration::from_millis(10));
             }
         });
     }
     pub fn stop(&mut self) {
+        if self.inner.clone().stopped.load(Ordering::SeqCst) {
+            return;
+        }
         self.inner.clone().stopped.store(true, Ordering::SeqCst);
         self.sender
             .send(ChanMessage::Stop)

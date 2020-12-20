@@ -21,24 +21,27 @@ pub fn start(state: Arc<Mutex<AppState>>) {
         let mut path = dirs::config_dir().expect("Failed to get config dir");
 
         path.push("nog");
-        path.push("config.nog");
+
+        debug!("Watching {:?} recursively for file changes", &path);
 
         watcher
-            .watch(path, RecursiveMode::NonRecursive)
+            .watch(path, RecursiveMode::Recursive)
             .expect("Failed to watch config directory");
 
         loop {
             match rx.recv() {
                 Ok(ev) => match ev {
-                    DebouncedEvent::Write(_) => {
-                        debug!("detected config change");
-                        state
-                            .lock()
-                            .event_channel
-                            .sender
-                            .clone()
-                            .send(Event::ReloadConfig)
-                            .expect("Failed to send ReloadConfig event");
+                    DebouncedEvent::Write(path) => {
+                        if path.extension().unwrap() == "ns" {
+                            debug!("Nogscript file {:?} changed! Reloading config", &path);
+                            state
+                                .lock()
+                                .event_channel
+                                .sender
+                                .clone()
+                                .send(Event::ReloadConfig)
+                                .expect("Failed to send ReloadConfig event");
+                        }
                     }
                     _ => {}
                 },

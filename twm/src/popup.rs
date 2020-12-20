@@ -39,18 +39,20 @@ impl Popup {
         }
     }
 
-    pub fn error(msg: String, state_arc: Arc<Mutex<AppState>>) {
-        thread::spawn(move || {
-            Popup::new()
-                .with_padding(5)
-                .with_text(&[&msg, "", "(Press Alt+Q to close)"])
-                .create(state_arc)
-                .unwrap()
-        });
+    pub fn new_error(msg: Vec<String>) -> Self {
+        Popup::new().with_padding(5).with_text(
+            msg.into_iter()
+                .chain(vec!["".into(), "(Press Alt+Q to close)".into()])
+                .collect(),
+        )
     }
 
-    pub fn with_text(mut self, text: &[&str]) -> Self {
-        self.text = text.iter().map(|x| x.to_string()).collect();
+    pub fn error(msg: Vec<String>, state_arc: Arc<Mutex<AppState>>) {
+        thread::spawn(move || Popup::new_error(msg).create(state_arc).unwrap());
+    }
+
+    pub fn with_text<T: Into<String>>(mut self, text: Vec<T>) -> Self {
+        self.text = text.into_iter().map(|x| x.into()).collect();
         self
     }
 
@@ -82,33 +84,36 @@ impl Popup {
 
         drop(state);
 
-        let t = window.create(state_arc, true, move |event| match event {
-            WindowEvent::Draw { api, .. } => {
-                let rect = api.calculate_text_rect(&text);
+        let t = window.create(state_arc, true, move |event| {
+            match event {
+                WindowEvent::Draw { api, .. } => {
+                    let rect = api.calculate_text_rect(&text);
 
-                let height = rect.height();
-                let width = rect.width();
+                    let height = rect.height();
+                    let width = rect.width();
 
-                let x = api.display.width() / 2 - width / 2 - padding;
-                let y = api.display.height() / 2 - height / 2 - padding;
+                    let x = api.display.width() / 2 - width / 2 - padding;
+                    let y = api.display.height() / 2 - height / 2 - padding;
 
-                api.window
-                    .set_window_pos(
-                        Rectangle {
-                            left: x,
-                            right: x + width + padding * 2,
-                            top: y,
-                            bottom: y + height + padding * 2,
-                        },
-                        None,
-                        None,
-                    )
-                    .expect("Failed to move popup to its location");
+                    api.window
+                        .set_window_pos(
+                            Rectangle {
+                                left: x,
+                                right: x + width + padding * 2,
+                                top: y,
+                                bottom: y + height + padding * 2,
+                            },
+                            None,
+                            None,
+                        )
+                        .expect("Failed to move popup to its location");
 
-                api.set_text_color(0xffffff);
-                api.write_text(&text, padding, padding, false, false);
+                    api.set_text_color(0xffffff);
+                    api.write_text(&text, padding, padding, false, false);
+                }
+                _ => {}
             }
-            _ => {}
+            Ok(())
         });
 
         self.window = Some(window);

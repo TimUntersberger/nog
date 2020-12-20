@@ -58,6 +58,7 @@ impl Class {
         .set_op_impl(Operator::Or, |_, this, args| {
             let lhs = this.is_true();
             let rhs = args[0].is_true();
+            dbg!(lhs || rhs);
             Ok(lhs || rhs)
         })
         .set_op_impl(Operator::Add, |_, this, args| Ok(this + args[0].clone()))

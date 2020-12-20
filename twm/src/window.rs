@@ -1,3 +1,4 @@
+use interpreter::RuntimeResult;
 use log::error;
 use parking_lot::Mutex;
 use std::{
@@ -68,7 +69,7 @@ unsafe extern "system" fn window_cb(
     DefWindowProcA(hwnd, msg, w_param, l_param)
 }
 
-fn convert_color_to_winapi(color: u32) -> u32 {
+pub fn convert_color_to_winapi(color: u32) -> u32 {
     RGB(GetRValue(color), GetGValue(color), GetBValue(color))
 }
 
@@ -285,7 +286,7 @@ impl Window {
 
         Ok(())
     }
-    pub fn create<TEventHandler: Fn(&WindowEvent) -> () + Sync + Send + 'static>(
+    pub fn create<TEventHandler: Fn(&WindowEvent) -> RuntimeResult<()> + Sync + Send + 'static>(
         &mut self,
         state_arc: Arc<Mutex<AppState>>,
         show: bool,
@@ -383,6 +384,11 @@ impl Window {
                         let display_id = fail_with!(window.get_display(), true).id;
                         let hdc = GetDC(hwnd);
                         let msg = *(msg.wParam as *const WindowMsg);
+                        let call_handler = |event| {
+                            if let Err(e) = event_handler(event) {
+                                error!("{}", e.message());
+                            }
+                        };
 
                         if msg.code == WM_PAINT {
                             let mut paint = PAINTSTRUCT::default();
@@ -419,7 +425,7 @@ impl Window {
                                 background_color,
                             };
 
-                            event_handler(&WindowEvent::Draw {
+                            call_handler(&WindowEvent::Draw {
                                 display: &display,
                                 id: window.id,
                                 state: &state,
@@ -435,7 +441,7 @@ impl Window {
                             let state = state.lock();
                             let display =
                                 state.displays.iter().find(|d| d.id == display_id).unwrap();
-                            event_handler(&WindowEvent::Click {
+                            call_handler(&WindowEvent::Click {
                                 id: window.id,
                                 x: point.x - win_rect.left,
                                 y: point.y - win_rect.top,
@@ -447,7 +453,7 @@ impl Window {
                             let display =
                                 state.displays.iter().find(|d| d.id == display_id).unwrap();
 
-                            event_handler(&WindowEvent::Close {
+                            call_handler(&WindowEvent::Close {
                                 id: window.id,
                                 display: &display,
                             });
@@ -455,7 +461,7 @@ impl Window {
                             let state = state.lock();
                             let display =
                                 state.displays.iter().find(|d| d.id == display_id).unwrap();
-                            event_handler(&WindowEvent::Create {
+                            call_handler(&WindowEvent::Create {
                                 id: window.id,
                                 display: &display,
                             });
@@ -473,7 +479,7 @@ impl Window {
                                 background_color,
                             };
 
-                            event_handler(&WindowEvent::MouseMove {
+                            call_handler(&WindowEvent::MouseMove {
                                 id: window.id,
                                 display: &display,
                                 api,
@@ -484,7 +490,7 @@ impl Window {
                             let state = state.lock();
                             let display =
                                 state.displays.iter().find(|d| d.id == display_id).unwrap();
-                            event_handler(&WindowEvent::Native {
+                            call_handler(&WindowEvent::Native {
                                 msg,
                                 display: &display,
                             });

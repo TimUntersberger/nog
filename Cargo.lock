@@ -1503,6 +1503,7 @@ dependencies = [
  "dirs",
  "flexi_logger",
  "interpreter",
+ "itertools",
  "lazy_static",
  "log",
  "notify",
