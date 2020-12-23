@@ -1,10 +1,14 @@
-use super::{Component, ComponentText};
+use super::{AppState, Component, ComponentText};
+use crate::system::DisplayId;
+use parking_lot::Mutex;
+use std::sync::Arc;
 
-pub fn create() -> Component {
-    Component::new("CurrentWindow", |ctx| {
+pub fn create(state_arc: Arc<Mutex<AppState>>) -> Component {
+    Component::new("CurrentWindow", move |display_id| {
         Ok(vec![ComponentText::new().with_display_text(
-            ctx.state
-                .get_display_by_id(ctx.display.id)
+            state_arc
+                .lock()
+                .get_display_by_id(display_id)
                 .and_then(|d| d.get_focused_grid())
                 .and_then(|g| g.get_focused_window())
                 .map(|w| w.title.clone())

@@ -225,11 +225,8 @@ impl KbManager {
                 if let Some(kb) = do_loop(&inner) {
                     let work_mode = state.lock().work_mode;
                     if work_mode || kb.always_active {
-                        state
-                            .lock()
-                            .event_channel
-                            .sender
-                            .clone()
+                        let sender = state.lock().event_channel.sender.clone();
+                        sender
                             .send(Event::Keybinding(kb))
                             .expect("Failed to send key event");
                     }

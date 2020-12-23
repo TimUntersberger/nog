@@ -29,6 +29,14 @@ macro_rules! object {
     };
 }
 
+/// Converts the given value into a rust value
+#[macro_export]
+macro_rules! rust_value {
+    ($enum: expr) => {
+        cast!($enum, Dynamic::RustValue, "RustValue")
+    };
+}
+
 /// Converts the given value into a boolean
 #[macro_export]
 macro_rules! boolean {

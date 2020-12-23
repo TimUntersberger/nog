@@ -19,9 +19,9 @@ mod runtime_error;
 mod scope;
 mod token;
 
+pub use crate::interpreter::Interpreter;
 pub use class::Class;
 pub use dynamic::Dynamic;
 pub use function::Function;
-pub use interpreter::Interpreter;
 pub use module::Module;
 pub use runtime_error::{RuntimeError, RuntimeResult};

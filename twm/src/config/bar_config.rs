@@ -1,26 +1,10 @@
-use crate::bar::component::{self, Component};
+use crate::bar::component::Component;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct BarComponentsConfig {
     pub left: Vec<Component>,
     pub center: Vec<Component>,
     pub right: Vec<Component>,
-}
-
-impl Default for BarComponentsConfig {
-    fn default() -> Self {
-        Self {
-            left: vec![component::workspaces::create()],
-            center: vec![component::time::create("%T".into())],
-            right: vec![
-                component::split_direction::create("V".into(), "H".into()),
-                component::active_mode::create(),
-                component::padding::create(5),
-                component::date::create("%e %b %Y".into()),
-                component::padding::create(1),
-            ],
-        }
-    }
 }
 
 impl BarComponentsConfig {

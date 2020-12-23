@@ -291,6 +291,12 @@ impl Interpreter {
                         _ => unreachable!(rhs),
                     },
                     Operator::Assign => {
+                        // TODO: SUPPORT COMPLEX ASSIGN LHS
+                        // let (lhs, rhs) = match lhs.as_ref() {
+                        //     Expression::PostOp(lhs, op, value) => {},
+                        //     Expression::BinaryOp(lhs, op, rhs) => {},
+                        //     rest => todo!("{:?}", rest)
+                        // };
                         let path_str = lhs.to_string();
                         let path_tokens = path_str.split(".").collect::<Vec<&str>>();
                         let path_tokens_len = path_tokens.len();
@@ -313,7 +319,7 @@ impl Interpreter {
                     } else {
                         return Err(RuntimeError::StaticFunctionNotFound {
                             class: class_name.unwrap().clone(),
-                            function_name: field_name
+                            function_name: field_name,
                         });
                     }
                 } else {
@@ -933,6 +939,27 @@ fn create_default_classes() -> HashMap<String, Class> {
                 let this = this_ref.lock().unwrap();
 
                 Ok(this.keys().cloned().collect::<Vec<String>>())
+            })
+            .add_function("insert", |_, this, args| {
+                let this_ref = object!(this)?;
+                let mut this = this_ref.lock().unwrap();
+
+                let key = args[0].clone();
+                let value = args[1].clone();
+
+                this.insert(key.to_string(), value);
+
+                Ok(())
+            })
+            .add_function("remove", |_, this, args| {
+                let this_ref = object!(this)?;
+                let mut this = this_ref.lock().unwrap();
+
+                let key = args[0].clone();
+
+                this.remove(&key.to_string());
+
+                Ok(())
             }),
     );
     classes.push(Class::new("Boolean"));

@@ -29,8 +29,13 @@ use winapi::{
 };
 
 use crate::{
-    display::Display, message_loop, system::NativeWindow, system::Rectangle, system::SystemResult,
-    system::WindowId, util, AppState,
+    display::Display,
+    message_loop,
+    system::NativeWindow,
+    system::Rectangle,
+    system::SystemResult,
+    system::{DisplayId, WindowId},
+    util, AppState,
 };
 
 pub mod gwl_ex_style;
@@ -78,7 +83,6 @@ pub struct Api {
     pub hdc: i32,
     pub background_color: i32,
     pub window: NativeWindow,
-    pub display: Display,
 }
 
 impl Api {
@@ -151,39 +155,44 @@ impl Api {
 }
 
 #[derive(Debug)]
-pub enum WindowEvent<'a> {
+pub enum WindowEvent {
     Click {
-        display: &'a Display,
-        id: WindowId,
+        display_id: DisplayId,
+        window_id: WindowId,
         x: i32,
         y: i32,
-        state: &'a AppState,
+        state_arc: Arc<Mutex<AppState>>,
     },
     Create {
-        display: &'a Display,
-        id: WindowId,
+        display_id: DisplayId,
+        window_id: WindowId,
+        state_arc: Arc<Mutex<AppState>>,
     },
-    /// This never gets sent on windows (Working on a fix)
+    /// TODO: This never gets sent on windows
     Close {
-        display: &'a Display,
-        id: WindowId,
+        display_id: DisplayId,
+        window_id: WindowId,
+        state_arc: Arc<Mutex<AppState>>,
     },
     Draw {
-        display: &'a Display,
-        id: WindowId,
-        state: &'a AppState,
+        display_id: DisplayId,
+        window_id: WindowId,
+        state_arc: Arc<Mutex<AppState>>,
         api: Api,
     },
     MouseMove {
-        display: &'a Display,
-        id: WindowId,
+        display_id: DisplayId,
+        window_id: WindowId,
+        state_arc: Arc<Mutex<AppState>>,
         api: Api,
         x: i32,
         y: i32,
     },
     Native {
+        display_id: DisplayId,
+        window_id: WindowId,
+        state_arc: Arc<Mutex<AppState>>,
         msg: WindowMsg,
-        display: &'a Display,
     },
 }
 
@@ -415,20 +424,16 @@ impl Window {
 
                             SetBkColor(hdc, background_color as u32);
 
-                            let state = state.lock();
-                            let display =
-                                state.displays.iter().find(|d| d.id == display_id).unwrap();
                             let api = Api {
                                 hdc: hdc as i32,
                                 window: window.clone(),
-                                display: display.clone(),
                                 background_color,
                             };
 
                             call_handler(&WindowEvent::Draw {
-                                display: &display,
-                                id: window.id,
-                                state: &state,
+                                display_id,
+                                window_id: window.id,
+                                state_arc: state_arc.clone(),
                                 api,
                             });
 
@@ -438,61 +443,51 @@ impl Window {
                             let mut point = POINT::default();
                             GetCursorPos(&mut point);
                             let win_rect = window.get_rect().unwrap();
-                            let state = state.lock();
-                            let display =
-                                state.displays.iter().find(|d| d.id == display_id).unwrap();
+
                             call_handler(&WindowEvent::Click {
-                                id: window.id,
+                                display_id,
+                                window_id: window.id,
+                                state_arc: state_arc.clone(),
                                 x: point.x - win_rect.left,
                                 y: point.y - win_rect.top,
-                                state: &state,
-                                display: &display,
                             });
                         } else if msg.code == WM_CLOSE {
-                            let state = state.lock();
-                            let display =
-                                state.displays.iter().find(|d| d.id == display_id).unwrap();
-
                             call_handler(&WindowEvent::Close {
-                                id: window.id,
-                                display: &display,
+                                display_id,
+                                window_id: window.id,
+                                state_arc: state_arc.clone(),
                             });
                         } else if msg.code == WM_CREATE {
-                            let state = state.lock();
-                            let display =
-                                state.displays.iter().find(|d| d.id == display_id).unwrap();
                             call_handler(&WindowEvent::Create {
-                                id: window.id,
-                                display: &display,
+                                display_id,
+                                window_id: window.id,
+                                state_arc: state_arc.clone(),
                             });
                         } else if msg.code == WM_MOUSEMOVE {
                             let mut point = POINT::default();
                             GetCursorPos(&mut point);
                             let win_rect = window.get_rect().unwrap();
-                            let state = state.lock();
-                            let display =
-                                state.displays.iter().find(|d| d.id == display_id).unwrap();
+
                             let api = Api {
                                 hdc: hdc as i32,
                                 window: window.clone(),
-                                display: display.clone(),
                                 background_color,
                             };
 
                             call_handler(&WindowEvent::MouseMove {
-                                id: window.id,
-                                display: &display,
+                                display_id,
+                                window_id: window.id,
+                                state_arc: state_arc.clone(),
                                 api,
                                 x: point.x - win_rect.left,
                                 y: point.y - win_rect.top,
                             });
                         } else {
-                            let state = state.lock();
-                            let display =
-                                state.displays.iter().find(|d| d.id == display_id).unwrap();
                             call_handler(&WindowEvent::Native {
+                                display_id,
+                                window_id: window.id,
+                                state_arc: state_arc.clone(),
                                 msg,
-                                display: &display,
                             });
                         }
 

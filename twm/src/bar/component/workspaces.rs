@@ -1,25 +1,30 @@
 use super::{Component, ComponentText};
-use crate::{util, Event};
+use crate::{util, AppState, Event};
+use parking_lot::Mutex;
+use std::sync::Arc;
 
-pub fn create() -> Component {
-    Component::new("Workspaces", |ctx| {
-        let light_theme = ctx.state.config.light_theme;
-        let workspace_settings = ctx.state.config.workspace_settings.clone();
-        let bar_color = ctx.state.config.bar.color;
+pub fn create(state_arc: Arc<Mutex<AppState>>) -> Component {
+    let state_arc2 = state_arc.clone();
+    Component::new("Workspaces", move |display_id| {
+        let state = state_arc.lock();
+        let light_theme = state.config.light_theme;
+        let workspace_settings = state.config.workspace_settings.clone();
+        let bar_color = state.config.bar.color;
 
-        Ok(ctx
-            .display
+        Ok(state
+            .get_display_by_id(display_id)
+            .unwrap()
             .get_active_grids()
             .iter()
             .map(|grid| {
                 let factor = if light_theme {
-                    if ctx.state.workspace_id == grid.id {
+                    if state.workspace_id == grid.id {
                         0.75
                     } else {
                         0.9
                     }
                 } else {
-                    if ctx.state.workspace_id == grid.id {
+                    if state.workspace_id == grid.id {
                         2.0
                     } else {
                         1.5
@@ -39,12 +44,12 @@ pub fn create() -> Component {
             })
             .collect())
     })
-    .with_on_click(|ctx| {
-        let id = *ctx.value.downcast_ref::<i32>().unwrap();
-        ctx.state
+    .with_on_click(move |_, value, _| {
+        let id = *value.downcast_ref::<i32>().unwrap();
+        state_arc2
+            .lock()
             .event_channel
             .sender
-            .clone()
             .send(Event::ChangeWorkspace(id, true));
 
         Ok(())

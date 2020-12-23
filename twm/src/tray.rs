@@ -57,8 +57,8 @@ pub fn create(state: Arc<Mutex<AppState>>) {
 
     window.create(state_arc, false, move |event| {
         match event {
-            WindowEvent::Create { id, .. } => {
-                add_icon(id.to_owned().into());
+            WindowEvent::Create { window_id, .. } => {
+                add_icon(window_id.to_owned().into());
             }
             WindowEvent::Close { .. } => {
                 sender.send(Event::Exit).expect("Failed to send exit event");

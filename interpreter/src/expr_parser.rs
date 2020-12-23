@@ -251,10 +251,10 @@ fn parse_arrow_fn<T: Iterator<Item = Token>>(
                             break;
                         }
                         depth -= 1;
-                    },
+                    }
                     TokenKind::LCurly => {
                         depth += 1;
-                    },
+                    }
                     _ => {}
                 };
                 tokens.push(rest.next().unwrap());
@@ -378,6 +378,7 @@ where
                 | TokenKind::RCurly
                 | TokenKind::LParan
                 | TokenKind::LBracket
+                | TokenKind::RBracket
                 | TokenKind::Return
                 | TokenKind::Colon
                 | TokenKind::Error
@@ -448,6 +449,7 @@ where
                 while let Some(next) = rest.next() {
                     match next.0 {
                         TokenKind::RBracket => {
+                            self.prev_token = next.clone();
                             if depth == 0 {
                                 if !arg_tokens.is_empty() {
                                     args.push(self.parse(&mut arg_tokens.clone().into_iter())?);
@@ -456,8 +458,9 @@ where
                             }
 
                             depth -= 1;
-                        },
+                        }
                         TokenKind::Comma => {
+                            self.prev_token = next.clone();
                             if depth == 0 {
                                 if !arg_tokens.is_empty() {
                                     args.push(self.parse(&mut arg_tokens.clone().into_iter())?);
@@ -465,11 +468,11 @@ where
                                 arg_tokens.clear();
                                 continue;
                             }
-                        },
+                        }
                         TokenKind::RParan | TokenKind::RCurly => depth -= 1,
                         TokenKind::LBracket | TokenKind::LCurly | TokenKind::LParan => {
                             depth += 1;
-                        },
+                        }
                         _ => {}
                     };
 
@@ -1110,6 +1113,14 @@ mod test {
         assert_eq!(
             parse("2 * -2 + 1"),
             binary(binary(number(2), "*", pre("-", number(2))), "+", number(1))
+        );
+    }
+
+    #[test]
+    fn this_kw_index_op() {
+        assert_eq!(
+            parse("this.layouts[id]"),
+            index_op(dot_op(ident("this"), ident("layouts")), ident("id"))
         );
     }
 

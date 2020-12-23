@@ -1,5 +1,6 @@
 use itertools::Itertools;
 use std::{
+    any::Any,
     collections::HashMap,
     fmt::{Debug, Display},
     sync::Arc,
@@ -25,6 +26,7 @@ pub type Number = i32;
 pub enum Dynamic {
     String(String),
     Number(Number),
+    RustValue(Arc<Box<dyn Any + Send + Sync>>),
     Boolean(bool),
     Lazy(Expression),
     Array(Arc<Mutex<Vec<Dynamic>>>),
@@ -170,6 +172,7 @@ impl Dynamic {
         match self {
             Dynamic::String(_) => "String",
             Dynamic::Number(_) => "Number",
+            Dynamic::RustValue(_) => "RustValue",
             Dynamic::Lazy(_) => "Lazy",
             Dynamic::Module(_) => "Module",
             Dynamic::Boolean(_) => "Boolean",
@@ -362,15 +365,33 @@ impl From<&str> for Dynamic {
     }
 }
 
-impl From<Number> for Dynamic {
-    fn from(val: Number) -> Self {
-        Dynamic::Number(val)
+impl From<usize> for Dynamic {
+    fn from(val: usize) -> Self {
+        Dynamic::Number(val as Number)
+    }
+}
+
+impl From<i32> for Dynamic {
+    fn from(val: i32) -> Self {
+        Dynamic::Number(val as Number)
+    }
+}
+
+impl From<i64> for Dynamic {
+    fn from(val: i64) -> Self {
+        Dynamic::Number(val as Number)
     }
 }
 
 impl From<()> for Dynamic {
     fn from(_: ()) -> Self {
         Dynamic::Null
+    }
+}
+
+impl From<Arc<Box<dyn Any + Send + Sync>>> for Dynamic {
+    fn from(ptr: Arc<Box<dyn Any + Send + Sync>>) -> Self {
+        Dynamic::RustValue(ptr.clone())
     }
 }
 
@@ -416,6 +437,7 @@ impl Display for Dynamic {
         f.write_str(&match self {
             Dynamic::Boolean(boolean) => boolean.to_string(),
             Dynamic::String(string) => string.clone(),
+            Dynamic::RustValue(expr) => todo!(),
             Dynamic::Lazy(expr) => todo!(),
             Dynamic::Module(module) => format!("module {:#?}", module),
             Dynamic::Class(class) => format!("class {}", class.name),

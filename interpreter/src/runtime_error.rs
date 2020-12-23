@@ -3,21 +3,40 @@ use super::operator::Operator;
 
 #[derive(Clone, Debug)]
 pub enum RuntimeError {
-    StaticFunctionNotFound { class: String, function_name: String },
-    ClassNotFound { name: String },
-    ModuleNotFound { name: String },
-    Raw { msg: String },
-    UnexpectedType { expected: String, actual: String },
-    OperatorNotImplemented { class: String, operator: Operator },
+    StaticFunctionNotFound {
+        class: String,
+        function_name: String,
+    },
+    ClassNotFound {
+        name: String,
+    },
+    ModuleNotFound {
+        name: String,
+    },
+    Raw {
+        msg: String,
+    },
+    UnexpectedType {
+        expected: String,
+        actual: String,
+    },
+    OperatorNotImplemented {
+        class: String,
+        operator: Operator,
+    },
 }
 
 impl RuntimeError {
     pub fn message(self) -> String {
         match self {
             RuntimeError::Raw { msg } => msg,
-            RuntimeError::StaticFunctionNotFound { class, function_name } => {
-                format!("Class {} doesn't have a static function called {}", &class, &function_name)
-            }
+            RuntimeError::StaticFunctionNotFound {
+                class,
+                function_name,
+            } => format!(
+                "Class {} doesn't have a static function called {}",
+                &class, &function_name
+            ),
             RuntimeError::ClassNotFound { name } => {
                 format!("Class {} couldn't be found in the current scope", &name)
             }

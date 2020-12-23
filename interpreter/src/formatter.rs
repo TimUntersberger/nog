@@ -38,21 +38,32 @@ impl<'a> Formatter<'a> {
                     .map(|expr| self.format_expr(expr))
                     .join(", ")
             ),
-            Expression::ObjectLiteral(fields) => format!(
-                "#{{\n{}\n{}}}",
-                {
-                    self.level += 1;
-                    let body = fields
-                        .iter()
-                        .map(|(k, v)| {
-                            format!("{}\"{}\": {}", self.indentation(), k, self.format_expr(v))
-                        })
-                        .join(",\n");
-                    self.level -= 1;
-                    body
-                },
-                self.indentation()
-            ),
+            Expression::ObjectLiteral(fields) => {
+                if fields.is_empty() {
+                    format!("#{{}}")
+                } else {
+                    format!(
+                        "#{{\n{}\n{}}}",
+                        {
+                            self.level += 1;
+                            let body = fields
+                                .iter()
+                                .map(|(k, v)| {
+                                    format!(
+                                        "{}\"{}\": {}",
+                                        self.indentation(),
+                                        k,
+                                        self.format_expr(v)
+                                    )
+                                })
+                                .join(",\n");
+                            self.level -= 1;
+                            body
+                        },
+                        self.indentation()
+                    )
+                }
+            }
             Expression::ArrowFunction(args, body) => {
                 if body.len() == 1 {
                     let body = body.get(0).unwrap();
@@ -224,7 +235,7 @@ impl<'a> Formatter<'a> {
                                     if default == &Expression::Null {
                                         format!("var {}", name)
                                     } else {
-                                        format!("var {} = {}", name, default.to_string())
+                                        format!("var {} = {}", name, self.format_expr(default))
                                     }
                                 }
                                 ClassMember::Function(name, args, body) => {

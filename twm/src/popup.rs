@@ -86,14 +86,25 @@ impl Popup {
 
         let t = window.create(state_arc, true, move |event| {
             match event {
-                WindowEvent::Draw { api, .. } => {
+                WindowEvent::Draw {
+                    api,
+                    display_id,
+                    state_arc,
+                    ..
+                } => {
+                    let (display_width, display_height) = {
+                        let state = state_arc.lock();
+                        let display = state.get_display_by_id(*display_id).unwrap();
+
+                        (display.width(), display.height())
+                    };
                     let rect = api.calculate_text_rect(&text);
 
                     let height = rect.height();
                     let width = rect.width();
 
-                    let x = api.display.width() / 2 - width / 2 - padding;
-                    let y = api.display.height() / 2 - height / 2 - padding;
+                    let x = display_width / 2 - width / 2 - padding;
+                    let y = display_height / 2 - height / 2 - padding;
 
                     api.window
                         .set_window_pos(

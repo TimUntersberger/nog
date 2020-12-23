@@ -37,7 +37,7 @@ impl PartialEq<i32> for WindowId {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialOrd, PartialEq, Hash, Eq)]
-pub struct DisplayId(i32);
+pub struct DisplayId(pub i32);
 
 impl PartialEq<i32> for DisplayId {
     fn eq(&self, other: &i32) -> bool {

@@ -1,9 +1,12 @@
-use super::{Component, ComponentText};
+use super::{AppState, Component, ComponentText};
+use parking_lot::Mutex;
+use std::sync::Arc;
 
-pub fn create() -> Component {
-    Component::new("ActiveMode", |ctx| {
+pub fn create(state_arc: Arc<Mutex<AppState>>) -> Component {
+    Component::new("ActiveMode", move |_| {
         Ok(vec![ComponentText::new().with_display_text(
-            ctx.state
+            state_arc
+                .lock()
                 .keybindings_manager
                 .get_mode()
                 .map(|m| format!("{} is active", m))
