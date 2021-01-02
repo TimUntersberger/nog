@@ -2,8 +2,7 @@ use std::ptr;
 
 use crate::{
     display::Display, keybindings::keybinding::Keybinding, system::DisplayId, system::Rectangle,
-    system::SystemError, system::SystemResult, system::WindowId, task_bar::Taskbar,
-    task_bar::TaskbarPosition, util,
+    system::SystemError, system::SystemResult, system::WindowId, task_bar::Taskbar, util,
 };
 use log::{debug, error};
 use regex::Regex;

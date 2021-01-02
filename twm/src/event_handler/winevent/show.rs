@@ -27,7 +27,7 @@ pub fn handle(state: &mut AppState, mut window: NativeWindow, force: bool) -> Sy
                             .chain(state.additonal_rules.iter())
                             .collect();
 
-    window.set_matching_rule(&rules);
+    window.set_matching_rule(rules);
 
     let parent = window.get_parent_window();
     let rule = window.rule.clone().unwrap_or_default();

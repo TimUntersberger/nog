@@ -751,8 +751,7 @@ fn parse_config(
 
     let mut config_path: PathBuf = dirs::config_dir().unwrap_or_default();
     config_path.push("nog");
-    let mut plugins_path = config_path.clone();
-    plugins_path.push("plugins");
+    let mut plugins_path = get_plugins_path().unwrap_or_default();
 
     config.lock().path = config_path.clone();
     interpreter.source_locations.push(config_path.clone());
@@ -760,11 +759,6 @@ fn parse_config(
     if !config_path.exists() {
         debug!("nog folder doesn't exist yet. Creating the folder");
         std::fs::create_dir(config_path.clone()).map_err(|e| e.to_string())?;
-    }
-
-    if !plugins_path.exists() {
-        debug!("plugins folder doesn't exist yet. Creating the folder");
-        std::fs::create_dir(plugins_path.clone()).map_err(|e| e.to_string())?;
     }
 
     config.lock().plugins_path = plugins_path.clone();
@@ -919,21 +913,32 @@ fn run(
     Ok(())
 }
 
-fn get_plugins_path_iter() -> ReadDir {
+fn get_plugins_path() -> Result<PathBuf, String> {
     let mut plugins_path: PathBuf = dirs::config_dir().unwrap_or_default();
     plugins_path.push("nog");
     plugins_path.push("plugins");
 
-    plugins_path.read_dir().unwrap()
+    if !plugins_path.exists() {
+        debug!("plugins folder doesn't exist yet. Creating the folder");
+        std::fs::create_dir(plugins_path.clone()).map_err(|e| e.to_string())?;
+    }
+
+    Ok(plugins_path)
+}
+
+fn get_plugins_path_iter() -> Result<ReadDir, String> {
+    Ok(get_plugins_path()?.read_dir().unwrap())
 }
 
 /// Fill source_locations of interpreter with plugin paths
 fn load_plugin_source_locations(i: &mut Interpreter) {
-    for dir in get_plugins_path_iter() {
-        if let Ok(dir) = dir {
-            let mut path = dir.path();
-            path.push("plugin");
-            i.source_locations.push(path);
+    if let Ok(dirs) = get_plugins_path_iter() {
+        for dir in dirs {
+            if let Ok(dir) = dir {
+                let mut path = dir.path();
+                path.push("plugin");
+                i.source_locations.push(path);
+            }
         }
     }
 }
