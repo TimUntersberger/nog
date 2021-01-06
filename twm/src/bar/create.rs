@@ -269,6 +269,7 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
                         .unwrap()
                         .appbar
                         .clone();
+
                     if let Some(bar) = bar {
                         let working_area_width = display.working_area_width(&config);
                         let left =

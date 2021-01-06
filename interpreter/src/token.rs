@@ -143,6 +143,22 @@ impl From<(TokenKind, Range<usize>)> for Token {
     }
 }
 
+pub fn calculate_range(tokens: &[Token]) -> Range<usize> {
+    match tokens.len() {
+        0 => 0..0,
+        1 => {
+            let first = tokens.iter().next().unwrap().1.clone();
+            first.clone()
+        }
+        _ => {
+            let mut iter = tokens.iter();
+            let first = iter.next().unwrap().1.clone();
+            let last = iter.last().unwrap().1.clone();
+            first.start..last.end
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::Token;

@@ -259,7 +259,10 @@ pub fn create_root_module(
         m = m.function("split_direction", move |_, args| {
             let vertical = string!(&args[0])?.clone();
             let horizontal = string!(&args[1])?.clone();
-            Ok(component::split_direction::create(state.clone(), vertical, horizontal).into_dynamic(state.clone()))
+            Ok(
+                component::split_direction::create(state.clone(), vertical, horizontal)
+                    .into_dynamic(state.clone()),
+            )
         });
 
         let state = state_arc.clone();

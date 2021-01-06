@@ -692,7 +692,11 @@ fn parse_config(
     interpreter_arc: Arc<Mutex<Interpreter>>,
 ) -> Result<Config, String> {
     callbacks_arc.lock().clear();
-    let config = Arc::new(Mutex::new(Config::default()));
+    let mut config = Config::default();
+
+    config.bar.use_default_components(state_arc.clone());
+
+    let config = Arc::new(Mutex::new(config));
     let mut interpreter = Interpreter::new();
 
     let is_init_inner = Arc::new(AtomicBool::new(true));
@@ -752,8 +756,6 @@ fn parse_config(
     *interpreter_arc.lock() = interpreter;
 
     let cfg = config.lock();
-
-    dbg!(&cfg.bar.color);
 
     Ok(cfg.clone())
 }
@@ -816,10 +818,15 @@ fn run(
                         sender.send(Event::CallCallback { idx: kb.callback_id, is_mode_callback: false } ).unwrap();
                         Ok(())
                     },
+                    Event::ConfigError(err) => {
+                        error!("{}", err.message(&interpreter_arc.lock().program()));
+
+                        Ok(())
+                    }
                     Event::CallCallback { idx, is_mode_callback } => {
                         let cb = callbacks_arc.lock().get(idx).unwrap().clone();
                         if let Err(e) = cb.invoke(&mut interpreter_arc.lock(), vec![]) {
-                            error!("{}", e.message());
+                            state_arc.lock().event_channel.sender.send(Event::ConfigError(e)).unwrap();
                         }
                         if is_mode_callback {
                             state_arc.lock().keybindings_manager.sender.send(keybindings::ChanMessage::ModeCbExecuted);
@@ -921,18 +928,11 @@ fn main() {
             let state_arc = state_arc.clone();
             Popup::error(vec![e], state_arc);
         })
-        .unwrap_or_default();
-
-        config.bar.components.left = vec![component::workspaces::create(state_arc.clone())];
-        config.bar.components.center = vec![component::time::create("%T".into())];
-        config.bar.components.right = vec![
-            component::active_mode::create(state_arc.clone()),
-            component::padding::create(5),
-            component::split_direction::create(state_arc.clone(), "V".into(), "H".into()),
-            component::padding::create(5),
-            component::date::create("%e %b %Y".into()),
-            component::padding::create(1),
-        ];
+        .unwrap_or_else(|_| {
+            let mut config = Config::default();
+            config.bar.use_default_components(state_arc.clone());
+            config
+        });
 
         state_arc.lock().init(config)
     }

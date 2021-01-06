@@ -8,7 +8,7 @@ use std::{
 };
 
 use super::{
-    ast::Ast,
+    ast::AstNode,
     class::Class,
     expression::Expression,
     function::Function,
@@ -36,7 +36,7 @@ pub enum Dynamic {
     Function {
         name: String,
         arg_names: Vec<String>,
-        body: Vec<Ast>,
+        body: Vec<AstNode>,
         scope: Scope,
     },
     RustFunction {

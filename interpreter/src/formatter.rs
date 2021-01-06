@@ -3,7 +3,11 @@ use std::fmt::Display;
 use itertools::Itertools;
 
 use super::{
-    ast::Ast, ast::ClassMember, expression::Expression, interpreter::Program, operator::Operator,
+    ast::ClassMember,
+    ast::{AstKind, AstNode},
+    expression::{Expression, ExpressionKind},
+    interpreter::Program,
+    operator::Operator,
 };
 
 pub struct Formatter<'a> {
@@ -17,28 +21,28 @@ impl<'a> Formatter<'a> {
     }
 
     pub fn format_expr(&mut self, expr: &Expression) -> String {
-        match expr {
-            Expression::Null => "null".into(),
-            Expression::StringLiteral(text) => format!(
+        match &expr.kind {
+            ExpressionKind::Null => "null".into(),
+            ExpressionKind::StringLiteral(text) => format!(
                 "\"{}\"",
                 text.replace("\r", "\\r")
                     .replace("\n", "\\n")
                     .replace("\t", "\\t")
                     .replace("\"", "\\\"")
             ),
-            Expression::Identifier(text)
-            | Expression::ClassIdentifier(text)
-            | Expression::NumberLiteral(text)
-            | Expression::HexLiteral(text)
-            | Expression::BooleanLiteral(text) => text.clone(),
-            Expression::ArrayLiteral(items) => format!(
+            ExpressionKind::Identifier(text)
+            | ExpressionKind::ClassIdentifier(text)
+            | ExpressionKind::NumberLiteral(text)
+            | ExpressionKind::HexLiteral(text)
+            | ExpressionKind::BooleanLiteral(text) => text.clone(),
+            ExpressionKind::ArrayLiteral(items) => format!(
                 "[{}]",
                 items
                     .into_iter()
                     .map(|expr| self.format_expr(expr))
                     .join(", ")
             ),
-            Expression::ObjectLiteral(fields) => {
+            ExpressionKind::ObjectLiteral(fields) => {
                 if fields.is_empty() {
                     format!("#{{}}")
                 } else {
@@ -64,12 +68,12 @@ impl<'a> Formatter<'a> {
                     )
                 }
             }
-            Expression::ArrowFunction(args, body) => {
+            ExpressionKind::ArrowFunction(args, body) => {
                 if body.len() == 1 {
                     let body = body.get(0).unwrap();
-                    match body {
-                        Ast::ReturnStatement(expr) | Ast::Expression(expr) => {
-                            let body = self.format_expr(expr);
+                    match &body.kind {
+                        AstKind::ReturnStatement(expr) | AstKind::Expression(expr) => {
+                            let body = self.format_expr(&expr);
                             format!(
                                 "{} => {}",
                                 if args.len() == 1 {
@@ -99,7 +103,7 @@ impl<'a> Formatter<'a> {
                     )
                 }
             }
-            Expression::ClassInstantiation(name, fields) => format!(
+            ExpressionKind::ClassInstantiation(name, fields) => format!(
                 "{}{{{}}}",
                 name,
                 fields
@@ -107,8 +111,10 @@ impl<'a> Formatter<'a> {
                     .map(|(k, v)| format!("{}: {}", k, self.format_expr(v)))
                     .join("\n")
             ),
-            Expression::PreOp(op, expr) => format!("{}{}", op.to_string(), self.format_expr(expr)),
-            Expression::BinaryOp(lhs, op, rhs) => match op {
+            ExpressionKind::PreOp(op, expr) => {
+                format!("{}{}", op.to_string(), self.format_expr(expr))
+            }
+            ExpressionKind::BinaryOp(lhs, op, rhs) => match op {
                 Operator::Dot => format!(
                     "{}{}{}",
                     self.format_expr(lhs),
@@ -122,9 +128,9 @@ impl<'a> Formatter<'a> {
                     self.format_expr(rhs)
                 ),
             },
-            Expression::PostOp(lhs, op, value) => match op {
+            ExpressionKind::PostOp(lhs, op, value) => match op {
                 Operator::Call => format!("{}({})", self.format_expr(lhs), {
-                    if let Expression::ArrayLiteral(exprs) = value.as_ref().unwrap().as_ref() {
+                    if let ExpressionKind::ArrayLiteral(exprs) = &value.as_ref().unwrap().kind {
                         exprs.iter().map(|expr| self.format_expr(expr)).join(", ")
                     } else {
                         self.format_expr(value.as_ref().unwrap())
@@ -144,7 +150,7 @@ impl<'a> Formatter<'a> {
         args.iter().map(|a| a.to_string()).join(", ")
     }
 
-    fn get_line_ending(&self, ast: &Ast) -> String {
+    fn get_line_ending(&self, ast: &AstNode) -> String {
         match ast {
             // Ast::FunctionDefinition(_, _, _) => "",
             _ => "",
@@ -156,27 +162,30 @@ impl<'a> Formatter<'a> {
         "    ".repeat(self.level)
     }
 
-    fn format_ast(&mut self, ast: &Ast) -> String {
-        match ast {
-            Ast::VariableDefinition(name, value) => {
-                format!("var {} = {}", name, self.format_expr(value))
+    fn format_ast(&mut self, ast: &AstNode) -> String {
+        match &ast.kind {
+            AstKind::VariableDefinition(name, value) => {
+                format!("var {} = {}", name, self.format_expr(&value))
             }
-            Ast::VariableAssignment(name, value) => {
-                format!("{} = {}", name, self.format_expr(value))
+            AstKind::ArrayVariableDefinition(names, value) => {
+                format!("var [{}] = {}", names.join(", "), self.format_expr(&value))
             }
-            Ast::Documentation(lines) => lines
+            AstKind::VariableAssignment(name, value) => {
+                format!("{} = {}", name, self.format_expr(&value))
+            }
+            AstKind::Documentation(lines) => lines
                 .iter()
                 .map(|line| format!("///{}", line))
                 .join(&format!("\n{}", self.indentation())),
-            Ast::Comment(lines) => lines
+            AstKind::Comment(lines) => lines
                 .iter()
                 .map(|line| format!("//{}", line))
                 .join(&format!("\n{}", self.indentation())),
-            Ast::BreakStatement => "break".into(),
-            Ast::ReturnStatement(expr) => format!("return {}", self.format_expr(expr)),
-            Ast::ExportStatement(stmt) => format!("export {}", self.format_ast(stmt)),
-            Ast::ImportStatement(path) => format!("import {}", path),
-            Ast::IfStatement(branches) => branches
+            AstKind::BreakStatement => "break".into(),
+            AstKind::ReturnStatement(expr) => format!("return {}", self.format_expr(&expr)),
+            AstKind::ExportStatement(stmt) => format!("export {}", self.format_ast(&stmt)),
+            AstKind::ImportStatement(path) => format!("import {}", path),
+            AstKind::IfStatement(branches) => branches
                 .iter()
                 .enumerate()
                 .map(|(i, (cond, body))| {
@@ -192,37 +201,37 @@ impl<'a> Formatter<'a> {
                     )
                 })
                 .join(" "),
-            Ast::PlusAssignment(lhs, rhs) => format!("{} += {}", lhs, self.format_expr(rhs)),
-            Ast::MinusAssignment(lhs, rhs) => format!("{} -= {}", lhs, self.format_expr(rhs)),
-            Ast::TimesAssignment(lhs, rhs) => format!("{} *= {}", lhs, self.format_expr(rhs)),
-            Ast::DivideAssignment(lhs, rhs) => format!("{} /= {}", lhs, self.format_expr(rhs)),
-            Ast::FunctionCall(name, args) => format!("{}({})", name, self.format_args(&args)),
-            Ast::FunctionDefinition(name, args, block) => {
+            AstKind::PlusAssignment(lhs, rhs) => format!("{} += {}", lhs, self.format_expr(&rhs)),
+            AstKind::MinusAssignment(lhs, rhs) => format!("{} -= {}", lhs, self.format_expr(&rhs)),
+            AstKind::TimesAssignment(lhs, rhs) => format!("{} *= {}", lhs, self.format_expr(&rhs)),
+            AstKind::DivideAssignment(lhs, rhs) => format!("{} /= {}", lhs, self.format_expr(&rhs)),
+            AstKind::FunctionCall(name, args) => format!("{}({})", name, self.format_args(&args)),
+            AstKind::FunctionDefinition(name, args, block) => {
                 self.level += 1;
-                let body = self.format_stmts(block);
+                let body = self.format_stmts(&block);
                 self.level -= 1;
 
                 format!(
                     "fn {}({}) {{\n{}\n{}}}",
                     name,
-                    self.format_args(args),
+                    self.format_args(&args),
                     body,
                     self.indentation()
                 )
             }
-            Ast::Expression(expr) => self.format_expr(expr),
-            Ast::WhileStatement(cond, body) => {
+            AstKind::Expression(expr) => self.format_expr(&expr),
+            AstKind::WhileStatement(cond, body) => {
                 self.level += 1;
-                let body = self.format_stmts(body);
+                let body = self.format_stmts(&body);
                 self.level -= 1;
                 format!(
                     "while {} {{\n{}\n{}}}",
-                    self.format_expr(cond),
+                    self.format_expr(&cond),
                     body,
                     self.indentation()
                 )
             }
-            Ast::ClassDefinition(name, members) => {
+            AstKind::ClassDefinition(name, members) => {
                 let body = members
                     .iter()
                     .map(|member| {
@@ -232,7 +241,7 @@ impl<'a> Formatter<'a> {
                             self.indentation(),
                             match member {
                                 ClassMember::Field(name, default) => {
-                                    if default == &Expression::Null {
+                                    if default.kind == ExpressionKind::Null {
                                         format!("var {}", name)
                                     } else {
                                         format!("var {} = {}", name, self.format_expr(default))
@@ -265,7 +274,7 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    fn format_stmts(&mut self, stmts: &Vec<Ast>) -> String {
+    fn format_stmts(&mut self, stmts: &Vec<AstNode>) -> String {
         stmts
             .iter()
             .map(|stmt| {

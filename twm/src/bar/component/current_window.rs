@@ -11,7 +11,7 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) -> Component {
                 .get_display_by_id(display_id)
                 .and_then(|d| d.get_focused_grid())
                 .and_then(|g| g.get_focused_window())
-                .map(|w| w.title.clone())
+                .map(|w| w.get_title().unwrap_or_default())
                 .unwrap_or("".into()),
         )])
     })

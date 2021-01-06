@@ -1,11 +1,12 @@
 use super::{
-    ast::Ast,
     ast::ClassMember,
+    ast::{AstKind, AstNode},
     class::Class,
     dynamic::{object_builder::ObjectBuilder, Dynamic, Number},
-    expression::Expression,
+    expression::{Expression, ExpressionKind},
     formatter::Formatter,
     function::Function,
+    lexer::Lexer,
     module::Module,
     operator::Operator,
     parser::Parser,
@@ -14,13 +15,13 @@ use super::{
     token::{Token, TokenKind},
 };
 use itertools::Itertools;
-use std::{collections::HashMap, iter, path::PathBuf, sync::Arc, time::Instant};
+use std::{collections::HashMap, iter, ops::Range, path::PathBuf, sync::Arc, time::Instant};
 
 #[derive(Debug)]
 pub struct Program<'a> {
     pub path: PathBuf,
     pub source: &'a str,
-    pub stmts: Vec<Ast>,
+    pub stmts: Vec<AstNode>,
 }
 
 impl<'a> Default for Program<'a> {
@@ -48,6 +49,23 @@ impl<'a> Program<'a> {
                 .join("\n")
         );
     }
+
+    pub fn range_to_location(&self, range: Range<usize>) -> Option<(usize, usize)> {
+        let mut line = 1;
+        let mut col_start = 0;
+
+        for (idx, c) in self.source.char_indices() {
+            if idx >= range.start {
+                return Some((line, idx - col_start + 1));
+            }
+            if c == '\n' {
+                line += 1;
+                col_start = idx;
+            }
+        }
+
+        None
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -57,6 +75,8 @@ pub struct Interpreter {
     pub source_locations: Vec<PathBuf>,
     /// Contains the current file path to the file being interpreted
     pub file_path: PathBuf,
+    /// Contains the stmts being executed
+    pub stmts: Vec<AstNode>,
     /// Whether to print debug information
     pub debug: bool,
     pub source: String,
@@ -85,6 +105,7 @@ impl Interpreter {
             source_locations: Vec::new(),
             file_path: Default::default(),
             source: Default::default(),
+            stmts: Vec::new(),
             broken: false,
             debug: false,
             continued: false,
@@ -122,6 +143,15 @@ impl Interpreter {
 
     fn module_path_to_name(&self, module_path: &str) -> String {
         module_path.split(".").last().unwrap().to_string()
+    }
+
+    /// Builds a Program using the current state
+    pub fn program(&self) -> Program {
+        Program {
+            stmts: self.stmts.clone(),
+            source: &self.source,
+            path: self.file_path.clone(),
+        }
     }
 
     pub fn find_class(&self, name: &str) -> Option<&Class> {
@@ -229,9 +259,9 @@ impl Interpreter {
     }
 
     fn eval(&mut self, expr: &Expression) -> RuntimeResult {
-        match expr {
-            Expression::PreOp(op, rhs) => {
-                let value = self.eval(rhs)?;
+        match &expr.kind {
+            ExpressionKind::PreOp(op, rhs) => {
+                let value = self.eval(rhs.as_ref())?;
                 Ok(match op {
                     Operator::Subtract => match value {
                         Dynamic::Number(x) => (-x).into(),
@@ -245,8 +275,8 @@ impl Interpreter {
                     _ => Dynamic::Null,
                 })
             }
-            Expression::PostOp(lhs, op, arg) => {
-                let value = self.eval(lhs)?;
+            ExpressionKind::PostOp(lhs, op, arg) => {
+                let value = self.eval(lhs.as_ref())?;
 
                 let arg = arg.as_ref().map(|arg| self.eval(arg.as_ref()));
 
@@ -273,19 +303,20 @@ impl Interpreter {
                     Ok(res)
                 } else {
                     Err(RuntimeError::OperatorNotImplemented {
+                        expr: expr.clone(),
                         class: class.name,
                         operator: op.clone(),
                     })
                 }
             }
-            Expression::BinaryOp(lhs, op, rhs) => {
-                let (class_name, is_static) = match lhs.as_ref() {
-                    Expression::ClassIdentifier(x) => (Some(x), true),
+            ExpressionKind::BinaryOp(lhs, op, rhs) => {
+                let (class_name, is_static) = match &lhs.kind {
+                    ExpressionKind::ClassIdentifier(x) => (Some(x), true),
                     _ => (None, false),
                 };
                 let (lhs, args) = match op {
-                    Operator::Dot => match rhs.as_ref() {
-                        Expression::ClassIdentifier(x) | Expression::Identifier(x) => {
+                    Operator::Dot => match &rhs.kind {
+                        ExpressionKind::ClassIdentifier(x) | ExpressionKind::Identifier(x) => {
                             (self.eval(lhs.as_ref())?, vec![Dynamic::String(x.into())])
                         }
                         _ => unreachable!(rhs),
@@ -303,7 +334,10 @@ impl Interpreter {
                         let path = path_tokens[0..path_tokens_len - 1].join(".");
                         let field = path_tokens[path_tokens_len - 1];
                         (
-                            self.eval(&Expression::Identifier(path.to_string()))?,
+                            self.eval(&Expression::new(
+                                ExpressionKind::Identifier(path.to_string()),
+                                0..0,
+                            ))?,
                             vec![Dynamic::String(field.into()), self.eval(rhs.as_ref())?],
                         )
                     }
@@ -311,14 +345,14 @@ impl Interpreter {
                 };
 
                 if is_static {
-                    let class = self.find_class(class_name.unwrap()).unwrap();
+                    let class = self.find_class(class_name.as_ref().unwrap()).unwrap();
                     let field_name = args[0].clone().as_str().unwrap();
 
                     if let Some(f) = class.static_functions.get(&field_name).cloned() {
                         Ok(f.into())
                     } else {
                         return Err(RuntimeError::StaticFunctionNotFound {
-                            class: class_name.unwrap().clone(),
+                            class: class_name.unwrap().to_string(),
                             function_name: field_name,
                         });
                     }
@@ -327,6 +361,7 @@ impl Interpreter {
 
                     if class.name == "Null" {
                         return Err(RuntimeError::OperatorNotImplemented {
+                            expr: expr.clone(),
                             class: class.name.clone(),
                             operator: op.clone(),
                         });
@@ -343,34 +378,34 @@ impl Interpreter {
                     }
                 }
             }
-            Expression::NumberLiteral(x) => Ok(Dynamic::Number(x.parse().unwrap())),
-            Expression::HexLiteral(x) => {
+            ExpressionKind::NumberLiteral(x) => Ok(Dynamic::Number(x.parse().unwrap())),
+            ExpressionKind::HexLiteral(x) => {
                 Ok(Dynamic::Number(i32::from_str_radix(&x[2..], 16).unwrap()))
             }
-            Expression::BooleanLiteral(x) => Ok(Dynamic::Boolean(x == "true")),
-            Expression::StringLiteral(x) => Ok(Dynamic::String(x.into())),
-            Expression::Null => Ok(Dynamic::Null),
-            Expression::Identifier(key) => Ok(self.find(key).clone()),
-            Expression::ClassIdentifier(name) => Ok(self
-                .find_class(name)
+            ExpressionKind::BooleanLiteral(x) => Ok(Dynamic::Boolean(x == "true")),
+            ExpressionKind::StringLiteral(x) => Ok(Dynamic::String(x.into())),
+            ExpressionKind::Null => Ok(Dynamic::Null),
+            ExpressionKind::Identifier(key) => Ok(self.find(&key).clone()),
+            ExpressionKind::ClassIdentifier(name) => Ok(self
+                .find_class(&name)
                 .map(|c| c.clone().into())
                 .unwrap_or_default()),
-            Expression::ClassInstantiation(name, values) => unreachable!(),
-            Expression::ArrayLiteral(items) => items
+            ExpressionKind::ClassInstantiation(name, values) => unreachable!(),
+            ExpressionKind::ArrayLiteral(items) => items
                 .iter()
                 .map(|expr| self.eval(expr))
                 .collect::<RuntimeResult<Vec<Dynamic>>>()
                 .map(|x| Dynamic::new_array(x)),
-            Expression::ObjectLiteral(fields) => {
+            ExpressionKind::ObjectLiteral(fields) => {
                 let mut evaluated_fields = HashMap::new();
 
                 for (k, v) in fields {
-                    evaluated_fields.insert(k.clone(), self.eval(v)?);
+                    evaluated_fields.insert(k.clone(), self.eval(&v)?);
                 }
 
                 Ok(Dynamic::new_object(evaluated_fields))
             }
-            Expression::ArrowFunction(arg_names, body) => Ok(Dynamic::Function {
+            ExpressionKind::ArrowFunction(arg_names, body) => Ok(Dynamic::Function {
                 name: "<anonymous function>".into(),
                 arg_names: arg_names.into_iter().map(|t| t.into()).collect(),
                 body: body.clone(),
@@ -389,7 +424,7 @@ impl Interpreter {
         scope: Option<Scope>,
         arg_names: &Vec<String>,
         args: &Vec<Dynamic>,
-        body: &Vec<Ast>,
+        body: &Vec<AstNode>,
     ) -> RuntimeResult {
         let mut f_scope = scope.unwrap_or_default();
         for (arg_name, arg) in arg_names.iter().zip(args.iter()) {
@@ -503,19 +538,28 @@ impl Interpreter {
 
         Ok((name.into(), res))
     }
-    fn execute_stmt(&mut self, stmt: &Ast) -> RuntimeResult<()> {
-        match stmt {
-            Ast::VariableDefinition(name, value) => {
-                let value = self.eval(value)?;
+    fn execute_stmt(&mut self, stmt: &AstNode) -> RuntimeResult<()> {
+        match &stmt.kind {
+            AstKind::VariableDefinition(name, value) => {
+                let value = self.eval(&value)?;
                 self.get_scope_mut().set(name.clone(), value)
             }
-            Ast::Documentation(_) => {}
-            Ast::Comment(_) => {}
-            Ast::VariableAssignment(name, value) => {
-                let value = self.eval(value)?;
+            AstKind::ArrayVariableDefinition(names, value) => {
+                let value = self.eval(&value)?;
+                let arr_ref = array!(value)?;
+                let arr = arr_ref.lock().unwrap();
+                let scope = self.get_scope_mut();
+                for (i, name) in names.iter().enumerate() {
+                    scope.set(name.clone(), arr.get(i).cloned().unwrap_or_default())
+                }
+            }
+            AstKind::Documentation(_) => {}
+            AstKind::Comment(_) => {}
+            AstKind::VariableAssignment(name, value) => {
+                let value = self.eval(&value)?;
                 self.assign_variable(name.clone(), value)
             }
-            Ast::FunctionCall(name, arg_values) => match self.find(name).clone() {
+            AstKind::FunctionCall(name, arg_values) => match self.find(&name).clone() {
                 Dynamic::Function {
                     arg_names,
                     body,
@@ -542,7 +586,7 @@ impl Interpreter {
                 }
                 actual => panic!("Expected {} to be a function, but it is a {}", name, actual),
             },
-            Ast::FunctionDefinition(name, args, body) => {
+            AstKind::FunctionDefinition(name, args, body) => {
                 let flat_scope = (&self.scopes).into();
                 let scope = self.get_scope_mut();
                 scope.set(
@@ -555,26 +599,26 @@ impl Interpreter {
                     },
                 )
             }
-            Ast::IfStatement(branches) => {
+            AstKind::IfStatement(branches) => {
                 for (cond, block) in branches {
-                    if self.eval(cond)?.is_true() {
+                    if self.eval(&cond)?.is_true() {
                         self.scopes.push(Scope::default());
-                        self.execute_stmts(block)?;
+                        self.execute_stmts(&block)?;
                         self.scopes.pop();
                         break;
                     }
                 }
             }
-            Ast::WhileStatement(cond, block) => {
-                while !self.broken && self.eval(cond)?.is_true() {
+            AstKind::WhileStatement(cond, block) => {
+                while !self.broken && self.eval(&cond)?.is_true() {
                     self.scopes.push(Scope::default());
-                    self.execute_stmts(block)?;
+                    self.execute_stmts(&block)?;
                     self.scopes.pop();
                     self.continued = false;
                 }
                 self.broken = false;
             }
-            Ast::ClassDefinition(name, members) => {
+            AstKind::ClassDefinition(name, members) => {
                 let mut class = Class::new(&name);
 
                 for member in members {
@@ -582,7 +626,7 @@ impl Interpreter {
                         ClassMember::StaticFunction(name, arg_names, body) => {
                             let body = body.clone();
                             let arg_names = arg_names.clone();
-                            class = class.add_static_function(name, move |interp, args| {
+                            class = class.add_static_function(&name, move |interp, args| {
                                 //TODO: also capture scope
                                 interp.call_fn(None, None, &arg_names, &args, &body)
                             });
@@ -590,13 +634,13 @@ impl Interpreter {
                         ClassMember::Function(name, arg_names, body) => {
                             let body = body.clone();
                             let arg_names = arg_names.clone();
-                            class = class.add_function(name, move |interp, this, args| {
+                            class = class.add_function(&name, move |interp, this, args| {
                                 //TODO: also capture scope
                                 interp.call_fn(Some(this), None, &arg_names, &args, &body)
                             });
                         }
                         ClassMember::Field(name, default) => {
-                            class = class.add_field(name, default.clone());
+                            class = class.add_field(&name, default.clone());
                         }
                         ClassMember::Operator(op, arg_names, body) => {
                             let body = body.clone();
@@ -618,91 +662,113 @@ impl Interpreter {
                         }
                     }
                 }
-
-                self.add_class(class)
             }
-            Ast::OperatorImplementation(_, _, _) => unreachable!(),
-            Ast::ReturnStatement(expr) => {
+            AstKind::PlusAssignment(name, expr) => {
+                let new_value = self.eval(&Expression::new(
+                    ExpressionKind::BinaryOp(
+                        Box::new(Expression::new(
+                            ExpressionKind::Identifier(name.clone()),
+                            stmt.location.clone(),
+                        )),
+                        Operator::Add,
+                        Box::new(expr.clone()),
+                    ),
+                    stmt.location.clone(),
+                ))?;
+                self.assign_variable(name.clone(), new_value);
+            }
+            AstKind::MinusAssignment(name, expr) => {
+                let new_value = self.eval(&Expression::new(
+                    ExpressionKind::BinaryOp(
+                        Box::new(Expression::new(
+                            ExpressionKind::Identifier(name.clone()),
+                            stmt.location.clone(),
+                        )),
+                        Operator::Subtract,
+                        Box::new(expr.clone()),
+                    ),
+                    stmt.location.clone(),
+                ))?;
+                self.assign_variable(name.clone(), new_value);
+            }
+            AstKind::ReturnStatement(expr) => {
                 self.return_value = Some(self.eval(expr)?);
             }
-            Ast::PlusAssignment(name, expr) => {
-                let new_value = self.eval(&Expression::BinaryOp(
-                    Box::new(Expression::Identifier(name.into())),
-                    Operator::Add,
-                    Box::new(expr.clone()),
+            AstKind::TimesAssignment(name, expr) => {
+                let new_value = self.eval(&Expression::new(
+                    ExpressionKind::BinaryOp(
+                        Box::new(Expression::new(
+                            ExpressionKind::Identifier(name.clone()),
+                            stmt.location.clone(),
+                        )),
+                        Operator::Times,
+                        Box::new(expr.clone()),
+                    ),
+                    stmt.location.clone(),
                 ))?;
                 self.assign_variable(name.clone(), new_value);
             }
-            Ast::MinusAssignment(name, expr) => {
-                let new_value = self.eval(&Expression::BinaryOp(
-                    Box::new(Expression::Identifier(name.into())),
-                    Operator::Subtract,
-                    Box::new(expr.clone()),
+            AstKind::DivideAssignment(name, expr) => {
+                let new_value = self.eval(&Expression::new(
+                    ExpressionKind::BinaryOp(
+                        Box::new(Expression::new(
+                            ExpressionKind::Identifier(name.clone()),
+                            stmt.location.clone(),
+                        )),
+                        Operator::Divide,
+                        Box::new(expr.clone()),
+                    ),
+                    stmt.location.clone(),
                 ))?;
                 self.assign_variable(name.clone(), new_value);
             }
-            Ast::TimesAssignment(name, expr) => {
-                let new_value = self.eval(&Expression::BinaryOp(
-                    Box::new(Expression::Identifier(name.into())),
-                    Operator::Times,
-                    Box::new(expr.clone()),
-                ))?;
-                self.assign_variable(name.clone(), new_value);
-            }
-            Ast::DivideAssignment(name, expr) => {
-                let new_value = self.eval(&Expression::BinaryOp(
-                    Box::new(Expression::Identifier(name.into())),
-                    Operator::Divide,
-                    Box::new(expr.clone()),
-                ))?;
-                self.assign_variable(name.clone(), new_value);
-            }
-            Ast::BreakStatement => {
+            AstKind::BreakStatement => {
                 self.broken = true;
             }
-            Ast::ContinueStatement => {
+            AstKind::ContinueStatement => {
                 self.continued = true;
             }
-            Ast::Expression(expr) => {
-                self.eval(expr)?;
+            AstKind::Expression(expr) => {
+                self.eval(&expr)?;
             }
-            Ast::StaticFunctionDefinition(_, _, _) => unreachable!(),
-            Ast::ImportStatement(path) => {
-                let (mod_name, module) = self.import(path)?;
+            AstKind::StaticFunctionDefinition(_, _, _) => unreachable!(),
+            AstKind::ImportStatement(path) => {
+                let (mod_name, module) = self.import(&path)?;
                 self.get_scope_mut().set(mod_name, module);
             }
-            Ast::ExportStatement(ast) => {
-                match ast.as_ref() {
-                    Ast::Expression(expr) => match expr {
-                        Expression::Identifier(x) => {
+            AstKind::ExportStatement(ast) => {
+                match &ast.kind {
+                    AstKind::Expression(expr) => match &expr.kind {
+                        ExpressionKind::Identifier(x) => {
                             self.exported_variables.push(x.into());
                         }
-                        Expression::ClassIdentifier(x) => {
+                        ExpressionKind::ClassIdentifier(x) => {
                             self.exported_classes.push(x.into());
                         }
                         _ => unreachable!(),
                     },
-                    Ast::VariableDefinition(name, _) => {
+                    AstKind::VariableDefinition(name, _) => {
                         self.exported_variables.push(name.clone());
-                        self.execute_stmt(ast)?;
+                        self.execute_stmt(&ast)?;
                     }
-                    Ast::FunctionDefinition(name, _, _) => {
+                    AstKind::FunctionDefinition(name, _, _) => {
                         self.exported_variables.push(name.clone());
-                        self.execute_stmt(ast)?;
+                        self.execute_stmt(&ast)?;
                     }
-                    Ast::ClassDefinition(name, _) => {
+                    AstKind::ClassDefinition(name, _) => {
                         self.exported_classes.push(name.clone());
-                        self.execute_stmt(ast)?;
+                        self.execute_stmt(&ast)?;
                     }
                     _ => todo!(),
                 };
             }
+            _ => todo!("{:?}", stmt),
         }
 
         Ok(())
     }
 
-    fn execute_stmts(&mut self, stmts: &Vec<Ast>) -> RuntimeResult<()> {
+    fn execute_stmts(&mut self, stmts: &Vec<AstNode>) -> RuntimeResult<()> {
         for stmt in stmts {
             self.execute_stmt(stmt)?;
             if self.return_value.is_some() || self.broken || self.continued {
@@ -726,16 +792,18 @@ impl Interpreter {
             program.print();
         }
 
-        self.execute(&program).map_err(|e| e.message())?;
+        self.execute(&program)?;
 
         Ok(())
     }
 
-    pub fn execute(&mut self, prog: &Program) -> RuntimeResult<Module> {
+    pub fn execute(&mut self, prog: &Program) -> Result<Module, String> {
         let now = Instant::now();
+        self.stmts = prog.stmts.clone();
         self.file_path = prog.path.clone();
         self.source = prog.source.to_string();
-        self.execute_stmts(&prog.stmts)?;
+        self.execute_stmts(&prog.stmts)
+            .map_err(|e| e.message(prog))?;
 
         let mut variables = HashMap::new();
         let mut classes = HashMap::new();

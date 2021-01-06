@@ -30,6 +30,7 @@ use winapi::{
 
 use crate::{
     display::Display,
+    event::Event,
     message_loop,
     system::NativeWindow,
     system::Rectangle,
@@ -395,7 +396,12 @@ impl Window {
                         let msg = *(msg.wParam as *const WindowMsg);
                         let call_handler = |event| {
                             if let Err(e) = event_handler(event) {
-                                error!("{}", e.message());
+                                state
+                                    .lock()
+                                    .event_channel
+                                    .sender
+                                    .send(Event::ConfigError(e))
+                                    .unwrap();
                             }
                         };
 

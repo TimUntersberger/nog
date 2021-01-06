@@ -46,8 +46,9 @@ pub fn main() {
     match parser.parse() {
         Ok(program) => {
             program.print();
+            dbg!(&program.stmts);
             if let Err(e) = interpreter.execute(&program) {
-                println!("RUNTIME ERROR: {}", e.message());
+                println!("RUNTIME ERROR: {}", e);
             };
         }
         Err(e) => {

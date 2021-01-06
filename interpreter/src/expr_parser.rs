@@ -4,12 +4,12 @@ use itertools::Itertools;
 use pratt::{Affix, Associativity, PrattParser, Precedence};
 
 use super::{
-    ast::Ast,
-    expression::Expression,
+    ast::{AstKind, AstNode},
+    expression::{Expression, ExpressionKind},
     lexer::Lexer,
     operator::Operator,
     parser::{ParseError, Parser},
-    token::{Token, TokenKind},
+    token::{calculate_range, Token, TokenKind},
 };
 
 pub struct ExprParser<'a> {
@@ -53,13 +53,13 @@ fn consume<I: Iterator<Item = Token>>(
         } else {
             Err(ParseError::UnexpectedToken {
                 actual: Some(token),
-                expected: kind,
+                expected: vec![kind],
             })
         }
     } else {
         Err(ParseError::UnexpectedToken {
             actual: None,
-            expected: kind,
+            expected: vec![kind],
         })
     }
 }
@@ -103,7 +103,8 @@ fn parse_inside_curlies<'a, I: Iterator<Item = Token>>(
         while let Some(token) = rest.peek() {
             match token.0 {
                 TokenKind::NewLine => continue,
-                TokenKind::LCurly => depth += 1,
+                TokenKind::LCurly | TokenKind::LBracket | TokenKind::LParan => depth += 1,
+                TokenKind::RBracket | TokenKind::RParan => depth -= 1,
                 TokenKind::RCurly => {
                     if depth == 0 {
                         break;
@@ -125,7 +126,7 @@ fn parse_inside_curlies<'a, I: Iterator<Item = Token>>(
 
         let value = parser.parse(&mut tokens.into_iter()).unwrap();
 
-        fields.insert(ident.to_string(), value);
+        fields.insert(ident.to_string(), Expression::new(value, 0..0));
     }
 
     fields
@@ -185,7 +186,7 @@ fn parse_arg_list(
             TokenKind::Comma => {
                 parser.prev_token = token.clone();
                 if depth == 0 && !arg.is_empty() {
-                    list.push(parser.parse(&mut arg.clone().into_iter()).unwrap());
+                    list.push(parser.parse(&mut arg.clone().into_iter()).unwrap().into());
                     parser.prev_token = token.clone();
                     arg.clear();
                     continue;
@@ -196,7 +197,7 @@ fn parse_arg_list(
         arg.push(token.clone());
     }
     if !arg.is_empty() {
-        list.push(parser.parse(&mut arg.into_iter()).unwrap());
+        list.push(parser.parse(&mut arg.into_iter()).unwrap().into());
     }
     list
 }
@@ -205,7 +206,7 @@ fn parse_arrow_fn<T: Iterator<Item = Token>>(
     parser: &mut ExprParser,
     rest: &mut Peekable<T>,
     arg_names: Vec<String>,
-) -> Result<Expression, ParseError> {
+) -> Result<ExpressionKind, ParseError> {
     rest.next();
 
     // If next token curly then treat it as code block, else parse expression
@@ -240,7 +241,10 @@ fn parse_arrow_fn<T: Iterator<Item = Token>>(
 
             let mut parser = Parser::new();
             parser.set_source("".into(), source, source_range.0);
-            return Ok(Expression::ArrowFunction(arg_names, parser.parse()?.stmts));
+            return Ok(ExpressionKind::ArrowFunction(
+                arg_names,
+                parser.parse()?.stmts,
+            ));
         } else {
             let mut tokens = Vec::new();
             let mut depth = 0;
@@ -259,9 +263,16 @@ fn parse_arrow_fn<T: Iterator<Item = Token>>(
                 };
                 tokens.push(rest.next().unwrap());
             }
-            return Ok(Expression::ArrowFunction(
+            let location = calculate_range(&tokens);
+            return Ok(ExpressionKind::ArrowFunction(
                 arg_names,
-                vec![Ast::ReturnStatement(parser.parse(&mut tokens.into_iter())?)],
+                vec![AstNode::new(
+                    AstKind::ReturnStatement(Expression::new(
+                        parser.parse(&mut tokens.into_iter())?,
+                        location.clone(),
+                    )),
+                    location.clone(),
+                )],
             ));
         }
     }
@@ -305,7 +316,7 @@ where
     I: Iterator<Item = Token> + std::fmt::Debug,
 {
     type Error = ParseError;
-    type Output = Expression;
+    type Output = ExpressionKind;
     type Input = Token;
 
     fn led(
@@ -399,6 +410,8 @@ where
             TokenKind::Arrow => Affix::Nilfix,
             TokenKind::RParan => Affix::Nilfix,
             TokenKind::Hash => Affix::Nilfix,
+            TokenKind::Colon => Affix::Nilfix,
+            TokenKind::Comma => Affix::Nilfix,
             TokenKind::RCurly => Affix::Nilfix,
             TokenKind::RBracket => Affix::Nilfix,
             TokenKind::Import => Affix::Nilfix,
@@ -428,8 +441,8 @@ where
         self.prev_token = token.clone();
         let text = self.text(&token).to_string();
         Ok(match token.0 {
-            TokenKind::HexLiteral => Expression::HexLiteral(text),
-            TokenKind::NumberLiteral => Expression::NumberLiteral(text),
+            TokenKind::HexLiteral => ExpressionKind::HexLiteral(text),
+            TokenKind::NumberLiteral => ExpressionKind::NumberLiteral(text),
             TokenKind::StringLiteral => {
                 let raw = text
                     .clone()
@@ -437,10 +450,10 @@ where
                     .replace("\\\"", "\"")
                     .replace("\\r", "\r")
                     .replace("\\n", "\n");
-                Expression::StringLiteral(raw)
+                ExpressionKind::StringLiteral(raw)
             }
-            TokenKind::BooleanLiteral => Expression::BooleanLiteral(text),
-            TokenKind::Null => Expression::Null,
+            TokenKind::BooleanLiteral => ExpressionKind::BooleanLiteral(text),
+            TokenKind::Null => ExpressionKind::Null,
             TokenKind::LBracket => {
                 let mut args = Vec::new();
                 let mut arg_tokens = Vec::new();
@@ -452,7 +465,10 @@ where
                             self.prev_token = next.clone();
                             if depth == 0 {
                                 if !arg_tokens.is_empty() {
-                                    args.push(self.parse(&mut arg_tokens.clone().into_iter())?);
+                                    args.push(Expression::new(
+                                        self.parse(&mut arg_tokens.clone().into_iter())?,
+                                        calculate_range(&arg_tokens),
+                                    ));
                                 }
                                 break;
                             }
@@ -463,7 +479,10 @@ where
                             self.prev_token = next.clone();
                             if depth == 0 {
                                 if !arg_tokens.is_empty() {
-                                    args.push(self.parse(&mut arg_tokens.clone().into_iter())?);
+                                    args.push(Expression::new(
+                                        self.parse(&mut arg_tokens.clone().into_iter())?,
+                                        calculate_range(&arg_tokens),
+                                    ));
                                 }
                                 arg_tokens.clear();
                                 continue;
@@ -479,13 +498,13 @@ where
                     arg_tokens.push(next);
                 }
 
-                Expression::ArrayLiteral(args)
+                ExpressionKind::ArrayLiteral(args)
             }
             TokenKind::Hash => {
                 let fields = parse_object_literal(self, rest);
-                Expression::ObjectLiteral(fields)
+                ExpressionKind::ObjectLiteral(fields)
             }
-            TokenKind::ClassIdentifier => Expression::ClassIdentifier(text),
+            TokenKind::ClassIdentifier => ExpressionKind::ClassIdentifier(text),
             TokenKind::Identifier => {
                 if let Some(token) = rest.peek().cloned() {
                     match token.0 {
@@ -495,7 +514,7 @@ where
                         _ => {}
                     }
                 }
-                Expression::Identifier(text)
+                ExpressionKind::Identifier(text)
             }
             TokenKind::LParan => {
                 let mut depth = 0;
@@ -552,19 +571,19 @@ where
         rhs: Self::Output,
         _: &mut Peekable<&mut I>,
     ) -> Result<Self::Output, Self::Error> {
-        Ok(Expression::BinaryOp(
-            Box::new(lhs),
+        Ok(ExpressionKind::BinaryOp(
+            Box::new(lhs.into()),
             token.0.into(),
-            Box::new(rhs),
+            Box::new(rhs.into()),
         ))
     }
     fn prefix(
         &mut self,
         token: Token,
-        rhs: Expression,
+        rhs: ExpressionKind,
         _: &mut Peekable<&mut I>,
     ) -> Result<Self::Output, Self::Error> {
-        Ok(Expression::PreOp(token.0.into(), Box::new(rhs)))
+        Ok(ExpressionKind::PreOp(token.0.into(), Box::new(rhs.into())))
     }
     fn postfix(
         &mut self,
@@ -575,30 +594,40 @@ where
         match token.0 {
             TokenKind::LBracket => {
                 let tokens = parse_inside_brackets(self, rest);
-                Ok(Expression::PostOp(
-                    Box::new(lhs),
+                Ok(ExpressionKind::PostOp(
+                    Box::new(lhs.into()),
                     Operator::Index,
-                    Some(Box::new(self.parse(&mut tokens.into_iter()).unwrap())),
+                    Some(Box::new(
+                        self.parse(&mut tokens.into_iter()).unwrap().into(),
+                    )),
                 ))
             }
             TokenKind::LParan => {
                 let args = parse_inside_parenthesis(self, rest);
-                Ok(Expression::PostOp(
-                    Box::new(lhs),
+                Ok(ExpressionKind::PostOp(
+                    Box::new(lhs.into()),
                     Operator::Call,
-                    Some(Box::new(Expression::ArrayLiteral(args))),
+                    Some(Box::new(ExpressionKind::ArrayLiteral(args).into())),
                 ))
             }
             TokenKind::LCurly => {
                 let fields = parse_inside_curlies(self, rest);
-                Ok(Expression::PostOp(
-                    Box::new(lhs),
+                Ok(ExpressionKind::PostOp(
+                    Box::new(lhs.into()),
                     Operator::Constructor,
-                    Some(Box::new(Expression::ObjectLiteral(fields))),
+                    Some(Box::new(ExpressionKind::ObjectLiteral(fields).into())),
                 ))
             }
-            TokenKind::MinusMinus => Ok(Expression::PostOp(Box::new(lhs), token.0.into(), None)),
-            TokenKind::PlusPlus => Ok(Expression::PostOp(Box::new(lhs), token.0.into(), None)),
+            TokenKind::MinusMinus => Ok(ExpressionKind::PostOp(
+                Box::new(lhs.into()),
+                token.0.into(),
+                None,
+            )),
+            TokenKind::PlusPlus => Ok(ExpressionKind::PostOp(
+                Box::new(lhs.into()),
+                token.0.into(),
+                None,
+            )),
             _ => todo!(),
         }
     }

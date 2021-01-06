@@ -3,19 +3,20 @@ use std::ops::Range;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClassMember {
-    StaticFunction(String, Vec<String>, Vec<Ast>),
-    Function(String, Vec<String>, Vec<Ast>),
+    StaticFunction(String, Vec<String>, Vec<AstNode>),
+    Function(String, Vec<String>, Vec<AstNode>),
     Field(String, Expression),
-    Operator(Operator, Vec<String>, Vec<Ast>),
+    Operator(Operator, Vec<String>, Vec<AstNode>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Ast {
+pub enum AstKind {
     ReturnStatement(Expression),
     Expression(Expression),
-    IfStatement(Vec<(Expression, Vec<Ast>)>),
-    WhileStatement(Expression, Vec<Ast>),
+    IfStatement(Vec<(Expression, Vec<AstNode>)>),
+    WhileStatement(Expression, Vec<AstNode>),
     VariableDefinition(String, Expression),
+    ArrayVariableDefinition(Vec<String>, Expression),
     VariableAssignment(String, Expression),
     PlusAssignment(String, Expression),
     MinusAssignment(String, Expression),
@@ -28,26 +29,20 @@ pub enum Ast {
     Documentation(Vec<String>),
     BreakStatement,
     ContinueStatement,
-    ExportStatement(Box<Ast>),
-    OperatorImplementation(Operator, Vec<String>, Vec<Ast>),
-    StaticFunctionDefinition(String, Vec<String>, Vec<Ast>),
-    FunctionDefinition(String, Vec<String>, Vec<Ast>),
+    ExportStatement(Box<AstNode>),
+    OperatorImplementation(Operator, Vec<String>, Vec<AstNode>),
+    StaticFunctionDefinition(String, Vec<String>, Vec<AstNode>),
+    FunctionDefinition(String, Vec<String>, Vec<AstNode>),
 }
 
-// impl Ast {
-//     pub fn location(&self) -> Range<usize> {
-//         match self {
-//             Ast::ReturnStatement(_, range)
-//             | Ast::Expression(_, range)
-//             | Ast::WhileStatement(_, _, range)
-//             | Ast::VariableAssignment(_, _, range)
-//             | Ast::VariableDefinition(_, _, range)
-//             | Ast::PlusAssignment(_, _, range)
-//             | Ast::MinusAssignment(_, _, range)
-//             | Ast::TimesAssignment(_, _, range)
-//             | Ast::DivideAssignment(_, _, range)
-//             | Ast::IfStatement(_, range) => range.clone(),
-//             _ => todo!("{:?}", self)
-//         }
-//     }
-// }
+#[derive(Debug, Clone, PartialEq)]
+pub struct AstNode {
+    pub kind: AstKind,
+    pub location: Range<usize>,
+}
+
+impl AstNode {
+    pub fn new(kind: AstKind, location: Range<usize>) -> Self {
+        AstNode { kind, location }
+    }
+}

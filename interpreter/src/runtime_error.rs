@@ -1,4 +1,6 @@
 use super::dynamic::Dynamic;
+use super::expression::Expression;
+use super::interpreter::Program;
 use super::operator::Operator;
 
 #[derive(Clone, Debug)]
@@ -21,13 +23,14 @@ pub enum RuntimeError {
         actual: String,
     },
     OperatorNotImplemented {
+        expr: Expression,
         class: String,
         operator: Operator,
     },
 }
 
 impl RuntimeError {
-    pub fn message(self) -> String {
+    pub fn message(self, program: &Program) -> String {
         match self {
             RuntimeError::Raw { msg } => msg,
             RuntimeError::StaticFunctionNotFound {
@@ -44,11 +47,20 @@ impl RuntimeError {
             RuntimeError::UnexpectedType { expected, actual } => {
                 format!("Expected type {}, but found {}", &expected, &actual)
             }
-            RuntimeError::OperatorNotImplemented { class, operator } => format!(
-                "Class {} doesn't have operator {} implemented",
-                &class,
-                &operator.to_string()
-            ),
+            RuntimeError::OperatorNotImplemented {
+                class,
+                operator,
+                expr,
+            } => {
+                let (line, col) = program.range_to_location(expr.location).unwrap();
+                format!(
+                    "Class {} doesn't have operator {} implemented at {}, {}",
+                    &class,
+                    &operator.to_string(),
+                    line,
+                    col
+                )
+            }
         }
     }
 }

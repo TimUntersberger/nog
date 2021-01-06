@@ -1,14 +1,15 @@
 use std::path::PathBuf;
 
 use super::{
-    ast::Ast,
+    ast::AstKind,
+    ast::AstNode,
     ast::ClassMember,
     expr_parser::ExprParser,
-    expression::Expression,
+    expression::{Expression, ExpressionKind},
     interpreter::Program,
     lexer::Lexer,
     operator::Operator,
-    token::{Token, TokenKind},
+    token::{calculate_range, Token, TokenKind},
 };
 use pratt::PrattParser;
 use std::ops::Range;
@@ -16,7 +17,7 @@ use std::ops::Range;
 #[derive(Debug, Clone)]
 pub enum ParseError {
     UnexpectedToken {
-        expected: TokenKind,
+        expected: Vec<TokenKind>,
         actual: Option<Token>,
     },
     UnexpectedOperator(Token),
@@ -55,6 +56,7 @@ pub struct Parser<'a> {
     pub source: &'a str,
     pub offset: usize,
     pub lexer: itertools::MultiPeek<Lexer<'a>>,
+    tokens: Vec<Token>,
     expr_parser: ExprParser<'a>,
 }
 
@@ -63,10 +65,25 @@ impl<'a> Parser<'a> {
         Self {
             path: "".into(),
             source: "",
+            tokens: Vec::new(),
             offset: 0,
             lexer: itertools::multipeek(Lexer::new("", 0).into_iter()),
             expr_parser: ExprParser::default(),
         }
+    }
+
+    fn start_group(&mut self) {
+        self.tokens.clear();
+    }
+
+    fn end_group(&mut self) -> Range<usize> {
+        let res = self.get_group();
+        self.tokens.clear();
+        res
+    }
+
+    fn get_group(&self) -> Range<usize> {
+        calculate_range(&self.tokens)
     }
 
     fn parse_expr(&mut self, prev_token: Option<Token>) -> Result<Expression, ParseError> {
@@ -156,6 +173,7 @@ impl<'a> Parser<'a> {
 
             let token = self.lexer.next().unwrap();
             previous_token = Some(token.clone());
+            self.tokens.push(token.clone());
             tokens.push(token);
         }
 
@@ -169,6 +187,7 @@ impl<'a> Parser<'a> {
 
         self.expr_parser
             .parse(&mut tokens.into_iter())
+            .map(|kind| Expression::new(kind, self.get_group()))
             .map_err(|e| e.into())
     }
 
@@ -184,20 +203,22 @@ impl<'a> Parser<'a> {
                         depth -= 1;
                     } else {
                         if !arg_tokens.is_empty() {
-                            args.push(
+                            args.push(Expression::new(
                                 self.expr_parser
                                     .parse(&mut arg_tokens.clone().into_iter())?,
-                            );
+                                calculate_range(&arg_tokens),
+                            ));
                         }
                         break;
                     }
                 }
                 TokenKind::Comma => {
                     if depth == 0 {
-                        args.push(
+                        args.push(Expression::new(
                             self.expr_parser
                                 .parse(&mut arg_tokens.clone().into_iter())?,
-                        );
+                            calculate_range(&arg_tokens),
+                        ));
                         arg_tokens.clear();
                         continue;
                     }
@@ -211,24 +232,35 @@ impl<'a> Parser<'a> {
         Ok(args)
     }
 
-    fn consume(&mut self, kind: TokenKind) -> Result<Token, ParseError> {
-        if let Some(token) = self.lexer.next() {
-            if token.0 == kind {
+    fn advance(&mut self) -> Option<Token> {
+        self.lexer.next().map(|t| {
+            self.tokens.push(t.clone());
+            t
+        })
+    }
+
+    fn consume_either(&mut self, kinds: Vec<TokenKind>) -> Result<Token, ParseError> {
+        if let Some(token) = self.advance() {
+            if kinds.contains(&token.0) {
                 Ok(token)
             } else if token.0 == TokenKind::NewLine {
-                self.consume(kind)
+                self.consume_either(kinds)
             } else {
                 Err(ParseError::UnexpectedToken {
                     actual: Some(token),
-                    expected: kind,
+                    expected: kinds,
                 })
             }
         } else {
             Err(ParseError::UnexpectedToken {
                 actual: None,
-                expected: kind,
+                expected: kinds,
             })
         }
+    }
+
+    fn consume(&mut self, kind: TokenKind) -> Result<Token, ParseError> {
+        self.consume_either(vec![kind])
     }
 
     fn text(&self, token: &Token) -> &'a str {
@@ -240,21 +272,26 @@ impl<'a> Parser<'a> {
         &self.source[loc]
     }
 
-    fn parse_fn_definition(&mut self) -> Result<Ast, ParseError> {
+    fn parse_fn_definition(&mut self) -> Result<AstNode, ParseError> {
+        self.start_group();
         self.consume(TokenKind::Fn)?;
         let name = self.consume(TokenKind::Identifier)?;
         self.consume(TokenKind::LParan)?;
         let args = self.parse_args()?;
         self.consume(TokenKind::LCurly)?;
         let body = self.parse_stmts()?;
-        Ok(Ast::FunctionDefinition(
-            self.text(&name).into(),
-            args.iter().map(|a| a.to_string()).collect(),
-            body,
+        Ok(AstNode::new(
+            AstKind::FunctionDefinition(
+                self.text(&name).into(),
+                args.iter().map(|a| a.to_string()).collect(),
+                body,
+            ),
+            self.end_group(),
         ))
     }
 
-    fn parse_static_fn_definition(&mut self) -> Result<Ast, ParseError> {
+    fn parse_static_fn_definition(&mut self) -> Result<AstNode, ParseError> {
+        self.start_group();
         self.consume(TokenKind::Static)?;
         self.consume(TokenKind::Fn)?;
         let name = self.consume(TokenKind::Identifier)?;
@@ -262,24 +299,32 @@ impl<'a> Parser<'a> {
         let args = self.parse_args()?;
         self.consume(TokenKind::LCurly)?;
         let body = self.parse_stmts()?;
-        Ok(Ast::StaticFunctionDefinition(
-            self.text(&name).into(),
-            args.iter().map(|a| a.to_string()).collect(),
-            body,
+        Ok(AstNode::new(
+            AstKind::StaticFunctionDefinition(
+                self.text(&name).into(),
+                args.iter().map(|a| a.to_string()).collect(),
+                body,
+            ),
+            self.end_group(),
         ))
     }
 
-    fn parse_while_statement(&mut self) -> Result<Ast, ParseError> {
+    fn parse_while_statement(&mut self) -> Result<AstNode, ParseError> {
+        self.start_group();
         let prev_token = self.consume(TokenKind::While)?;
         let cond = self.parse_expr(Some(prev_token))?;
         //TODO: skip whitespace before
         self.consume(TokenKind::LCurly)?;
         let block = self.parse_stmts()?;
 
-        Ok(Ast::WhileStatement(cond, block))
+        Ok(AstNode::new(
+            AstKind::WhileStatement(cond, block),
+            self.end_group(),
+        ))
     }
 
-    fn parse_if(&mut self) -> Result<Ast, ParseError> {
+    fn parse_if(&mut self) -> Result<AstNode, ParseError> {
+        self.start_group();
         let mut branches = Vec::new();
 
         let prev_token = self.consume(TokenKind::If)?;
@@ -303,7 +348,7 @@ impl<'a> Parser<'a> {
                 }
                 TokenKind::Else => {
                     self.consume(TokenKind::Else)?;
-                    let cond = Expression::BooleanLiteral("true".into());
+                    let cond = Expression::new(ExpressionKind::BooleanLiteral("true".into()), 0..0);
                     self.consume(TokenKind::LCurly)?;
                     let block = self.parse_stmts()?;
                     branches.push((cond, block));
@@ -314,144 +359,187 @@ impl<'a> Parser<'a> {
 
         self.lexer.reset_peek();
 
-        Ok(Ast::IfStatement(branches))
+        Ok(AstNode::new(
+            AstKind::IfStatement(branches),
+            self.end_group(),
+        ))
     }
 
-    fn parse_var_assignment(&mut self) -> Result<Ast, ParseError> {
-        let ident = self.consume(TokenKind::Identifier)?;
+    fn parse_var_assignment(&mut self) -> Result<AstNode, ParseError> {
+        self.start_group();
+        let tok = self.consume(TokenKind::Identifier)?;
         let prev_token = self.consume(TokenKind::Equal)?;
         let value = self.parse_expr(Some(prev_token))?;
 
-        Ok(Ast::VariableAssignment(self.text(&ident).into(), value))
+        Ok(AstNode::new(
+            AstKind::VariableAssignment(self.text(&tok).into(), value),
+            self.end_group(),
+        ))
     }
 
-    fn parse_plus_assignment(&mut self) -> Result<Ast, ParseError> {
+    fn parse_plus_assignment(&mut self) -> Result<AstNode, ParseError> {
+        self.start_group();
         let ident = self.consume(TokenKind::Identifier)?;
         let prev_token = self.consume(TokenKind::PlusEqual)?;
         let value = self.parse_expr(Some(prev_token))?;
 
-        Ok(Ast::PlusAssignment(self.text(&ident).into(), value))
+        Ok(AstNode::new(
+            AstKind::PlusAssignment(self.text(&ident).into(), value),
+            self.end_group(),
+        ))
     }
 
-    fn parse_minus_assignment(&mut self) -> Result<Ast, ParseError> {
+    fn parse_minus_assignment(&mut self) -> Result<AstNode, ParseError> {
+        self.start_group();
         let ident = self.consume(TokenKind::Identifier)?;
         let prev_token = self.consume(TokenKind::MinusEqual)?;
         let value = self.parse_expr(Some(prev_token))?;
 
-        Ok(Ast::MinusAssignment(self.text(&ident).into(), value))
+        Ok(AstNode::new(
+            AstKind::MinusAssignment(self.text(&ident).into(), value),
+            self.end_group(),
+        ))
     }
 
-    fn parse_times_assignment(&mut self) -> Result<Ast, ParseError> {
+    fn parse_times_assignment(&mut self) -> Result<AstNode, ParseError> {
+        self.start_group();
         let ident = self.consume(TokenKind::Identifier)?;
         let prev_token = self.consume(TokenKind::StarEqual)?;
         let value = self.parse_expr(Some(prev_token))?;
 
-        Ok(Ast::TimesAssignment(self.text(&ident).into(), value))
+        Ok(AstNode::new(
+            AstKind::TimesAssignment(self.text(&ident).into(), value),
+            self.end_group(),
+        ))
     }
 
-    fn parse_divide_assignment(&mut self) -> Result<Ast, ParseError> {
+    fn parse_divide_assignment(&mut self) -> Result<AstNode, ParseError> {
+        self.start_group();
         let ident = self.consume(TokenKind::Identifier)?;
         let prev_token = self.consume(TokenKind::SlashEqual)?;
         let value = self.parse_expr(Some(prev_token))?;
 
-        Ok(Ast::DivideAssignment(self.text(&ident).into(), value))
+        Ok(AstNode::new(
+            AstKind::DivideAssignment(self.text(&ident).into(), value),
+            self.end_group(),
+        ))
     }
 
-    fn parse_class_definition(&mut self) -> Result<Ast, ParseError> {
+    fn parse_class_definition(&mut self) -> Result<AstNode, ParseError> {
+        self.start_group();
         self.consume(TokenKind::Class)?;
         let name = self.consume(TokenKind::ClassIdentifier)?;
         self.consume(TokenKind::LCurly)?;
         let body = self.parse_stmts()?;
         let members = body
             .iter()
-            .map(|ast| match ast {
-                Ast::VariableDefinition(a, b) => ClassMember::Field(a.clone(), b.clone()),
-                Ast::FunctionDefinition(a, b, c) => {
+            .map(|ast| match &ast.kind {
+                AstKind::VariableDefinition(a, b) => ClassMember::Field(a.clone(), b.clone()),
+                AstKind::FunctionDefinition(a, b, c) => {
                     ClassMember::Function(a.clone(), b.clone(), c.clone())
                 }
-                Ast::StaticFunctionDefinition(a, b, c) => {
+                AstKind::StaticFunctionDefinition(a, b, c) => {
                     ClassMember::StaticFunction(a.clone(), b.clone(), c.clone())
                 }
-                Ast::OperatorImplementation(a, b, c) => {
+                AstKind::OperatorImplementation(a, b, c) => {
                     ClassMember::Operator(a.clone(), b.clone(), c.clone())
                 }
                 _ => panic!("not allowed"),
             })
             .collect::<Vec<ClassMember>>();
 
-        Ok(Ast::ClassDefinition(self.text(&name).into(), members))
+        Ok(AstNode::new(
+            AstKind::ClassDefinition(self.text(&name).into(), members),
+            todo!(),
+        ))
     }
 
-    fn parse_op_implementation(&mut self) -> Result<Ast, ParseError> {
+    fn parse_op_implementation(&mut self) -> Result<AstNode, ParseError> {
+        self.start_group();
         self.consume(TokenKind::Op)?;
-        let op = self
-            .lexer
-            .next()
-            .map(|t| self.text(&t))
-            .map(|text| match text {
-                "add" => Operator::Add,
-                "dot" => Operator::Dot,
-                _ => panic!("Unknown operator function {}", text),
-            })
-            .unwrap();
+        let t = self.consume(TokenKind::Identifier)?;
+        let op = match self.text(&t) {
+            "add" => Operator::Add,
+            "dot" => Operator::Dot,
+            text => panic!("Unknown operator function {}", text),
+        };
         self.consume(TokenKind::LParan)?;
         let args = self.parse_args()?;
         self.consume(TokenKind::LCurly)?;
         let body = self.parse_stmts()?;
 
-        Ok(Ast::OperatorImplementation(
-            op,
-            args.iter().map(|a| a.to_string()).collect(),
-            body,
+        Ok(AstNode::new(
+            AstKind::OperatorImplementation(op, args.iter().map(|a| a.to_string()).collect(), body),
+            self.end_group(),
         ))
     }
 
-    fn parse_import_statement(&mut self) -> Result<Ast, ParseError> {
+    fn parse_import_statement(&mut self) -> Result<AstNode, ParseError> {
+        self.start_group();
         self.consume(TokenKind::Import)?;
-        let mut tokens = Vec::new();
+        let mut parts = Vec::new();
 
         while let Some(token) = self.lexer.peek() {
             match token.0 {
                 TokenKind::Dot | TokenKind::Identifier => {
                     let token = self.lexer.next().unwrap();
-                    tokens.push(self.text(&token))
+                    self.tokens.push(token.clone());
+                    parts.push(self.text(&token));
                 }
                 _ => break,
             }
         }
 
-        Ok(Ast::ImportStatement(tokens.join("")))
+        let tokens = self.end_group();
+
+        Ok(AstNode::new(
+            AstKind::ImportStatement(parts.join("")),
+            tokens,
+        ))
     }
 
-    fn parse_export_statement(&mut self) -> Result<Ast, ParseError> {
+    fn parse_export_statement(&mut self) -> Result<AstNode, ParseError> {
+        self.start_group();
         self.consume(TokenKind::Export)?;
 
         if let Some(token) = self.lexer.peek().cloned() {
             let ast = match token.0 {
-                TokenKind::ClassIdentifier => {
-                    Ast::Expression(Expression::ClassIdentifier(self.text(&token).to_string()))
-                }
+                TokenKind::ClassIdentifier => AstNode::new(
+                    AstKind::Expression(Expression::new(
+                        ExpressionKind::ClassIdentifier(self.text(&token).to_string()),
+                        token.1.clone(),
+                    )),
+                    token.1.clone(),
+                ),
                 TokenKind::Var => self.parse_var_definition()?,
                 TokenKind::Class => self.parse_class_definition()?,
                 TokenKind::Fn => self.parse_fn_definition()?,
-                TokenKind::Identifier => {
-                    Ast::Expression(Expression::Identifier(self.text(&token).to_string()))
-                }
+                TokenKind::Identifier => AstNode::new(
+                    AstKind::Expression(Expression::new(
+                        ExpressionKind::Identifier(self.text(&token).to_string()),
+                        token.1.clone(),
+                    )),
+                    token.1.clone(),
+                ),
                 _ => panic!("Expected either a class, variable or function"),
             };
 
-            Ok(Ast::ExportStatement(Box::new(ast)))
+            Ok(AstNode::new(
+                AstKind::ExportStatement(Box::new(ast)),
+                self.end_group(),
+            ))
         } else {
             panic!("expected either a class or a variable");
         }
     }
 
-    fn parse_return_statement(&mut self) -> Result<Ast, ParseError> {
+    fn parse_return_statement(&mut self) -> Result<AstNode, ParseError> {
+        self.start_group();
         let prev_token = self.consume(TokenKind::Return)?;
 
         let value = if let Some(token) = self.lexer.peek() {
             match token.0 {
-                TokenKind::SemiColon => Expression::Null,
+                TokenKind::SemiColon => Expression::new(ExpressionKind::Null, token.1.clone()),
                 _ => {
                     self.lexer.reset_peek();
                     self.parse_expr(Some(prev_token))?
@@ -461,11 +549,17 @@ impl<'a> Parser<'a> {
             todo!()
         };
 
-        Ok(Ast::ReturnStatement(value))
+        Ok(AstNode::new(
+            AstKind::ReturnStatement(value),
+            self.end_group(),
+        ))
     }
 
-    fn parse_comment(&mut self) -> Result<Ast, ParseError> {
+    fn parse_comment(&mut self) -> Result<AstNode, ParseError> {
+        self.start_group();
         let mut lines = Vec::new();
+
+        self.start_group();
 
         let token = self.consume(TokenKind::Comment).unwrap();
 
@@ -491,10 +585,11 @@ impl<'a> Parser<'a> {
             }
         }
 
-        Ok(Ast::Comment(lines))
+        Ok(AstNode::new(AstKind::Comment(lines), self.end_group()))
     }
 
-    fn parse_documentation(&mut self) -> Result<Ast, ParseError> {
+    fn parse_documentation(&mut self) -> Result<AstNode, ParseError> {
+        self.start_group();
         let mut lines = Vec::new();
 
         let token = self.consume(TokenKind::TripleSlash).unwrap();
@@ -521,29 +616,51 @@ impl<'a> Parser<'a> {
             }
         }
 
-        Ok(Ast::Documentation(lines))
+        Ok(AstNode::new(
+            AstKind::Documentation(lines),
+            self.end_group(),
+        ))
     }
 
-    fn parse_var_definition(&mut self) -> Result<Ast, ParseError> {
+    fn parse_var_definition(&mut self) -> Result<AstNode, ParseError> {
+        self.start_group();
         self.consume(TokenKind::Var)?;
-        let ident = self.consume(TokenKind::Identifier)?;
+        let tok = self.consume_either(vec![TokenKind::Identifier, TokenKind::LBracket])?;
+        match &tok.0 {
+            TokenKind::Identifier => {
+                let token = self.consume_either(vec![TokenKind::SemiColon, TokenKind::Equal])?;
+                let value = match token.0 {
+                    TokenKind::SemiColon => Expression::new(ExpressionKind::Null, token.1.clone()),
+                    TokenKind::Equal => self.parse_expr(None)?,
+                    _ => unreachable!(),
+                };
 
-        let value = if let Some(token) = self.lexer.peek() {
-            match token.0 {
-                TokenKind::SemiColon => Expression::Null,
-                _ => {
-                    self.consume(TokenKind::Equal)?;
-                    self.parse_expr(None)?
-                }
+                Ok(AstNode::new(
+                    AstKind::VariableDefinition(self.text(&tok).into(), value),
+                    self.end_group(),
+                ))
             }
-        } else {
-            todo!()
-        };
-
-        Ok(Ast::VariableDefinition(self.text(&ident).into(), value))
+            TokenKind::LBracket => {
+                let identifiers = self
+                    .parse_args()?
+                    .iter()
+                    .map(|t| match &t.kind {
+                        ExpressionKind::Identifier(x) => x.clone(),
+                        _ => panic!(),
+                    })
+                    .collect::<Vec<_>>();
+                self.consume(TokenKind::Equal)?;
+                let value = self.parse_expr(None)?;
+                Ok(AstNode::new(
+                    AstKind::ArrayVariableDefinition(identifiers, value),
+                    self.end_group(),
+                ))
+            }
+            _ => unreachable!(),
+        }
     }
 
-    fn parse_stmts(&mut self) -> Result<Vec<Ast>, ParseError> {
+    fn parse_stmts(&mut self) -> Result<Vec<AstNode>, ParseError> {
         let mut stmts = Vec::new();
         let mut depth = 0;
 
@@ -552,8 +669,10 @@ impl<'a> Parser<'a> {
                 TokenKind::Comment => self.parse_comment(),
                 TokenKind::TripleSlash => self.parse_documentation(),
                 TokenKind::Return => self.parse_return_statement(),
-                TokenKind::Break => Ok(Ast::BreakStatement),
-                TokenKind::Continue => Ok(Ast::ContinueStatement),
+                TokenKind::Break => Ok(AstNode::new(AstKind::BreakStatement, token.1.clone())),
+                TokenKind::Continue => {
+                    Ok(AstNode::new(AstKind::ContinueStatement, token.1.clone()))
+                }
                 TokenKind::While => self.parse_while_statement(),
                 TokenKind::Class => self.parse_class_definition(),
                 TokenKind::Var => self.parse_var_definition(),
@@ -564,12 +683,16 @@ impl<'a> Parser<'a> {
                 TokenKind::Export => self.parse_export_statement(),
                 TokenKind::If => self.parse_if(),
                 TokenKind::ClassIdentifier => {
-                    if let Some(token) = self.lexer.peek() {
-                        match token.0 {
+                    let loc = token.1.clone();
+                    if let Some(next) = self.lexer.peek() {
+                        match next.0 {
                             TokenKind::LCurly => {
-                                drop(token);
+                                drop(next);
                                 self.lexer.reset_peek();
-                                Ok(Ast::Expression(self.parse_expr(None)?))
+                                Ok(AstNode::new(
+                                    AstKind::Expression(self.parse_expr(None)?),
+                                    loc,
+                                ))
                             }
                             _ => unreachable!(),
                         }
@@ -586,9 +709,17 @@ impl<'a> Parser<'a> {
                             TokenKind::StarEqual => self.parse_times_assignment(),
                             TokenKind::SlashEqual => self.parse_divide_assignment(),
                             TokenKind::Dot | TokenKind::DoubleColon => {
-                                Ok(Ast::Expression(self.parse_expr(None)?))
+                                let loc = token.1.clone();
+                                Ok(AstNode::new(
+                                    AstKind::Expression(self.parse_expr(None)?),
+                                    loc,
+                                ))
                             }
-                            _ => self.parse_expr(None).map(|x| Ast::Expression(x)),
+                            _ => {
+                                self.start_group();
+                                self.parse_expr(None)
+                                    .map(|x| AstNode::new(AstKind::Expression(x), self.end_group()))
+                            }
                         }
                     } else {
                         unreachable!()
