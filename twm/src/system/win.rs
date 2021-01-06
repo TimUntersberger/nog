@@ -2,7 +2,7 @@ use super::{DisplayId, Rectangle, SystemError, SystemResult, WindowId};
 use crate::{
     display::Display, util, window::gwl_ex_style::GwlExStyle, window::gwl_style::GwlStyle, Rule,
 };
-use log::error;
+use log::{error, debug};
 use thiserror::Error;
 use winapi::{
     shared::{minwindef::*, windef::*},
@@ -150,8 +150,10 @@ impl Window {
         !self.is_hidden()
     }
     pub fn should_manage(&self) -> bool {
-        self.original_style.contains(GwlStyle::CAPTION)
-            && !self.exstyle.contains(GwlExStyle::DLGMODALFRAME)
+        match (self.get_style(), self.get_ex_style()) {
+            (Ok(style), Ok(ex_style)) => style.contains(GwlStyle::CAPTION) && !ex_style.contains(GwlExStyle::DLGMODALFRAME),
+            _ => false
+        }
     }
     pub fn remove_title_bar(&mut self, use_border: bool) -> SystemResult {
         let rule = self.rule.clone().unwrap_or_default();
@@ -359,7 +361,7 @@ impl Window {
                 .map_err(SystemError::RedrawWindow)
         }
     }
-    pub fn init(&mut self) -> SystemResult {
+    pub fn init(&mut self, remove_title_bar: bool, use_border: bool) -> SystemResult {
         self.original_style = self.get_style().map_err(SystemError::Init)?;
         if self.original_style.contains(GwlStyle::MAXIMIZE) {
             self.restore().map_err(SystemError::Init)?;
@@ -370,7 +372,30 @@ impl Window {
         self.exstyle = self.get_ex_style().map_err(SystemError::Init)?;
         self.original_rect = self.get_rect().map_err(SystemError::Init)?;
 
+
+        if remove_title_bar {
+            self.remove_title_bar(use_border)?;
+        }
+
         Ok(())
+    }
+    pub fn set_matching_rule(&mut self, rules: Vec<&Rule>) {
+        for rule in rules {
+            // checks for path
+            let process_name = if rule.pattern.to_string().contains('\\') {
+                self.get_process_path()
+            } else {
+                self.get_process_name()
+            };
+
+            let window_name = self.title.clone();
+
+            if rule.pattern.is_match(&process_name) || rule.pattern.is_match(&window_name) {
+                debug!("Rule({:?}) matched!", rule.pattern);
+                self.rule = Some(rule.clone());
+                break;
+            }
+        }
     }
     fn restore(&self) -> WinResult {
         unsafe {

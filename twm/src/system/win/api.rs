@@ -2,8 +2,7 @@ use std::ptr;
 
 use crate::{
     display::Display, keybindings::keybinding::Keybinding, system::DisplayId, system::Rectangle,
-    system::SystemError, system::SystemResult, system::WindowId, task_bar::Taskbar,
-    task_bar::TaskbarPosition, util,
+    system::SystemError, system::SystemResult, system::WindowId, task_bar::Taskbar, util,
 };
 use log::{debug, error};
 use regex::Regex;
@@ -85,7 +84,7 @@ unsafe extern "system" fn enum_windows_task_bars_cb(hwnd: HWND, l_param: LPARAM)
     let is_task_bar = TASKBAR_WINDOW_NAME_REGEX.is_match(&class_name);
 
     if is_task_bar {
-        window.init().expect("Failed to init taskbar window");
+        window.init(false, false).expect("Failed to init taskbar window");
         taskbars.push(Taskbar::new(window));
     }
 
