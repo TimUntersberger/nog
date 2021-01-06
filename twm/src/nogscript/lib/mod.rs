@@ -392,52 +392,54 @@ pub fn create_root_module(
 
     let cfg = config.clone();
     plugin = plugin.function("update", move |_i, _args| {
-        for dir in get_plugins_path_iter() {
-            if let Ok(dir) = dir {
-                let name = dir.file_name().to_str().unwrap().to_string();
+        if let Ok(dirs) = get_plugins_path_iter() {
+            for dir in dirs {
+                if let Ok(dir) = dir {
+                    let name = dir.file_name().to_str().unwrap().to_string();
 
-                let mut path = cfg.lock().plugins_path.clone();
-                path.push(&name);
+                    let mut path = cfg.lock().plugins_path.clone();
+                    path.push(&name);
 
-                let name = name.split("_").join("/");
-                let url = format!("https://www.github.com/{}", name);
+                    let name = name.split("_").join("/");
+                    let url = format!("https://www.github.com/{}", name);
 
-                let output = Command::new("git")
-                    .arg("rev-parse")
-                    .arg("--is-inside-work-tree")
-                    .current_dir(&path)
-                    .output()
-                    .unwrap();
-
-                let is_git_repo = output.stdout.iter().map(|&x| x as char).count() != 0;
-
-                if !is_git_repo {
-                    debug!("{} is not a git repo", name);
-                    continue;
-                }
-
-                let output = Command::new("git")
-                    .arg("rev-list")
-                    .arg("HEAD...origin/master")
-                    .arg("--count")
-                    .current_dir(&path)
-                    .output()
-                    .unwrap();
-
-                let has_updates =
-                    output.stdout.iter().map(|&x| x as char).collect::<String>() != "0\n";
-
-                if has_updates {
-                    debug!("Updating {}", name);
-                    Command::new("git")
-                        .arg("pull")
-                        .arg(&url)
-                        .spawn()
-                        .unwrap()
-                        .wait()
+                    let output = Command::new("git")
+                        .arg("rev-parse")
+                        .arg("--is-inside-work-tree")
+                        .current_dir(&path)
+                        .output()
                         .unwrap();
-                } else {
-                    debug!("{} is up to date", &name);
+
+                    let is_git_repo = output.stdout.iter().map(|&x| x as char).count() != 0;
+
+                    if !is_git_repo {
+                        debug!("{} is not a git repo", name);
+                        continue;
+                    }
+
+                    let output = Command::new("git")
+                        .arg("rev-list")
+                        .arg("HEAD...origin/master")
+                        .arg("--count")
+                        .current_dir(&path)
+                        .output()
+                        .unwrap();
+
+                    let has_updates =
+                        output.stdout.iter().map(|&x| x as char).collect::<String>() != "0\n";
+
+                    if has_updates {
+                        debug!("Updating {}", name);
+                        Command::new("git")
+                            .arg("pull")
+                            .arg(&url)
+                            .spawn()
+                            .unwrap()
+                            .wait()
+                            .unwrap();
+                    } else {
+                        debug!("{} is up to date", &name);
+                    }
                 }
             }
         }
@@ -462,9 +464,11 @@ pub fn create_root_module(
     plugin = plugin.function("list", move |_, _| {
         let mut list: Vec<String> = Vec::new();
 
-        for dir in get_plugins_path_iter() {
-            if let Ok(dir) = dir {
-                list.push(dir.path().to_str().unwrap().into());
+        if let Ok(dirs) = get_plugins_path_iter() {
+            for dir in dirs {
+                if let Ok(dir) = dir {
+                    list.push(dir.path().to_str().unwrap().into());
+                }
             }
         }
 
