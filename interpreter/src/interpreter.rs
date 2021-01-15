@@ -17,7 +17,7 @@ use super::{
 use itertools::Itertools;
 use std::{collections::HashMap, iter, ops::Range, path::PathBuf, sync::Arc, time::Instant};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Program<'a> {
     pub path: PathBuf,
     pub source: &'a str,

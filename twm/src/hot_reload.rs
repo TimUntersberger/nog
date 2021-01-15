@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 
-use crate::{
-    bar, config::Config, keybindings::KbManager, startup, system::SystemResult, AppState,
-};
+use crate::{bar, config::Config, keybindings::KbManager, startup, system::SystemResult, AppState};
 
 pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> SystemResult {
     state_arc.lock().keybindings_manager.stop();

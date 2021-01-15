@@ -272,14 +272,18 @@ impl<'a> Parser<'a> {
         &self.source[loc]
     }
 
-    fn parse_fn_definition(&mut self) -> Result<AstNode, ParseError> {
+    fn parse_fn_definition(&mut self, is_extern: bool) -> Result<AstNode, ParseError> {
         self.start_group();
         self.consume(TokenKind::Fn)?;
         let name = self.consume(TokenKind::Identifier)?;
         self.consume(TokenKind::LParan)?;
         let args = self.parse_args()?;
-        self.consume(TokenKind::LCurly)?;
-        let body = self.parse_stmts()?;
+        let body = if is_extern {
+            Vec::new()
+        } else {
+            self.consume(TokenKind::LCurly)?;
+            self.parse_stmts()?
+        };
         Ok(AstNode::new(
             AstKind::FunctionDefinition(
                 self.text(&name).into(),
@@ -425,32 +429,35 @@ impl<'a> Parser<'a> {
         ))
     }
 
-    fn parse_class_definition(&mut self) -> Result<AstNode, ParseError> {
+    fn parse_class_definition(&mut self, is_extern: bool) -> Result<AstNode, ParseError> {
         self.start_group();
         self.consume(TokenKind::Class)?;
         let name = self.consume(TokenKind::ClassIdentifier)?;
-        self.consume(TokenKind::LCurly)?;
-        let body = self.parse_stmts()?;
-        let members = body
-            .iter()
-            .map(|ast| match &ast.kind {
-                AstKind::VariableDefinition(a, b) => ClassMember::Field(a.clone(), b.clone()),
-                AstKind::FunctionDefinition(a, b, c) => {
-                    ClassMember::Function(a.clone(), b.clone(), c.clone())
-                }
-                AstKind::StaticFunctionDefinition(a, b, c) => {
-                    ClassMember::StaticFunction(a.clone(), b.clone(), c.clone())
-                }
-                AstKind::OperatorImplementation(a, b, c) => {
-                    ClassMember::Operator(a.clone(), b.clone(), c.clone())
-                }
-                _ => panic!("not allowed"),
-            })
-            .collect::<Vec<ClassMember>>();
+        let members = if is_extern {
+            Vec::new()
+        } else {
+            self.consume(TokenKind::LCurly)?;
+            let body = self.parse_stmts()?;
+            body.iter()
+                .map(|ast| match &ast.kind {
+                    AstKind::VariableDefinition(a, b) => ClassMember::Field(a.clone(), b.clone()),
+                    AstKind::FunctionDefinition(a, b, c) => {
+                        ClassMember::Function(a.clone(), b.clone(), c.clone())
+                    }
+                    AstKind::StaticFunctionDefinition(a, b, c) => {
+                        ClassMember::StaticFunction(a.clone(), b.clone(), c.clone())
+                    }
+                    AstKind::OperatorImplementation(a, b, c) => {
+                        ClassMember::Operator(a.clone(), b.clone(), c.clone())
+                    }
+                    _ => panic!("not allowed"),
+                })
+                .collect::<Vec<ClassMember>>()
+        };
 
         Ok(AstNode::new(
             AstKind::ClassDefinition(self.text(&name).into(), members),
-            todo!(),
+            self.end_group(),
         ))
     }
 
@@ -498,6 +505,27 @@ impl<'a> Parser<'a> {
         ))
     }
 
+    fn parse_extern_statement(&mut self) -> Result<AstNode, ParseError> {
+        self.start_group();
+        self.consume(TokenKind::Extern)?;
+
+        if let Some(token) = self.lexer.peek().cloned() {
+            let ast = match token.0 {
+                TokenKind::Var => self.parse_var_definition(true)?,
+                TokenKind::Class => self.parse_class_definition(true)?,
+                TokenKind::Fn => self.parse_fn_definition(true)?,
+                _ => panic!("Expected either a class, variable or function definition"),
+            };
+
+            Ok(AstNode::new(
+                AstKind::ExternStatement(Box::new(ast)),
+                self.end_group(),
+            ))
+        } else {
+            panic!("Expected either a class, variable or function definition");
+        }
+    }
+
     fn parse_export_statement(&mut self) -> Result<AstNode, ParseError> {
         self.start_group();
         self.consume(TokenKind::Export)?;
@@ -511,9 +539,9 @@ impl<'a> Parser<'a> {
                     )),
                     token.1.clone(),
                 ),
-                TokenKind::Var => self.parse_var_definition()?,
-                TokenKind::Class => self.parse_class_definition()?,
-                TokenKind::Fn => self.parse_fn_definition()?,
+                TokenKind::Var => self.parse_var_definition(false)?,
+                TokenKind::Class => self.parse_class_definition(false)?,
+                TokenKind::Fn => self.parse_fn_definition(false)?,
                 TokenKind::Identifier => AstNode::new(
                     AstKind::Expression(Expression::new(
                         ExpressionKind::Identifier(self.text(&token).to_string()),
@@ -568,7 +596,11 @@ impl<'a> Parser<'a> {
         while let Some(token) = self.lexer.next() {
             match token.0 {
                 TokenKind::NewLine => {
-                    lines.push(self.text_at(line.0..line.1).to_string());
+                    lines.push(if line.1 < line.0 {
+                        "".into()
+                    } else {
+                        self.text_at(line.0..line.1).to_string()
+                    });
                     if let Some(TokenKind::Comment) = self.lexer.peek().map(|x| x.0.clone()) {
                         let token = self.lexer.next().unwrap();
                         line = (token.1.end, 0);
@@ -599,7 +631,11 @@ impl<'a> Parser<'a> {
         while let Some(token) = self.lexer.next() {
             match token.0 {
                 TokenKind::NewLine => {
-                    lines.push(self.source[line.0..line.1].to_string());
+                    lines.push(if line.1 < line.0 {
+                        "".into()
+                    } else {
+                        self.text_at(line.0..line.1).to_string()
+                    });
                     if let Some(TokenKind::TripleSlash) = self.lexer.peek().map(|x| x.0.clone()) {
                         let token = self.lexer.next().unwrap();
                         line = (token.1.end, 0);
@@ -622,10 +658,19 @@ impl<'a> Parser<'a> {
         ))
     }
 
-    fn parse_var_definition(&mut self) -> Result<AstNode, ParseError> {
+    fn parse_var_definition(&mut self, is_extern: bool) -> Result<AstNode, ParseError> {
         self.start_group();
         self.consume(TokenKind::Var)?;
         let tok = self.consume_either(vec![TokenKind::Identifier, TokenKind::LBracket])?;
+        if is_extern {
+            return Ok(AstNode::new(
+                AstKind::VariableDefinition(
+                    self.text(&tok).into(),
+                    Expression::new(ExpressionKind::Null, 0..0),
+                ),
+                self.end_group(),
+            ));
+        }
         match &tok.0 {
             TokenKind::Identifier => {
                 let token = self.consume_either(vec![TokenKind::SemiColon, TokenKind::Equal])?;
@@ -674,12 +719,13 @@ impl<'a> Parser<'a> {
                     Ok(AstNode::new(AstKind::ContinueStatement, token.1.clone()))
                 }
                 TokenKind::While => self.parse_while_statement(),
-                TokenKind::Class => self.parse_class_definition(),
-                TokenKind::Var => self.parse_var_definition(),
+                TokenKind::Class => self.parse_class_definition(false),
+                TokenKind::Var => self.parse_var_definition(false),
                 TokenKind::Op => self.parse_op_implementation(),
-                TokenKind::Fn => self.parse_fn_definition(),
+                TokenKind::Fn => self.parse_fn_definition(false),
                 TokenKind::Static => self.parse_static_fn_definition(),
                 TokenKind::Import => self.parse_import_statement(),
+                TokenKind::Extern => self.parse_extern_statement(),
                 TokenKind::Export => self.parse_export_statement(),
                 TokenKind::If => self.parse_if(),
                 TokenKind::ClassIdentifier => {

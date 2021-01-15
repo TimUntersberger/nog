@@ -2,7 +2,7 @@ use super::{DisplayId, Rectangle, SystemError, SystemResult, WindowId};
 use crate::{
     display::Display, util, window::gwl_ex_style::GwlExStyle, window::gwl_style::GwlStyle, Rule,
 };
-use log::{error, debug};
+use log::{debug, error};
 use thiserror::Error;
 use winapi::{
     shared::{minwindef::*, windef::*},
@@ -151,8 +151,10 @@ impl Window {
     }
     pub fn should_manage(&self) -> bool {
         match (self.get_style(), self.get_ex_style()) {
-            (Ok(style), Ok(ex_style)) => style.contains(GwlStyle::CAPTION) && !ex_style.contains(GwlExStyle::DLGMODALFRAME),
-            _ => false
+            (Ok(style), Ok(ex_style)) => {
+                style.contains(GwlStyle::CAPTION) && !ex_style.contains(GwlExStyle::DLGMODALFRAME)
+            }
+            _ => false,
         }
     }
     pub fn remove_title_bar(&mut self, use_border: bool) -> SystemResult {
@@ -371,7 +373,6 @@ impl Window {
         self.style = self.original_style;
         self.exstyle = self.get_ex_style().map_err(SystemError::Init)?;
         self.original_rect = self.get_rect().map_err(SystemError::Init)?;
-
 
         if remove_title_bar {
             self.remove_title_bar(use_border)?;

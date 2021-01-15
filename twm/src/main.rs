@@ -33,7 +33,7 @@ use std::{thread, time::Duration};
 use system::NativeWindow;
 use system::{DisplayId, SystemResult, WinEventListener, WindowId};
 use task_bar::Taskbar;
-use tile_grid::{TileGrid, store::Store};
+use tile_grid::{store::Store, TileGrid};
 use win_event_handler::{win_event::WinEvent, win_event_type::WinEventType};
 use window::Window;
 
@@ -327,19 +327,17 @@ impl AppState {
         let additional_rules = this.additonal_rules.clone();
         for display in this.displays.iter_mut() {
             for grid in display.grids.iter_mut() {
-                if let Some(stored_grid) = stored_grids.get((grid.id - 1) as usize) {	
+                if let Some(stored_grid) = stored_grids.get((grid.id - 1) as usize) {
                     grid.from_string(stored_grid);
                     Store::save(grid.id, grid.to_string());
 
                     if let Err(e) = grid.modify_windows(|window| {
-                                let rules = rules.iter()
-                                                 .chain(additional_rules.iter())
-                                                 .collect();
-                                window.set_matching_rule(rules);
-                                window.init(remove_title_bar, use_border)?;
+                        let rules = rules.iter().chain(additional_rules.iter()).collect();
+                        window.set_matching_rule(rules);
+                        window.init(remove_title_bar, use_border)?;
 
-                                Ok(())
-                            }) {
+                        Ok(())
+                    }) {
                         error!("Error while initializing window {:?}", e);
                     }
                 }
@@ -352,11 +350,13 @@ impl AppState {
             }
         }
 
-        if !focused_workspaces.is_empty() { // re-focus to show each display's focused workspace
+        if !focused_workspaces.is_empty() {
+            // re-focus to show each display's focused workspace
             for id in focused_workspaces.iter().rev() {
                 this.change_workspace(*id, false);
-            } 
-        } else { // otherwise just focus first workspace
+            }
+        } else {
+            // otherwise just focus first workspace
             this.change_workspace(1, false);
         }
 

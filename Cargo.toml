@@ -2,5 +2,6 @@
 members = [
   "interpreter",
   "twm",
-  "ns-cli"
+  "ns-cli",
+  "doc-gen"
 ]

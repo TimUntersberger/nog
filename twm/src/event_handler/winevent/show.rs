@@ -23,9 +23,11 @@ pub fn handle(state: &mut AppState, mut window: NativeWindow, force: bool) -> Sy
         }
     };
 
-    let rules = config.rules.iter()
-                            .chain(state.additonal_rules.iter())
-                            .collect();
+    let rules = config
+        .rules
+        .iter()
+        .chain(state.additonal_rules.iter())
+        .collect();
 
     window.set_matching_rule(rules);
 

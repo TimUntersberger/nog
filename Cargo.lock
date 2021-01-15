@@ -222,6 +222,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "doc-gen"
+version = "0.1.0"
+dependencies = [
+ "interpreter",
+]
+
+[[package]]
 name = "dtoa"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

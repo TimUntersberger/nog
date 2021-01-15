@@ -41,6 +41,8 @@ pub enum TokenKind {
     Arrow,
     #[token("class")]
     Class,
+    #[token("extern")]
+    Extern,
     #[token("import")]
     Import,
     #[token("break")]

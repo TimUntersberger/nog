@@ -30,6 +30,7 @@ pub enum AstKind {
     BreakStatement,
     ContinueStatement,
     ExportStatement(Box<AstNode>),
+    ExternStatement(Box<AstNode>),
     OperatorImplementation(Operator, Vec<String>, Vec<AstNode>),
     StaticFunctionDefinition(String, Vec<String>, Vec<AstNode>),
     FunctionDefinition(String, Vec<String>, Vec<AstNode>),

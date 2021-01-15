@@ -19,7 +19,9 @@ mod runtime_error;
 mod scope;
 mod token;
 
+pub use crate::ast::{AstKind, AstNode};
 pub use crate::interpreter::Interpreter;
+pub use crate::parser::Parser;
 pub use class::Class;
 pub use dynamic::Dynamic;
 pub use function::Function;

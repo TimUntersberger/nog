@@ -1201,7 +1201,8 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                 );
                 let tile = &target[1..end_info_index];
                 let tile_information = tile.split("|").collect::<Vec<&str>>();
-                let window = NativeWindow::from(WindowId::from(tile_information[2].parse::<i32>().unwrap()));
+                let window =
+                    NativeWindow::from(WindowId::from(tile_information[2].parse::<i32>().unwrap()));
 
                 match parent_id {
                     Some(id) => {

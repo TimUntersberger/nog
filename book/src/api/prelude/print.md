@@ -5,7 +5,7 @@ Writes the parameters to stdout seperated by a space.
 ## Signature
 
 ```nogscript
-fn print(...items: any[])
+fn print(...items: Any[])
 ```
 
 ## Example

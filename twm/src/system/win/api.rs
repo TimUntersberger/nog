@@ -84,7 +84,9 @@ unsafe extern "system" fn enum_windows_task_bars_cb(hwnd: HWND, l_param: LPARAM)
     let is_task_bar = TASKBAR_WINDOW_NAME_REGEX.is_match(&class_name);
 
     if is_task_bar {
-        window.init(false, false).expect("Failed to init taskbar window");
+        window
+            .init(false, false)
+            .expect("Failed to init taskbar window");
         taskbars.push(Taskbar::new(window));
     }
 

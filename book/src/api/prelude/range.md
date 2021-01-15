@@ -5,7 +5,7 @@ Generates an array with a length of `len` starting from `start`.
 ## Signature
 
 ```nogscript
-fn range(len: number, start: number = 0) -> number[]
+fn range(len: Number, start: Number = 0) -> Number[]
 ```
 
 ## Example

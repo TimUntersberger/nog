@@ -1,0 +1,74 @@
+import std
+import nog
+
+/// Generates an array with a length of len starting from start
+///
+/// @param len Number
+/// @param start Number?
+/// @returns Number[]
+/// 
+/// @example
+/// range(10).for_each(print)
+/// @output
+/// 1
+/// 2
+/// 3
+/// 4
+/// 5
+/// 6
+/// 7
+/// 8
+/// 9
+/// 10
+/// @example
+extern fn range(len, start)
+
+/// Dynamically imports the given path.
+///
+/// @param path String
+/// @returns Module
+/// @example
+/// var nog = require("nog")
+/// @example
+extern fn require(path)
+
+/// Wraps the given value in an object.
+///
+/// @param value Any
+/// @returns AtomicValue
+/// @example
+/// let count = atomic(0)
+/// 
+/// count.value++
+///
+/// print(count)
+/// @output
+/// AtomicValue {
+///   value: 1
+/// }
+/// @example
+extern fn atomic(path)
+
+/// Returns the type of the given value as a string.
+///
+/// @param value Any
+/// @returns String
+/// @example
+/// print(typeof(0))
+/// @output
+/// Number
+/// @example
+extern fn typeof(value)
+
+/// Writes the parameters to stdout seperated by a space.
+///
+/// @param args ...Any[]
+/// @example
+/// print("Hello World")
+/// @output
+/// Hello World
+/// @example
+extern fn print(value)
+
+/// The array class
+extern class Array

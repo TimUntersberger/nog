@@ -103,7 +103,8 @@ impl Component {
 
         let mut comp = Component::new(name, move |display_id| {
             let f = render_fn.clone().as_fn()?;
-            let dynamics = f.invoke(&mut i2.lock(), vec![display_id.0.into()])?
+            let dynamics = f
+                .invoke(&mut i2.lock(), vec![display_id.0.into()])?
                 .as_array()?;
             let mut rendered = Vec::new();
 
@@ -117,11 +118,13 @@ impl Component {
                             .with_display_text(string!(&items[0])?.clone())
                             .with_foreground_color(*number!(&items[1])?)
                             .with_background_color(*number!(&items[2])?)
-                    },
-                    x => return Err(RuntimeError::UnexpectedType {
-                        expected: "String | Array".into(),
-                        actual: x.type_name()
-                    }),
+                    }
+                    x => {
+                        return Err(RuntimeError::UnexpectedType {
+                            expected: "String | Array".into(),
+                            actual: x.type_name(),
+                        })
+                    }
                 })
             }
 
