@@ -1,17 +1,15 @@
 # read_file
 
-Returns the content of the file as an array of strings.
-
+Returns the content of the file as an array of strings
 ## Signature
 
 ```nogscript
-fn read_file(path: String) -> String[]
+fn read_file(path: String) -> Void
 ```
 
 ## Example
 
 ```nogscript
-import std.fs
-
-let content = fs.read_file("./test.txt")
+ let content = std.fs.read_file("./test.txt")
 ```
+

@@ -1,28 +1,14 @@
 # nog
 
 ## Modules
-
-* [popup]()
 * [plugin]()
-* [bar]()
-* [rule]()
-* [window]()
-* [workspace]()
-* [config]()
-
+* [popup]()
 ## Functions
-
-* [quit](./nog/quit.md)
-* [toggle_work_mode]()
-* [toggle_mode]()
-* [mode]()
 * [bind]()
 * [bind_arr]()
 * [bind_map]()
+* [mode]()
+* [quit]()
+* [toggle_mode]()
+* [toggle_work_mode]()
 * [xbind]()
-
-## Variables
-
-| name    | type   | description                |
-|---------|--------|----------------------------|
-| version | String | The current version of nog | 

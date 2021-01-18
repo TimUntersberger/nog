@@ -2,17 +2,21 @@
 
 Creates a new popup with given settings.
 
+```
+type PopupSettings = #{
+  text?: String | String[],
+  padding?: Number
+}
+```
 ## Signature
 
 ```nogscript
-fn create(settings: #{
-  text: String | String[],
-  padding: Number
-}) -> String
+fn create(settings: PopupSettings) -> Void
 ```
 
 ## Example
 
 ```nogscript
-nog.popup.create(#{ text: "Hello World" })
+ nog.popup.create(#{ text: "Hello World" })
 ```
+

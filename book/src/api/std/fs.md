@@ -1,5 +1,4 @@
 # fs
 
 ## Functions
-
-* [read_file](./fs/read_file.md)
+* [read_file]()

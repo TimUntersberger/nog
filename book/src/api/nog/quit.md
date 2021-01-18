@@ -1,15 +1,9 @@
 # quit
 
 Unmanages all windows and exits the application.
-
 ## Signature
 
 ```nogscript
-fn quit()
+fn quit() -> Void
 ```
 
-## Example
-
-```nogscript
-nog.quit()
-```

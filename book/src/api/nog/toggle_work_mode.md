@@ -1,15 +1,9 @@
 # toggle_work_mode
 
 Toggles the work mode.
-
 ## Signature
 
 ```nogscript
-fn toggle_work_mode()
+fn toggle_work_mode() -> Void
 ```
 
-## Example
-
-```nogscript
-nog.toggle_work_mode()
-```

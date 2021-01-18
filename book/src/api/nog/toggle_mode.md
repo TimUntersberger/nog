@@ -1,15 +1,9 @@
 # toggle_mode
 
-Toggles the given mode. Leaves the current mode if you are already in a mode.
-
+Toggles the work mode.
 ## Signature
 
 ```nogscript
-fn toggle_mode(mode: String)
+fn toggle_mode(mode: String) -> Void
 ```
 
-## Example
-
-```nogscript
-nog.toggle_mode("test")
-```
