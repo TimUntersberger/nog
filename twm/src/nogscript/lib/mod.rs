@@ -1,4 +1,3 @@
-use crate::{get_plugins_path_iter, popup::Popup};
 use crate::update_config;
 use crate::{
     bar::component,
@@ -9,6 +8,7 @@ use crate::{
     split_direction::SplitDirection,
     system, window, AppState, Event, Rule,
 };
+use crate::{get_plugins_path_iter, popup::Popup};
 use interpreter::{Dynamic, Function, Interpreter, Module, RuntimeError};
 use itertools::Itertools;
 use log::debug;
@@ -487,46 +487,46 @@ pub fn create_root_module(
     popup = popup.function("create", move |_i, args| {
         let mut popup = Popup::new();
         match args.len() {
-            0 => {},
+            0 => {}
             _ => {
                 let map_ref = object!(&args[0])?;
                 let map = map_ref.lock().unwrap();
 
                 for (key, value) in map.iter() {
                     match key.as_str() {
-                        "text" => {
-                            match value {
-                                Dynamic::String(x) => {
-                                    popup = popup.with_text(vec![x]);
-                                }
-                                Dynamic::Array(items) => {
-                                    let items = items.lock().unwrap();
-                                    let mut content = Vec::new();
+                        "text" => match value {
+                            Dynamic::String(x) => {
+                                popup = popup.with_text(vec![x]);
+                            }
+                            Dynamic::Array(items) => {
+                                let items = items.lock().unwrap();
+                                let mut content = Vec::new();
 
-                                    for item in items.iter() {
-                                        content.push(string!(item)?);
-                                    }
+                                for item in items.iter() {
+                                    content.push(string!(item)?);
+                                }
 
-                                    popup = popup.with_text(content);
-                                }
-                                x => {
-                                    return Err(RuntimeError::UnexpectedType {
-                                        expected: "String | Array".into(),
-                                        actual: x.type_name()
-                                    });
-                                }
+                                popup = popup.with_text(content);
+                            }
+                            x => {
+                                return Err(RuntimeError::UnexpectedType {
+                                    expected: "String | Array".into(),
+                                    actual: x.type_name(),
+                                });
                             }
                         },
                         "padding" => {
                             popup = popup.with_padding(*number!(value)?);
-                        },
+                        }
                         _ => {}
                     }
                 }
-            },
+            }
         };
 
-        popup.create(state.clone()).map_err(|err| format!("{:?}", err))?;
+        popup
+            .create(state.clone())
+            .map_err(|err| format!("{:?}", err))?;
 
         Ok(Dynamic::Null)
     });
