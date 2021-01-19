@@ -60,6 +60,13 @@ fn kb_from_args(callbacks_arc: Arc<Mutex<Vec<Function>>>, args: Vec<Dynamic>) ->
         }
         _ => todo!("{:?}", &args[1]),
     }
+
+    if let Some(always_active) = args.get(2) {
+        if always_active.is_true() {
+            kb.always_active = true;
+        }
+    }
+
     kb
 }
 
@@ -741,16 +748,6 @@ pub fn create_root_module(
     let cbs = callbacks_arc.clone();
     root = root.function("bind", move |_i, args| {
         let kb = kb_from_args(cbs.clone(), args);
-        cfg.lock().add_keybinding(kb);
-
-        Ok(())
-    });
-
-    let cfg = config.clone();
-    let cbs = callbacks_arc.clone();
-    root = root.function("xbind", move |_i, args| {
-        let mut kb = kb_from_args(cbs.clone(), args);
-        kb.always_active = true;
         cfg.lock().add_keybinding(kb);
 
         Ok(())

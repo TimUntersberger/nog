@@ -22,28 +22,26 @@ extern fn toggle_mode(mode)
 extern fn mode(mode, callback)
 
 /// Defines a new keybinding that calls the callback when the given key combo is pressed.
+///
+/// `always_active` is optional and defauls to false. 
+/// This flag tells nog to never unregister the keybinding as long as the program is running.
 /// @param key_combo String
 /// @param callback () -> Void
+/// @param always_active Boolean?
 /// @example
 /// nog.bind("F1", () => print("Hello World"))
 /// @example
-extern fn bind(key_combo, callback)
-
-/// Defines a new keybinding that calls the callback when the given key combo is pressed.
-/// 
-/// This keybinding won’t get unregisterd when leaving work mode or entering a custom mode.
-/// @param key_combo String
-/// @param callback () -> Void
-/// @example
-/// nog.xbind("F1", () => print("Hello World"))
-/// @example
-extern fn xbind(key_combo, callback)
+extern fn bind(key_combo, callback, always_active)
 
 /// Defines a new keybinding for each key in the map, where the key has the provided modifier 
 /// prepended and the keybinding calls the provided callback with its value.
+///
+/// `always_active` is optional and defauls to false. 
+/// This flag tells nog to never unregister the keybinding as long as the program is running.
 /// @param key_combo String
 /// @param callback () -> Void
 /// @param map Map<String, Any>
+/// @param always_active Boolean?
 /// @example
 /// nog.bind_map("Alt", nog.workspace.focus, #{
 ///   "H": "Left",
@@ -52,14 +50,18 @@ extern fn xbind(key_combo, callback)
 ///   "L": "Right"
 /// })
 /// @example
-extern fn bind_map(key_combo, callback, map)
+extern fn bind_map(key_combo, callback, map, always_active)
 
 /// Defines a new keybinding for each item in the array, where the key is the modifier + index and 
 /// the keybinding calls the provided callback with the item.
+///
+/// `always_active` is optional and defauls to false. 
+/// This flag tells nog to never unregister the keybinding as long as the program is running.
 /// @param key_combo String
 /// @param callback () -> Void
 /// @param arr Any[]
+/// @param always_active Boolean?
 /// @example
 /// nog.bind_arr("Alt", nog.workspace.change, range(10))
 /// @example
-extern fn bind_arr(key_combo, callback, arr)
+extern fn bind_arr(key_combo, callback, arr, always_active)
