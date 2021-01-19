@@ -680,7 +680,7 @@ pub fn create_root_module(
     });
 
     let mut root = Module::new("nog")
-        .variable("version", "<VERSION>")
+        .variable("version", option_env!("NOG_VERSION").unwrap_or("DEV"))
         .variable("workspace", workspace)
         .variable("plugin", plugin)
         .variable("rules", rules)
