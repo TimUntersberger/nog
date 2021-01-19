@@ -52,13 +52,10 @@ impl RuntimeError {
                 operator,
                 expr,
             } => {
-                let (line, col) = program.range_to_location(expr.location).unwrap();
                 format!(
-                    "Class {} doesn't have operator {} implemented at {}, {}",
+                    "Class {} doesn't have operator {} implemented",
                     &class,
                     &operator.to_string(),
-                    line,
-                    col
                 )
             }
         }
