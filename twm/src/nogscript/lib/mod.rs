@@ -1,4 +1,4 @@
-use crate::get_plugins_path_iter;
+use crate::{get_plugins_path_iter, popup::Popup};
 use crate::update_config;
 use crate::{
     bar::component,
@@ -475,6 +475,55 @@ pub fn create_root_module(
         Ok(list)
     });
 
+    let mut popup = Module::new("popup");
+    let state = state_arc.clone();
+    popup = popup.function("create", move |_i, args| {
+        let mut popup = Popup::new();
+        match args.len() {
+            0 => {},
+            _ => {
+                let map_ref = object!(&args[0])?;
+                let map = map_ref.lock().unwrap();
+
+                for (key, value) in map.iter() {
+                    match key.as_str() {
+                        "text" => {
+                            match value {
+                                Dynamic::String(x) => {
+                                    popup = popup.with_text(vec![x]);
+                                }
+                                Dynamic::Array(items) => {
+                                    let items = items.lock().unwrap();
+                                    let mut content = Vec::new();
+
+                                    for item in items.iter() {
+                                        content.push(string!(item)?);
+                                    }
+
+                                    popup = popup.with_text(content);
+                                }
+                                x => {
+                                    return Err(RuntimeError::UnexpectedType {
+                                        expected: "String | Array".into(),
+                                        actual: x.type_name()
+                                    });
+                                }
+                            }
+                        },
+                        "padding" => {
+                            popup = popup.with_padding(*number!(value)?);
+                        },
+                        _ => {}
+                    }
+                }
+            },
+        };
+
+        popup.create(state.clone()).map_err(|err| format!("{:?}", err))?;
+
+        Ok(Dynamic::Null)
+    });
+
     let mut config_mod = Module::new("config");
 
     let state = state_arc.clone();
@@ -629,6 +678,7 @@ pub fn create_root_module(
         .variable("plugin", plugin)
         .variable("rules", rules)
         .variable("window", window)
+        .variable("popup", popup)
         .variable("bar", bar)
         .variable("config", config_mod);
 
