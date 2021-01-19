@@ -35,7 +35,7 @@ jobs:
       env:
         NOG_VERSION: "${{ env.BRANCH_NAME }} ${{ env.COMMIT_HASH }}"
     - name: Add Icon
-      run: ./rcedit ./target/release/nog.exe --set-icon ./assets/logo.ico
+      run: ./rcedit ./target/release/twm.exe --set-icon ./assets/logo.ico
     - name: Create Release
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
@@ -44,4 +44,4 @@ jobs:
         prerelease: true
         title: "${{ env.BRANCH_NAME }} branch"
         files: |
-          ./target/release/nog.exe
+          ./target/release/twm.exe
