@@ -4,10 +4,10 @@ import nog.plugin
 /// Unmanages all windows and exits the application.
 extern fn quit()
 
-/// Toggles the work mode.
+/// Toggle the work mode.
 extern fn toggle_work_mode()
 
-/// Toggles the work mode.
+/// Toggle the mode.
 /// @param mode String
 extern fn toggle_mode(mode)
 
