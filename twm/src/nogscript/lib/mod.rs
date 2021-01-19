@@ -788,5 +788,42 @@ pub fn create_root_module(
 
         Ok(())
     });
+
+    let cfg = config.clone();
+    let cbs = callbacks_arc.clone();
+    root = root.function("bind_map", move |_i, args| {
+        let modifier = string!(&args[0])?;
+        let callback = args[1].clone().as_fn()?;
+        let map_ref = object!(&args[2])?;
+        let always_active = if let Some(val) = args.get(3) {
+            *boolean!(val)?
+        } else {
+            false
+        };
+
+        let map = map_ref.lock().unwrap();
+
+        for (key, value) in map.iter() {
+            let value = value.clone();
+            let callback = callback.clone();
+            let args = vec![
+                format!("{}+{}", modifier, key).into(), 
+                Dynamic::RustFunction {
+                    name: "bind_arr_gen_fn".into(),
+                    callback: Arc::new(move |i, _| {
+                        callback.invoke(i, vec![value.clone()])
+                    }),
+                    scope: None
+                },
+                always_active.into()
+            ];
+
+            let kb = kb_from_args(cbs.clone(), args);
+            cfg.lock().add_keybinding(kb);
+        }
+
+        Ok(())
+    });
+
     root
 }
