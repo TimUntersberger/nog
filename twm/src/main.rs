@@ -250,7 +250,7 @@ impl AppState {
 
     pub fn close_window(&mut self) -> SystemResult {
         if popup::is_visible() {
-            return popup::close()
+            return popup::close();
         }
 
         let config = self.config.clone();

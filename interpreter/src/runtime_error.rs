@@ -51,13 +51,11 @@ impl RuntimeError {
                 class,
                 operator,
                 expr,
-            } => {
-                format!(
-                    "Class {} doesn't have operator {} implemented",
-                    &class,
-                    &operator.to_string(),
-                )
-            }
+            } => format!(
+                "Class {} doesn't have operator {} implemented",
+                &class,
+                &operator.to_string(),
+            ),
         }
     }
 }

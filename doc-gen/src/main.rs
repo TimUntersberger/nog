@@ -160,16 +160,14 @@ fn write_mdbook_content(folder_path: &mut PathBuf, node: &BTreeMap<String, Conte
                         Content::Mod(_) => {
                             modules.push(key);
                         }
-                        Content::Doc(doc) => {
-                            match doc.kind {
-                                DocumentationKind::Function => {
-                                    functions.push(key);
-                                }
-                                DocumentationKind::Class => {
-                                    classes.push(key);
-                                }
+                        Content::Doc(doc) => match doc.kind {
+                            DocumentationKind::Function => {
+                                functions.push(key);
                             }
-                        }
+                            DocumentationKind::Class => {
+                                classes.push(key);
+                            }
+                        },
                     }
                 }
 
