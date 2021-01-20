@@ -1,17 +1,26 @@
-/// TODO
-extern fn increment()
+/// Increments the config value by the given amount
+/// @param key String
+/// @param amount Number = 1
+extern fn increment(key, amount)
 
-/// TODO
-extern fn decrement()
+/// Decrements the config value by the given amount
+/// @param key String
+/// @param amount Number = 1
+extern fn decrement(key, amount)
 
-/// TODO
-extern fn toggle()
+/// Toggles the config value
+/// @param key String
+extern fn toggle(key)
 
-/// TODO
-extern fn set()
+/// Sets the config value
+/// @param key String
+/// @param value Any
+extern fn set(key, value)
 
-/// TODO
-extern fn enable()
+/// Sets the config value to true
+/// @param key String
+extern fn enable(key)
 
-/// TODO
-extern fn disable()
+/// Sets the config value to false
+/// @param key String
+extern fn disable(key)
