@@ -24,8 +24,8 @@ jobs:
       run: cd doc-gen && cargo run && cd ..
     - name: Cleanup any leftover api docs
       run: |
-        rm -rf ./book/src/api
-        rm ./book/src/api_toc.md
+        [ ! -e ./book/src/api ] || rm -rf ./book/src/api
+        [ ! -e ./book/src/api_toc.md ] || rm ./book/src/api_toc.md
     - name: Copy api documentation
       run: |
         cp ./doc-gen/output/api ./book/src
