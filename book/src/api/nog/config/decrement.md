@@ -1,9 +1,9 @@
 # decrement
 
-TODO
+Decrements the config value by the given amount
 ## Signature
 
 ```nogscript
-fn decrement() -> Void
+fn decrement(amount: Number, key: String) -> Void
 ```
 

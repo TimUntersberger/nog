@@ -1,9 +1,9 @@
 # set
 
-TODO
+Sets the config value
 ## Signature
 
 ```nogscript
-fn set() -> Void
+fn set(key: String, value: Any) -> Void
 ```
 

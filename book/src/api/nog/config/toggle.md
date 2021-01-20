@@ -1,9 +1,9 @@
 # toggle
 
-TODO
+Toggles the config value
 ## Signature
 
 ```nogscript
-fn toggle() -> Void
+fn toggle(key: String) -> Void
 ```
 

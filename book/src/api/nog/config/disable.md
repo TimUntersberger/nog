@@ -1,9 +1,9 @@
 # disable
 
-TODO
+Sets the config value to false
 ## Signature
 
 ```nogscript
-fn disable() -> Void
+fn disable(key: String) -> Void
 ```
 

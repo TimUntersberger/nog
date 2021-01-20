@@ -1,9 +1,9 @@
 # enable
 
-TODO
+Sets the config value to true
 ## Signature
 
 ```nogscript
-fn enable() -> Void
+fn enable(key: String) -> Void
 ```
 

@@ -1,9 +1,9 @@
 # increment
 
-TODO
+Increments the config value by the given amount
 ## Signature
 
 ```nogscript
-fn increment() -> Void
+fn increment(amount: Number, key: String) -> Void
 ```
 
