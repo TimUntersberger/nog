@@ -1,0 +1,37 @@
+import nog
+import nog.bar.components
+
+import keybindings
+import workspace
+import rules
+import modes.resize
+import plugins
+
+nog.bar.configure(#{
+    font: "CaskaydiaCove NF",
+    font_size: 18
+})
+
+var ignored = [
+    "explorer.exe",
+    "Taskmgr.exe",
+    "SnippingTool.exe"
+]
+
+var workspace_count = 10
+var direction_keys = #{
+    "H": "Left",
+    "J": "Down",
+    "K": "Up",
+    "L": "Right"
+}
+
+nog.config.enable("work_mode")
+nog.config.enable("display_app_bar")
+nog.config.enable("launch_on_startup")
+nog.config.enable("multi_monitor")
+nog.config.enable("remove_task_bar")
+
+workspace.init()
+keybindings.init(direction_keys, workspace_count)
+rules.init(ignored)

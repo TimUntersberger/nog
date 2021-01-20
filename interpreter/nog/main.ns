@@ -1,0 +1,5 @@
+nog.bar.configure(#{
+    components: #{
+        left: [nog.bar.components.workspaces(), nog.bar.components.current_window()]
+    }
+})

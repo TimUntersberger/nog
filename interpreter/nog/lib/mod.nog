@@ -1,0 +1,11 @@
+var state = #{
+    counter = 1
+};
+
+fn inc() {
+    state.counter = state.counter + 1;
+    print(state.counter);
+}
+
+export inc;
+export state;

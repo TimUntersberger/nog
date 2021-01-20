@@ -1,0 +1,20 @@
+import nog
+
+export fn init() {
+    nog.workspace.configure(1, #{
+        text: "  "
+    })
+
+    nog.workspace.configure(2, #{
+        text: "  ",
+        monitor: 1
+    })
+
+    nog.workspace.configure(3, #{
+        text: " 阮 "
+    })
+
+    nog.workspace.configure(4, #{
+        text: " ﭮ "
+    })
+}

@@ -1,0 +1,21 @@
+import nog
+import nog.mode
+
+mode("resize", bind => {
+    bind("H", () => nog.workspace.resize("Left", 2))
+    bind("Shift+H", () => nog.workspace.resize("Left", -2))
+
+    bind("J", () => nog.workspace.resize("Down", 2))
+    bind("Shift+J", () => nog.workspace.resize("Down", -2))
+
+    bind("K", () => nog.workspace.resize("Up", 2))
+    bind("Shift+K", () => nog.workspace.resize("Up", -2))
+
+    bind("L", () => nog.workspace.resize("Right", 2))
+    bind("Shift+L", () => nog.workspace.resize("Right", -2))
+
+    bind("C", nog.workspace.reset_col)
+    bind("R", nog.workspace.reset_row)
+
+    bind("Alt+R", () => nog.toggle_mode("resize"))
+})
