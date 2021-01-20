@@ -23,7 +23,7 @@ jobs:
           ~/.cargo/git
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-    - name: Generator api documentation
+    - name: Generate api documentation
       run: cd doc-gen && cargo run && cd ..
     - name: Cleanup any leftover api docs
       run: |
@@ -31,7 +31,7 @@ jobs:
         [ ! -e ./book/src/api_toc.md ] || rm ./book/src/api_toc.md
     - name: Copy api documentation
       run: |
-        cp ./doc-gen/output/api ./book/src
+        cp -r ./doc-gen/output/api ./book/src
         cp ./doc-gen/output/SUMMARY.md ./book/src/api_toc.md
     - name: Commit changes
       run: |
