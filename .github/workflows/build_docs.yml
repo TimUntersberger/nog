@@ -33,6 +33,16 @@ jobs:
       run: |
         cp -r ./doc-gen/output/api ./book/src
         cp ./doc-gen/output/SUMMARY.md ./book/src/api_toc.md
+    - name: Setup mdBook
+      uses: peaceiris/actions-mdbook@v1
+      with:
+        mdbook-version: '0.4.6'
+    - name: Build book
+      run: |
+        cd book
+        mdbook build
+        cd ..
+        mv docs/print.html docs/index.html
     - name: Setup git user
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
