@@ -809,7 +809,7 @@ pub fn create_root_module(
             let args = vec![
                 format!("{}+{}", modifier, key).into(), 
                 Dynamic::RustFunction {
-                    name: "bind_arr_gen_fn".into(),
+                    name: "bind_map_gen_fn".into(),
                     callback: Arc::new(move |i, _| {
                         callback.invoke(i, vec![value.clone()])
                     }),
