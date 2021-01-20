@@ -1,6 +1,6 @@
 # toggle_mode
 
-Toggles the work mode.
+Toggle the mode.
 ## Signature
 
 ```nogscript

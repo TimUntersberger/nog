@@ -11,4 +11,3 @@
 * [quit]()
 * [toggle_mode]()
 * [toggle_work_mode]()
-* [xbind]()

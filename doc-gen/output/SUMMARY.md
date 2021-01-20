@@ -17,7 +17,6 @@
   - [quit](./api/nog/quit.md)
   - [toggle_mode](./api/nog/toggle_mode.md)
   - [toggle_work_mode](./api/nog/toggle_work_mode.md)
-  - [xbind](./api/nog/xbind.md)
 - [print](./api/print.md)
 - [range](./api/range.md)
 - [require](./api/require.md)
