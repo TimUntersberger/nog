@@ -1,17 +1,17 @@
-/// 
+/// TODO
 extern fn increment()
 
-///
+/// TODO
 extern fn decrement()
 
-///
+/// TODO
 extern fn toggle()
 
-///
+/// TODO
 extern fn set()
 
-///
+/// TODO
 extern fn enable()
 
-///
+/// TODO
 extern fn disable()
