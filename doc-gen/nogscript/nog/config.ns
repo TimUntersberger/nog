@@ -1,0 +1,17 @@
+/// 
+extern fn increment()
+
+///
+extern fn decrement()
+
+///
+extern fn toggle()
+
+///
+extern fn set()
+
+///
+extern fn enable()
+
+///
+extern fn disable()
