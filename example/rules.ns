@@ -1,0 +1,30 @@
+import nog.rules.ignore
+import nog.rules.match
+
+export fn init(ignored) {
+    ignored.for_each(ignore)
+
+    match("firefox.exe", #{
+        has_custom_titlebar: true,
+        workspace_id: 2,
+        firefox: true
+    })
+
+    match("chrome.exe", #{
+        has_custom_titlebar: true,
+        workspace_id: 2,
+        chromium: true
+    })
+
+    match("Discord.exe", #{
+        has_custom_titlebar: true,
+    })
+
+    match("Spotify.exe", #{
+        has_custom_titlebar: true,
+    })
+
+    match("Code.exe", #{
+        has_custom_titlebar: true,
+    })
+}

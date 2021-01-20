@@ -1,0 +1,3 @@
+import nog.plugin.install
+
+install("TimUntersberger/counter.nog")
