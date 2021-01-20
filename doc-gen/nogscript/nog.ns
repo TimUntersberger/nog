@@ -1,5 +1,6 @@
 import nog.popup
 import nog.plugin
+import nog.config
 
 /// Unmanages all windows and exits the application.
 extern fn quit()

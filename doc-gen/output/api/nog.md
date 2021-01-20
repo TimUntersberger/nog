@@ -1,6 +1,7 @@
 # nog
 
 ## Modules
+* [config]()
 * [plugin]()
 * [popup]()
 ## Functions
