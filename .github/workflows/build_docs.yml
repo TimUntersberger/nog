@@ -29,6 +29,7 @@ jobs:
       run: |
         [ ! -e ./book/src/api ] || rm -rf ./book/src/api
         [ ! -e ./book/src/api_toc.md ] || rm ./book/src/api_toc.md
+        [ ! -e ./docs ] || rm -ref ./docs
     - name: Copy api documentation
       run: |
         cp -r ./doc-gen/output/api ./book/src
