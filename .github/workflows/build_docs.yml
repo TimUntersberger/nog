@@ -13,6 +13,9 @@ jobs:
       with:
         rust-version: nightly
     - uses: actions/checkout@v2
+      with:
+        persist-credentials: false
+        fetch-depth: 0
     - uses: actions/cache@v2
       with:
         path: |
@@ -30,3 +33,11 @@ jobs:
       run: |
         cp ./doc-gen/output/api ./book/src
         cp ./doc-gen/output/SUMMARY.md ./book/src/api_toc.md
+    - name: Commit changes
+      run: |
+        git commit -am "[BUILD_DOCS WORKFLOW]: update docs"
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: ${{ github.ref }}
