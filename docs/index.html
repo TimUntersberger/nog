@@ -1,30 +1,460 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Nog</title>
-  <link rel="icon" href="_media/logo.ico">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
-  <meta name="description" content="Description">
-  <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
-  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify/lib/themes/vue.css">
-  <style>
-    p {
-      font-size: 17px !important;
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Nog Documentation</title>
+        
+        <meta name="robots" content="noindex" />
+        
+        
+
+
+        <!-- Custom HTML head -->
+        
+
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        
+        <link rel="icon" href="favicon.svg">
+        
+        
+        <link rel="shortcut icon" href="favicon.png">
+        
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        
+        <link rel="stylesheet" href="css/print.css" media="print">
+        
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        
+        <link rel="stylesheet" href="fonts/fonts.css">
+        
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="getting-started/installation.html">Installation</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="configuration/settings.html">settings</a></li><li class="chapter-item "><a href="configuration/workspaces.html">workspaces</a></li><li class="chapter-item "><a href="configuration/modes.html">modes</a></li><li class="chapter-item "><a href="configuration/rules.html">rules</a></li><li class="chapter-item "><a href="configuration/bar.html">bar</a></li><li class="chapter-item affix "><li class="part-title">Nogscript</li><li class="chapter-item "><a href="nogscript/variables.html">variables</a></li><li class="chapter-item "><a href="nogscript/classes.html">classes</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><div>overriding operators</div></li></ol></li><li class="chapter-item "><a href="nogscript/loops.html">loops</a></li><li class="chapter-item "><a href="nogscript/functions.html">functions</a></li><li class="chapter-item "><a href="nogscript/conditionals.html">conditionals</a></li><li class="chapter-item "><a href="nogscript/modules.html">modules</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                        
+                    </div>
+
+                    <h1 class="menu-title">Nog Documentation</h1>
+
+                    <div class="right-buttons">
+                        
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        
+                        
+                        <a href="https://github.com/TimUntersberger/nog" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1><a class="header" href="#installation" id="installation">Installation</a></h1>
+<p>You can install Nog by downloading a prebuilt executable from <a href="https://github.com/TimUntersberger/nog/releases/tag/development-release">here</a>.</p>
+<h1><a class="header" href="#settings" id="settings">Settings</a></h1>
+<p>When Nog gets started for the first time it creates a new folder at <code>%APPDATA%/nog</code>.</p>
+<p>This folder contains all of the machine specific configurations/plugins.</p>
+<p>At startup the program looks for a <code>config.ns</code> file in the root of this folder and executes it if it can find one.</p>
+<p>The config uses a custom language called <code>Nogscript</code> which is explained in more detail in the <a href="configuration/">scripting</a> section.</p>
+<p>Below you can find a list of settings you can change and their description:</p>
+<table><thead><tr><th>Key</th><th>Value</th><th>Description</th></tr></thead><tbody>
+<tr><td>min_height</td><td>Number</td><td>The minimum height a window has to have so that it gets managed automatically</td></tr>
+<tr><td>min_width</td><td>Number</td><td>The minimum width a window has to have so that it gets managed automatically</td></tr>
+<tr><td>inner_gap</td><td>Number</td><td>The gap between each tile</td></tr>
+<tr><td>outer_gap</td><td>Number</td><td>The margin between workspace and the display</td></tr>
+<tr><td>launch_on_startup</td><td>Boolean</td><td>Start when you start your computer</td></tr>
+<tr><td>multi_monitor</td><td>Boolean</td><td>Use all monitors</td></tr>
+<tr><td>work_mode</td><td>Boolean</td><td>Start in <a href="configuration/">work mode</a></td></tr>
+<tr><td>use_border</td><td>Boolean</td><td>Force managed windows to draw a border. (This can help clarity)</td></tr>
+<tr><td>light_theme</td><td>Boolean</td><td>Changes how the bar colors get generated to fit light colors</td></tr>
+<tr><td>display_app_bar</td><td>Boolean</td><td>Enable the bar</td></tr>
+<tr><td>remove_title_bar</td><td>Boolean</td><td>Remove the titlebar of managed windows</td></tr>
+<tr><td>remove_task_bar</td><td>Boolean</td><td>Remove the taskbar while the program is running</td></tr>
+<tr><td>ignore_fullscreen_actions</td><td>Boolean</td><td>Ignore grid-modifying keybindings (swap, focus, move, etc) while fullscreened</td></tr>
+</tbody></table>
+<p>All of these settings can be modified by using any of the functions in the <a href="configuration/">nog.config</a> module.</p>
+<h2><a class="header" href="#examples" id="examples">Examples</a></h2>
+<pre><code class="language-nogscript">import nog.config
+
+config.set(&quot;min_height&quot;, 200)
+config.set(&quot;min_width&quot;, 200)
+config.enable(&quot;light_theme&quot;)
+</code></pre>
+<h1><a class="header" href="#workspaces" id="workspaces">Workspaces</a></h1>
+<p><strong>Note</strong>: The monitor ids are counted from left to right and from top to bottom</p>
+</br>
+<p>Nog has <code>10</code> different workspaces. Each workspace can be customized.</p>
+<p>When customizing a workspace you can change the following settings:</p>
+<table><thead><tr><th>Key</th><th>Value</th><th>Description</th></tr></thead><tbody>
+<tr><td>monitor</td><td>Number</td><td>Id of the monitor this workspace resides on per default</td></tr>
+<tr><td>text</td><td>String</td><td>Text to display instead of the id (can be unicode)</td></tr>
+</tbody></table>
+<p>You can customize a workspace by calling the <a href="configuration/">nog.workspace.configure</a> function.</p>
+<h2><a class="header" href="#example" id="example">Example</a></h2>
+<pre><code class="language-nogscript">import nog
+
+nog.workspace.configure(1, #{
+  text: &quot;Hello World!&quot;
+})
+</code></pre>
+<h1><a class="header" href="#modes" id="modes">Modes</a></h1>
+<p>A mode in Nog is a self contained state, where all of the keybindings get unregistered until you leave the mode again.</p>
+<p>It is important to use the <code>bind</code> function passed as an argument instead of the global one when registering mode specific keybindings.</p>
+<p>Keybindings that are defined with the <code>xbind</code> function won’t get unregistered when entering/leaving a mode.</p>
+<p>You can define a new mode by calling the <a href="configuration/">nog.mode</a> function.</p>
+<p>To enter/leave a mode you have to call the <a href="configuration/">nog.enter_mode</a>/<a href="configuration/">nog.leave_mode</a> function.</p>
+<h1><a class="header" href="#example-1" id="example-1">Example</a></h1>
+<pre><code class="language-nogscript">import nog
+
+nog.mode(&quot;test&quot;, bind =&gt; {
+  bind(&quot;F1&quot;, () =&gt; print(&quot;Hello World!&quot;))
+})
+</code></pre>
+<h1><a class="header" href="#rules" id="rules">Rules</a></h1>
+<p>Rules are used to define window specific properties for example whether the window uses the native titlebar or a custom one.</p>
+<p>You can define a new rule by using either the <a href="configuration/">ignore</a> or <a href="configuration/">match</a> functions.</p>
+<h1><a class="header" href="#bar" id="bar">Bar</a></h1>
+<p><img src="https://timuntersberger.github.io/nog/_media/bar.png" alt="Bar example" title="Bar example" /></p>
+<p>Nog comes with a builtin bar that is a combination of multiple components.</p>
+<p>The bar can be configured by using the <a href="configuration/">nog.bar.configure</a> function.</p>
+<p>The following components are provided by default:</p>
+<ul>
+<li>time</li>
+<li>date</li>
+<li>workspaces</li>
+<li>current_window</li>
+<li>padding</li>
+<li>split_direction</li>
+<li>current_mode</li>
+</ul>
+<p>If you want to know how to use these components, please look at the API reference.</p>
+<h1><a class="header" href="#variables" id="variables">Variables</a></h1>
+<p>Nogscript is a dynamic language so a variable can hold any type. You can define a new variable by using the <code>var</code> keyword.</p>
+<pre><code class="language-nogscript">var variable = 1
+variable = &quot;&quot;
+</code></pre>
+<p>Variables in nogscript are not immutable.</p>
+<pre><code class="language-nogscript">var count = 0;
+
+count += 1;
+
+print(count) // prints 1
+</code></pre>
+<h1><a class="header" href="#classes" id="classes">Classes</a></h1>
+<p>Explaining classes in nogscript is easier by just showing an example.</p>
+<pre><code class="language-nogscript">class Point {
+  var x = 0
+  var y = 0
+
+  var info // = null
+
+  fn inc_both() {
+    this.x++
+    this.y++
+  }
+
+  static fn new(x, y) {
+    return Point {
+      x: x,
+      y: y
     }
-  </style>
-</head>
-<body>
-  <div id="app"></div>
-  <script>
-    window.$docsify = {
-      name: 'Nog',
-      subMaxLevel: 3,
-      themeColor: "#6EBFC2",
-      loadSidebar: true,
-      repo: 'https://github.com/TimUntersberger/nog'
-    }
-  </script>
-  <script src="//cdn.jsdelivr.net/npm/docsify/lib/docsify.min.js"></script>
-</body>
+  }
+}
+
+var point
+
+point = Point.new(1, 1) // call static function
+point = Point {} // uses defaults
+point = Point { x: 1 } // override only x
+
+point.inc_both() // call method
+</code></pre>
+<h1><a class="header" href="#loops" id="loops">Loops</a></h1>
+<p>For now we only support while loops.</p>
+<pre><code class="language-nogscript">while true {
+}
+</code></pre>
+<pre><code>var x == 1
+while x == 1 {
+}
+</code></pre>
+<h1><a class="header" href="#functions" id="functions">Functions</a></h1>
+<p>Nogscript supports both normal functions and anonymous arrow functions.</p>
+<pre><code class="language-nogscript">fn f() {
+}
+</code></pre>
+<pre><code class="language-nogscript">var f = () =&gt; {}
+</code></pre>
+<p>Functions capture their environment.</p>
+<pre><code class="language-nogscript">var count = 0;
+
+// This function captures count
+var f = () =&gt; {
+  print(count)
+}
+
+f() // prints 0
+</code></pre>
+<p>It is important to know that only some variables are passed by reference.</p>
+<p>Primitives like <code>Number</code> and <code>Boolean</code> are passed by value which can cause some unwanted behaviour.</p>
+<pre><code class="language-nogscript">var count = 0;
+
+// This function captures a copy of count not a reference
+var inc = by =&gt; {
+  count += by
+  print(count)
+}
+
+// increments a copy of count
+inc(1)
+// increments a copy of count
+inc(1)
+
+// Count is still 0
+print(count)
+</code></pre>
+<p>Objects are captured by reference so you can use a simple trick to have a reference to count.</p>
+<pre><code class="language-nogscript">var count = #{ value: 0 };
+
+// This function captures a ref to count
+var inc = by =&gt; {
+  count.value += by
+}
+
+// increments the original count
+inc(1)
+// increments the original count
+inc(1)
+
+// Count is 2
+print(count)
+</code></pre>
+<p>To make it easier for you to use this pattern we provide an <code>atomic</code> function in the prelude that basically does the same thing for you.</p>
+<pre><code class="language-nogscript">var count = atomic(0);
+
+/// ... same as previous example
+</code></pre>
+<h1><a class="header" href="#conditionals" id="conditionals">conditionals</a></h1>
+<pre><code class="language-nogscript">if true {
+
+} elif true {
+
+} else {
+
+}
+</code></pre>
+<h1><a class="header" href="#modules" id="modules">modules</a></h1>
+<h2><a class="header" href="#import" id="import">Import</a></h2>
+<p>Modules can be imported either be import by using the <code>import</code> keyword</p>
+<pre><code class="language-nogscript">// builtin module
+import nog
+// local module
+import keybindings
+// plugin
+import counter
+</code></pre>
+<p>or using the <code>require</code> function</p>
+<pre><code class="language-nogscript">// builtin module
+var nog = require(&quot;nog&quot;)
+// local module
+var keybindings = require(&quot;keybindings&quot;)
+// plugin
+var counter = require(&quot;counter&quot;)
+</code></pre>
+<p>The file will be looked for in these directories, following the same order:</p>
+<ul>
+<li>BUILTIN_MODULES</li>
+<li>%APPDATA%/nog</li>
+<li>%APPDATA%/nog/plugins</li>
+</ul>
+<h2><a class="header" href="#export" id="export">Export</a></h2>
+<p>Every file is automatically a module, but to expose something to users of a module you have to use the <code>export</code> keyword.</p>
+<pre><code class="language-nogscript">var x = 1
+
+// You can export later on in the file
+export x
+
+// but you can also export immediately
+export var y = 1
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+
+        
+
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+        
+        <script type="text/javascript">
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+        
+        
+
+    </body>
 </html>

@@ -15,7 +15,7 @@ jobs:
       with:
         rust-version: nightly
     - uses: actions/checkout@v2
-    - uses: nelonoel/branch-name@v1
+    - uses: nelonoel/branch-name@v1.0.1
     - uses: actions/cache@v2
       with:
         path: |
@@ -24,13 +24,18 @@ jobs:
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     - name: Set Env
-      run: echo "::set-env name=COMMIT_HASH::$(git rev-parse --short HEAD)"
+      run: |
+        # disable command workflow processing
+        echo "::stop-commands::pause-logging"
+        echo "::set-env name=COMMIT_HASH::$(git rev-parse --short HEAD)"
+        # enable command workflow processing
+        echo "::pause-logging::"
     - name: Build
       run: cargo build --release
       env:
         NOG_VERSION: "${{ env.BRANCH_NAME }} ${{ env.COMMIT_HASH }}"
     - name: Add Icon
-      run: ./rcedit ./target/release/nog.exe --set-icon ./assets/logo.ico
+      run: ./rcedit ./target/release/twm.exe --set-icon ./assets/logo.ico
     - name: Create Release
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
@@ -39,4 +44,4 @@ jobs:
         prerelease: true
         title: "${{ env.BRANCH_NAME }} branch"
         files: |
-          ./target/release/nog.exe
+          ./target/release/twm.exe

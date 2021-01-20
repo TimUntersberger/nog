@@ -1,0 +1,6 @@
+/// Returns the content of the file as an array of strings
+/// @param path String
+/// @example
+/// let content = std.fs.read_file("./test.txt")
+/// @example
+extern fn read_file(path)

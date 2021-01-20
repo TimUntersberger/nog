@@ -1,0 +1,16 @@
+[book]
+authors = ["TimUntersberger"]
+language = "en"
+multilingual = false
+src = "output"
+title = "Nog Documentation"
+
+[preprocessor.index]
+
+[output.html]
+no-section-label = true
+curly-quotes = true
+
+[output.html.fold]
+enable = true
+level = 0

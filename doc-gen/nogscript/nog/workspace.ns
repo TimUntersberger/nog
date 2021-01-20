@@ -1,0 +1,45 @@
+/// Switches the focused workspace to the one that has the given id
+/// @param id Number
+extern fn change(id)
+
+/// Moves the focused workspace to the monitor that has the given index
+/// @param id Number
+extern fn move_to_monitor(id)
+
+/// Toggles fullscreen mode
+extern fn toggle_fullscreen()
+
+/// resets any resizing applied to the focused row
+extern fn reset_row()
+
+/// resets any resizing applied to the focused column
+extern fn reset_col()
+
+/// Changes the configuration of the workspace that has the given id
+/// 
+/// ```
+/// type WorkspaceSettings = {
+///     text: String?,
+///     monitor: Number?
+/// }
+/// ```
+/// @param id Number
+/// @param settings WorkspaceSettings
+extern fn configure(id, settings)
+
+/// Changes the focus to the next window in the given direction
+/// @param direction "Left" | "Right" | "Up" | "Down"
+extern fn focus(direction)
+
+/// Resizes the window in the given direction by the provided amount
+/// @param direction "Left" | "Right" | "Up" | "Down"
+/// @param amount Number
+extern fn resize(direction, amount)
+
+/// Swaps the position of the current window with the next window in the given direction
+/// @param direction "Left" | "Right" | "Up" | "Down"
+extern fn swap(direction)
+
+/// Sets the workspace specific direction in which new windows get ordered
+/// @param direction "Horizontal" | "Vertial"
+extern fn set_split_direction(direction)
