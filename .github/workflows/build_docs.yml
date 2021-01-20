@@ -39,6 +39,7 @@ jobs:
         git config --local user.name "github-actions[bot]"
     - name: Commit changes
       run: |
+        git add .
         git commit -am "[BUILD_DOCS WORKFLOW]: update docs"
     - name: Push changes
       uses: ad-m/github-push-action@master
