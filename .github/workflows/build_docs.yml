@@ -3,7 +3,7 @@ name: Docs
 on: 
   push:
     paths:
-      - gen-docs/**
+      - doc-gen/**
 
 env:
   CARGO_TERM_COLOR: always
