@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - doc-gen/**
+      - book/**
 
 env:
   CARGO_TERM_COLOR: always
