@@ -210,6 +210,10 @@ impl AppState {
     }
 
     pub fn move_workspace_to_monitor(&mut self, monitor: i32) -> SystemResult {
+        if self.get_display_by_idx_mut(monitor).is_none() {
+            error!("Monitor with id {} doesn't exist", monitor);
+            return Ok(());
+        }
         let display = self.get_current_display_mut();
 
         if let Some(grid) = display
@@ -217,10 +221,7 @@ impl AppState {
             .and_then(|id| display.remove_grid_by_id(id))
         {
             let config = self.config.clone();
-            let new_display = self
-                .get_display_by_idx_mut(monitor)
-                .expect("Monitor with specified idx doesn't exist");
-
+            let new_display = self.get_display_by_idx_mut(monitor).unwrap();
             let id = grid.id;
 
             new_display.grids.push(grid);
@@ -572,10 +573,14 @@ impl AppState {
     }
 
     pub fn get_display_by_idx_mut(&mut self, idx: i32) -> Option<&mut Display> {
+        if idx > self.displays.len() as i32 {
+            return None;
+        }
+
         let x: usize = if idx == -1 {
             0
         } else {
-            std::cmp::max(self.displays.len() - (idx as usize), 0)
+            self.displays.len() - idx as usize
         };
 
         self.displays.get_mut(x)

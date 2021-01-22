@@ -771,15 +771,13 @@ pub fn create_root_module(
             let value = value.clone();
             let callback = callback.clone();
             let args = vec![
-                format!("{}+{}", modifier, i).into(), 
+                format!("{}+{}", modifier, i).into(),
                 Dynamic::RustFunction {
                     name: "bind_arr_gen_fn".into(),
-                    callback: Arc::new(move |i, _| {
-                        callback.invoke(i, vec![value.clone()])
-                    }),
-                    scope: None
+                    callback: Arc::new(move |i, _| callback.invoke(i, vec![value.clone()])),
+                    scope: None,
                 },
-                always_active.into()
+                always_active.into(),
             ];
 
             let kb = kb_from_args(cbs.clone(), args);
@@ -807,15 +805,13 @@ pub fn create_root_module(
             let value = value.clone();
             let callback = callback.clone();
             let args = vec![
-                format!("{}+{}", modifier, key).into(), 
+                format!("{}+{}", modifier, key).into(),
                 Dynamic::RustFunction {
                     name: "bind_map_gen_fn".into(),
-                    callback: Arc::new(move |i, _| {
-                        callback.invoke(i, vec![value.clone()])
-                    }),
-                    scope: None
+                    callback: Arc::new(move |i, _| callback.invoke(i, vec![value.clone()])),
+                    scope: None,
                 },
-                always_active.into()
+                always_active.into(),
             ];
 
             let kb = kb_from_args(cbs.clone(), args);
