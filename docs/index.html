@@ -97,7 +97,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="getting-started/installation.html">Installation</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="configuration/settings.html">settings</a></li><li class="chapter-item "><a href="configuration/workspaces.html">workspaces</a></li><li class="chapter-item "><a href="configuration/modes.html">modes</a></li><li class="chapter-item "><a href="configuration/rules.html">rules</a></li><li class="chapter-item "><a href="configuration/bar.html">bar</a></li><li class="chapter-item affix "><li class="part-title">Nogscript</li><li class="chapter-item "><a href="nogscript/variables.html">variables</a></li><li class="chapter-item "><a href="nogscript/classes.html">classes</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><div>overriding operators</div></li></ol></li><li class="chapter-item "><a href="nogscript/loops.html">loops</a></li><li class="chapter-item "><a href="nogscript/functions.html">functions</a></li><li class="chapter-item "><a href="nogscript/conditionals.html">conditionals</a></li><li class="chapter-item "><a href="nogscript/modules.html">modules</a></li></ol>
+                <ol class="chapter"><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="getting-started/installation.html">Installation</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="configuration/settings.html">settings</a></li><li class="chapter-item "><a href="configuration/workspaces.html">workspaces</a></li><li class="chapter-item "><a href="configuration/modes.html">modes</a></li><li class="chapter-item "><a href="configuration/rules.html">rules</a></li><li class="chapter-item "><a href="configuration/bar.html">bar</a></li><li class="chapter-item affix "><li class="part-title">Nogscript</li><li class="chapter-item "><a href="nogscript/variables.html">variables</a></li><li class="chapter-item "><a href="nogscript/classes.html">classes</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><div>overriding operators</div></li></ol></li><li class="chapter-item "><a href="nogscript/loops.html">loops</a></li><li class="chapter-item "><a href="nogscript/functions.html">functions</a></li><li class="chapter-item "><a href="nogscript/conditionals.html">conditionals</a></li><li class="chapter-item "><a href="nogscript/modules.html">modules</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="api/Array.html">Array</a></li><li class="chapter-item "><a href="api/atomic.html">atomic</a></li><li class="chapter-item "><a href="api/nog.html">nog</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="api/nog/bind.html">bind</a></li><li class="chapter-item "><a href="api/nog/bind_arr.html">bind_arr</a></li><li class="chapter-item "><a href="api/nog/bind_map.html">bind_map</a></li><li class="chapter-item "><a href="api/nog/config.html">config</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="api/nog/config/decrement.html">decrement</a></li><li class="chapter-item "><a href="api/nog/config/disable.html">disable</a></li><li class="chapter-item "><a href="api/nog/config/enable.html">enable</a></li><li class="chapter-item "><a href="api/nog/config/increment.html">increment</a></li><li class="chapter-item "><a href="api/nog/config/set.html">set</a></li><li class="chapter-item "><a href="api/nog/config/toggle.html">toggle</a></li></ol></li><li class="chapter-item "><a href="api/nog/mode.html">mode</a></li><li class="chapter-item "><a href="api/nog/plugin.html">plugin</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="api/nog/plugin/install.html">install</a></li><li class="chapter-item "><a href="api/nog/plugin/list.html">list</a></li><li class="chapter-item "><a href="api/nog/plugin/uninstall.html">uninstall</a></li><li class="chapter-item "><a href="api/nog/plugin/update.html">update</a></li></ol></li><li class="chapter-item "><a href="api/nog/popup.html">popup</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="api/nog/popup/create.html">create</a></li></ol></li><li class="chapter-item "><a href="api/nog/quit.html">quit</a></li><li class="chapter-item "><a href="api/nog/toggle_mode.html">toggle_mode</a></li><li class="chapter-item "><a href="api/nog/toggle_work_mode.html">toggle_work_mode</a></li></ol></li><li class="chapter-item "><a href="api/print.html">print</a></li><li class="chapter-item "><a href="api/range.html">range</a></li><li class="chapter-item "><a href="api/require.html">require</a></li><li class="chapter-item "><a href="api/std.html">std</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="api/std/fs.html">fs</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="api/std/fs/read_file.html">read_file</a></li></ol></li></ol></li><li class="chapter-item "><a href="api/typeof.html">typeof</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -396,6 +396,266 @@ export x
 
 // but you can also export immediately
 export var y = 1
+</code></pre>
+<h1><a class="header" href="#array" id="array">Array</a></h1>
+<h1><a class="header" href="#atomic" id="atomic">atomic</a></h1>
+<p>Wraps the given value in an object.</p>
+<h2><a class="header" href="#signature" id="signature">Signature</a></h2>
+<pre><code class="language-nogscript">fn atomic(value: Any) -&gt; AtomicValue
+</code></pre>
+<h2><a class="header" href="#example-2" id="example-2">Example</a></h2>
+<pre><code class="language-nogscript"> let count = atomic(0)
+
+ count.value++
+
+ print(count)
+</code></pre>
+<p>Output </p>
+<pre><code class="language-nogscript"> AtomicValue {
+   value: 1
+ }
+</code></pre>
+<h1><a class="header" href="#nog" id="nog">nog</a></h1>
+<h2><a class="header" href="#modules-1" id="modules-1">Modules</a></h2>
+<ul>
+<li><a href="api/">config</a></li>
+<li><a href="api/">plugin</a></li>
+<li><a href="api/">popup</a></li>
+</ul>
+<h2><a class="header" href="#functions-1" id="functions-1">Functions</a></h2>
+<ul>
+<li><a href="api/">bind</a></li>
+<li><a href="api/">bind_arr</a></li>
+<li><a href="api/">bind_map</a></li>
+<li><a href="api/">mode</a></li>
+<li><a href="api/">quit</a></li>
+<li><a href="api/">toggle_mode</a></li>
+<li><a href="api/">toggle_work_mode</a></li>
+</ul>
+<h1><a class="header" href="#bind" id="bind">bind</a></h1>
+<p>Defines a new keybinding that calls the callback when the given key combo is pressed.</p>
+<p><code>always_active</code> is optional and defaults to false.
+This flag tells nog to never unregister the keybinding as long as the program is running.</p>
+<h2><a class="header" href="#signature-1" id="signature-1">Signature</a></h2>
+<pre><code class="language-nogscript">fn bind(key_combo: String, callback: (), always_active: Boolean?) -&gt; Void
+</code></pre>
+<h2><a class="header" href="#example-3" id="example-3">Example</a></h2>
+<pre><code class="language-nogscript"> nog.bind(&quot;F1&quot;, () =&gt; print(&quot;Hello World&quot;))
+</code></pre>
+<h1><a class="header" href="#bind_arr" id="bind_arr">bind_arr</a></h1>
+<p>Defines a new keybinding for each item in the array, where the key is the modifier + index and
+the keybinding calls the provided callback with the item.</p>
+<p><code>always_active</code> is optional and defaults to false.
+This flag tells nog to never unregister the keybinding as long as the program is running.</p>
+<h2><a class="header" href="#signature-2" id="signature-2">Signature</a></h2>
+<pre><code class="language-nogscript">fn bind_arr(modifier: String, callback: (), arr: Any[], always_active: Boolean?) -&gt; Void
+</code></pre>
+<h2><a class="header" href="#example-4" id="example-4">Example</a></h2>
+<pre><code class="language-nogscript"> nog.bind_arr(&quot;Alt&quot;, nog.workspace.change, range(10))
+</code></pre>
+<h1><a class="header" href="#bind_map" id="bind_map">bind_map</a></h1>
+<p>Defines a new keybinding for each key in the map, where the key has the provided modifier
+prepended and the keybinding calls the provided callback with its value.</p>
+<p><code>always_active</code> is optional and defaults to false.
+This flag tells nog to never unregister the keybinding as long as the program is running.</p>
+<h2><a class="header" href="#signature-3" id="signature-3">Signature</a></h2>
+<pre><code class="language-nogscript">fn bind_map(modifier: String, callback: (), map: Map&lt;String,, always_active: Boolean?) -&gt; Void
+</code></pre>
+<h2><a class="header" href="#example-5" id="example-5">Example</a></h2>
+<pre><code class="language-nogscript"> nog.bind_map(&quot;Alt&quot;, nog.workspace.focus, #{
+   &quot;H&quot;: &quot;Left&quot;,
+   &quot;J&quot;: &quot;Down&quot;,
+   &quot;K&quot;: &quot;Up&quot;,
+   &quot;L&quot;: &quot;Right&quot;
+ })
+</code></pre>
+<h1><a class="header" href="#config" id="config">config</a></h1>
+<h2><a class="header" href="#functions-2" id="functions-2">Functions</a></h2>
+<ul>
+<li><a href="api/nog/">decrement</a></li>
+<li><a href="api/nog/">disable</a></li>
+<li><a href="api/nog/">enable</a></li>
+<li><a href="api/nog/">increment</a></li>
+<li><a href="api/nog/">set</a></li>
+<li><a href="api/nog/">toggle</a></li>
+</ul>
+<h1><a class="header" href="#decrement" id="decrement">decrement</a></h1>
+<p>Decrements the config value by the given amount</p>
+<h2><a class="header" href="#signature-4" id="signature-4">Signature</a></h2>
+<pre><code class="language-nogscript">fn decrement(key: String, amount: Number) -&gt; Void
+</code></pre>
+<h1><a class="header" href="#disable" id="disable">disable</a></h1>
+<p>Sets the config value to false</p>
+<h2><a class="header" href="#signature-5" id="signature-5">Signature</a></h2>
+<pre><code class="language-nogscript">fn disable(key: String) -&gt; Void
+</code></pre>
+<h1><a class="header" href="#enable" id="enable">enable</a></h1>
+<p>Sets the config value to true</p>
+<h2><a class="header" href="#signature-6" id="signature-6">Signature</a></h2>
+<pre><code class="language-nogscript">fn enable(key: String) -&gt; Void
+</code></pre>
+<h1><a class="header" href="#increment" id="increment">increment</a></h1>
+<p>Increments the config value by the given amount</p>
+<h2><a class="header" href="#signature-7" id="signature-7">Signature</a></h2>
+<pre><code class="language-nogscript">fn increment(key: String, amount: Number) -&gt; Void
+</code></pre>
+<h1><a class="header" href="#set" id="set">set</a></h1>
+<p>Sets the config value</p>
+<h2><a class="header" href="#signature-8" id="signature-8">Signature</a></h2>
+<pre><code class="language-nogscript">fn set(key: String, value: Any) -&gt; Void
+</code></pre>
+<h1><a class="header" href="#toggle" id="toggle">toggle</a></h1>
+<p>Toggles the config value</p>
+<h2><a class="header" href="#signature-9" id="signature-9">Signature</a></h2>
+<pre><code class="language-nogscript">fn toggle(key: String) -&gt; Void
+</code></pre>
+<h1><a class="header" href="#mode" id="mode">mode</a></h1>
+<p>Toggles the work mode.</p>
+<h2><a class="header" href="#signature-10" id="signature-10">Signature</a></h2>
+<pre><code class="language-nogscript">fn mode(mode: String, callback: (bind:) -&gt; Void
+</code></pre>
+<h2><a class="header" href="#example-6" id="example-6">Example</a></h2>
+<pre><code class="language-nogscript"> nog.mode(&quot;custom&quot;, bind =&gt; {
+   bind(&quot;F1&quot;, () =&gt; print(&quot;Hello World&quot;))
+ })
+</code></pre>
+<h1><a class="header" href="#plugin" id="plugin">plugin</a></h1>
+<h2><a class="header" href="#functions-3" id="functions-3">Functions</a></h2>
+<ul>
+<li><a href="api/nog/">install</a></li>
+<li><a href="api/nog/">list</a></li>
+<li><a href="api/nog/">uninstall</a></li>
+<li><a href="api/nog/">update</a></li>
+</ul>
+<h1><a class="header" href="#install" id="install">install</a></h1>
+<p>Tries to install the plugin from the github repository.</p>
+<p><code>short_name</code> should be of the following pattern: “&lt;username&gt;/&lt;repo&gt;”.</p>
+<p>The plugins get installed into the plugins folder which is located next to your config file.</p>
+<h2><a class="header" href="#signature-11" id="signature-11">Signature</a></h2>
+<pre><code class="language-nogscript">fn install(short_name: String) -&gt; Void
+</code></pre>
+<h2><a class="header" href="#example-7" id="example-7">Example</a></h2>
+<pre><code class="language-nogscript"> nog.plugin.install(&quot;TimUntersberger/counter.nog&quot;)
+</code></pre>
+<h1><a class="header" href="#list" id="list">list</a></h1>
+<p>Returns a list of all installed plugins as paths.</p>
+<h2><a class="header" href="#signature-12" id="signature-12">Signature</a></h2>
+<pre><code class="language-nogscript">fn list() -&gt; String[]
+</code></pre>
+<h1><a class="header" href="#uninstall" id="uninstall">uninstall</a></h1>
+<p>Tries to uninstall the plugin.</p>
+<p><code>short_name</code> should be of the following pattern: “&lt;username&gt;/&lt;repo&gt;”.</p>
+<h2><a class="header" href="#signature-13" id="signature-13">Signature</a></h2>
+<pre><code class="language-nogscript">fn uninstall(short_name: String) -&gt; Void
+</code></pre>
+<h2><a class="header" href="#example-8" id="example-8">Example</a></h2>
+<pre><code class="language-nogscript"> nog.plugin.uninstall(&quot;TimUntersberger/counter.nog&quot;)
+</code></pre>
+<h1><a class="header" href="#update" id="update">update</a></h1>
+<p>Pulls any new changes for all of the installed plugins.</p>
+<h2><a class="header" href="#signature-14" id="signature-14">Signature</a></h2>
+<pre><code class="language-nogscript">fn update() -&gt; Void
+</code></pre>
+<h1><a class="header" href="#popup" id="popup">popup</a></h1>
+<h2><a class="header" href="#functions-4" id="functions-4">Functions</a></h2>
+<ul>
+<li><a href="api/nog/">create</a></li>
+</ul>
+<h1><a class="header" href="#create" id="create">create</a></h1>
+<p>Creates a new popup with given settings.</p>
+<pre><code>type PopupSettings = #{
+  text?: String | String[],
+  padding?: Number
+}
+</code></pre>
+<h2><a class="header" href="#signature-15" id="signature-15">Signature</a></h2>
+<pre><code class="language-nogscript">fn create(settings: PopupSettings) -&gt; Void
+</code></pre>
+<h2><a class="header" href="#example-9" id="example-9">Example</a></h2>
+<pre><code class="language-nogscript"> nog.popup.create(#{ text: &quot;Hello World&quot; })
+</code></pre>
+<h1><a class="header" href="#quit" id="quit">quit</a></h1>
+<p>Unmanages all windows and exits the application.</p>
+<h2><a class="header" href="#signature-16" id="signature-16">Signature</a></h2>
+<pre><code class="language-nogscript">fn quit() -&gt; Void
+</code></pre>
+<h1><a class="header" href="#toggle_mode" id="toggle_mode">toggle_mode</a></h1>
+<p>Toggle the mode.</p>
+<h2><a class="header" href="#signature-17" id="signature-17">Signature</a></h2>
+<pre><code class="language-nogscript">fn toggle_mode(mode: String) -&gt; Void
+</code></pre>
+<h1><a class="header" href="#toggle_work_mode" id="toggle_work_mode">toggle_work_mode</a></h1>
+<p>Toggle the work mode.</p>
+<h2><a class="header" href="#signature-18" id="signature-18">Signature</a></h2>
+<pre><code class="language-nogscript">fn toggle_work_mode() -&gt; Void
+</code></pre>
+<h1><a class="header" href="#print" id="print">print</a></h1>
+<p>Writes the parameters to stdout seperated by a space.</p>
+<h2><a class="header" href="#signature-19" id="signature-19">Signature</a></h2>
+<pre><code class="language-nogscript">fn print(args: ...Any[]) -&gt; Void
+</code></pre>
+<h2><a class="header" href="#example-10" id="example-10">Example</a></h2>
+<pre><code class="language-nogscript"> print(&quot;Hello World&quot;)
+</code></pre>
+<p>Output </p>
+<pre><code class="language-nogscript"> Hello World
+</code></pre>
+<h1><a class="header" href="#range" id="range">range</a></h1>
+<p>Generates an array with a length of len starting from start</p>
+<h2><a class="header" href="#signature-20" id="signature-20">Signature</a></h2>
+<pre><code class="language-nogscript">fn range(len: Number, start: Number?) -&gt; Number[]
+</code></pre>
+<h2><a class="header" href="#example-11" id="example-11">Example</a></h2>
+<pre><code class="language-nogscript"> range(10).for_each(print)
+</code></pre>
+<p>Output </p>
+<pre><code class="language-nogscript"> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+ 10
+</code></pre>
+<h1><a class="header" href="#require" id="require">require</a></h1>
+<p>Dynamically imports the given path.</p>
+<h2><a class="header" href="#signature-21" id="signature-21">Signature</a></h2>
+<pre><code class="language-nogscript">fn require(path: String) -&gt; Module
+</code></pre>
+<h2><a class="header" href="#example-12" id="example-12">Example</a></h2>
+<pre><code class="language-nogscript"> var nog = require(&quot;nog&quot;)
+</code></pre>
+<h1><a class="header" href="#std" id="std">std</a></h1>
+<h2><a class="header" href="#modules-2" id="modules-2">Modules</a></h2>
+<ul>
+<li><a href="api/">fs</a></li>
+</ul>
+<h1><a class="header" href="#fs" id="fs">fs</a></h1>
+<h2><a class="header" href="#functions-5" id="functions-5">Functions</a></h2>
+<ul>
+<li><a href="api/std/">read_file</a></li>
+</ul>
+<h1><a class="header" href="#read_file" id="read_file">read_file</a></h1>
+<p>Returns the content of the file as an array of strings</p>
+<h2><a class="header" href="#signature-22" id="signature-22">Signature</a></h2>
+<pre><code class="language-nogscript">fn read_file(path: String) -&gt; Void
+</code></pre>
+<h2><a class="header" href="#example-13" id="example-13">Example</a></h2>
+<pre><code class="language-nogscript"> let content = std.fs.read_file(&quot;./test.txt&quot;)
+</code></pre>
+<h1><a class="header" href="#typeof" id="typeof">typeof</a></h1>
+<p>Returns the type of the given value as a string.</p>
+<h2><a class="header" href="#signature-23" id="signature-23">Signature</a></h2>
+<pre><code class="language-nogscript">fn typeof(value: Any) -&gt; String
+</code></pre>
+<h2><a class="header" href="#example-14" id="example-14">Example</a></h2>
+<pre><code class="language-nogscript"> print(typeof(0))
+</code></pre>
+<p>Output </p>
+<pre><code class="language-nogscript"> Number
 </code></pre>
 
                     </main>
