@@ -8,7 +8,7 @@ This flag tells nog to never unregister the keybinding as long as the program is
 ## Signature
 
 ```nogscript
-fn bind_map(always_active: Boolean?, callback: (), map: Map<String,, modifier: String) -> Void
+fn bind_map(modifier: String, callback: (), map: Map<String,, always_active: Boolean?) -> Void
 ```
 
 ## Example
