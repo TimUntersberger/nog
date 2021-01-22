@@ -36,7 +36,8 @@ jobs:
     - name: Copy api documentation
       run: |
         cp -r ./doc-gen/output/api ./book/src
-        cp ./doc-gen/output/SUMMARY.md ./book/src/api_toc.md
+        cp ./book/src/SUMMARY_TEMPLATE.md ./book/src/SUMMARY.md
+        cat ./doc-gen/output/SUMMARY.md >> ./book/src/SUMMARY.md
     - name: Setup mdBook
       uses: peaceiris/actions-mdbook@v1
       with:

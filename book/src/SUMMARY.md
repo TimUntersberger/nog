@@ -22,8 +22,6 @@
 - [conditionals](./nogscript/conditionals.md)
 - [modules](./nogscript/modules.md)
 
-{{#include api_toc.md}}
-
 <!-- - [prelude](./api/prelude.md) -->
 <!--   - [range](./api/prelude/range.md) -->
 <!--   - [require](./api/prelude/require.md) -->
