@@ -545,7 +545,7 @@ pub fn create_root_module(
         if is_init2() {
             cfg.lock().set(string!(&args[0])?, string!(&args[1])?);
         } else {
-            let mut cfg = cfg.lock().clone();
+            let mut cfg = state.lock().config.clone();
             cfg.increment_field(field, amount);
             update_config(state.clone(), cfg);
         }
@@ -564,7 +564,7 @@ pub fn create_root_module(
         if is_init2() {
             cfg.lock().set(string!(&args[0])?, string!(&args[1])?);
         } else {
-            let mut cfg = cfg.lock().clone();
+            let mut cfg = state.lock().config.clone();
             cfg.decrement_field(field, amount);
             update_config(state.clone(), cfg);
         }
@@ -579,7 +579,7 @@ pub fn create_root_module(
         if is_init2() {
             cfg.lock().set(string!(&args[0])?, string!(&args[1])?);
         } else {
-            let mut cfg = cfg.lock().clone();
+            let mut cfg = state.lock().config.clone();
             cfg.toggle_field(string!(&args[0])?);
             update_config(state.clone(), cfg);
         }
@@ -594,7 +594,7 @@ pub fn create_root_module(
         if is_init2() {
             cfg.lock().set(string!(&args[0])?, string!(&args[1])?);
         } else {
-            let mut cfg = cfg.lock().clone();
+            let mut cfg = state.lock().config.clone();
             cfg.set(string!(&args[0])?, string!(&args[1])?);
             update_config(state.clone(), cfg);
         }
@@ -609,7 +609,7 @@ pub fn create_root_module(
         if is_init2() {
             cfg.lock().set(string!(&args[0])?, "true");
         } else {
-            let mut cfg = cfg.lock().clone();
+            let mut cfg = state.lock().config.clone();
             cfg.set(string!(&args[0])?, "true");
             update_config(state.clone(), cfg);
         }
@@ -624,7 +624,7 @@ pub fn create_root_module(
         if is_init2() {
             cfg.lock().set(string!(&args[0])?, "false");
         } else {
-            let mut cfg = cfg.lock().clone();
+            let mut cfg = state.lock().config.clone();
             cfg.set(string!(&args[0])?, "false");
             update_config(state.clone(), cfg);
         }
