@@ -6,6 +6,7 @@
 ///   padding?: Number
 /// }
 /// ```
+///
 /// @param settings PopupSettings
 /// @example
 /// nog.popup.create(#{ text: "Hello World" })

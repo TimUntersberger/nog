@@ -20,7 +20,7 @@ struct Documentation {
     kind: DocumentationKind,
     description: Option<Vec<String>>,
     example: Option<Example>,
-    param_docs: BTreeMap<String, String>,
+    param_docs: Vec<(String, String)>,
     return_value: Option<String>,
 }
 
@@ -31,7 +31,7 @@ impl Documentation {
             kind,
             description: None,
             example: None,
-            param_docs: BTreeMap::new(),
+            param_docs: Vec::new(),
             return_value: None,
         }
     }
@@ -402,7 +402,7 @@ fn parse_docs(
                                 .collect::<Vec<_>>();
                             let arg_name = parts[1].to_string();
                             let arg_type = parts[2].to_string();
-                            doc.param_docs.insert(arg_name, arg_type);
+                            doc.param_docs.push((arg_name, arg_type));
                         } else if line.starts_with(" @returns") {
                             let parts = line
                                 .split(" ")

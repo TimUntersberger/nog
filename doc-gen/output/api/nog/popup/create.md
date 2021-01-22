@@ -8,6 +8,7 @@ type PopupSettings = #{
   padding?: Number
 }
 ```
+
 ## Signature
 
 ```nogscript

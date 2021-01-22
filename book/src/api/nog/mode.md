@@ -4,7 +4,7 @@ Toggles the work mode.
 ## Signature
 
 ```nogscript
-fn mode(callback: (bind:, mode: String) -> Void
+fn mode(mode: String, callback: (bind:) -> Void
 ```
 
 ## Example

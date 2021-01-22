@@ -7,7 +7,7 @@ This flag tells nog to never unregister the keybinding as long as the program is
 ## Signature
 
 ```nogscript
-fn bind(always_active: Boolean?, callback: (), key_combo: String) -> Void
+fn bind(key_combo: String, callback: (), always_active: Boolean?) -> Void
 ```
 
 ## Example
