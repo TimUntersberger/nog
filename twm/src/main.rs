@@ -372,7 +372,7 @@ impl AppState {
 
         drop(this);
 
-        kb.register_keybindings(state_arc.clone());
+        kb.register_keybindings();
 
         Ok(())
     }

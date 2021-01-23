@@ -26,6 +26,7 @@ pub type Mode = Option<String>;
 #[derive(Debug, Clone)]
 pub enum ChanMessage {
     Stop,
+    RegisterKeybindings,
     ChangeMode(Mode),
     ModeCbExecuted,
 }
@@ -127,28 +128,8 @@ impl KbManager {
     pub fn unregister_keybindings(&self) {
         self.inner.unregister_all();
     }
-    pub fn register_keybindings(&self, state_arc: Arc<Mutex<AppState>>) {
-        if state_arc.lock().work_mode {
-            self.inner.register_all(
-                &self
-                    .inner
-                    .keybindings
-                    .iter()
-                    .filter(|kb| !kb.always_active)
-                    .collect(),
-                state_arc.clone(),
-            );
-        } else {
-            self.inner.register_all(
-                &self
-                    .inner
-                    .keybindings
-                    .iter()
-                    .filter(|kb| kb.always_active)
-                    .collect(),
-                state_arc.clone(),
-            );
-        }
+    pub fn register_keybindings(&self) {
+        self.sender.send(ChanMessage::RegisterKeybindings).expect("Failed to send RegisterKeybindings");
     }
     pub fn enter_mode(&mut self, mode: &str) {
         self.change_mode(Some(mode.into()));
@@ -204,6 +185,27 @@ impl KbManager {
                             inner.running.store(false, Ordering::SeqCst);
                             break;
                         }
+                        ChanMessage::RegisterKeybindings => {
+                            if state.lock().work_mode {
+                                inner.register_all(
+                                    &inner
+                                        .keybindings
+                                        .iter()
+                                        .filter(|kb| !kb.always_active)
+                                        .collect(),
+                                    state.clone(),
+                                );
+                            } else {
+                                inner.register_all(
+                                    &inner
+                                        .keybindings
+                                        .iter()
+                                        .filter(|kb| kb.always_active)
+                                        .collect(),
+                                    state.clone(),
+                                );
+                            }
+                        },
                         ChanMessage::ChangeMode(new_mode) => {
                             // Unregister all keybindings to ensure a clean state
                             inner.unregister_all();

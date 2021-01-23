@@ -5,11 +5,13 @@ use parking_lot::Mutex;
 use crate::{bar, config::Config, keybindings::KbManager, startup, system::SystemResult, AppState};
 
 pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> SystemResult {
+    let prev_mode = state_arc.lock().keybindings_manager.get_mode();
+    state_arc.lock().keybindings_manager.leave_mode();
     state_arc.lock().keybindings_manager.stop();
 
     // need to sleep here, because for some reason the unregister keybinding stuff is not
     // synchronous
-    sleep!(20);
+    sleep!(30);
 
     let mut state = state_arc.lock();
 
@@ -91,6 +93,10 @@ pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> Sys
     }
 
     state.keybindings_manager.start(state_arc.clone());
+    state.keybindings_manager.register_keybindings();
+    if let Some(mode) = prev_mode {
+        state.keybindings_manager.enter_mode(&mode);
+    }
 
     for d in state.displays.iter() {
         if let Some(grid) = d.get_focused_grid() {
