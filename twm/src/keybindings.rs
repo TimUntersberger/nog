@@ -60,13 +60,12 @@ impl KbManagerInner {
         });
     }
 
-    pub fn register_all(&self, kbs: &Vec<Keybinding>, state_arc: Arc<Mutex<AppState>>) {
+    pub fn register_all(&self, kbs: &Vec<&Keybinding>, state_arc: Arc<Mutex<AppState>>) {
         let mut errors = Vec::new();
 
         for kb in kbs {
             info!("Registering {:?}", kb);
-            api::register_keybinding(&kb).map_err(|_| {
-                let state_arc = state_arc.clone();
+            api::register_keybinding(kb).map_err(|_| {
                 let msg = KbManager::make_keybinding_error(&kb);
                 error!("{}", &msg);
                 errors.push(msg);
@@ -128,6 +127,29 @@ impl KbManager {
     pub fn unregister_keybindings(&self) {
         self.inner.unregister_all();
     }
+    pub fn register_keybindings(&self, state_arc: Arc<Mutex<AppState>>) {
+        if state_arc.lock().work_mode {
+            self.inner.register_all(
+                &self
+                    .inner
+                    .keybindings
+                    .iter()
+                    .filter(|kb| !kb.always_active)
+                    .collect(),
+                state_arc.clone(),
+            );
+        } else {
+            self.inner.register_all(
+                &self
+                    .inner
+                    .keybindings
+                    .iter()
+                    .filter(|kb| kb.always_active)
+                    .collect(),
+                state_arc.clone(),
+            );
+        }
+    }
     pub fn enter_mode(&mut self, mode: &str) {
         self.change_mode(Some(mode.into()));
     }
@@ -162,8 +184,14 @@ impl KbManager {
 
         thread::spawn(move || {
             let receiver = receiver.lock();
-
-            inner.register_all(&inner.keybindings, state.clone());
+            inner.register_all(
+                &inner
+                    .keybindings
+                    .iter()
+                    .filter(|kb| kb.always_active)
+                    .collect(),
+                state.clone(),
+            );
 
             loop {
                 if let Ok(msg) = receiver.try_recv() {
@@ -204,7 +232,14 @@ impl KbManager {
                                 let kbs_lock = inner.mode_keybindings.lock();
                                 let kbs = kbs_lock.get(mode).unwrap();
 
-                                inner.register_all(&kbs, state.clone());
+                                inner.register_all(
+                                    &inner
+                                        .keybindings
+                                        .iter()
+                                        .filter(|kb| !kb.always_active)
+                                        .collect(),
+                                    state_arc.clone(),
+                                );
                             } else {
                                 let mut mode_lock = inner.mode.lock();
                                 let kbs_lock = inner.mode_keybindings.lock();
@@ -216,7 +251,14 @@ impl KbManager {
 
                                 *mode_lock = new_mode.clone();
 
-                                inner.register_all(&inner.keybindings, state.clone());
+                                inner.register_all(
+                                    &inner
+                                        .keybindings
+                                        .iter()
+                                        .filter(|kb| !kb.always_active)
+                                        .collect(),
+                                    state_arc.clone(),
+                                );
                             }
                         }
                     };

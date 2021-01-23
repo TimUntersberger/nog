@@ -368,12 +368,19 @@ impl AppState {
         info!("Registering windows event handler");
         this.window_event_listener.start(&this.event_channel);
 
+        let kb = this.keybindings_manager.clone();
+
+        drop(this);
+
+        kb.register_keybindings(state_arc.clone());
+
         Ok(())
     }
 
     pub fn leave_work_mode(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
         let mut this = state_arc.lock();
         this.window_event_listener.stop();
+        this.keybindings_manager.unregister_keybindings();
 
         popup::cleanup()?;
 
@@ -817,15 +824,15 @@ fn run(
 
     os_specific_setup(state_arc.clone());
 
-    if state_arc.lock().config.work_mode {
-        AppState::enter_work_mode(state_arc.clone())?;
-    }
-
     info!("Listening for keybindings");
     state_arc
         .lock()
         .keybindings_manager
         .start(state_arc.clone());
+
+    if state_arc.lock().config.work_mode {
+        AppState::enter_work_mode(state_arc.clone())?;
+    }
 
     loop {
         select! {
