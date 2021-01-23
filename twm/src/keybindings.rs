@@ -235,10 +235,8 @@ impl KbManager {
                                 let kbs = kbs_lock.get(mode).unwrap();
 
                                 inner.register_all(
-                                    &inner
-                                        .keybindings
+                                    &kbs
                                         .iter()
-                                        .filter(|kb| !kb.always_active)
                                         .collect(),
                                     state_arc.clone(),
                                 );
