@@ -21,6 +21,7 @@ If the previous application mentioned in step 3 is managed by nog, the workspace
 Since nog uses a custom language we will provide official plugins for syntax highlighting.
 
 * [vim](https://github.com/TimUntersberger/nog.vim)
+* [vscode](https://marketplace.visualstudio.com/items?itemName=TimUntersberger.nogscript-language-support)
 
 ## [WIP] Documentation
 
