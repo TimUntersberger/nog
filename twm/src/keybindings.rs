@@ -297,12 +297,18 @@ fn do_loop(inner: &Arc<KbManagerInner>) -> Option<Keybinding> {
 #[cfg(target_os = "windows")]
 fn do_loop(inner: &Arc<KbManagerInner>) -> Option<Keybinding> {
     use winapi::um::winuser::WM_HOTKEY;
+    use winapi::um::winuser::GetKeyState;
+    use winapi::um::winuser::VK_RMENU;
 
     if let Some(msg) = system::win::api::get_current_window_msg() {
         if msg.message != WM_HOTKEY {
             return None;
         }
-
+        // if the right alt key is down skip the hotkey, because we don't support right alt
+        // keybindings to avoid false positives
+        if unsafe { GetKeyState(VK_RMENU) } & 0b111111110000000 != 0 {
+            return None;
+        }
         let modifier = Modifier::from_bits((msg.lParam & 0xffff) as u32).unwrap();
 
         if let Some(key) = Key::from_isize(msg.lParam >> 16) {
