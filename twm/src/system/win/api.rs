@@ -1,8 +1,15 @@
 use std::ptr;
 
 use crate::{
-    display::Display, keybindings::keybinding::Keybinding, system::DisplayId, system::Rectangle,
-    system::SystemError, system::SystemResult, system::WindowId, task_bar::Taskbar, util,
+    display::Display,
+    keybindings::keybinding::Keybinding,
+    system::DisplayId,
+    system::Rectangle,
+    system::SystemResult,
+    system::WindowId,
+    system::{api, SystemError},
+    task_bar::Taskbar,
+    util,
 };
 use log::{debug, error};
 use regex::Regex;
@@ -36,7 +43,7 @@ unsafe extern "system" fn monitor_cb(
     1
 }
 
-pub fn print_last_error() {
+pub fn get_last_error() -> String {
     let mut buffer = [0 as i8; 512];
     unsafe {
         FormatMessageA(
@@ -49,8 +56,11 @@ pub fn print_last_error() {
             ptr::null_mut(),
         );
     }
-    let text = util::bytes_to_string(&buffer);
-    error!("WINAPI ERROR: {}", text);
+    util::bytes_to_string(&buffer)
+}
+
+pub fn print_last_error() {
+    error!("WINAPI ERROR: {}", get_last_error());
 }
 
 pub fn get_displays() -> Vec<Display> {
@@ -188,9 +198,16 @@ pub fn register_keybinding(kb: &Keybinding) -> SystemResult {
     }
 }
 
-pub fn unregister_keybinding(kb: &Keybinding) {
+pub fn unregister_keybinding(kb: &Keybinding) -> SystemResult {
     unsafe {
-        UnregisterHotKey(std::ptr::null_mut(), kb.get_id());
+        let result = bool_to_result(UnregisterHotKey(std::ptr::null_mut(), kb.get_id()));
+        match result {
+            Err(_) => Err(SystemError::UnregisterKeybinding {
+                key: format!("{:?}", kb),
+                os_error: api::get_last_error(),
+            }),
+            _ => Ok(()),
+        }
     }
 }
 

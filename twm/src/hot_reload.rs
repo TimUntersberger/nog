@@ -6,12 +6,10 @@ use crate::{bar, config::Config, keybindings::KbManager, startup, system::System
 
 pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> SystemResult {
     let prev_mode = state_arc.lock().keybindings_manager.get_mode();
-    state_arc.lock().keybindings_manager.leave_mode();
-    state_arc.lock().keybindings_manager.stop();
-
-    // need to sleep here, because for some reason the unregister keybinding stuff is not
-    // synchronous
-    sleep!(30);
+    state_arc
+        .lock()
+        .keybindings_manager
+        .unregister_keybindings();
 
     let mut state = state_arc.lock();
 
@@ -21,10 +19,9 @@ pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> Sys
     let mut close_app_bars = false;
 
     state.config = new_config;
-    state.keybindings_manager = KbManager::new(
-        state.config.keybindings.clone(),
-        state.config.mode_handlers.clone(),
-    );
+    state
+        .keybindings_manager
+        .set_keybindings(state.config.keybindings.clone());
 
     if work_mode {
         if old_config.remove_task_bar && !state.config.remove_task_bar {
@@ -92,7 +89,6 @@ pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> Sys
         state = state_arc.lock();
     }
 
-    state.keybindings_manager.start(state_arc.clone());
     state.keybindings_manager.register_keybindings();
     if let Some(mode) = prev_mode {
         state.keybindings_manager.enter_mode(&mode);

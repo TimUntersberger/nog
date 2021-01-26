@@ -90,6 +90,8 @@ pub enum SystemError {
     LaunchProgram(String),
     #[error("Failed to register keybinding")]
     RegisterKeybinding(String),
+    #[error("Failed to unregister keybinding")]
+    UnregisterKeybinding { key: String, os_error: String },
     #[error("An error that is specific to the platform occured")]
     Native(#[from] SpecificError),
     #[error("An unknown error occured")]

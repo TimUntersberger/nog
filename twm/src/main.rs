@@ -372,7 +372,7 @@ impl AppState {
 
         drop(this);
 
-        kb.register_keybindings();
+        kb.enter_work_mode();
 
         Ok(())
     }
@@ -380,7 +380,7 @@ impl AppState {
     pub fn leave_work_mode(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
         let mut this = state_arc.lock();
         this.window_event_listener.stop();
-        this.keybindings_manager.unregister_keybindings();
+        this.keybindings_manager.leave_work_mode();
 
         popup::cleanup()?;
 
