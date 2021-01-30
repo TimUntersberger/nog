@@ -259,38 +259,42 @@ impl KbManager {
                             );
                         }
                         ChanMessage::ChangeMode(new_mode) => {
-                            let inner = inner.lock();
-                            // Unregister all keybindings to ensure a clean state
-                            inner.unregister_all();
+                            let mut inner_g = inner.lock();
+                            // Unregister all none global keybindings to ensure a clean state
+                            for kb in inner_g.keybindings.iter().filter(|kb| !kb.always_active) {
+                                inner_g.unregister_kb(kb);
+                            }
 
                             if let Some(mode) = new_mode.as_ref() {
-                                *inner.mode.lock() = new_mode.clone();
-                                if !inner.mode_keybindings.lock().contains_key(mode) {
-                                    if let Some(id) = inner.mode_handlers.get(mode) {
+                                *inner_g.mode.lock() = new_mode.clone();
+                                if !inner_g.mode_keybindings.lock().contains_key(mode) {
+                                    if let Some(id) = inner_g.mode_handlers.get(mode).map(|x| *x) {
                                         let sender = state.lock().event_channel.sender.clone();
-                                        inner
+                                        inner_g
                                             .mode_keybindings
                                             .lock()
                                             .insert(mode.clone(), Vec::new());
 
                                         sender
                                             .send(Event::CallCallback {
-                                                idx: *id,
+                                                idx: id,
                                                 is_mode_callback: true,
                                             })
                                             .unwrap();
 
+                                        drop(inner_g);
                                         receiver.recv().unwrap();
+                                        inner_g = inner.lock();
                                     }
                                 }
 
-                                let kbs_lock = inner.mode_keybindings.lock();
+                                let kbs_lock = inner_g.mode_keybindings.lock();
                                 let kbs = kbs_lock.get(mode).unwrap();
 
-                                inner.register_all(&kbs.iter().collect(), state_arc.clone());
+                                inner_g.register_all(&kbs.iter().collect(), state_arc.clone());
                             } else {
-                                let mut mode_lock = inner.mode.lock();
-                                let kbs_lock = inner.mode_keybindings.lock();
+                                let mut mode_lock = inner_g.mode.lock();
+                                let kbs_lock = inner_g.mode_keybindings.lock();
                                 let kbs = kbs_lock.get(mode_lock.as_ref().unwrap()).unwrap();
 
                                 for kb in kbs.iter() {
@@ -299,8 +303,8 @@ impl KbManager {
 
                                 *mode_lock = new_mode.clone();
 
-                                inner.register_all(
-                                    &inner
+                                inner_g.register_all(
+                                    &inner_g
                                         .keybindings
                                         .iter()
                                         .filter(|kb| !kb.always_active)

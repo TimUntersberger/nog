@@ -170,10 +170,7 @@ impl Menu {
         self.on_input_changed = Some(Arc::new(f));
         self
     }
-    pub fn on_execute(
-        mut self,
-        f: impl Fn(&MenuState) -> () + 'static + Send + Sync,
-    ) -> Self {
+    pub fn on_execute(mut self, f: impl Fn(&MenuState) -> () + 'static + Send + Sync) -> Self {
         self.on_execute = Some(Arc::new(f));
         self
     }
@@ -253,13 +250,7 @@ impl Menu {
                 let width = self.width;
 
                 std::thread::spawn(move || {
-                    let mut window = create_menu_item_window(
-                        menu_id,
-                        x,
-                        y,
-                        height,
-                        width,
-                    );
+                    let mut window = create_menu_item_window(menu_id, x, y, height, width);
 
                     window.create(state_arc.clone(), false, move |event| {
                         match event {
@@ -361,14 +352,7 @@ impl Menu {
                                     let width = self.width;
 
                                     std::thread::spawn(move || {
-                                        MoveWindow(
-                                            window_id.into(),
-                                            x,
-                                            y,
-                                            width,
-                                            height,
-                                            0,
-                                        );
+                                        MoveWindow(window_id.into(), x, y, width, height, 0);
                                         ShowWindow(window_id.into(), SW_SHOWNOACTIVATE);
                                     });
                                 }
