@@ -425,6 +425,34 @@ impl AppState {
         Ok(())
     }
 
+    pub fn move_in(&mut self, direction: Direction) -> SystemResult {
+        let config = self.config.clone();
+        let display = self.get_current_display_mut();
+
+        if let Some(grid) = display.get_focused_grid_mut() {
+            if !config.ignore_fullscreen_actions || !grid.is_fullscreened() {
+                grid.move_focused_in(direction);
+                display.refresh_grid(&config)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn move_out(&mut self, direction: Direction) -> SystemResult {
+        let config = self.config.clone();
+        let display = self.get_current_display_mut();
+
+        if let Some(grid) = display.get_focused_grid_mut() {
+            if !config.ignore_fullscreen_actions || !grid.is_fullscreened() {
+                grid.move_focused_out(direction);
+                display.refresh_grid(&config)?;
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn focus(&mut self, direction: Direction) -> SystemResult {
         let config = self.config.clone();
         let display = self.get_current_display_mut();

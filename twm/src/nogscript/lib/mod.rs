@@ -142,10 +142,22 @@ pub fn create_root_module(
     });
 
     let state = state_arc.clone();
-    workspace = workspace.function("move_in", move |_, args| Ok(Dynamic::Null));
+    workspace = workspace.function("move_in", move |_, args| {
+        state
+            .lock()
+            .move_in(Direction::from_str(string!(&args[0])?).unwrap());
+
+        Ok(Dynamic::Null)
+    });
 
     let state = state_arc.clone();
-    workspace = workspace.function("move_out", move |_, args| Ok(Dynamic::Null));
+    workspace = workspace.function("move_out", move |_, args| {
+        state
+            .lock()
+            .move_out(Direction::from_str(string!(&args[0])?).unwrap());
+
+        Ok(Dynamic::Null)
+    });
 
     let state = state_arc.clone();
     workspace = workspace.function("focus", move |_, args| {
