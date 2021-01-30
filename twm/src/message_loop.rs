@@ -4,6 +4,10 @@ use winapi::um::winuser::{
 };
 
 pub fn start(cb: impl Fn(Option<MSG>) -> bool) {
+    start_with_sleep(10, cb);
+}
+
+pub fn start_with_sleep(sleep: u64, cb: impl Fn(Option<MSG>) -> bool) {
     let mut msg: MSG = MSG::default();
     loop {
         let mut value: Option<MSG> = None;
@@ -16,7 +20,7 @@ pub fn start(cb: impl Fn(Option<MSG>) -> bool) {
             }
         }
 
-        thread::sleep(Duration::from_millis(10));
+        thread::sleep(Duration::from_millis(sleep));
 
         if !cb(value) {
             break;
