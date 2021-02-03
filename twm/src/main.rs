@@ -162,6 +162,7 @@ impl Default for AppState {
             keybindings_manager: KbManager::new(
                 config.keybindings.clone(),
                 config.mode_handlers.clone(),
+                config.allow_right_alt,
             ),
             event_channel: EventChannel::default(),
             additonal_rules: Vec::new(),
@@ -180,6 +181,7 @@ impl AppState {
             keybindings_manager: KbManager::new(
                 config.keybindings.clone(),
                 config.mode_handlers.clone(),
+                config.allow_right_alt,
             ),
             event_channel: EventChannel::default(),
             additonal_rules: Vec::new(),
@@ -195,6 +197,7 @@ impl AppState {
         self.keybindings_manager = KbManager::new(
             self.config.keybindings.clone(),
             self.config.mode_handlers.clone(),
+            self.config.allow_right_alt,
         );
     }
 

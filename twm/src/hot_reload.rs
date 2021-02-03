@@ -1,10 +1,13 @@
 use std::sync::Arc;
-
 use parking_lot::Mutex;
 
 use crate::{bar, config::Config, keybindings::KbManager, startup, system::SystemResult, AppState};
 
 pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> SystemResult {
+    let state = state_arc.lock();
+    state.keybindings_manager.update_configuration(&new_config);
+    drop(state);
+
     let prev_mode = state_arc.lock().keybindings_manager.get_mode();
     state_arc
         .lock()
