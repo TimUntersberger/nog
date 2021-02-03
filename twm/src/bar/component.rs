@@ -6,6 +6,7 @@ use std::{any::Any, collections::HashMap, fmt::Debug, sync::Arc};
 pub mod active_mode;
 pub mod current_window;
 pub mod date;
+pub mod fullscreen_indicator;
 pub mod padding;
 pub mod split_direction;
 pub mod time;

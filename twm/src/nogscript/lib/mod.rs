@@ -270,6 +270,15 @@ pub fn create_root_module(
         });
 
         let state = state_arc.clone();
+        m = m.function("fullscreen_indicator", move |_, args| {
+            let indicator = string!(&args[0])?.clone();
+            Ok(
+                component::fullscreen_indicator::create(state.clone(), indicator)
+                    .into_dynamic(state.clone()),
+            )
+        });
+
+        let state = state_arc.clone();
         m = m.function("active_mode", move |_, _| {
             Ok(component::active_mode::create(state.clone()).into_dynamic(state.clone()))
         });
