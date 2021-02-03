@@ -496,20 +496,20 @@ impl AppState {
 
         let window =
             NativeWindow::get_foreground_window().expect("Failed to get foreground window");
-        // The id of the grid that contains the window
-        let maybe_grid_id = self
-            .find_window(window.id)
-            .and_then(|g| g.remove_by_window_id(window.id).map(|w| (g.id, w)))
-            .map(|(id, mut w)| {
-                debug!("Unmanaging window '{}' | {}", w.title, w.id);
+        let current_workspace_id = self.workspace_id;
+        let grid = self.find_grid_containing_window(window.id);
 
-                w.cleanup();
-
-                id
-            });
-
-        if let Some(d) = maybe_grid_id.and_then(|id| self.find_grid(id)) {
-            d.refresh_grid(&config);
+        if let Some(grid) = grid {
+            // don't do anything if focused window isn't on current grid
+            if grid.id == current_workspace_id {
+                if let Some(mut w) = grid.remove_by_window_id(window.id) {
+                    debug!("Unmanaging window '{}' | {}", w.title, w.id);
+                    w.cleanup();
+                    if let Some(d) = self.find_grid_display(current_workspace_id) {
+                        d.refresh_grid(&config);
+                    }
+                }
+            }
         } else {
             self.event_channel
                 .sender
@@ -572,7 +572,7 @@ impl AppState {
     pub fn change_workspace(&mut self, id: i32, _force: bool) {
         let config = self.config.clone();
         let current = self.get_current_display().id;
-        if let Some(d) = self.find_grid(id) {
+        if let Some(d) = self.find_grid_display_mut(id) {
             let new = d.id;
             d.focus_workspace(&config, id);
             self.workspace_id = id;
@@ -633,9 +633,18 @@ impl AppState {
             .collect()
     }
 
-    /// Returns the display containing the grid and the grid
-    /// TODO: only return display
-    pub fn find_grid(&mut self, id: i32) -> Option<&mut Display> {
+    /// Returns the display containing the grid
+    pub fn find_grid_display(&self, id: i32) -> Option<&Display> {
+        for d in self.displays.iter() {
+            if let Some(_) = d.grids.iter().find(|g| g.id == id) {
+                return Some(d);
+            }
+        }
+        None
+    }
+
+    /// Returns the display containing the grid
+    pub fn find_grid_display_mut(&mut self, id: i32) -> Option<&mut Display> {
         for d in self.displays.iter_mut() {
             if let Some(_) = d.grids.iter().find(|g| g.id == id) {
                 return Some(d);
@@ -645,8 +654,7 @@ impl AppState {
     }
 
     /// Returns the grid containing the window and its corresponding tile
-    /// TODO: only return grid
-    pub fn find_window(&mut self, id: WindowId) -> Option<&mut TileGrid> {
+    pub fn find_grid_containing_window(&mut self, id: WindowId) -> Option<&mut TileGrid> {
         for d in self.displays.iter_mut() {
             for g in d.grids.iter_mut() {
                 if g.contains(id) {
