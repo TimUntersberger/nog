@@ -96,6 +96,12 @@ pub fn create_root_module(
     });
 
     let state = state_arc.clone();
+    workspace = workspace.function("workspace_to_workspace", move |_, args| {
+        state.lock().move_workspace_to_workspace(number!(args[0])?);
+        Ok(Dynamic::Null)
+    });
+
+    let state = state_arc.clone();
     workspace = workspace.function("toggle_fullscreen", move |_, args| {
         state.lock().toggle_fullscreen();
         Ok(Dynamic::Null)

@@ -6,6 +6,11 @@ extern fn change(id)
 /// @param id Number
 extern fn move_to_monitor(id)
 
+/// Moves the focused workspace to the workspace that has the given index.
+/// The target workspace must be empty.
+/// @param id Number
+extern fn workspace_to_workspace(id)
+
 /// Toggles fullscreen mode
 extern fn toggle_fullscreen()
 
