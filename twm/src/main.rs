@@ -1072,11 +1072,14 @@ fn main() {
             continue;
         }
 
-        debug!("deadlock detected");
-        debug!(
-            "backtrace: \n{:?}",
-            deadlocks.first().unwrap().first().unwrap().backtrace()
-        );
+        debug!("{} deadlocks detected", deadlocks.len());
+        for (i, threads) in deadlocks.iter().enumerate() {
+            debug!("Deadlock #{}", i);
+            for t in threads {
+                debug!("Thread Id {:#?}", t.thread_id());
+                debug!("{:#?}", t.backtrace());
+            }
+        }
 
         on_quit(&mut arc.lock()).unwrap();
     });
