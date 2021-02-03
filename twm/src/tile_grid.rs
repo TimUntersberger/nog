@@ -532,6 +532,8 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     /// Case One: If the graph only has one node and it's the given node, then the graph is emptied.
     /// Case Two: If the given node has only one sibling then the node is removed and its sibling gets propogated
     /// "up" a level to take the place of its parent node (A parent node with only one child is an invalid state).
+    /// If the sibling is a Column or Row and its parent matches its type, then the Column/Row sibling node
+    /// also gets removed and its children get added to the parent node (the grandparent of the focused node)
     /// Case Three: If the given node has more than one sibling then the node is removed and its size is distributed among its siblings
     fn remove_node(&mut self, node_id: Option<usize>) -> Option<Node> {
         let mut removed_node: Option<Node> = None;
@@ -543,15 +545,54 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                     // remove the current item
                     // make the other child take place of parent
                     let sibling_id = *children.iter().find(|x| **x != current_id).unwrap();
-
-                    if let Some(grand_parent_id) = self.graph.map_to_parent(Some(parent_id)) {
-                        self.graph.connect(grand_parent_id, sibling_id);
-                    }
-
                     let (order, size) = self.graph.node(parent_id).get_info();
 
-                    let keep_node = self.graph.node_mut(sibling_id);
-                    keep_node.set_info(order, size);
+                    if let Some(grand_parent_id) = self.graph.map_to_parent(Some(parent_id)) {
+                        match (self.graph.node(grand_parent_id), self.graph.node(sibling_id)) {
+                            (Node::Column(_), Node::Column(_)) | (Node::Row(_), Node::Row(_)) => {
+                                // here we need to distribute the size of the parent
+                                // across the children of the sibling based on their 
+                                // existing ratios and then add them to the grand_parent
+
+                                /*
+                                    Removing * node (shows size distributions)
+                                    c120                c120
+                                    /  \                / | \ 
+                                  t60   r60        ->  60 20 20
+                                   1   /   \            1  3  4
+                                     *t60  c60             
+                                       2   / \
+                                         t60 t60
+                                          3   4
+                                */
+
+                                let mut size_remaining = size;
+                                let children = self.graph.get_sorted_children(sibling_id);
+                                let number_of_children = children.len();
+                                for (i, child_id) in children.iter().rev().enumerate() {
+                                    self.graph.disconnect(sibling_id, *child_id);
+                                    let child_node = self.graph.node_mut(*child_id);
+                                    let mut new_size = ((child_node.get_size() as f32 / FULL_SIZE as f32) * size as f32) as u32;
+
+                                    size_remaining -= new_size;
+                                    if number_of_children - 1 == i {
+                                        new_size += size_remaining; 
+                                    }
+
+                                    child_node.set_info(order, new_size);
+                                    self.graph.connect(grand_parent_id, *child_id);
+                                }
+
+                                self.reset_order(grand_parent_id);
+                                self.graph.remove_node(sibling_id);
+                            },
+                            _ => {
+                                self.graph.connect(grand_parent_id, sibling_id);
+                                let keep_node = self.graph.node_mut(sibling_id);
+                                keep_node.set_info(order, size);
+                            }
+                        }
+                    }
 
                     self.graph.remove_node(parent_id);
                     removed_node = self.graph.remove_node(current_id);
@@ -568,6 +609,8 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                 self.graph.clear();
             }
         }
+
+        debug!("{}", self.to_string());
 
         removed_node
     }
