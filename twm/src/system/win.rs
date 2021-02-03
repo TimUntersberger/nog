@@ -10,6 +10,7 @@ use winapi::{
 };
 
 pub mod api;
+pub mod menu;
 pub mod win_event_listener;
 
 pub const BIN_NAME: &'static str = "nog.exe";

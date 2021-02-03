@@ -22,10 +22,10 @@ use winapi::{
     um::winuser::PostMessageA, um::winuser::RegisterClassA, um::winuser::ReleaseDC,
     um::winuser::SetCursor, um::winuser::UnregisterClassA, um::winuser::DT_CALCRECT,
     um::winuser::IDC_ARROW, um::winuser::PAINTSTRUCT, um::winuser::WM_APP, um::winuser::WM_CLOSE,
-    um::winuser::WM_CREATE, um::winuser::WM_LBUTTONDOWN, um::winuser::WM_PAINT,
-    um::winuser::WM_SETCURSOR, um::winuser::WNDCLASSA, um::winuser::WS_BORDER,
-    um::winuser::WS_EX_NOACTIVATE, um::winuser::WS_EX_TOPMOST, um::winuser::WS_OVERLAPPEDWINDOW,
-    um::winuser::WS_POPUPWINDOW,
+    um::winuser::WM_CREATE, um::winuser::WM_KILLFOCUS, um::winuser::WM_LBUTTONDOWN,
+    um::winuser::WM_PAINT, um::winuser::WM_SETCURSOR, um::winuser::WNDCLASSA,
+    um::winuser::WS_BORDER, um::winuser::WS_EX_NOACTIVATE, um::winuser::WS_EX_TOPMOST,
+    um::winuser::WS_OVERLAPPEDWINDOW, um::winuser::WS_POPUPWINDOW,
 };
 
 use crate::{
@@ -181,6 +181,9 @@ pub enum WindowEvent {
         state_arc: Arc<Mutex<AppState>>,
         api: Api,
     },
+    LostFocus {
+        new_window: WindowId,
+    },
     MouseMove {
         display_id: DisplayId,
         window_id: WindowId,
@@ -226,6 +229,7 @@ impl WindowInner {
 pub struct Window {
     pub id: WindowId,
     pub refresh_rate: i32,
+    pub parent: WindowId,
     is_closed: Arc<AtomicBool>,
     inner: Arc<Mutex<WindowInner>>,
 }
@@ -234,10 +238,15 @@ impl Window {
     pub fn new() -> Self {
         Self {
             id: WindowId::default(),
+            parent: WindowId::default(),
             refresh_rate: 0,
             is_closed: Arc::new(AtomicBool::new(false)),
             inner: Arc::new(Mutex::new(WindowInner::new())),
         }
+    }
+    pub fn with_parent(mut self, value: WindowId) -> Self {
+        self.parent = value;
+        self
     }
     pub fn with_size(self, width: i32, height: i32) -> Self {
         self.inner.lock().height = height;
@@ -304,6 +313,7 @@ impl Window {
     ) -> JoinHandle<()> {
         let state = state_arc.clone();
         let inner_arc = self.inner.clone();
+        let parent = self.parent.clone();
         let (sender, receiver) = channel();
 
         let t = thread::spawn(move || unsafe {
@@ -345,7 +355,7 @@ impl Window {
                 inner.y,
                 inner.width,
                 inner.height,
-                std::ptr::null_mut(),
+                parent.into(),
                 std::ptr::null_mut(),
                 instance,
                 std::ptr::null_mut(),
@@ -468,6 +478,10 @@ impl Window {
                                 display_id,
                                 window_id: window.id,
                                 state_arc: state_arc.clone(),
+                            });
+                        } else if msg.code == WM_KILLFOCUS {
+                            call_handler(&WindowEvent::LostFocus {
+                                new_window: (msg.params.0 as i32).into(),
                             });
                         } else if msg.code == WM_MOUSEMOVE {
                             let mut point = POINT::default();

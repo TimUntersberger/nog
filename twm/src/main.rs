@@ -210,6 +210,10 @@ impl AppState {
     }
 
     pub fn move_workspace_to_monitor(&mut self, monitor: i32) -> SystemResult {
+        if self.get_display_by_idx_mut(monitor).is_none() {
+            error!("Monitor with id {} doesn't exist", monitor);
+            return Ok(());
+        }
         let display = self.get_current_display_mut();
 
         if let Some(grid) = display
@@ -217,10 +221,7 @@ impl AppState {
             .and_then(|id| display.remove_grid_by_id(id))
         {
             let config = self.config.clone();
-            let new_display = self
-                .get_display_by_idx_mut(monitor)
-                .expect("Monitor with specified idx doesn't exist");
-
+            let new_display = self.get_display_by_idx_mut(monitor).unwrap();
             let id = grid.id;
 
             new_display.grids.push(grid);
@@ -367,12 +368,19 @@ impl AppState {
         info!("Registering windows event handler");
         this.window_event_listener.start(&this.event_channel);
 
+        let kb = this.keybindings_manager.clone();
+
+        drop(this);
+
+        kb.enter_work_mode();
+
         Ok(())
     }
 
     pub fn leave_work_mode(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
         let mut this = state_arc.lock();
         this.window_event_listener.stop();
+        this.keybindings_manager.leave_work_mode();
 
         popup::cleanup()?;
 
@@ -412,6 +420,34 @@ impl AppState {
         if let Some(grid) = display.get_focused_grid_mut() {
             grid.swap_focused(direction);
             display.refresh_grid(&config);
+        }
+
+        Ok(())
+    }
+
+    pub fn move_in(&mut self, direction: Direction) -> SystemResult {
+        let config = self.config.clone();
+        let display = self.get_current_display_mut();
+
+        if let Some(grid) = display.get_focused_grid_mut() {
+            if !config.ignore_fullscreen_actions || !grid.is_fullscreened() {
+                grid.move_focused_in(direction);
+                display.refresh_grid(&config)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn move_out(&mut self, direction: Direction) -> SystemResult {
+        let config = self.config.clone();
+        let display = self.get_current_display_mut();
+
+        if let Some(grid) = display.get_focused_grid_mut() {
+            if !config.ignore_fullscreen_actions || !grid.is_fullscreened() {
+                grid.move_focused_out(direction);
+                display.refresh_grid(&config)?;
+            }
         }
 
         Ok(())
@@ -572,10 +608,14 @@ impl AppState {
     }
 
     pub fn get_display_by_idx_mut(&mut self, idx: i32) -> Option<&mut Display> {
+        if idx > self.displays.len() as i32 {
+            return None;
+        }
+
         let x: usize = if idx == -1 {
             0
         } else {
-            std::cmp::max(self.displays.len() - (idx as usize), 0)
+            self.displays.len() - idx as usize
         };
 
         self.displays.get_mut(x)
@@ -812,15 +852,15 @@ fn run(
 
     os_specific_setup(state_arc.clone());
 
-    if state_arc.lock().config.work_mode {
-        AppState::enter_work_mode(state_arc.clone())?;
-    }
-
     info!("Listening for keybindings");
     state_arc
         .lock()
         .keybindings_manager
         .start(state_arc.clone());
+
+    if state_arc.lock().config.work_mode {
+        AppState::enter_work_mode(state_arc.clone())?;
+    }
 
     loop {
         select! {

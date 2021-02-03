@@ -58,6 +58,7 @@ pub enum Key {
     #[strum(serialize = "Alt")]
     LAlt = VK_LMENU as isize,
     Escape = VK_ESCAPE as isize,
+    Backspace = VK_BACK as isize,
     Left = 0x25,
     Up = 0x26,
     Right = 0x27,

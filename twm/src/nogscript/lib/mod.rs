@@ -142,10 +142,22 @@ pub fn create_root_module(
     });
 
     let state = state_arc.clone();
-    workspace = workspace.function("move_in", move |_, args| Ok(Dynamic::Null));
+    workspace = workspace.function("move_in", move |_, args| {
+        state
+            .lock()
+            .move_in(Direction::from_str(string!(&args[0])?).unwrap());
+
+        Ok(Dynamic::Null)
+    });
 
     let state = state_arc.clone();
-    workspace = workspace.function("move_out", move |_, args| Ok(Dynamic::Null));
+    workspace = workspace.function("move_out", move |_, args| {
+        state
+            .lock()
+            .move_out(Direction::from_str(string!(&args[0])?).unwrap());
+
+        Ok(Dynamic::Null)
+    });
 
     let state = state_arc.clone();
     workspace = workspace.function("focus", move |_, args| {
@@ -545,7 +557,7 @@ pub fn create_root_module(
         if is_init2() {
             cfg.lock().set(string!(&args[0])?, string!(&args[1])?);
         } else {
-            let mut cfg = cfg.lock().clone();
+            let mut cfg = state.lock().config.clone();
             cfg.increment_field(field, amount);
             update_config(state.clone(), cfg);
         }
@@ -564,7 +576,7 @@ pub fn create_root_module(
         if is_init2() {
             cfg.lock().set(string!(&args[0])?, string!(&args[1])?);
         } else {
-            let mut cfg = cfg.lock().clone();
+            let mut cfg = state.lock().config.clone();
             cfg.decrement_field(field, amount);
             update_config(state.clone(), cfg);
         }
@@ -579,7 +591,7 @@ pub fn create_root_module(
         if is_init2() {
             cfg.lock().set(string!(&args[0])?, string!(&args[1])?);
         } else {
-            let mut cfg = cfg.lock().clone();
+            let mut cfg = state.lock().config.clone();
             cfg.toggle_field(string!(&args[0])?);
             update_config(state.clone(), cfg);
         }
@@ -594,7 +606,7 @@ pub fn create_root_module(
         if is_init2() {
             cfg.lock().set(string!(&args[0])?, string!(&args[1])?);
         } else {
-            let mut cfg = cfg.lock().clone();
+            let mut cfg = state.lock().config.clone();
             cfg.set(string!(&args[0])?, string!(&args[1])?);
             update_config(state.clone(), cfg);
         }
@@ -609,7 +621,7 @@ pub fn create_root_module(
         if is_init2() {
             cfg.lock().set(string!(&args[0])?, "true");
         } else {
-            let mut cfg = cfg.lock().clone();
+            let mut cfg = state.lock().config.clone();
             cfg.set(string!(&args[0])?, "true");
             update_config(state.clone(), cfg);
         }
@@ -624,7 +636,7 @@ pub fn create_root_module(
         if is_init2() {
             cfg.lock().set(string!(&args[0])?, "false");
         } else {
-            let mut cfg = cfg.lock().clone();
+            let mut cfg = state.lock().config.clone();
             cfg.set(string!(&args[0])?, "false");
             update_config(state.clone(), cfg);
         }
@@ -771,15 +783,13 @@ pub fn create_root_module(
             let value = value.clone();
             let callback = callback.clone();
             let args = vec![
-                format!("{}+{}", modifier, i).into(), 
+                format!("{}+{}", modifier, i).into(),
                 Dynamic::RustFunction {
                     name: "bind_arr_gen_fn".into(),
-                    callback: Arc::new(move |i, _| {
-                        callback.invoke(i, vec![value.clone()])
-                    }),
-                    scope: None
+                    callback: Arc::new(move |i, _| callback.invoke(i, vec![value.clone()])),
+                    scope: None,
                 },
-                always_active.into()
+                always_active.into(),
             ];
 
             let kb = kb_from_args(cbs.clone(), args);
@@ -807,15 +817,13 @@ pub fn create_root_module(
             let value = value.clone();
             let callback = callback.clone();
             let args = vec![
-                format!("{}+{}", modifier, key).into(), 
+                format!("{}+{}", modifier, key).into(),
                 Dynamic::RustFunction {
                     name: "bind_map_gen_fn".into(),
-                    callback: Arc::new(move |i, _| {
-                        callback.invoke(i, vec![value.clone()])
-                    }),
-                    scope: None
+                    callback: Arc::new(move |i, _| callback.invoke(i, vec![value.clone()])),
+                    scope: None,
                 },
-                always_active.into()
+                always_active.into(),
             ];
 
             let kb = kb_from_args(cbs.clone(), args);
