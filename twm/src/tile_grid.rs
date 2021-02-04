@@ -610,8 +610,6 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             }
         }
 
-        debug!("{}", self.to_string());
-
         removed_node
     }
     pub fn close_focused(&mut self) -> Option<NativeWindow> {
