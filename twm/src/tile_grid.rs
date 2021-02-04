@@ -548,19 +548,22 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                     let (order, size) = self.graph.node(parent_id).get_info();
 
                     if let Some(grand_parent_id) = self.graph.map_to_parent(Some(parent_id)) {
-                        match (self.graph.node(grand_parent_id), self.graph.node(sibling_id)) {
+                        match (
+                            self.graph.node(grand_parent_id),
+                            self.graph.node(sibling_id),
+                        ) {
                             (Node::Column(_), Node::Column(_)) | (Node::Row(_), Node::Row(_)) => {
                                 // here we need to distribute the size of the parent
-                                // across the children of the sibling based on their 
+                                // across the children of the sibling based on their
                                 // existing ratios and then add them to the grand_parent
 
                                 /*
                                     Removing * node (shows size distributions)
                                     c120                c120
-                                    /  \                / | \ 
+                                    /  \                / | \
                                   t60   r60        ->  60 20 20
                                    1   /   \            1  3  4
-                                     *t60  c60             
+                                     *t60  c60
                                        2   / \
                                          t60 t60
                                           3   4
@@ -572,11 +575,14 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                                 for (i, child_id) in children.iter().rev().enumerate() {
                                     self.graph.disconnect(sibling_id, *child_id);
                                     let child_node = self.graph.node_mut(*child_id);
-                                    let mut new_size = ((child_node.get_size() as f32 / FULL_SIZE as f32) * size as f32) as u32;
+                                    let mut new_size = ((child_node.get_size() as f32
+                                        / FULL_SIZE as f32)
+                                        * size as f32)
+                                        as u32;
 
                                     size_remaining -= new_size;
                                     if number_of_children - 1 == i {
-                                        new_size += size_remaining; 
+                                        new_size += size_remaining;
                                     }
 
                                     child_node.set_info(order, new_size);
@@ -585,7 +591,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
 
                                 self.reset_order(grand_parent_id);
                                 self.graph.remove_node(sibling_id);
-                            },
+                            }
                             _ => {
                                 self.graph.connect(grand_parent_id, sibling_id);
                                 let keep_node = self.graph.node_mut(sibling_id);

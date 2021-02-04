@@ -28,8 +28,8 @@ use std::fs::ReadDir;
 use std::path::PathBuf;
 use std::process::Command;
 use std::str::FromStr;
+use std::{mem, thread, time::Duration};
 use std::{process, sync::atomic::AtomicBool, sync::Arc};
-use std::{thread, time::Duration, mem};
 use system::NativeWindow;
 use system::{DisplayId, SystemResult, WinEventListener, WindowId};
 use task_bar::Taskbar;
@@ -236,7 +236,9 @@ impl AppState {
     }
 
     pub fn move_workspace_to_workspace(&mut self, workspace_id: i32) -> SystemResult {
-        let is_empty = self.get_grid_by_id(workspace_id).map_or(false, |g| g.is_empty());
+        let is_empty = self
+            .get_grid_by_id(workspace_id)
+            .map_or(false, |g| g.is_empty());
         let current_id = self.workspace_id.clone();
         let current_grid_exists = self.get_current_grid().is_some();
         if is_empty && current_grid_exists && current_id != workspace_id {

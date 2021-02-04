@@ -71,7 +71,7 @@ impl Default for Config {
             update_channels: Vec::new(),
             default_update_channel: None,
             update_interval: Duration::from_secs(60 * 60),
-            allow_right_alt: false
+            allow_right_alt: false,
         }
     }
 }

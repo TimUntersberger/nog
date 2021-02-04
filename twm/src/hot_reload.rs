@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::{bar, config::Config, keybindings::KbManager, startup, system::SystemResult, AppState};
 

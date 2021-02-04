@@ -1,4 +1,4 @@
-use crate::{event::Event, popup::Popup, system, system::api, AppState, config::Config};
+use crate::{config::Config, event::Event, popup::Popup, system, system::api, AppState};
 use key::Key;
 use keybinding::Keybinding;
 use log::{debug, error, info};
@@ -47,7 +47,11 @@ struct KbManagerInner {
 }
 
 impl KbManagerInner {
-    pub fn new(kbs: Vec<Keybinding>, handlers: HashMap<String, usize>, allow_right_alt: bool) -> Self {
+    pub fn new(
+        kbs: Vec<Keybinding>,
+        handlers: HashMap<String, usize>,
+        allow_right_alt: bool,
+    ) -> Self {
         Self {
             running: AtomicBool::new(false),
             mode_handlers: handlers,
@@ -55,7 +59,7 @@ impl KbManagerInner {
             mode: Mutex::new(None),
             keybindings: kbs,
             mode_keybindings: Mutex::new(HashMap::new()),
-            allow_right_alt: allow_right_alt
+            allow_right_alt: allow_right_alt,
         }
     }
 
@@ -129,10 +133,18 @@ impl Debug for KbManager {
 }
 
 impl KbManager {
-    pub fn new(kbs: Vec<Keybinding>, handlers: HashMap<String, usize>, allow_right_alt: bool) -> Self {
+    pub fn new(
+        kbs: Vec<Keybinding>,
+        handlers: HashMap<String, usize>,
+        allow_right_alt: bool,
+    ) -> Self {
         let (sender, receiver) = channel();
         Self {
-            inner: Arc::new(Mutex::new(KbManagerInner::new(kbs, handlers, allow_right_alt))),
+            inner: Arc::new(Mutex::new(KbManagerInner::new(
+                kbs,
+                handlers,
+                allow_right_alt,
+            ))),
             sender,
             receiver: Arc::new(Mutex::new(receiver)),
         }
