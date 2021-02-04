@@ -321,7 +321,10 @@ impl KbManager {
                     };
                 }
 
-                if let Some(kb) = do_loop(&inner.lock()) {
+                let inner_lock = inner.lock();
+                let kb = do_loop(&inner_lock);
+                drop(inner_lock);
+                if let Some(kb) = kb {
                     let work_mode = state.lock().work_mode;
                     if work_mode || kb.always_active {
                         let sender = state.lock().event_channel.sender.clone();
