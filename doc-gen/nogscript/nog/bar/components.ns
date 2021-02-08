@@ -40,6 +40,12 @@ extern fn active_mode()
 /// @returns BarComponent
 extern fn split_direction(vertical_text, horizontal_text)
 
+/// Renders the indicator value if the current workspace has a fullscreened window.
+///
+/// @param indicator String
+/// @returns BarComponent
+extern fn fullscreen_indicator(indicator)
+
 /// Renders the text.
 ///
 /// @param text String

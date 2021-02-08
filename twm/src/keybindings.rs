@@ -1,4 +1,4 @@
-use crate::{event::Event, popup::Popup, system, system::api, AppState};
+use crate::{config::Config, event::Event, popup::Popup, system, system::api, AppState};
 use key::Key;
 use keybinding::Keybinding;
 use log::{debug, error, info};
@@ -41,12 +41,17 @@ struct KbManagerInner {
     /// Key is mode name and value is the callback id
     pub mode_handlers: HashMap<String, usize>,
     pub keybindings: Vec<Keybinding>,
+    allow_right_alt: bool,
     mode_keybindings: Mutex<HashMap<String, Vec<Keybinding>>>,
     mode: Mutex<Mode>,
 }
 
 impl KbManagerInner {
-    pub fn new(kbs: Vec<Keybinding>, handlers: HashMap<String, usize>) -> Self {
+    pub fn new(
+        kbs: Vec<Keybinding>,
+        handlers: HashMap<String, usize>,
+        allow_right_alt: bool,
+    ) -> Self {
         Self {
             running: AtomicBool::new(false),
             mode_handlers: handlers,
@@ -54,6 +59,7 @@ impl KbManagerInner {
             mode: Mutex::new(None),
             keybindings: kbs,
             mode_keybindings: Mutex::new(HashMap::new()),
+            allow_right_alt: allow_right_alt,
         }
     }
 
@@ -127,10 +133,18 @@ impl Debug for KbManager {
 }
 
 impl KbManager {
-    pub fn new(kbs: Vec<Keybinding>, handlers: HashMap<String, usize>) -> Self {
+    pub fn new(
+        kbs: Vec<Keybinding>,
+        handlers: HashMap<String, usize>,
+        allow_right_alt: bool,
+    ) -> Self {
         let (sender, receiver) = channel();
         Self {
-            inner: Arc::new(Mutex::new(KbManagerInner::new(kbs, handlers))),
+            inner: Arc::new(Mutex::new(KbManagerInner::new(
+                kbs,
+                handlers,
+                allow_right_alt,
+            ))),
             sender,
             receiver: Arc::new(Mutex::new(receiver)),
         }
@@ -139,6 +153,9 @@ impl KbManager {
         self.sender
             .send(ChanMessage::ChangeMode(mode.clone()))
             .expect("Failed to change mode of kb manager");
+    }
+    pub fn update_configuration(&self, config: &Config) {
+        self.inner.lock().allow_right_alt = config.allow_right_alt;
     }
     pub fn leave_work_mode(&self) {
         self.sender
@@ -316,7 +333,10 @@ impl KbManager {
                     };
                 }
 
-                if let Some(kb) = do_loop(&inner.lock()) {
+                let inner_lock = inner.lock();
+                let kb = do_loop(&inner_lock);
+                drop(inner_lock);
+                if let Some(kb) = kb {
                     let work_mode = state.lock().work_mode;
                     if work_mode || kb.always_active {
                         let sender = state.lock().event_channel.sender.clone();
@@ -356,11 +376,15 @@ fn do_loop(inner: &KbManagerInner) -> Option<Keybinding> {
         if msg.message != WM_HOTKEY {
             return None;
         }
-        // if the right alt key is down skip the hotkey, because we don't support right alt
-        // keybindings to avoid false positives
-        if unsafe { GetKeyState(VK_RMENU) } & 0b111111110000000 != 0 {
-            return None;
+
+        if !inner.allow_right_alt {
+            // if the right alt key is down skip the hotkey, because we don't support right alt
+            // keybindings to avoid false positives
+            if unsafe { GetKeyState(VK_RMENU) } & 0b111111110000000 != 0 {
+                return None;
+            }
         }
+
         let modifier = Modifier::from_bits((msg.lParam & 0xffff) as u32).unwrap();
 
         if let Some(key) = Key::from_isize(msg.lParam >> 16) {

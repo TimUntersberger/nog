@@ -96,6 +96,12 @@ pub fn create_root_module(
     });
 
     let state = state_arc.clone();
+    workspace = workspace.function("workspace_to_workspace", move |_, args| {
+        state.lock().move_workspace_to_workspace(number!(args[0])?);
+        Ok(Dynamic::Null)
+    });
+
+    let state = state_arc.clone();
     workspace = workspace.function("toggle_fullscreen", move |_, args| {
         state.lock().toggle_fullscreen();
         Ok(Dynamic::Null)
@@ -267,6 +273,15 @@ pub fn create_root_module(
         let state = state_arc.clone();
         m = m.function("current_window", move |_, _| {
             Ok(component::current_window::create(state.clone()).into_dynamic(state.clone()))
+        });
+
+        let state = state_arc.clone();
+        m = m.function("fullscreen_indicator", move |_, args| {
+            let indicator = string!(&args[0])?.clone();
+            Ok(
+                component::fullscreen_indicator::create(state.clone(), indicator)
+                    .into_dynamic(state.clone()),
+            )
         });
 
         let state = state_arc.clone();
