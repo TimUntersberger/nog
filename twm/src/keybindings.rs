@@ -205,6 +205,10 @@ impl KbManager {
     pub fn get_mode(&self) -> Mode {
         self.inner.lock().mode.lock().clone()
     }
+    pub fn try_get_mode(&self) -> Option<Mode> {
+        self.inner.try_lock_for(Duration::from_millis(20))
+                  .map(|inner| inner.mode.lock().clone())
+    }
     fn make_keybinding_error(keybinding: &Keybinding) -> String {
         let message = format!("Failed to register {:?}.\nAnother running application may already have this binding registered.", &keybinding);
         error!("{}", &message);
