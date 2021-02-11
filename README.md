@@ -25,7 +25,7 @@ Since nog uses a custom language we will provide official plugins for syntax hig
 
 ## [WIP] Documentation
 
-https://timuntersberger.github.io/nog
+https://timuntersberger.github.io/nog/index.html
 
 ## Download
 
