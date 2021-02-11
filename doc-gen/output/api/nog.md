@@ -4,6 +4,8 @@
 * [config]()
 * [plugin]()
 * [popup]()
+* [window]()
+* [workspace]()
 ## Functions
 * [bind]()
 * [bind_arr]()
