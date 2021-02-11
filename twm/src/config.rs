@@ -41,6 +41,7 @@ pub struct Config {
     /// contains the metadata for each mode (like an icon)
     /// HashMap<mode, (Option<char>)>
     pub mode_meta: HashMap<String, Option<char>>,
+    pub allow_right_alt: bool,
 }
 
 impl Default for Config {
@@ -70,6 +71,7 @@ impl Default for Config {
             update_channels: Vec::new(),
             default_update_channel: None,
             update_interval: Duration::from_secs(60 * 60),
+            allow_right_alt: false,
         }
     }
 }
@@ -104,6 +106,7 @@ impl Config {
             "inner_gap" => self.inner_gap = value.parse().unwrap(),
             "min_width" => self.min_width = value.parse().unwrap(),
             "min_height" => self.min_height = value.parse().unwrap(),
+            "allow_right_alt" => self.allow_right_alt = value.parse().unwrap(),
             _ => todo!("{}", field),
         }
     }
@@ -127,6 +130,7 @@ impl Config {
             "remove_title_bar" => self.remove_title_bar = !self.remove_title_bar,
             "remove_task_bar" => self.remove_task_bar = !self.remove_task_bar,
             "display_app_bar" => self.display_app_bar = !self.display_app_bar,
+            "allow_right_alt" => self.allow_right_alt = !self.allow_right_alt,
             "ignore_fullscreen_actions" => {
                 self.ignore_fullscreen_actions = !self.ignore_fullscreen_actions
             }
@@ -158,6 +162,7 @@ impl Config {
             "remove_task_bar" => config.remove_task_bar = value,
             "ignore_fullscreen_actions" => config.ignore_fullscreen_actions = value,
             "display_app_bar" => config.display_app_bar = value,
+            "allow_right_alt" => config.allow_right_alt = value,
             _ => error!("Attempt to set unknown field: {}", field),
         }
         config

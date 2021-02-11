@@ -1497,6 +1497,78 @@ fn from_string_large_layout() {
     assert_eq!(large_layout_string, tile_grid.to_string());
 }
 
+#[test]
+fn remove_merges_columns() {
+    let mut tile_grid = TileGrid::new(0, TestRenderer {});
+    perform_actions(&mut tile_grid, "p,p,p,fl,axh,p,fu,axv,p,p,fd");
+    perform_actions(&mut tile_grid, "o");
+    /*
+            c____
+           / \   |           c
+          1   r  3     ->    _____
+             / \            /|\ \ \
+            c   4          1 2 5 6 3
+           /|\
+          2 5 6
+    */
+
+    let root = tile_grid.graph.get_root().unwrap();
+    assert!(is_column(&tile_grid, 0), "Expected root node to be column");
+    assert_eq!(
+        5,
+        tile_grid.graph.get_sorted_children(0).len(),
+        "Expected root node to have 4 child tile nodes"
+    );
+
+    let node_1 = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(0)[0]);
+    let node_2 = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(0)[1]);
+    let node_5 = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(0)[2]);
+    let node_6 = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(0)[3]);
+    let node_3 = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(0)[4]);
+
+    assert_eq!(1, node_1);
+    assert_eq!(2, node_2);
+    assert_eq!(5, node_5);
+    assert_eq!(6, node_6);
+    assert_eq!(3, node_3);
+}
+
+#[test]
+fn remove_merges_rows() {
+    let mut tile_grid = TileGrid::new(0, TestRenderer {});
+    perform_actions(&mut tile_grid, "axh,p,p,p,fu,axv,p,fl,axh,p,p,fr");
+    perform_actions(&mut tile_grid, "o");
+    /*
+            r____
+           / \   |           r
+          1   c  3     ->    _____
+             / \            /|\ \ \
+            r   4          1 2 5 6 3
+           /|\
+          2 5 6
+    */
+
+    let root = tile_grid.graph.get_root().unwrap();
+    assert!(is_row(&tile_grid, 0), "Expected root node to be row");
+    assert_eq!(
+        5,
+        tile_grid.graph.get_sorted_children(0).len(),
+        "Expected root node to have 4 child tile nodes"
+    );
+
+    let node_1 = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(0)[0]);
+    let node_2 = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(0)[1]);
+    let node_5 = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(0)[2]);
+    let node_6 = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(0)[3]);
+    let node_3 = get_window_id(&tile_grid, tile_grid.graph.get_sorted_children(0)[4]);
+
+    assert_eq!(1, node_1);
+    assert_eq!(2, node_2);
+    assert_eq!(5, node_5);
+    assert_eq!(6, node_6);
+    assert_eq!(3, node_3);
+}
+
 fn print(tile_grid: &TileGrid) {
     let render_infos = tile_grid.get_render_info(127, 90);
     println!("{}", TextRenderer::render(127, 90, render_infos));

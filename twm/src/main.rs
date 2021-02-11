@@ -28,8 +28,8 @@ use std::fs::ReadDir;
 use std::path::PathBuf;
 use std::process::Command;
 use std::str::FromStr;
+use std::{mem, thread, time::Duration};
 use std::{process, sync::atomic::AtomicBool, sync::Arc};
-use std::{thread, time::Duration};
 use system::NativeWindow;
 use system::{DisplayId, SystemResult, WinEventListener, WindowId};
 use task_bar::Taskbar;
@@ -162,6 +162,7 @@ impl Default for AppState {
             keybindings_manager: KbManager::new(
                 config.keybindings.clone(),
                 config.mode_handlers.clone(),
+                config.allow_right_alt,
             ),
             event_channel: EventChannel::default(),
             additonal_rules: Vec::new(),
@@ -180,6 +181,7 @@ impl AppState {
             keybindings_manager: KbManager::new(
                 config.keybindings.clone(),
                 config.mode_handlers.clone(),
+                config.allow_right_alt,
             ),
             event_channel: EventChannel::default(),
             additonal_rules: Vec::new(),
@@ -195,6 +197,7 @@ impl AppState {
         self.keybindings_manager = KbManager::new(
             self.config.keybindings.clone(),
             self.config.mode_handlers.clone(),
+            self.config.allow_right_alt,
         );
     }
 
@@ -227,6 +230,31 @@ impl AppState {
             new_display.grids.push(grid);
             new_display.focus_workspace(&config, id)?;
             self.workspace_id = id;
+        }
+
+        Ok(())
+    }
+
+    pub fn move_workspace_to_workspace(&mut self, workspace_id: i32) -> SystemResult {
+        let is_empty = self
+            .get_grid_by_id(workspace_id)
+            .map_or(false, |g| g.is_empty());
+        let current_id = self.workspace_id.clone();
+        let current_grid_exists = self.get_current_grid().is_some();
+        if is_empty && current_grid_exists && current_id != workspace_id {
+            let mut empty_grid = TileGrid::new(current_id, renderer::NativeRenderer);
+            let source = self.get_current_grid_mut().unwrap();
+            source.id = workspace_id;
+            mem::swap(source, &mut empty_grid);
+            let target = self.get_grid_by_id_mut(workspace_id).unwrap();
+            target.id = current_id;
+            mem::swap(target, &mut empty_grid);
+
+            let config = self.config.clone();
+            if let Some(display) = self.find_grid_display_mut(workspace_id) {
+                display.focus_workspace(&config, workspace_id)?;
+                self.workspace_id = workspace_id;
+            }
         }
 
         Ok(())
@@ -418,8 +446,10 @@ impl AppState {
         let display = self.get_current_display_mut();
 
         if let Some(grid) = display.get_focused_grid_mut() {
-            grid.swap_focused(direction);
-            display.refresh_grid(&config);
+            if !config.ignore_fullscreen_actions || !grid.is_fullscreened() {
+                grid.swap_focused(direction);
+                display.refresh_grid(&config);
+            }
         }
 
         Ok(())
@@ -458,8 +488,10 @@ impl AppState {
         let display = self.get_current_display_mut();
 
         if let Some(grid) = display.get_focused_grid_mut() {
-            grid.focus(direction)?;
-            display.refresh_grid(&config);
+            if !config.ignore_fullscreen_actions || !grid.is_fullscreened() {
+                grid.focus(direction)?;
+                display.refresh_grid(&config);
+            }
         }
 
         Ok(())
@@ -493,20 +525,20 @@ impl AppState {
 
         let window =
             NativeWindow::get_foreground_window().expect("Failed to get foreground window");
-        // The id of the grid that contains the window
-        let maybe_grid_id = self
-            .find_window(window.id)
-            .and_then(|g| g.remove_by_window_id(window.id).map(|w| (g.id, w)))
-            .map(|(id, mut w)| {
-                debug!("Unmanaging window '{}' | {}", w.title, w.id);
+        let current_workspace_id = self.workspace_id;
+        let grid = self.find_grid_containing_window(window.id);
 
-                w.cleanup();
-
-                id
-            });
-
-        if let Some(d) = maybe_grid_id.and_then(|id| self.find_grid(id)) {
-            d.refresh_grid(&config);
+        if let Some(grid) = grid {
+            // don't do anything if focused window isn't on current grid
+            if grid.id == current_workspace_id {
+                if let Some(mut w) = grid.remove_by_window_id(window.id) {
+                    debug!("Unmanaging window '{}' | {}", w.title, w.id);
+                    w.cleanup();
+                    if let Some(d) = self.find_grid_display(current_workspace_id) {
+                        d.refresh_grid(&config);
+                    }
+                }
+            }
         } else {
             self.event_channel
                 .sender
@@ -569,7 +601,7 @@ impl AppState {
     pub fn change_workspace(&mut self, id: i32, _force: bool) {
         let config = self.config.clone();
         let current = self.get_current_display().id;
-        if let Some(d) = self.find_grid(id) {
+        if let Some(d) = self.find_grid_display_mut(id) {
             let new = d.id;
             d.focus_workspace(&config, id);
             self.workspace_id = id;
@@ -630,9 +662,18 @@ impl AppState {
             .collect()
     }
 
-    /// Returns the display containing the grid and the grid
-    /// TODO: only return display
-    pub fn find_grid(&mut self, id: i32) -> Option<&mut Display> {
+    /// Returns the display containing the grid
+    pub fn find_grid_display(&self, id: i32) -> Option<&Display> {
+        for d in self.displays.iter() {
+            if let Some(_) = d.grids.iter().find(|g| g.id == id) {
+                return Some(d);
+            }
+        }
+        None
+    }
+
+    /// Returns the display containing the grid
+    pub fn find_grid_display_mut(&mut self, id: i32) -> Option<&mut Display> {
         for d in self.displays.iter_mut() {
             if let Some(_) = d.grids.iter().find(|g| g.id == id) {
                 return Some(d);
@@ -642,8 +683,7 @@ impl AppState {
     }
 
     /// Returns the grid containing the window and its corresponding tile
-    /// TODO: only return grid
-    pub fn find_window(&mut self, id: WindowId) -> Option<&mut TileGrid> {
+    pub fn find_grid_containing_window(&mut self, id: WindowId) -> Option<&mut TileGrid> {
         for d in self.displays.iter_mut() {
             for g in d.grids.iter_mut() {
                 if g.contains(id) {
@@ -1034,11 +1074,14 @@ fn main() {
             continue;
         }
 
-        debug!("deadlock detected");
-        debug!(
-            "backtrace: \n{:?}",
-            deadlocks.first().unwrap().first().unwrap().backtrace()
-        );
+        debug!("{} deadlocks detected", deadlocks.len());
+        for (i, threads) in deadlocks.iter().enumerate() {
+            debug!("Deadlock #{}", i);
+            for t in threads {
+                debug!("Thread Id {:#?}", t.thread_id());
+                debug!("{:#?}", t.backtrace());
+            }
+        }
 
         on_quit(&mut arc.lock()).unwrap();
     });
