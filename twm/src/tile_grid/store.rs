@@ -13,9 +13,9 @@ impl Store {
             path = dirs::config_dir().expect("Failed to get config directory");
 
             path.push("nog");
-            path.push("workspaces.grid");
         }
 
+        path.push("workspaces.grid");
         path
     }
     pub fn save(id: i32, grid: String) {

@@ -1,19 +1,14 @@
 [book]
-authors = ["TimUntersberger"]
-language = "en"
-multilingual = false
-src = "src"
 title = "Nog Documentation"
+authors = ["TimUntersberger"]
+src = "src"
 
 [build]
 build-dir = "../docs"
 
-[preprocessor.index]
-
 [output.html]
 no-section-label = true
 git-repository-url = "https://github.com/TimUntersberger/nog"
-curly-quotes = true
 
 [output.html.fold]
 enable = true

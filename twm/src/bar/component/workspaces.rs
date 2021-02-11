@@ -11,10 +11,13 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) -> Component {
         let workspace_settings = state.config.workspace_settings.clone();
         let bar_color = state.config.bar.color;
 
-        Ok(state
+        let mut grids = state
             .get_display_by_id(display_id)
             .unwrap()
-            .get_active_grids()
+            .get_active_grids();
+        grids.sort_by_key(|g| g.id);
+
+        Ok(grids
             .iter()
             .map(|grid| {
                 let factor = if light_theme {
