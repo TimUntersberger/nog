@@ -1,4 +1,3 @@
-
 # Nog
 
 ## Known Problems
