@@ -8,8 +8,18 @@ build-dir = "../docs"
 
 [output.html]
 no-section-label = true
+site-url = "/nog/"
 git-repository-url = "https://github.com/TimUntersberger/nog"
 
 [output.html.fold]
 enable = true
 level = 0
+
+[output.html.search]
+limit-results = 20
+use-boolean-and = true
+boost-title = 2
+boost-hierarchy = 2
+boost-paragraph = 1
+expand = true
+heading-split-level = 2
