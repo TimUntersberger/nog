@@ -4,7 +4,7 @@
 
 ## Documentation
 
-https://timuntersberger.github.io/nog/index.html
+https://timuntersberger.github.io/nog
 
 ## Syntax highlighting
 
