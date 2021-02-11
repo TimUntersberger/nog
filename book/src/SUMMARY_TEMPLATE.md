@@ -1,4 +1,4 @@
-# Nog
+- [Nog](./README.md)
 
 # Getting Started
 

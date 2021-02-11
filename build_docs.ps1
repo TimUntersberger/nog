@@ -12,4 +12,3 @@ Get-Content -Path ./doc-gen/output/SUMMARY.md | Add-Content -Path ./book/src/SUM
 cd book
 mdbook build
 cd ..
-mv docs/print.html docs/index.html
