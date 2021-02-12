@@ -266,6 +266,7 @@ impl KbManager {
                                     inner.unregister_kb(kb);
                                 }
                             }
+                            drop(inner);
                         }
                         ChanMessage::RegisterKeybindings => {
                             let inner = inner.lock();
@@ -341,12 +342,17 @@ impl KbManager {
                 let kb = do_loop(&inner_lock);
                 drop(inner_lock);
                 if let Some(kb) = kb {
-                    let work_mode = state.lock().work_mode;
-                    if work_mode || kb.always_active {
-                        let sender = state.lock().event_channel.sender.clone();
-                        sender
-                            .send(Event::Keybinding(kb))
-                            .expect("Failed to send key event");
+
+                    // if we fail to grab state here, the key event will just need to be ignored
+                    // to avoid blocking other threads that might be trying to change state.
+                    if let Some(state) = state.try_lock_for(Duration::from_millis(100)) {
+                        let work_mode = state.work_mode;
+                        if work_mode || kb.always_active {
+                            let sender = state.event_channel.sender.clone();
+                            sender
+                                .send(Event::Keybinding(kb))
+                                .expect("Failed to send key event");
+                        }
                     }
                 }
 

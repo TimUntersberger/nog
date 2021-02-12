@@ -12,7 +12,7 @@ pub mod split_direction;
 pub mod time;
 pub mod workspaces;
 
-pub static LOCK_TIMEOUT: u64 = 20;
+pub const LOCK_TIMEOUT: u64 = 20;
 
 #[derive(Debug, Clone)]
 pub struct ComponentText {
