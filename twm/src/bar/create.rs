@@ -68,12 +68,7 @@ fn draw_components(
 
             offset = rect.right;
 
-            draw_component_text(
-                api,
-                &rect,
-                config,
-                &component_text,
-            );
+            draw_component_text(api, &rect, config, &component_text);
         }
     }
 
@@ -256,25 +251,31 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
                 } => {
                     if let Some(state) = state_arc.try_lock_for(Duration::from_millis(20)) {
                         let config = state.config.clone();
-                        let bar = state.get_display_by_id(*display_id)
-                                       .unwrap()
-                                       .appbar
-                                       .clone();
+                        let bar = state.get_display_by_id(*display_id).unwrap().appbar.clone();
                         drop(state);
 
                         if let Some(bar) = bar {
                             let working_area_width = display.working_area_width(&config);
-                            let left =
-                                components_to_section(api, *display_id, &config.bar.components.left)?;
+                            let left = components_to_section(
+                                api,
+                                *display_id,
+                                &config.bar.components.left,
+                            )?;
 
-                            let mut center =
-                                components_to_section(api, *display_id, &config.bar.components.center)?;
+                            let mut center = components_to_section(
+                                api,
+                                *display_id,
+                                &config.bar.components.center,
+                            )?;
 
                             center.left = working_area_width / 2 - center.right / 2;
                             center.right += center.left;
 
-                            let mut right =
-                                components_to_section(api, *display_id, &config.bar.components.right)?;
+                            let mut right = components_to_section(
+                                api,
+                                *display_id,
+                                &config.bar.components.right,
+                            )?;
                             right.left = working_area_width - right.right;
                             right.right += right.left;
 

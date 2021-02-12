@@ -206,8 +206,9 @@ impl KbManager {
         self.inner.lock().mode.lock().clone()
     }
     pub fn try_get_mode(&self) -> Option<Mode> {
-        self.inner.try_lock_for(Duration::from_millis(20))
-                  .map(|inner| inner.mode.lock().clone())
+        self.inner
+            .try_lock_for(Duration::from_millis(20))
+            .map(|inner| inner.mode.lock().clone())
     }
     fn make_keybinding_error(keybinding: &Keybinding) -> String {
         let message = format!("Failed to register {:?}.\nAnother running application may already have this binding registered.", &keybinding);
@@ -342,7 +343,6 @@ impl KbManager {
                 let kb = do_loop(&inner_lock);
                 drop(inner_lock);
                 if let Some(kb) = kb {
-
                     // if we fail to grab state here, the key event will just need to be ignored
                     // to avoid blocking other threads that might be trying to change state.
                     if let Some(state) = state.try_lock_for(Duration::from_millis(100)) {
