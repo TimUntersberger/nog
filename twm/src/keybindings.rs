@@ -167,10 +167,10 @@ impl KbManager {
             .send(ChanMessage::EnterWorkMode)
             .expect("Failed to send enter work mode");
     }
-    pub fn set_keybindings(&self, kbs: Vec<Keybinding>) {
+    pub fn set_keybindings(&self, kbs: Vec<Keybinding>, handlers: HashMap<String, usize>) {
         let mut inner = self.inner.lock();
         inner.keybindings = kbs;
-        inner.mode_handlers = HashMap::new();
+        inner.mode_handlers = handlers;
     }
     pub fn unregister_keybindings(&self) {
         self.sender
