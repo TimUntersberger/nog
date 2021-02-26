@@ -13,8 +13,8 @@ export fn init(direction_keys, workspace_count) {
     nog.bind_map("Alt", nog.workspace.focus, direction_keys)
     nog.bind_map("Alt+Control", nog.workspace.swap, direction_keys)
 
-    nog.bind("Alt+Plus", () => nog.window.set_split_direction("Vertical"))
-    nog.bind("Alt+Minus", () => nog.window.set_split_direction("Horizontal"))
+    nog.bind("Alt+Plus", () => nog.workspace.set_split_direction("Vertical"))
+    nog.bind("Alt+Minus", () => nog.workspace.set_split_direction("Horizontal"))
 
     nog.bind("Alt+Control+F", nog.window.toggle_floating)
     nog.bind("Alt+Control+W", nog.toggle_work_mode, true)
