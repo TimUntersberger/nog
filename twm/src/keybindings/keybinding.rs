@@ -1,11 +1,25 @@
 use super::{key::Key, modifier::Modifier};
 use std::{fmt::Debug, str::FromStr};
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum KeybindingKind {
+    /// always active
+    Global,
+    /// active when in work mode
+    Work,
+    /// default
+    Normal
+}
+
+impl Default for KeybindingKind {
+    fn default() -> Self {
+        Self::Normal
+    }
+}
+
 #[derive(Clone)]
 pub struct Keybinding {
-    /// This variable defines whether the keybinding should be active when outside of the work mode
-    /// or not
-    pub always_active: bool,
+    pub kind: KeybindingKind,
     /// This is the id of the callback in the global callbacks store
     pub callback_id: usize,
     pub mode: Option<String>,
@@ -16,6 +30,18 @@ pub struct Keybinding {
 impl Keybinding {
     pub fn get_id(&self) -> i32 {
         (self.key as u32 + self.modifier.bits() * 1000) as i32
+    }
+
+    pub fn is_global(&self) -> bool {
+        self.kind == KeybindingKind::Global
+    }
+
+    pub fn is_work(&self) -> bool {
+        self.kind == KeybindingKind::Work
+    }
+
+    pub fn is_normal(&self) -> bool {
+        self.kind == KeybindingKind::Normal
     }
 }
 
@@ -46,7 +72,7 @@ impl FromStr for Keybinding {
             .ok_or(format!("Invalid key {}", raw_key))?;
 
         Ok(Self {
-            always_active: false,
+            kind: KeybindingKind::default(),
             callback_id: 0,
             mode: None,
             modifier,
@@ -60,20 +86,20 @@ impl Debug for Keybinding {
         let modifier_str = format!("{:?}", self.modifier).replace(" | ", "+");
         if modifier_str == "(empty)" {
             f.write_str(&format!(
-                "Keybinding({:?}, {}, {}, {}, {:?})",
+                "Keybinding({:?}, {}, {:?}, {}, {:?})",
                 self.key,
                 self.callback_id,
-                self.always_active,
+                self.kind,
                 self.get_id(),
                 self.mode
             ))
         } else {
             f.write_str(&format!(
-                "Keybinding({}+{:?}, {}, {}, {}, {:?})",
+                "Keybinding({}+{:?}, {}, {:?}, {}, {:?})",
                 modifier_str,
                 self.key,
                 self.callback_id,
-                self.always_active,
+                self.kind,
                 self.get_id(),
                 self.mode
             ))

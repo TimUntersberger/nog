@@ -59,7 +59,7 @@ impl KbManagerInner {
             mode: Mutex::new(None),
             keybindings: kbs,
             mode_keybindings: Mutex::new(HashMap::new()),
-            allow_right_alt: allow_right_alt,
+            allow_right_alt,
         }
     }
 
@@ -223,7 +223,7 @@ impl KbManager {
                     &inner
                         .keybindings
                         .iter()
-                        .filter(|kb| kb.always_active)
+                        .filter(|kb| kb.is_global())
                         .collect(),
                     state.clone(),
                 );
@@ -243,13 +243,13 @@ impl KbManager {
                         }
                         ChanMessage::LeaveWorkMode => {
                             let inner = inner.lock();
-                            for kb in inner.keybindings.iter().filter(|kb| !kb.always_active) {
+                            for kb in inner.keybindings.iter().filter(|kb| !kb.is_global()) {
                                 inner.unregister_kb(kb);
                             }
                         }
                         ChanMessage::EnterWorkMode => {
                             let inner = inner.lock();
-                            for kb in inner.keybindings.iter().filter(|kb| !kb.always_active) {
+                            for kb in inner.keybindings.iter().filter(|kb| !kb.is_global()) {
                                 inner.register_kb(kb);
                             }
                         }
@@ -258,7 +258,7 @@ impl KbManager {
                             if state.lock().work_mode {
                                 inner.unregister_all();
                             } else {
-                                for kb in inner.keybindings.iter().filter(|kb| kb.always_active) {
+                                for kb in inner.keybindings.iter().filter(|kb| kb.is_global()) {
                                     inner.unregister_kb(kb);
                                 }
                             }
@@ -270,7 +270,7 @@ impl KbManager {
                                 &inner
                                     .keybindings
                                     .iter()
-                                    .filter(|kb| kb.always_active || work_mode)
+                                    .filter(|kb| kb.is_global() || work_mode)
                                     .collect(),
                                 state.clone(),
                             );
@@ -278,7 +278,7 @@ impl KbManager {
                         ChanMessage::ChangeMode(new_mode) => {
                             let mut inner_g = inner.lock();
                             // Unregister all none global keybindings to ensure a clean state
-                            for kb in inner_g.keybindings.iter().filter(|kb| !kb.always_active) {
+                            for kb in inner_g.keybindings.iter().filter(|kb| kb.is_normal()) {
                                 inner_g.unregister_kb(kb);
                             }
 
@@ -324,7 +324,7 @@ impl KbManager {
                                     &inner_g
                                         .keybindings
                                         .iter()
-                                        .filter(|kb| !kb.always_active)
+                                        .filter(|kb| kb.is_normal())
                                         .collect(),
                                     state_arc.clone(),
                                 );
@@ -338,7 +338,7 @@ impl KbManager {
                 drop(inner_lock);
                 if let Some(kb) = kb {
                     let work_mode = state.lock().work_mode;
-                    if work_mode || kb.always_active {
+                    if work_mode || kb.is_global() {
                         let sender = state.lock().event_channel.sender.clone();
                         sender
                             .send(Event::Keybinding(kb))

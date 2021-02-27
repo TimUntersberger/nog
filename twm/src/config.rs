@@ -144,7 +144,7 @@ impl Config {
                 && kb.modifier == keybinding.modifier
                 && kb.mode == keybinding.mode
         }) {
-            kb.always_active = kb.always_active;
+            kb.kind = kb.kind;
             kb.callback_id = kb.callback_id;
             kb.mode = keybinding.mode;
         } else {
