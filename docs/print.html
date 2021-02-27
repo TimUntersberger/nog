@@ -470,10 +470,17 @@ export var y = 1
 </code></pre>
 <h1><a class="header" href="#bind" id="bind">bind</a></h1>
 <p>Defines a new keybinding that calls the callback when the given key combo is pressed.</p>
-<p><code>always_active</code> is optional and defaults to false.
-This flag tells nog to never unregister the keybinding as long as the program is running.</p>
+<pre><code>enum KeybindingKind {
+    /// always active
+    Global = &quot;global&quot;,
+    /// active when in work mode
+    Work = &quot;work&quot;,
+    /// default
+    Normal = &quot;normal&quot;
+}
+</code></pre>
 <h2><a class="header" href="#signature-2" id="signature-2">Signature</a></h2>
-<pre><code class="language-nogscript">fn bind(key_combo: String, callback: (), always_active: Boolean?) -&gt; Void
+<pre><code class="language-nogscript">fn bind(key_combo: String, callback: (), kind: KeybindingKind?) -&gt; Void
 </code></pre>
 <h2><a class="header" href="#example-3" id="example-3">Example</a></h2>
 <pre><code class="language-nogscript"> nog.bind(&quot;F1&quot;, () =&gt; print(&quot;Hello World&quot;))
@@ -481,10 +488,17 @@ This flag tells nog to never unregister the keybinding as long as the program is
 <h1><a class="header" href="#bind_arr" id="bind_arr">bind_arr</a></h1>
 <p>Defines a new keybinding for each item in the array, where the key is the modifier + index and
 the keybinding calls the provided callback with the item.</p>
-<p><code>always_active</code> is optional and defaults to false.
-This flag tells nog to never unregister the keybinding as long as the program is running.</p>
+<pre><code>enum KeybindingKind {
+    /// always active
+    Global = &quot;global&quot;,
+    /// active when in work mode
+    Work = &quot;work&quot;,
+    /// default
+    Normal = &quot;normal&quot;
+}
+</code></pre>
 <h2><a class="header" href="#signature-3" id="signature-3">Signature</a></h2>
-<pre><code class="language-nogscript">fn bind_arr(modifier: String, callback: (), arr: Any[], always_active: Boolean?) -&gt; Void
+<pre><code class="language-nogscript">fn bind_arr(modifier: String, callback: (), arr: Any[], always_active: KeybindingKind?) -&gt; Void
 </code></pre>
 <h2><a class="header" href="#example-4" id="example-4">Example</a></h2>
 <pre><code class="language-nogscript"> nog.bind_arr(&quot;Alt&quot;, nog.workspace.change, range(10))
@@ -492,10 +506,17 @@ This flag tells nog to never unregister the keybinding as long as the program is
 <h1><a class="header" href="#bind_map" id="bind_map">bind_map</a></h1>
 <p>Defines a new keybinding for each key in the map, where the key has the provided modifier
 prepended and the keybinding calls the provided callback with its value.</p>
-<p><code>always_active</code> is optional and defaults to false.
-This flag tells nog to never unregister the keybinding as long as the program is running.</p>
+<pre><code>enum KeybindingKind {
+    /// always active
+    Global = &quot;global&quot;,
+    /// active when in work mode
+    Work = &quot;work&quot;,
+    /// default
+    Normal = &quot;normal&quot;
+}
+</code></pre>
 <h2><a class="header" href="#signature-4" id="signature-4">Signature</a></h2>
-<pre><code class="language-nogscript">fn bind_map(modifier: String, callback: (), map: Map&lt;String,, always_active: Boolean?) -&gt; Void
+<pre><code class="language-nogscript">fn bind_map(modifier: String, callback: (), map: Map&lt;String,, always_active: KeybindingKind?) -&gt; Void
 </code></pre>
 <h2><a class="header" href="#example-5" id="example-5">Example</a></h2>
 <pre><code class="language-nogscript"> nog.bind_map(&quot;Alt&quot;, nog.workspace.focus, #{

@@ -169,10 +169,17 @@
                     <main>
                         <h1><a class="header" href="#bind" id="bind">bind</a></h1>
 <p>Defines a new keybinding that calls the callback when the given key combo is pressed.</p>
-<p><code>always_active</code> is optional and defaults to false.
-This flag tells nog to never unregister the keybinding as long as the program is running.</p>
+<pre><code>enum KeybindingKind {
+    /// always active
+    Global = &quot;global&quot;,
+    /// active when in work mode
+    Work = &quot;work&quot;,
+    /// default
+    Normal = &quot;normal&quot;
+}
+</code></pre>
 <h2><a class="header" href="#signature" id="signature">Signature</a></h2>
-<pre><code class="language-nogscript">fn bind(key_combo: String, callback: (), always_active: Boolean?) -&gt; Void
+<pre><code class="language-nogscript">fn bind(key_combo: String, callback: (), kind: KeybindingKind?) -&gt; Void
 </code></pre>
 <h2><a class="header" href="#example" id="example">Example</a></h2>
 <pre><code class="language-nogscript"> nog.bind(&quot;F1&quot;, () =&gt; print(&quot;Hello World&quot;))

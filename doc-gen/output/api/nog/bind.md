@@ -2,12 +2,20 @@
 
 Defines a new keybinding that calls the callback when the given key combo is pressed.
 
-`always_active` is optional and defaults to false.
-This flag tells nog to never unregister the keybinding as long as the program is running.
+```
+enum KeybindingKind {
+    /// always active
+    Global = "global",
+    /// active when in work mode
+    Work = "work",
+    /// default
+    Normal = "normal"
+}
+```
 ## Signature
 
 ```nogscript
-fn bind(key_combo: String, callback: (), always_active: Boolean?) -> Void
+fn bind(key_combo: String, callback: (), kind: KeybindingKind?) -> Void
 ```
 
 ## Example
