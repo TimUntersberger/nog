@@ -1,5 +1,6 @@
 use super::{Component, ComponentText};
 use crate::{util, AppState, Event};
+use interpreter::{Dynamic, RuntimeError};
 use parking_lot::Mutex;
 use std::sync::Arc;
 
@@ -42,18 +43,19 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) -> Component {
                             .filter(|t| !t.is_empty())
                             .unwrap_or(format!(" {} ", grid.id.to_string())),
                     )
-                    .with_value(grid.id)
+                    .with_value(grid.id.into())
                     .with_background_color(util::scale_color(bar_color, factor))
             })
             .collect())
     })
     .with_on_click(move |_, value, _| {
-        let id = *value.downcast_ref::<i32>().unwrap();
+        dbg!(&value);
+        let id = number!(value)?;
         state_arc2
             .lock()
             .event_channel
             .sender
-            .send(Event::ChangeWorkspace(id, true));
+            .send(Event::ChangeWorkspace(id as i32, true));
 
         Ok(())
     })

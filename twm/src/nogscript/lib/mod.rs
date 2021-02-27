@@ -9,15 +9,15 @@ use crate::{
     system, window, AppState, Event, Rule,
 };
 use crate::{get_plugins_path_iter, popup::Popup};
-use interpreter::{Dynamic, Function, Interpreter, Module, RuntimeError};
+use interpreter::{Class, Dynamic, Function, Interpreter, Module, Operator, RuntimeError};
 use itertools::Itertools;
 use log::debug;
 use parking_lot::Mutex;
 use regex::Regex;
-use std::process::Command;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
+use std::{collections::HashMap, process::Command};
 
 fn kb_from_args(callbacks_arc: Arc<Mutex<Vec<Function>>>, args: Vec<Dynamic>) -> Keybinding {
     let mut kb = Keybinding::from_str(&args[0].clone().as_str().unwrap()).unwrap();
@@ -320,18 +320,17 @@ pub fn create_root_module(
             let horizontal = string!(&args[1])?.clone();
             Ok(
                 component::split_direction::create(state.clone(), vertical, horizontal)
-                    .into_dynamic(state.clone()),
+                    .into_dynamic(),
             )
         });
 
-        let state = state_arc.clone();
         m = m.function("text", move |_, args| {
             let text = string!(&args[0])?.clone();
             Ok(Component::new("Text", move |_| {
                 let text = text.clone();
                 Ok(vec![ComponentText::new().with_display_text(text)])
             })
-            .into_dynamic(state.clone()))
+            .into_dynamic())
         });
         m
     });
