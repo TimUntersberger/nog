@@ -17,7 +17,7 @@ export fn init(direction_keys, workspace_count) {
     nog.bind("Alt+Minus", () => nog.workspace.set_split_direction("Horizontal"))
 
     nog.bind("Alt+Control+F", nog.window.toggle_floating)
-    nog.bind("Alt+Control+W", nog.toggle_work_mode, true)
+    nog.bind("Alt+Control+W", nog.toggle_work_mode, "global")
     nog.bind("Alt+F", nog.workspace.toggle_fullscreen)
 
     nog.bind_arr("Alt+Shift", nog.window.move_to_workspace, range(workspace_count))

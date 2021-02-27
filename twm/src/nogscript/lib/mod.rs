@@ -1,4 +1,4 @@
-use crate::update_config;
+use crate::{update_config, keybindings::keybinding::KeybindingKind};
 use crate::{
     bar::component,
     bar::component::{Component, ComponentText},
@@ -61,9 +61,13 @@ fn kb_from_args(callbacks_arc: Arc<Mutex<Vec<Function>>>, args: Vec<Dynamic>) ->
         _ => todo!("{:?}", &args[1]),
     }
 
-    if let Some(always_active) = args.get(2) {
-        if always_active.is_true() {
-            kb.always_active = true;
+    if let Some(kind_str) = args.get(2) {
+        if let Ok(kind_str) = kind_str.clone().as_str() {
+            match kind_str.as_str() {
+                "global" => kb.kind = KeybindingKind::Global,
+                "work" => kb.kind = KeybindingKind::Work,
+                _ => {}
+            }
         }
     }
 

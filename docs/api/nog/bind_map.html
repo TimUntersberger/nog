@@ -170,10 +170,17 @@
                         <h1><a class="header" href="#bind_map" id="bind_map">bind_map</a></h1>
 <p>Defines a new keybinding for each key in the map, where the key has the provided modifier
 prepended and the keybinding calls the provided callback with its value.</p>
-<p><code>always_active</code> is optional and defaults to false.
-This flag tells nog to never unregister the keybinding as long as the program is running.</p>
+<pre><code>enum KeybindingKind {
+    /// always active
+    Global = &quot;global&quot;,
+    /// active when in work mode
+    Work = &quot;work&quot;,
+    /// default
+    Normal = &quot;normal&quot;
+}
+</code></pre>
 <h2><a class="header" href="#signature" id="signature">Signature</a></h2>
-<pre><code class="language-nogscript">fn bind_map(modifier: String, callback: (), map: Map&lt;String,, always_active: Boolean?) -&gt; Void
+<pre><code class="language-nogscript">fn bind_map(modifier: String, callback: (), map: Map&lt;String,, always_active: KeybindingKind?) -&gt; Void
 </code></pre>
 <h2><a class="header" href="#example" id="example">Example</a></h2>
 <pre><code class="language-nogscript"> nog.bind_map(&quot;Alt&quot;, nog.workspace.focus, #{
