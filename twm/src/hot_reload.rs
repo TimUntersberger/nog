@@ -24,7 +24,7 @@ pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> Sys
     state.config = new_config;
     state
         .keybindings_manager
-        .set_keybindings(state.config.keybindings.clone());
+        .set_keybindings(state.config.keybindings.clone(), state.config.mode_handlers.clone());
 
     if work_mode {
         if old_config.remove_task_bar && !state.config.remove_task_bar {
