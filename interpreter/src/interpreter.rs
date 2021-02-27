@@ -280,6 +280,26 @@ impl Interpreter {
 
                 let arg = arg.as_ref().map(|arg| self.eval(arg.as_ref()));
 
+                if let Dynamic::Class(class) = &value {
+                    return if let Some(f) = class.get_static_op_impl(op) {
+                        let res = f.invoke(
+                            self,
+                            match op {
+                                Operator::Call => arg.unwrap()?.as_array().unwrap(),
+                                _ => vec![arg.unwrap_or(Ok(Default::default()))?],
+                            },
+                        )?;
+
+                        Ok(res)
+                    } else {
+                        Err(RuntimeError::OperatorNotImplemented {
+                            expr: expr.clone(),
+                            class: class.name.clone(),
+                            operator: op.clone(),
+                        })
+                    };
+                }
+
                 let class = self.find_class(&value.type_name()).unwrap().clone();
 
                 if let Some(cb) = class.get_op_impl(&op) {
@@ -733,8 +753,15 @@ impl Interpreter {
             }
             AstKind::StaticFunctionDefinition(_, _, _) => unreachable!(),
             AstKind::ImportStatement(path) => {
-                let (mod_name, module) = self.import(&path)?;
-                self.get_scope_mut().set(mod_name, module);
+                let (name, res) = self.import(&path)?;
+                match res {
+                    Dynamic::Class(class) => {
+                        self.classes.insert(name, class);
+                    }
+                    x => {
+                        self.get_scope_mut().set(name, x);
+                    }
+                }
             }
             AstKind::ExportStatement(ast) => {
                 match &ast.kind {
