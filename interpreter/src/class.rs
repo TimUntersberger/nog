@@ -12,6 +12,10 @@ pub struct Class {
     pub static_functions: HashMap<String, Function>,
     pub functions: HashMap<String, Method>,
     pub op_impls: HashMap<Operator, Method>,
+    /// Operator implementations on the class itself.
+    ///
+    /// e.g.: `Class()` instead of `instance()`
+    pub static_op_impls: HashMap<Operator, Function>,
 }
 
 impl Class {
@@ -22,6 +26,7 @@ impl Class {
             static_functions: HashMap::new(),
             functions: HashMap::new(),
             op_impls: HashMap::new(),
+            static_op_impls: HashMap::new(),
         }
         .set_op_impl(Operator::Assign, |_, this, args| {
             let key = args[0].clone().as_str().unwrap();
@@ -122,8 +127,27 @@ impl Class {
         self
     }
 
+    pub fn set_static_op_impl<T: Into<Dynamic>>(
+        mut self,
+        op: Operator,
+        f: impl Fn(&mut Interpreter, Vec<Dynamic>) -> RuntimeResult<T> + 'static + Send + Sync,
+    ) -> Self {
+        let op_method_name = op.method_name();
+        self.static_op_impls.insert(
+            op,
+            Function::new(&op_method_name, None, move |i, args| {
+                f(i, args).map(|x| x.into())
+            }),
+        );
+        self
+    }
+
     pub fn get_op_impl(&self, op: &Operator) -> Option<&Method> {
         self.op_impls.get(op)
+    }
+
+    pub fn get_static_op_impl(&self, op: &Operator) -> Option<&Function> {
+        self.static_op_impls.get(op)
     }
 }
 
