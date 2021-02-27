@@ -27,3 +27,5 @@ import nog.bar.components
 /// ```
 /// @param settings BarSettings
 extern fn configure(settings)
+
+extern class Text

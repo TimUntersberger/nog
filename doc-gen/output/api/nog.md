@@ -1,6 +1,7 @@
 # nog
 
 ## Modules
+* [bar]()
 * [config]()
 * [plugin]()
 * [popup]()

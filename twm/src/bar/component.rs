@@ -17,7 +17,7 @@ pub const LOCK_TIMEOUT: u64 = 20;
 #[derive(Debug, Clone)]
 pub struct ComponentText {
     pub display_text: String,
-    pub value: Arc<Box<dyn Any + Sync + Send>>,
+    pub value: Dynamic,
     pub foreground_color: i32,
     pub background_color: i32,
 }
@@ -26,7 +26,7 @@ impl ComponentText {
     pub fn new() -> Self {
         Self {
             display_text: "".into(),
-            value: Arc::new(Box::new(())),
+            value: Dynamic::Null,
             foreground_color: 0,
             background_color: 0,
         }
@@ -35,8 +35,8 @@ impl ComponentText {
         self.display_text = value;
         self
     }
-    pub fn with_value(mut self, value: impl Any + Send + Sync) -> Self {
-        self.value = Arc::new(Box::new(value));
+    pub fn with_value(mut self, value: Dynamic) -> Self {
+        self.value = value;
         self
     }
     pub fn with_foreground_color(mut self, value: i32) -> Self {
@@ -54,13 +54,7 @@ pub struct Component {
     pub name: String,
     pub is_clickable: bool,
     render_fn: Arc<dyn Fn(DisplayId) -> RuntimeResult<Vec<ComponentText>> + Send + Sync>,
-    on_click_fn: Option<
-        Arc<
-            dyn Fn(DisplayId, Arc<Box<dyn Any + Send + Sync>>, usize) -> RuntimeResult<()>
-                + Send
-                + Sync,
-        >,
-    >,
+    on_click_fn: Option<Arc<dyn Fn(DisplayId, Dynamic, usize) -> RuntimeResult<()> + Send + Sync>>,
 }
 
 impl Default for Component {
@@ -112,23 +106,24 @@ impl Component {
             let mut rendered = Vec::new();
 
             for d in dynamics {
-                rendered.push(match d {
-                    Dynamic::String(x) => ComponentText::new().with_display_text(x.clone()),
-                    Dynamic::Array(x) => {
-                        let items = x.lock().unwrap();
-                        assert!(items.len() == 3);
-                        ComponentText::new()
-                            .with_display_text(string!(&items[0])?.clone())
-                            .with_foreground_color(*number!(&items[1])?)
-                            .with_background_color(*number!(&items[2])?)
-                    }
-                    x => {
-                        return Err(RuntimeError::UnexpectedType {
-                            expected: "String | Array".into(),
-                            actual: x.type_name(),
-                        })
-                    }
-                })
+                let fields_ref = instance!("Text", &d)?;
+                let fields = fields_ref.lock().unwrap();
+                let text = ComponentText::new()
+                    .with_display_text(match fields.get("text").unwrap() {
+                        Dynamic::String(x) => x.clone(),
+                        _ => "".into()
+                    })
+                    .with_foreground_color(match fields.get("foreground_color").unwrap() {
+                        Dynamic::Number(x) => *x,
+                        _ => 0
+                    })
+                    .with_background_color(match fields.get("background_color").unwrap() {
+                        Dynamic::Number(x) => *x,
+                        _ => 0
+                    })
+                    .with_value(fields.get("value").unwrap().clone());
+
+                rendered.push(text);
             }
 
             Ok(rendered)
@@ -149,7 +144,7 @@ impl Component {
         Ok(comp)
     }
 
-    pub fn into_dynamic(&self, state_arc: Arc<Mutex<AppState>>) -> Dynamic {
+    pub fn into_dynamic(&self) -> Dynamic {
         let mut fields: HashMap<String, Dynamic> = HashMap::new();
 
         fields.insert("name".into(), self.name.clone().into());
@@ -162,15 +157,12 @@ impl Component {
                 Ok((render_fn)(DisplayId(display_id))?
                     .iter()
                     .map(|x| {
-                        if x.foreground_color == 0 && x.background_color == 0 {
-                            x.display_text.clone().into()
-                        } else {
-                            Dynamic::new_array(vec![
-                                Dynamic::String(x.display_text.clone()),
-                                Dynamic::Number(x.foreground_color),
-                                Dynamic::Number(x.background_color),
-                            ])
-                        }
+                        let mut fields = HashMap::new();
+                        fields.insert("text".into(), x.display_text.clone().into());
+                        fields.insert("foreground_color".into(), x.foreground_color.into());
+                        fields.insert("background_color".into(), x.background_color.into());
+                        fields.insert("value".into(), x.value.clone());
+                        Dynamic::new_instance("Text", fields)
                     })
                     .collect::<Vec<_>>()
                     .into())
@@ -180,13 +172,13 @@ impl Component {
 
         if let Some(on_click_fn) = self.on_click_fn.as_ref() {
             let f = on_click_fn.clone();
-            let state = state_arc.clone();
             fields.insert(
                 "on_click".into(),
                 Function::new("on_click", None, move |_, args| {
-                    let value = rust_value!(&args[0])?.clone();
-                    let idx = *number!(&args[1])?;
-                    let display_id = state.lock().get_current_display().id;
+                    dbg!(&args);
+                    let display_id = DisplayId(*number!(&args[0])?);
+                    let value = args[1].clone();
+                    let idx = *number!(&args[2])?;
 
                     (f)(display_id, value, idx as usize)?;
 
@@ -199,12 +191,7 @@ impl Component {
         fields.into()
     }
 
-    pub fn on_click(
-        &self,
-        display_id: DisplayId,
-        value: Arc<Box<dyn Any + Send + Sync>>,
-        idx: usize,
-    ) -> RuntimeResult<()> {
+    pub fn on_click(&self, display_id: DisplayId, value: Dynamic, idx: usize) -> RuntimeResult<()> {
         if let Some(f) = self.on_click_fn.clone() {
             f(display_id, value, idx)?;
         }
@@ -220,10 +207,7 @@ impl Component {
 
     pub fn with_on_click(
         &mut self,
-        f: impl Fn(DisplayId, Arc<Box<dyn Any + Send + Sync>>, usize) -> RuntimeResult<()>
-            + Send
-            + Sync
-            + 'static,
+        f: impl Fn(DisplayId, Dynamic, usize) -> RuntimeResult<()> + Send + Sync + 'static,
     ) -> &mut Self {
         self.is_clickable = true;
         self.on_click_fn = Some(Arc::new(f));

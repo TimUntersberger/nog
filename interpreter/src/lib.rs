@@ -26,4 +26,5 @@ pub use class::Class;
 pub use dynamic::Dynamic;
 pub use function::Function;
 pub use module::Module;
+pub use operator::Operator;
 pub use runtime_error::{RuntimeError, RuntimeResult};

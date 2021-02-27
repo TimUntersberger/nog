@@ -488,7 +488,7 @@ impl<'a> Parser<'a> {
 
         while let Some(token) = self.lexer.peek() {
             match token.0 {
-                TokenKind::Dot | TokenKind::Identifier => {
+                TokenKind::Dot | TokenKind::Identifier | TokenKind::ClassIdentifier => {
                     let token = self.lexer.next().unwrap();
                     self.tokens.push(token.clone());
                     parts.push(self.text(&token));

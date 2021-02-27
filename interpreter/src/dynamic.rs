@@ -26,7 +26,6 @@ pub type Number = i32;
 pub enum Dynamic {
     String(String),
     Number(Number),
-    RustValue(Arc<Box<dyn Any + Send + Sync>>),
     Boolean(bool),
     Lazy(Expression),
     Array(Arc<Mutex<Vec<Dynamic>>>),
@@ -162,7 +161,7 @@ impl Dynamic {
         match self {
             Dynamic::String(string) => Ok(string),
             x => Err(RuntimeError::UnexpectedType {
-                expected: "Function".into(),
+                expected: "String".into(),
                 actual: x.type_name(),
             }),
         }
@@ -172,7 +171,6 @@ impl Dynamic {
         match self {
             Dynamic::String(_) => "String",
             Dynamic::Number(_) => "Number",
-            Dynamic::RustValue(_) => "RustValue",
             Dynamic::Lazy(_) => "Lazy",
             Dynamic::Module(_) => "Module",
             Dynamic::Boolean(_) => "Boolean",
@@ -185,6 +183,13 @@ impl Dynamic {
             Dynamic::Null => "Null",
         }
         .into()
+    }
+
+    pub fn is_class(&self) -> bool {
+        match self {
+            Dynamic::Class(x) => true,
+            _ => false,
+        }
     }
 
     pub fn is_true(&self) -> bool {
@@ -389,12 +394,6 @@ impl From<()> for Dynamic {
     }
 }
 
-impl From<Arc<Box<dyn Any + Send + Sync>>> for Dynamic {
-    fn from(ptr: Arc<Box<dyn Any + Send + Sync>>) -> Self {
-        Dynamic::RustValue(ptr.clone())
-    }
-}
-
 impl From<bool> for Dynamic {
     fn from(val: bool) -> Self {
         Dynamic::Boolean(val)
@@ -437,7 +436,6 @@ impl Display for Dynamic {
         f.write_str(&match self {
             Dynamic::Boolean(boolean) => boolean.to_string(),
             Dynamic::String(string) => string.clone(),
-            Dynamic::RustValue(expr) => todo!(),
             Dynamic::Lazy(expr) => todo!(),
             Dynamic::Module(module) => format!("module {:#?}", module),
             Dynamic::Class(class) => format!("class {}", class.name),
