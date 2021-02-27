@@ -246,47 +246,72 @@ pub fn create_root_module(
 
     let mut bar = Module::new("bar");
 
+    bar = bar.variable(
+        "Text",
+        Class::new("Text")
+            .add_function("fg", |i, this, args| {
+                this.set_field("foreground_color", args.get(0).unwrap_or_default().clone());
+                Ok(this)
+            })
+            .add_function("bg", |i, this, args| {
+                this.set_field("background_color", args.get(0).unwrap_or_default().clone());
+                Ok(this)
+            })
+            .add_function("value", |i, this, args| {
+                this.set_field("value", args.get(0).unwrap_or_default().clone());
+                Ok(this)
+            })
+            .set_static_op_impl(Operator::Call, |i, args| {
+                let mut fields = HashMap::new();
+                fields.insert(
+                    "text".into(),
+                    args.get(0)
+                        .map(|x| Dynamic::String(x.to_string()))
+                        .unwrap_or_default()
+                        .clone(),
+                );
+                fields.insert("foreground_color".into(), ().into());
+                fields.insert("background_color".into(), ().into());
+                fields.insert("value".into(), ().into());
+                Ok(Dynamic::new_instance("Text", fields))
+            }),
+    );
+
     bar = bar.variable("components", {
         let state = state_arc.clone();
         let mut m = Module::new("components").function("workspaces", move |_, _| {
-            Ok(component::workspaces::create(state.clone()).into_dynamic(state.clone()))
+            Ok(component::workspaces::create(state.clone()).into_dynamic())
         });
 
-        let state = state_arc.clone();
         m = m.function("time", move |_, args| {
             let text = string!(&args[0])?.clone();
-            Ok(component::time::create(text).into_dynamic(state.clone()))
+            Ok(component::time::create(text).into_dynamic())
         });
 
-        let state = state_arc.clone();
         m = m.function("date", move |_, args| {
             let text = string!(&args[0])?.clone();
-            Ok(component::date::create(text).into_dynamic(state.clone()))
+            Ok(component::date::create(text).into_dynamic())
         });
 
-        let state = state_arc.clone();
         m = m.function("padding", move |_, args| {
             let count = *number!(&args[0])?;
-            Ok(component::padding::create(count).into_dynamic(state.clone()))
+            Ok(component::padding::create(count).into_dynamic())
         });
 
         let state = state_arc.clone();
         m = m.function("current_window", move |_, _| {
-            Ok(component::current_window::create(state.clone()).into_dynamic(state.clone()))
+            Ok(component::current_window::create(state.clone()).into_dynamic())
         });
 
         let state = state_arc.clone();
         m = m.function("fullscreen_indicator", move |_, args| {
             let indicator = string!(&args[0])?.clone();
-            Ok(
-                component::fullscreen_indicator::create(state.clone(), indicator)
-                    .into_dynamic(state.clone()),
-            )
+            Ok(component::fullscreen_indicator::create(state.clone(), indicator).into_dynamic())
         });
 
         let state = state_arc.clone();
         m = m.function("active_mode", move |_, _| {
-            Ok(component::active_mode::create(state.clone()).into_dynamic(state.clone()))
+            Ok(component::active_mode::create(state.clone()).into_dynamic())
         });
 
         let state = state_arc.clone();
