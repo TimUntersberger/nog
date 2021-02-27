@@ -112,6 +112,8 @@
 - [Array](./api/Array.md)
 - [atomic](./api/atomic.md)
 - [nog](./api/nog.md)
+  - [bar](./api/nog/bar.md)
+    - [configure](./api/nog/bar/configure.md)
   - [bind](./api/nog/bind.md)
   - [bind_arr](./api/nog/bind_arr.md)
   - [bind_map](./api/nog/bind_map.md)
