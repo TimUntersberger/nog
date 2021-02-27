@@ -23,17 +23,31 @@ macro_rules! number {
 
 /// Converts the given value into an object
 #[macro_export]
-macro_rules! object {
-    ($enum: expr) => {
-        cast!($enum, Dynamic::Object, "Object")
+macro_rules! instance {
+    ($name: expr, $enum: expr) => {
+        if let Dynamic::ClassInstance(name, args) = $enum {
+            if name != $name {
+                Err(RuntimeError::UnexpectedType {
+                    expected: $name.into(),
+                    actual: $enum.type_name(),
+                })
+            } else {
+                Ok(args)
+            }
+        } else {
+            Err(RuntimeError::UnexpectedType {
+                expected: $name.into(),
+                actual: $enum.type_name(),
+            })
+        }
     };
 }
 
-/// Converts the given value into a rust value
+/// Converts the given value into an object
 #[macro_export]
-macro_rules! rust_value {
+macro_rules! object {
     ($enum: expr) => {
-        cast!($enum, Dynamic::RustValue, "RustValue")
+        cast!($enum, Dynamic::Object, "Object")
     };
 }
 
