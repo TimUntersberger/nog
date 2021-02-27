@@ -1,5 +1,6 @@
 import nog.popup
 import nog.plugin
+import nog.bar
 import nog.config
 import nog.workspace
 import nog.window
