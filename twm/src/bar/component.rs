@@ -111,15 +111,15 @@ impl Component {
                 let text = ComponentText::new()
                     .with_display_text(match fields.get("text").unwrap() {
                         Dynamic::String(x) => x.clone(),
-                        _ => "".into()
+                        _ => "".into(),
                     })
                     .with_foreground_color(match fields.get("foreground_color").unwrap() {
                         Dynamic::Number(x) => *x,
-                        _ => 0
+                        _ => 0,
                     })
                     .with_background_color(match fields.get("background_color").unwrap() {
                         Dynamic::Number(x) => *x,
-                        _ => 0
+                        _ => 0,
                     })
                     .with_value(fields.get("value").unwrap().clone());
 

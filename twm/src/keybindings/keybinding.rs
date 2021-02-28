@@ -8,7 +8,7 @@ pub enum KeybindingKind {
     /// active when in work mode
     Work,
     /// default
-    Normal
+    Normal,
 }
 
 impl Default for KeybindingKind {
