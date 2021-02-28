@@ -48,6 +48,8 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) -> Component {
                         .with_background_color(util::scale_color(bar_color, factor))
                 })
                 .collect())
+        } else {
+           Ok(vec![])
         }
     })
     .with_on_click(move |_, value, _| {
