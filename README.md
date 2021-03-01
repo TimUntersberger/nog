@@ -15,7 +15,7 @@ Since nog uses a custom language we will provide official plugins for syntax hig
 
 ## Download
 
-In almost all cases the [development](https://github.com/TimUntersberger/nog/releases/tag/development-release) release is the way to go.
+In almost all cases the [master](https://github.com/TimUntersberger/nog/releases/tag/master-release) release is the way to go.
 
 ## Known Problems
 
