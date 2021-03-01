@@ -29,28 +29,28 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) -> Component {
                             0.9
                         }
                     } else {
-                        0.9
-                    }
-                } else {
-                    if state.workspace_id == grid.id {
-                        2.0
-                    } else {
-                        1.5
-                    }
-                };
-                ComponentText::new()
-                    .with_display_text(
-                        workspace_settings
-                            .iter()
-                            .find(|s| s.id == grid.id)
-                            .map(|s| s.text.clone())
-                            .filter(|t| !t.is_empty())
-                            .unwrap_or(format!(" {} ", grid.id.to_string())),
-                    )
-                    .with_value(grid.id.into())
-                    .with_background_color(util::scale_color(bar_color, factor))
-            })
-            .collect())
+                        if state.workspace_id == grid.id {
+                            2.0
+                        } else {
+                            1.5
+                        }
+                    };
+                    ComponentText::new()
+                        .with_display_text(
+                            workspace_settings
+                                .iter()
+                                .find(|s| s.id == grid.id)
+                                .map(|s| s.text.clone())
+                                .filter(|t| !t.is_empty())
+                                .unwrap_or(format!(" {} ", grid.id.to_string())),
+                        )
+                        .with_value(grid.id.into())
+                        .with_background_color(util::scale_color(bar_color, factor))
+                })
+                .collect())
+        } else {
+           Ok(vec![])
+        }
     })
     .with_on_click(move |_, value, _| {
         dbg!(&value);

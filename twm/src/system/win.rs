@@ -345,9 +345,14 @@ impl Window {
     }
     pub fn close(&self) -> SystemResult {
         unsafe {
-            bool_to_result(SendNotifyMessageA(self.id.into(), WM_SYSCOMMAND, SC_CLOSE, 0))
-                .map(|_| {})
-                .map_err(SystemError::CloseWindow)
+            bool_to_result(SendNotifyMessageA(
+                self.id.into(),
+                WM_SYSCOMMAND,
+                SC_CLOSE,
+                0,
+            ))
+            .map(|_| {})
+            .map_err(SystemError::CloseWindow)
         }
     }
     pub fn focus(&self) -> SystemResult {

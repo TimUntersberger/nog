@@ -1,4 +1,3 @@
-use crate::{update_config, keybindings::keybinding::KeybindingKind};
 use crate::{
     bar::component,
     bar::component::{Component, ComponentText},
@@ -9,6 +8,7 @@ use crate::{
     system, window, AppState, Event, Rule,
 };
 use crate::{get_plugins_path_iter, popup::Popup};
+use crate::{keybindings::keybinding::KeybindingKind, update_config};
 use interpreter::{Class, Dynamic, Function, Interpreter, Module, Operator, RuntimeError};
 use itertools::Itertools;
 use log::debug;
