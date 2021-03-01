@@ -36,7 +36,9 @@ jobs:
       run: ./rcedit ./target/release/twm.exe --set-icon ./assets/logo.ico
     - name: Rename executable
       run: |
-        rm ./target/release/nog.exe
+        if (Test-Path ./target/release/nog.exe) {
+          rm ./target/release/nog.exe
+        }
         mv ./target/release/twm.exe ./target/release/nog.exe
     - name: Create Release
       uses: "marvinpinto/action-automatic-releases@latest"
