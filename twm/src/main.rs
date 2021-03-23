@@ -796,6 +796,14 @@ impl AppState {
             .map(|d| d.refresh_grid(&config))
             .collect::<Result<(), SystemError>>()
     }
+
+    pub fn refresh_current_grid(&mut self) -> SystemResult {
+        let config = self.config.clone();
+        let display = self.get_current_display_mut();
+        display.refresh_grid(&config)?;
+
+        Ok(())
+    }
 }
 
 fn on_quit(state: &mut AppState) -> SystemResult {
