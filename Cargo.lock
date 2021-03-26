@@ -92,6 +92,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bstr"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a40b47ad93e1a5404e6c18dec46b628214fee441c70f4ab5d6942142cc268a3d"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -247,6 +256,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8ac63f94732332f44fe654443c46f6375d1939684c17b0afb6cb56b0456e171"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "erased-serde"
+version = "0.3.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0465971a8cc1fa2455c8465aaa377131e1f1cf4983280f474a13e68793aa770c"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -569,9 +587,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63312a18f7ea8760cdd0a7c5aac1a619752a246b833545e3e36d1f81f7cd9e66"
 dependencies = [
  "cfg-if",
- "js-sys",
- "wasm-bindgen",
- "web-sys",
 ]
 
 [[package]]
@@ -693,6 +708,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "lua-src"
+version = "542.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c8866ea13f233a5fd3165080e4029b84f9df7107c80d3b338a5f775a810d9b4"
+dependencies = [
+ "cc",
+]
+
+[[package]]
+name = "luajit-src"
+version = "210.1.3+restyfe08842"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36d3de8377d8e0492b646527befb7eb826a9ecd2dc8c1f81ab0e654bc03a029b"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "matches"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -776,6 +809,23 @@ dependencies = [
  "net2",
  "winapi 0.2.8",
  "ws2_32-sys",
+]
+
+[[package]]
+name = "mlua"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f2fc8e1085d53b72898c59ceee1980b5826b0c98ce99886b7518f0ead00e5cb"
+dependencies = [
+ "bstr",
+ "cc",
+ "erased-serde",
+ "lazy_static",
+ "lua-src",
+ "luajit-src",
+ "num-traits",
+ "pkg-config",
+ "serde",
 ]
 
 [[package]]
@@ -868,9 +918,9 @@ dependencies = [
 
 [[package]]
 name = "num-traits"
-version = "0.2.11"
+version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c62be47e61d1842b9170f0fdeec8eba98e60e90e5446449a0545e5152acd7096"
+checksum = "9a64b1ec5cda2586e284722486d802acf1f7dbdc623e2bfc57e65ca1cd099290"
 dependencies = [
  "autocfg",
 ]
@@ -1164,29 +1214,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rhai"
-version = "0.19.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e8e282535f1c756a24c01b2e6aefa17f101c6c68c87696061002ce59371c33a"
-dependencies = [
- "instant",
- "rhai_codegen",
- "serde",
- "smallvec",
-]
-
-[[package]]
-name = "rhai_codegen"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a911a142bb489f3e4e34d0e62da91cba81c10972240ce0d99d79d41ab6e6d9a5"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "rust-argon2"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1263,20 +1290,6 @@ name = "serde"
 version = "1.0.116"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96fe57af81d28386a513cbc6858332abc6117cfdb5999647c6444b8f43a370a5"
-dependencies = [
- "serde_derive",
-]
-
-[[package]]
-name = "serde_derive"
-version = "1.0.116"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f630a6370fd8e457873b4bd2ffdae75408bc291ba72be773772a4c2a065d9ae8"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
 
 [[package]]
 name = "serde_json"
@@ -1513,6 +1526,7 @@ dependencies = [
  "itertools",
  "lazy_static",
  "log",
+ "mlua",
  "notify",
  "num-derive",
  "num-traits",
@@ -1520,7 +1534,6 @@ dependencies = [
  "petgraph",
  "regex",
  "reqwest",
- "rhai",
  "serde",
  "serde_json",
  "strum",

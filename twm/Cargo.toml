@@ -11,10 +11,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-interpreter = { path = "../interpreter" }
-rhai = { version = "0.19.0", features = ["only_i32", "sync", "no_closure", "serde"] }
 parking_lot = { version = "0.11.0", features = ["deadlock_detection", "nightly"] }
 derivative = "2.1.1"
+interpreter = { path = "../interpreter" }
 log = "0.4"
 syn = "1.0.38"
 flexi_logger = "0.15"
@@ -30,6 +29,7 @@ strum = "0.18.0"
 strum_macros = "0.18.0"
 dirs = "2.0"
 notify = "4.0.15"
+mlua = { version = "0.5.3", features = ["luajit", "vendored", "send", "serialize"] }
 crossbeam-channel = "0.4"
 bitflags = "1.2"
 thiserror = "1.0"
