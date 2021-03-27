@@ -8,8 +8,7 @@ extern crate strum_macros;
 extern crate interpreter;
 
 use bar::component::{self, Component, ComponentText};
-use mlua::Lua;
-use config::{rule::Rule, workspace_setting::WorkspaceSetting, Config, bar_config::BarConfig};
+use config::{bar_config::BarConfig, rule::Rule, workspace_setting::WorkspaceSetting, Config};
 use crossbeam_channel::select;
 use direction::Direction;
 use display::Display;
@@ -18,17 +17,18 @@ use event::EventChannel;
 use hot_reload::update_config;
 use interpreter::{Dynamic, Function, Interpreter, Module, RuntimeError};
 use itertools::Itertools;
-use keybindings::{keybinding::Keybinding, KbManager, keybinding::KeybindingKind};
+use keybindings::{keybinding::Keybinding, keybinding::KeybindingKind, KbManager};
 use log::debug;
 use log::{error, info};
+use lua::{setup_lua_rt, LuaRuntime};
 use parking_lot::{deadlock, Mutex};
 use popup::Popup;
 use regex::Regex;
 use split_direction::SplitDirection;
-use std::{fs::ReadDir, fmt::Debug};
 use std::path::PathBuf;
 use std::process::Command;
 use std::str::FromStr;
+use std::{fmt::Debug, fs::ReadDir, path::Path};
 use std::{mem, thread, time::Duration};
 use std::{process, sync::atomic::AtomicBool, sync::Arc};
 use system::NativeWindow;
@@ -126,6 +126,7 @@ mod event_handler;
 mod hot_reload;
 mod keybindings;
 mod logging;
+mod lua;
 mod message_loop;
 mod nogscript;
 mod popup;
@@ -141,30 +142,6 @@ mod update;
 mod util;
 mod win_event_handler;
 mod window;
-
-#[derive(Clone)]
-pub struct LuaRuntime(pub Arc<Mutex<Lua>>);
-
-impl LuaRuntime {
-    pub fn new() -> Self {
-        Self(Arc::new(Mutex::new(Lua::new())))
-    }
-
-    pub fn with_lua(&self, f: impl Fn(&mut Lua) -> mlua::Result<()>) {
-        f(&mut self.0.lock()).unwrap();
-    }
-
-    pub fn run_str(&self, s: &str) {
-        let guard = self.0.lock();
-        guard.load(s).set_name("init.lua").unwrap().exec().unwrap();
-    }
-}
-
-impl Debug for LuaRuntime {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct AppState {
@@ -221,6 +198,14 @@ impl AppState {
         }
 
         Ok(())
+    }
+
+    pub fn get_window_title(&mut self) -> SystemResult<String> {
+        Ok(self
+            .get_current_grid()
+            .and_then(|g| g.get_focused_window())
+            .and_then(|w| w.get_title().ok())
+            .unwrap_or_default())
     }
 
     //TODO: Make this work at runtime after initilization
@@ -1050,191 +1035,15 @@ fn load_plugin_source_locations(i: &mut Interpreter) {
     }
 }
 
-#[derive(Clone)]
-struct LuaBarConfigProxy {
-    state: Arc<Mutex<AppState>>,
-    config_copy: BarConfig
-}
-
-impl mlua::UserData for LuaBarConfigProxy {
-    fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
-        use mlua::Value;
-
-        methods.add_meta_function(mlua::MetaMethod::Index, |_, (this, key): (Self, String)| {
-            Ok(match key.as_str() {
-                _ => ()
-            })
-        });
-
-        methods.add_meta_function(mlua::MetaMethod::NewIndex, |lua, (this, key, val): (Self, String, Value)| {
-            use mlua::FromLua;
-            //TODO: Support components
-            //
-            //      pub components: BarComponentsConfig,
-
-            //TODO: Also update the copy the same way
-            match key.as_str() {
-                "height" => this.state.lock().config.bar.height = FromLua::from_lua(val, lua).unwrap(),
-                "color" => this.state.lock().config.bar.color = FromLua::from_lua(val, lua).unwrap(),
-                "font" => this.state.lock().config.bar.font = FromLua::from_lua(val, lua).unwrap(),
-                "font_size" => this.state.lock().config.bar.font_size = FromLua::from_lua(val, lua).unwrap(),
-                _ => todo!()
-            };
-
-            Ok(())
-        });
-    }
-}
-
-#[derive(Clone)]
-struct LuaConfigProxy {
-    state: Arc<Mutex<AppState>>,
-    config_copy: Config
-}
-
-impl mlua::UserData for LuaConfigProxy {
-    fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
-        use mlua::Value;
-
-        methods.add_meta_function(mlua::MetaMethod::Index, |_, (this, key): (Self, String)| {
-            Ok(match key.as_str() {
-                "bar" => LuaBarConfigProxy {
-                    state: this.state.clone(),
-                    config_copy: this.config_copy.bar.clone()
-                },
-                _ => todo!()
-            })
-        });
-
-        //TODO: Also update the copy the same way
-        methods.add_meta_function(mlua::MetaMethod::NewIndex, |lua, (this, key, val): (Self, String, Value)| {
-            use mlua::FromLua;
-
-            match key.as_str() {
-                "work_mode" => this.state.lock().config.work_mode = FromLua::from_lua(val, lua).unwrap(),
-                "display_app_bar" => this.state.lock().config.display_app_bar = FromLua::from_lua(val, lua).unwrap(),
-                "remove_task_bar" => this.state.lock().config.remove_task_bar = FromLua::from_lua(val, lua).unwrap(),
-                "remove_title_bar" => this.state.lock().config.remove_title_bar = FromLua::from_lua(val, lua).unwrap(),
-                "launch_on_startup" => this.state.lock().config.launch_on_startup = FromLua::from_lua(val, lua).unwrap(),
-                "multi_monitor" => this.state.lock().config.multi_monitor = FromLua::from_lua(val, lua).unwrap(),
-                "use_border" => this.state.lock().config.use_border = FromLua::from_lua(val, lua).unwrap(),
-                "min_width" => this.state.lock().config.min_width = FromLua::from_lua(val, lua).unwrap(),
-                "min_height" => this.state.lock().config.min_height = FromLua::from_lua(val, lua).unwrap(),
-                "light_theme" => this.state.lock().config.light_theme = FromLua::from_lua(val, lua).unwrap(),
-                "outer_gap" => this.state.lock().config.outer_gap = FromLua::from_lua(val, lua).unwrap(),
-                "inner_gap" => this.state.lock().config.inner_gap = FromLua::from_lua(val, lua).unwrap(),
-                "ignore_fullscreen_actions" => this.state.lock().config.ignore_fullscreen_actions = FromLua::from_lua(val, lua).unwrap(),
-                _ => todo!()
-            };
-
-            Ok(())
-        });
-    }
-}
-
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
     logging::setup().expect("Failed to setup logging");
 
     let state_arc = Arc::new(Mutex::new(AppState::default()));
 
-    {
-        let state_arc2 = state_arc.clone();
-        let rt = state_arc.lock().lua_rt.clone();
-
-        //TODO: bind functions need to set callback correctly
-        rt.with_lua(move |lua| {
-            use mlua::{Function, Value, Table};
-
-            let nog_tbl = lua.create_table()?;
-
-            nog_tbl.set("version", option_env!("NOG_VERSION").unwrap_or("DEV"))?;
-
-            let state = state_arc2.clone();
-            nog_tbl.set("config", LuaConfigProxy {
-                state: state.clone(),
-                config_copy: state.lock().config.clone()
-            });
-
-            let state = state_arc2.clone();
-            nog_tbl.set("quit", lua.create_function(move |_, (): ()| {
-                let _ = state.lock().event_channel.sender.send(Event::Exit);
-                Ok(())
-            })?)?;
-
-            let state = state_arc2.clone();
-            nog_tbl.set("nbind", lua.create_function(move |_, (key, cb): (String, Value)| {
-                let mut kb = Keybinding::from_str(&key).unwrap();
-                kb.kind = KeybindingKind::Normal;
-                state.lock().add_keybinding(kb);
-                Ok(())
-            })?)?;
-
-            let state = state_arc2.clone();
-            nog_tbl.set("nbind_tbl", lua.create_function(move |_, (modifier, cb, tbl): (String, Value, Table)| {
-                let mut state = state.lock();
-                for pair in tbl.pairs::<String, Value>() {
-                    let (key, val) = pair?;
-                    let key = format!("{}+{}", modifier, key);
-                    let mut kb = Keybinding::from_str(&key).unwrap();
-                    kb.kind = KeybindingKind::Normal;
-                    state.add_keybinding(kb);
-                }
-                Ok(())
-            })?)?;
-
-            let state = state_arc2.clone();
-            nog_tbl.set("wbind", lua.create_function(move |_, (key, cb): (String, Value)| {
-                let mut kb = Keybinding::from_str(&key).unwrap();
-                kb.kind = KeybindingKind::Work;
-                state.lock().add_keybinding(kb);
-                Ok(())
-            })?)?;
-
-            let state = state_arc2.clone();
-            nog_tbl.set("wbind_tbl", lua.create_function(move |_, (modifier, cb, tbl): (String, Value, Table)| {
-                let mut state = state.lock();
-                for pair in tbl.pairs::<String, Value>() {
-                    let (key, val) = pair?;
-                    let key = format!("{}+{}", modifier, key);
-                    let mut kb = Keybinding::from_str(&key).unwrap();
-                    kb.kind = KeybindingKind::Work;
-                    state.add_keybinding(kb);
-                }
-                Ok(())
-            })?)?;
-
-            let state = state_arc2.clone();
-            nog_tbl.set("gbind", lua.create_function(move |_, (key, cb): (String, Value)| {
-                let mut kb = Keybinding::from_str(&key).unwrap();
-                kb.kind = KeybindingKind::Global;
-                state.lock().add_keybinding(kb);
-                Ok(())
-            })?)?;
-
-            let state = state_arc2.clone();
-            nog_tbl.set("gbind_tbl", lua.create_function(move |_, (modifier, cb, tbl): (String, Value, Table)| {
-                let mut state = state.lock();
-                for pair in tbl.pairs::<String, Value>() {
-                    let (key, val) = pair?;
-                    let key = format!("{}+{}", modifier, key);
-                    let mut kb = Keybinding::from_str(&key).unwrap();
-                    kb.kind = KeybindingKind::Global;
-                    state.add_keybinding(kb);
-                }
-                Ok(())
-            })?)?;
-
-            let globals = lua.globals();
-            globals.set("nog", nog_tbl)?;
-
-            Ok(())
-        });
-
-        rt.run_str(
-            &String::from_utf8((*include_bytes!("../init.lua")).into()).unwrap()
-        );
-    }
+    setup_lua_rt(state_arc.clone());
+    let rt = state_arc.lock().lua_rt.clone();
+    rt.run_file("twm/init.lua");
 
     dbg!(&state_arc.lock().config);
 
@@ -1247,24 +1056,24 @@ fn main() {
 
     let interpreter_arc = Arc::new(Mutex::new(interpreter));
 
-//     {
-//         let config = parse_config(
-//             state_arc.clone(),
-//             callbacks_arc.clone(),
-//             interpreter_arc.clone(),
-//         )
-//         .map_err(|e| {
-//             let state_arc = state_arc.clone();
-//             Popup::error(vec![e], state_arc);
-//         })
-//         .unwrap_or_else(|_| {
-//             let mut config = Config::default();
-//             config.bar.use_default_components(state_arc.clone());
-//             config
-//         });
+    {
+        let config = parse_config(
+            state_arc.clone(),
+            callbacks_arc.clone(),
+            interpreter_arc.clone(),
+        )
+        .map_err(|e| {
+            let state_arc = state_arc.clone();
+            Popup::error(vec![e], state_arc);
+        })
+        .unwrap_or_else(|_| {
+            let mut config = Config::default();
+            config.bar.use_default_components(state_arc.clone());
+            config
+        });
 
-//         state_arc.lock().init(config)
-//     }
+        state_arc.lock().init(config)
+    }
 
     let arc = state_arc.clone();
 

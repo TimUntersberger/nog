@@ -49,7 +49,7 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) -> Component {
                 })
                 .collect())
         } else {
-           Ok(vec![])
+            Ok(vec![])
         }
     })
     .with_on_click(move |_, value, _| {
