@@ -82,7 +82,7 @@ impl mlua::UserData for LuaConfigProxy {
         methods.add_meta_function(
             mlua::MetaMethod::NewIndex,
             |lua, (this, key, val): (Self, String, Value)| {
-                if key == "workspaces" {
+                if key == "rules" {
                     match val {
                         Value::Table(tbl) => {
                             for pair in tbl.pairs::<String, Table>() {
