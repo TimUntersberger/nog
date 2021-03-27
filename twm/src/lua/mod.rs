@@ -1,14 +1,17 @@
 use std::{str::FromStr, sync::Arc};
 
-use mlua::{Table, Variadic, Value, Error as LuaError};
+use regex::Regex;
+use mlua::{Table, FromLua, Value, Error as LuaError};
 use parking_lot::Mutex;
+
+use log::{warn, error};
 
 use crate::{
     direction::Direction,
     split_direction::SplitDirection,
     config::bar_config::BarConfig, config::Config, event::Event,
     keybindings::keybinding::Keybinding, keybindings::keybinding::KeybindingKind, AppState,
-};
+config::workspace_setting::WorkspaceSetting, config::rule::Rule};
 
 mod runtime;
 mod conversions;
@@ -34,30 +37,24 @@ impl mlua::UserData for LuaBarConfigProxy {
         methods.add_meta_function(
             mlua::MetaMethod::NewIndex,
             |lua, (this, key, val): (Self, String, Value)| {
-                use mlua::FromLua;
                 //TODO: Support components
                 //
                 //      pub components: BarComponentsConfig,
 
                 //TODO: Also update the copy the same way
-                match key.as_str() {
-                    "height" => {
-                        this.state.lock().config.bar.height = FromLua::from_lua(val, lua).unwrap()
+                macro_rules! map_props {
+                    ($($prop_name: ident),*) => {
+                        match key.as_str() {
+                            $(stringify!($prop_name) => {
+                                this.state.lock().config.bar.$prop_name = FromLua::from_lua(val, lua).unwrap()
+                            })*,
+                            x => {
+                                warn!("Unknown bar config property '{}'", x);
+                            }
+                        }
                     }
-                    "color" => {
-                        this.state.lock().config.bar.color = FromLua::from_lua(val, lua).unwrap()
-                    }
-                    "font" => {
-                        this.state.lock().config.bar.font = FromLua::from_lua(val, lua).unwrap()
-                    }
-                    "font_size" => {
-                        this.state.lock().config.bar.font_size =
-                            FromLua::from_lua(val, lua).unwrap()
-                    }
-                    _ => todo!(),
-                };
-
-                Ok(())
+                }
+                Ok(map_props!(height, color, font, font_size))
             },
         );
     }
@@ -71,8 +68,6 @@ struct LuaConfigProxy {
 
 impl mlua::UserData for LuaConfigProxy {
     fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
-        use mlua::Value;
-
         methods.add_meta_function(mlua::MetaMethod::Index, |_, (this, key): (Self, String)| {
             Ok(match key.as_str() {
                 "bar" => LuaBarConfigProxy {
@@ -87,58 +82,96 @@ impl mlua::UserData for LuaConfigProxy {
         methods.add_meta_function(
             mlua::MetaMethod::NewIndex,
             |lua, (this, key, val): (Self, String, Value)| {
-                use mlua::FromLua;
+                if key == "workspaces" {
+                    match val {
+                        Value::Table(tbl) => {
+                            for pair in tbl.pairs::<String, Table>() {
+                                if let Ok((key, val)) = pair {
+                                    let mut rule = Rule::default();
+                                    //TODO: remove unwrap
+                                    rule.pattern = Regex::new(&key).unwrap();
 
-                match key.as_str() {
-                    "work_mode" => {
-                        this.state.lock().config.work_mode = FromLua::from_lua(val, lua).unwrap()
-                    }
-                    "display_app_bar" => {
-                        this.state.lock().config.display_app_bar =
-                            FromLua::from_lua(val, lua).unwrap()
-                    }
-                    "remove_task_bar" => {
-                        this.state.lock().config.remove_task_bar =
-                            FromLua::from_lua(val, lua).unwrap()
-                    }
-                    "remove_title_bar" => {
-                        this.state.lock().config.remove_title_bar =
-                            FromLua::from_lua(val, lua).unwrap()
-                    }
-                    "launch_on_startup" => {
-                        this.state.lock().config.launch_on_startup =
-                            FromLua::from_lua(val, lua).unwrap()
-                    }
-                    "multi_monitor" => {
-                        this.state.lock().config.multi_monitor =
-                            FromLua::from_lua(val, lua).unwrap()
-                    }
-                    "use_border" => {
-                        this.state.lock().config.use_border = FromLua::from_lua(val, lua).unwrap()
-                    }
-                    "min_width" => {
-                        this.state.lock().config.min_width = FromLua::from_lua(val, lua).unwrap()
-                    }
-                    "min_height" => {
-                        this.state.lock().config.min_height = FromLua::from_lua(val, lua).unwrap()
-                    }
-                    "light_theme" => {
-                        this.state.lock().config.light_theme = FromLua::from_lua(val, lua).unwrap()
-                    }
-                    "outer_gap" => {
-                        this.state.lock().config.outer_gap = FromLua::from_lua(val, lua).unwrap()
-                    }
-                    "inner_gap" => {
-                        this.state.lock().config.inner_gap = FromLua::from_lua(val, lua).unwrap()
-                    }
-                    "ignore_fullscreen_actions" => {
-                        this.state.lock().config.ignore_fullscreen_actions =
-                            FromLua::from_lua(val, lua).unwrap()
-                    }
-                    _ => todo!(),
-                };
+                                    for pair in val.pairs::<String, Value>() {
+                                        if let Ok((key, val)) = pair {
+                                            match key.as_str() {
+                                                "ignore" => rule.manage = !FromLua::from_lua(val, lua)?,
+                                                "chromium" => rule.chromium = FromLua::from_lua(val, lua)?,
+                                                "firefox" => rule.firefox = FromLua::from_lua(val, lua)?,
+                                                "has_custom_titlebar" => rule.has_custom_titlebar = FromLua::from_lua(val, lua)?,
+                                                "workspace_id" => rule.workspace_id = FromLua::from_lua(val, lua)?,
+                                                _ => {}
+                                            }
+                                        }
+                                    }
 
-                Ok(())
+                                    this.state.lock().config.rules.push(rule);
+                                }
+                            }
+                        },
+                        x => {
+                            error!("nog.config.rules has to be a table (found {})", x.type_name());
+                        }
+                    }
+                    return Ok(());
+                } 
+
+                if key == "workspaces" {
+                    match val {
+                        Value::Table(tbl) => {
+                            for pair in tbl.pairs::<i32, Table>() {
+                                if let Ok((key, val)) = pair {
+                                    let mut settings = WorkspaceSetting::default();
+                                    settings.id = key;
+
+                                    for pair in val.pairs::<String, Value>() {
+                                        if let Ok((key, val)) = pair {
+                                            match key.as_str() {
+                                                "text" => settings.text = FromLua::from_lua(val, lua)?,
+                                                "monitor" => settings.monitor = FromLua::from_lua(val, lua)?,
+                                                _ => {}
+                                            }
+                                        }
+                                    }
+
+                                    this.state.lock().config.workspace_settings.push(settings);
+                                }
+                            }
+                        },
+                        x => {
+                            error!("nog.config.workspaces has to be a table (found {})", x.type_name());
+                        }
+                    }
+                    return Ok(());
+                }
+
+                macro_rules! map_props {
+                    ($($prop_name: ident),*) => {
+                        match key.as_str() {
+                            $(stringify!($prop_name) => {
+                                this.state.lock().config.$prop_name = FromLua::from_lua(val, lua).unwrap()
+                            })*,
+                            x => {
+                                warn!("Unknown config property '{}'", x);
+                            }
+                        }
+                    }
+                }
+
+                Ok(map_props!(
+                    work_mode,
+                    display_app_bar,
+                    remove_task_bar,
+                    remove_title_bar,
+                    launch_on_startup,
+                    multi_monitor,
+                    use_border,
+                    min_height,
+                    min_width,
+                    light_theme,
+                    outer_gap,
+                    inner_gap,
+                    ignore_fullscreen_actions
+                ))
             },
         );
     }

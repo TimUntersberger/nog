@@ -19,7 +19,9 @@ impl LuaRuntime {
 
     pub fn run_str(&self, name: &str, s: &str) {
         let guard = self.0.lock();
-        guard.load(s).set_name(name).unwrap().exec().unwrap();
+        if let Err(e) = guard.load(s).set_name(name).unwrap().exec() {
+            println!("[ERROR]: {}", e);
+        }
     }
 
     pub fn run_file<P: Into<PathBuf>>(&self, p: P) {

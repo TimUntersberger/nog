@@ -16,52 +16,52 @@ nog.config.launch_on_startup = true
 nog.config.multi_monitor = true
 nog.config.remove_task_bar = true
 
---nog.config.workspaces = {
---  1 = {
---    text = "  "
---  },
---  2 = {
---    text = "  ",
---    monitor = 1
---  },
---  3 = {
---    text = " 阮 "
---  },
---  4 = {
---    text = " ﭮ "
---  },
---}
+nog.config.workspaces = {
+  [1] = {
+    text = "  "
+  },
+  [2] = {
+    text = "  ",
+    monitor = 1
+  },
+  [3] = {
+    text = " 阮 "
+  },
+  [4] = {
+    text = " ﭮ "
+  },
+}
 
---nog.config.rules = {
---  "explorer.exe" = { 
---    ignore = true 
---  },
---  "Taskmgr.exe" = { 
---    ignore = true 
---  },
---  "SnippingTool.exe" = { 
---    ignore = true 
---  },
---  "firefox.exe" = {
---    has_custom_titlebar = true,
---    workspace_id = 2,
---    firefox = true
---  },
---  "chrome.exe" = {
---    has_custom_titlebar = true,
---    workspace_id = 2,
---    chromium = true
---  },
---  "Discord.exe" = {
---    has_custom_titlebar = true
---  },
---  "Spotify.exe" = {
---    has_custom_titlebar = true
---  },
---  "Code.exe" = {
---    has_custom_titlebar = true
---  },
---}
+nog.config.rules = {
+  ["explorer.exe"] = { 
+    ignore = true 
+  },
+  ["Taskmgr.exe"] = { 
+    ignore = true 
+  },
+  ["SnippingTool.exe"] = { 
+    ignore = true 
+  },
+  ["firefox.exe"] = {
+    has_custom_titlebar = true,
+    workspace_id = 2,
+    firefox = true
+  },
+  ["chrome.exe"] = {
+    has_custom_titlebar = true,
+    workspace_id = 2,
+    chromium = true
+  },
+  ["Discord.exe"] = {
+    has_custom_titlebar = true
+  },
+  ["Spotify.exe"] = {
+    has_custom_titlebar = true
+  },
+  ["Code.exe"] = {
+    has_custom_titlebar = true
+  },
+}
 
 nog.wbind("F1", function()
   nog.launch("notepad.exe")
