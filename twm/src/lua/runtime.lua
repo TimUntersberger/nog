@@ -23,3 +23,72 @@ nog.gbind_tbl = create_bind_tbl_fn("g")
 
 nog.wbind = create_bind_fn("w")
 nog.wbind_tbl = create_bind_tbl_fn("w")
+
+nog.components = {}
+nog.components.workspaces = function()
+  return {
+    name = "Workspaces",
+    render = function(display_id)
+      local c = nog.config
+      local ws_ids = nog.get_active_ws_of_display(display_id)
+      local result = {}
+      local factor
+
+      for _, ws_id in ipairs(ws_ids) do
+        if c.light_theme then
+          factor = nog.is_ws_focused(ws_id) and 0.75 or 0.9
+        else
+          factor = nog.is_ws_focused(ws_id) and 2.0 or 1.5
+        end
+
+        table.insert(result, {
+          text = nog.get_ws_text(ws_id),
+          value = ws_id,
+          bg = c.bar.color
+        })
+      end
+
+      return result
+    end,
+    on_click = function(display_id, payload)
+      nog.ws_change(payload)
+    end
+  }
+end
+
+nog.components.datetime = function(format)
+  return {
+    name = "Datetime",
+    render = function()
+      return {{
+        text = nog.fmt_datetime(format),
+      }}
+    end
+  }
+end
+
+nog.components.padding = function(amount)
+  return {
+    name = "Padding",
+    render = function()
+      return {{
+        text = string.rep(" ", amount),
+      }}
+    end
+  }
+end
+
+nog.components.active_mode = function()
+  return {
+    name = "ActiveMode",
+    render = function()
+      local mode = nog.get_kb_mode()
+      if mode ~= nil then
+        mode = mode .. " is active"
+      end
+      return {{
+        text = mode or "",
+      }}
+    end
+  }
+end

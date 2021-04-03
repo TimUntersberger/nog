@@ -213,6 +213,15 @@ impl AppState {
         self.config.add_keybinding(kb.clone());
     }
 
+    pub fn emit_change_workspace(&mut self, id: i32) -> SystemResult {
+        self
+            .event_channel
+            .sender
+            .send(Event::ChangeWorkspace(id, true));
+
+        Ok(())
+    }
+
     pub fn move_workspace_to_monitor(&mut self, monitor: i32) -> SystemResult {
         if self.get_display_by_idx_mut(monitor).is_none() {
             error!("Monitor with id {} doesn't exist", monitor);
@@ -599,12 +608,12 @@ impl AppState {
             .is_some()
     }
 
-    pub fn change_workspace(&mut self, id: i32, _force: bool) {
+    pub fn change_workspace(&mut self, id: i32, _force: bool) -> SystemResult {
         let config = self.config.clone();
         let current = self.get_current_display().id;
         if let Some(d) = self.find_grid_display_mut(id) {
             let new = d.id;
-            d.focus_workspace(&config, id);
+            d.focus_workspace(&config, id)?;
             self.workspace_id = id;
             self.redraw_app_bars();
             if current != new {
@@ -612,6 +621,17 @@ impl AppState {
                     .map(|d| d.refresh_grid(&config));
             }
         }
+
+        Ok(())
+    }
+
+    pub fn get_ws_text(&mut self, id: i32) -> String {
+        self.config.workspace_settings
+            .iter()
+            .find(|s| s.id == id)
+            .map(|s| s.text.clone())
+            .filter(|t| !t.is_empty())
+            .unwrap_or(format!(" {} ", id.to_string()))
     }
 
     pub fn redraw_app_bars(&self) {

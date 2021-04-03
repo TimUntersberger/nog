@@ -9,6 +9,11 @@ local workspaces = { 1, 2, 3, 4, 5, 6, 7, 8, 9 }
 
 nog.config.bar.font = "CaskaydiaCove NF"
 nog.config.bar.font_size = 18
+-- nog.config.components = {
+--   left = {},
+--   center = {},
+--   right = {}
+-- }
 
 nog.config.work_mode = false
 nog.config.display_app_bar = true
@@ -79,18 +84,18 @@ end)
 nog.nbind_tbl("Alt", nog.ws_focus, direction_keys)
 nog.nbind_tbl("Alt+Control", nog.ws_swap, direction_keys)
 
- -- Moved this from window to workspace, because the split direction is workspace scoped and not window scoped.
- nog.nbind("Alt+Plus", function()
-   nog.ws_set_split_direction("Vertical")
- end)
- nog.nbind("Alt+Minus", function()
-   nog.ws_set_split_direction("Horizontal")
- end)
+-- Moved this from window to workspace, because the split direction is workspace scoped and not window scoped.
+nog.nbind("Alt+Plus", function()
+ nog.ws_set_split_direction("Vertical")
+end)
+nog.nbind("Alt+Minus", function()
+ nog.ws_set_split_direction("Horizontal")
+end)
 
- nog.nbind("Alt+Control+F", nog.win_toggle_floating)
- nog.gbind("Alt+Control+W", nog.toggle_work_mode, "global")
- nog.nbind("Alt+F", nog.ws_toggle_fullscreen)
+nog.nbind("Alt+Control+F", nog.win_toggle_floating)
+nog.gbind("Alt+Control+W", nog.toggle_work_mode, "global")
+nog.nbind("Alt+F", nog.ws_toggle_fullscreen)
 
- nog.nbind_tbl("Alt+Shift", nog.win_move_to_workspace, workspaces)
- nog.nbind_tbl("Alt+Control", nog.ws_move_to_monitor, workspaces)
- nog.nbind_tbl("Alt", nog.ws_change, workspaces)
+nog.nbind_tbl("Alt+Shift", nog.win_move_to_workspace, workspaces)
+nog.nbind_tbl("Alt+Control", nog.ws_move_to_monitor, workspaces)
+nog.nbind_tbl("Alt", nog.ws_change, workspaces)

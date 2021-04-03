@@ -1,7 +1,7 @@
 use std::{str::FromStr, sync::Arc};
 
 use regex::Regex;
-use mlua::{Table, FromLua, Value, Error as LuaError};
+use mlua::{Table, ToLua, FromLua, Value, Error as LuaError};
 use parking_lot::Mutex;
 
 use log::{warn, error};
@@ -9,9 +9,9 @@ use log::{warn, error};
 use crate::{
     direction::Direction,
     split_direction::SplitDirection,
-    config::bar_config::BarConfig, config::Config, event::Event,
+    event::Event,
     keybindings::keybinding::Keybinding, keybindings::keybinding::KeybindingKind, AppState,
-config::workspace_setting::WorkspaceSetting, config::rule::Rule};
+config::workspace_setting::WorkspaceSetting, config::rule::Rule, system::DisplayId};
 
 mod runtime;
 mod conversions;
@@ -23,7 +23,14 @@ static RUNTIME_FILE_CONTENT: &'static str = include_str!("../lua/runtime.lua");
 #[derive(Clone)]
 struct LuaBarConfigProxy {
     state: Arc<Mutex<AppState>>,
-    config_copy: BarConfig,
+}
+
+impl LuaBarConfigProxy {
+    pub fn new(state: Arc<Mutex<AppState>>) -> Self {
+        Self {
+            state
+        }
+    }
 }
 
 impl mlua::UserData for LuaBarConfigProxy {
@@ -40,8 +47,6 @@ impl mlua::UserData for LuaBarConfigProxy {
                 //TODO: Support components
                 //
                 //      pub components: BarComponentsConfig,
-
-                //TODO: Also update the copy the same way
                 macro_rules! map_props {
                     ($($prop_name: ident),*) => {
                         match key.as_str() {
@@ -62,23 +67,26 @@ impl mlua::UserData for LuaBarConfigProxy {
 
 #[derive(Clone)]
 struct LuaConfigProxy {
-    state: Arc<Mutex<AppState>>,
-    config_copy: Config,
+    state: Arc<Mutex<AppState>>
+}
+
+impl LuaConfigProxy {
+    pub fn new(state: Arc<Mutex<AppState>>) -> Self {
+        Self {
+            state
+        }
+    }
 }
 
 impl mlua::UserData for LuaConfigProxy {
     fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
         methods.add_meta_function(mlua::MetaMethod::Index, |_, (this, key): (Self, String)| {
             Ok(match key.as_str() {
-                "bar" => LuaBarConfigProxy {
-                    state: this.state.clone(),
-                    config_copy: this.config_copy.bar.clone(),
-                },
+                "bar" => LuaBarConfigProxy::new(this.state.clone()),
                 _ => todo!(),
             })
         });
 
-        //TODO: Also update the copy the same way
         methods.add_meta_function(
             mlua::MetaMethod::NewIndex,
             |lua, (this, key, val): (Self, String, Value)| {
@@ -215,16 +223,53 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
         let state = state_arc.clone();
         nog_tbl.set(
             "config",
-            LuaConfigProxy {
-                state: state.clone(),
-                config_copy: state.lock().config.clone(),
-            },
+            LuaConfigProxy::new(state.clone()) ,
         )?;
 
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "quit", move |_, (): ()| {
             let _ = state.lock().event_channel.sender.send(Event::Exit);
             Ok(())
+        });
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "get_active_ws_of_display", move |_, display_id: i32| {
+            let state_g = state.lock();
+            let grids = state_g
+                .get_display_by_id(DisplayId(display_id))
+                .unwrap()
+                .get_active_grids();
+
+            Ok(grids.iter().map(|g| g.id).collect::<Vec<_>>())
+        });
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "get_kb_mode", move |lua, (): ()| {
+            if let Some(mode) = state
+                .lock()
+                .keybindings_manager
+                .try_get_mode() {
+                    if let Some(mode) = mode {
+                        return Ok(Value::String(lua.create_string(&mode)?))
+                    }
+            }
+            
+            Ok(Value::Nil)
+        });
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "is_ws_focused", move |_, ws_id: i32| {
+            Ok(state.lock().workspace_id == ws_id)
+        });
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "get_current_display_id", move |_, (): ()| {
+            Ok(state.lock().get_current_display().id.0)
+        });
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "get_ws_text", move |_, ws_id: i32| {
+            Ok(state.lock().get_ws_text(ws_id))
         });
 
         let state = state_arc.clone();
@@ -294,6 +339,7 @@ fn load_workspace_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) ->
         l_def_ffi_fn!("reset_col", reset_column);
         l_def_ffi_fn!("move_to_monitor", move_workspace_to_monitor, i32);
         l_def_ffi_fn!("replace", move_workspace_to_workspace, i32);
+        l_def_ffi_fn!("change", emit_change_workspace, i32);
         l_def_ffi_fn!("move_in", move_in, Direction);
         l_def_ffi_fn!("move_out", move_out, Direction);
         l_def_ffi_fn!("focus", focus, Direction);
@@ -315,4 +361,8 @@ pub fn setup_lua_rt(state_arc: Arc<Mutex<AppState>>) {
     load_window_functions(state_arc.clone(), &rt).unwrap();
     load_workspace_functions(state_arc.clone(), &rt).unwrap();
     // load_plugin_functions(state_arc.clone(), &rt);
+    //  plug_update
+    //  plug_install
+    //  plug_uninstall
+    //  plug_update_all
 }
