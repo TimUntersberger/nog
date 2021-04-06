@@ -10,7 +10,7 @@ pub use win::BIN_NAME;
 pub type SpecificError = win::WinError;
 
 #[derive(Debug, Default, PartialEq, Clone, Copy)]
-pub struct WindowId(i32);
+pub struct WindowId(pub i32);
 
 impl std::fmt::Display for WindowId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

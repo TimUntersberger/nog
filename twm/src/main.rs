@@ -214,8 +214,7 @@ impl AppState {
     }
 
     pub fn emit_change_workspace(&mut self, id: i32) -> SystemResult {
-        self
-            .event_channel
+        self.event_channel
             .sender
             .send(Event::ChangeWorkspace(id, true));
 
@@ -626,7 +625,8 @@ impl AppState {
     }
 
     pub fn get_ws_text(&mut self, id: i32) -> String {
-        self.config.workspace_settings
+        self.config
+            .workspace_settings
             .iter()
             .find(|s| s.id == id)
             .map(|s| s.text.clone())

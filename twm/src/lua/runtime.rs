@@ -8,6 +8,19 @@ use parking_lot::Mutex;
 #[derive(Clone)]
 pub struct LuaRuntime(pub Arc<Mutex<Lua>>);
 
+fn get_err_msg(e: &mlua::Error) -> String {
+    match e {
+        mlua::Error::CallbackError { traceback, cause } => {
+            format!("{} \n{}", get_err_msg(&cause), traceback)
+        }
+        mlua::Error::RuntimeError(x) => {
+            format!("{}", x)
+        }
+        e => {
+            format!("{}", e)
+        }
+    }
+}
 impl LuaRuntime {
     pub fn new() -> Self {
         Self(Arc::new(Mutex::new(Lua::new())))
@@ -19,8 +32,9 @@ impl LuaRuntime {
 
     pub fn run_str(&self, name: &str, s: &str) {
         let guard = self.0.lock();
-        if let Err(e) = guard.load(s).set_name(name).unwrap().exec() {
-            println!("[ERROR]: {}", e);
+        let chunk = guard.load(s).set_name(name).unwrap();
+        if let Err(e) = chunk.exec() {
+            println!("[ERROR]: {}", get_err_msg(&e));
         }
     }
 

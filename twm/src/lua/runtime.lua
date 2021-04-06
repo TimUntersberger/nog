@@ -15,6 +15,10 @@ local function create_bind_fn(mode)
   end
 end
 
+for key, val in pairs(nog.get_ws_info(nog.get_current_ws())) do
+  print(key, " = ", val)
+end
+
 nog.nbind = create_bind_fn("n")
 nog.nbind_tbl = create_bind_tbl_fn("n")
 

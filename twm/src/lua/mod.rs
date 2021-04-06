@@ -1,20 +1,19 @@
 use std::{str::FromStr, sync::Arc};
 
-use regex::Regex;
-use mlua::{Table, ToLua, FromLua, Value, Error as LuaError};
+use mlua::{Error as LuaError, FromLua, Table, ToLua, Value, Lua};
 use parking_lot::Mutex;
+use regex::Regex;
 
-use log::{warn, error};
+use log::{error, warn};
 
 use crate::{
-    direction::Direction,
-    split_direction::SplitDirection,
-    event::Event,
-    keybindings::keybinding::Keybinding, keybindings::keybinding::KeybindingKind, AppState,
-config::workspace_setting::WorkspaceSetting, config::rule::Rule, system::DisplayId};
+    config::rule::Rule, config::workspace_setting::WorkspaceSetting, direction::Direction,
+    event::Event, keybindings::keybinding::Keybinding, keybindings::keybinding::KeybindingKind,
+    split_direction::SplitDirection, system::DisplayId, system::WindowId, AppState,
+};
 
-mod runtime;
 mod conversions;
+mod runtime;
 
 pub use runtime::LuaRuntime;
 
@@ -27,9 +26,7 @@ struct LuaBarConfigProxy {
 
 impl LuaBarConfigProxy {
     pub fn new(state: Arc<Mutex<AppState>>) -> Self {
-        Self {
-            state
-        }
+        Self { state }
     }
 }
 
@@ -67,14 +64,12 @@ impl mlua::UserData for LuaBarConfigProxy {
 
 #[derive(Clone)]
 struct LuaConfigProxy {
-    state: Arc<Mutex<AppState>>
+    state: Arc<Mutex<AppState>>,
 }
 
 impl LuaConfigProxy {
     pub fn new(state: Arc<Mutex<AppState>>) -> Self {
-        Self {
-            state
-        }
+        Self { state }
     }
 }
 
@@ -191,24 +186,57 @@ macro_rules! def_fn {
     };
 }
 
+/// This is macro is necessary, because if you use the default way of type checking input
+/// (specifying the type in the function declaration) the error is different than how it would look
+/// like when you check the type at runtime.
+///
+/// This macro basically does the same thing, but throws a
+/// runtime error on the lua side instead of a CallbackError on the rust side.
+macro_rules! validate {
+    ($lua: tt, $x: ident : $type: tt) => {
+        match <$type>::from_lua($x.clone(), $lua) {
+            Ok(x) => Ok(x),
+            Err(_) => {
+                let msg = format!("Expected `{}` to be of type `{}` (found `{}`)", stringify!($x), stringify!($type), $x.type_name());
+                Err(LuaError::RuntimeError(msg))
+            }
+        }
+    };
+    ($lua: ident, { $($x: ident : $type: ty),* }) => {
+        $(let $x = validate!($lua, $x: $type)?;)*
+    }
+}
+
 /// This is used to map a lua function to a rust function.
 macro_rules! def_ffi_fn {
-    ($state_arc: expr, $lua: expr, $tbl: expr, $name: expr, $func_name: ident, $a1: ty, $a2: ty) => {
+    ($state_arc: expr, $lua: expr, $tbl: expr, $name: expr, $func_name: ident, $a1:ident : $a1t: ty, $a2:ident : $a2t: ty) => {
         let state = $state_arc.clone();
-        def_fn!($lua, $tbl, $name, move |_, (a1, a2): ($a1, $a2)| {
-            state.lock().$func_name(a1, a2).map_err(|e| LuaError::RuntimeError(e.to_string()))
+        def_fn!($lua, $tbl, $name, move |_, ($a1, $a2): (Value, Value)| {
+            let $a1 = validate!($lua, $a1: $a1t)?;
+            let $a2 = validate!($lua, $a2: $a2t)?;
+            state
+                .lock()
+                .$func_name($a1, $a2)
+                .map_err(|e| LuaError::RuntimeError(e.to_string()))
         });
     };
-    ($state_arc: expr, $lua: expr, $tbl: expr, $name: expr, $func_name: ident, $a1: ty) => {
+    ($state_arc: expr, $lua: expr, $tbl: expr, $name: expr, $func_name: ident, $a1: ident : $a1t: tt) => {
         let state = $state_arc.clone();
-        def_fn!($lua, $tbl, $name, move |_, a1: $a1| {
-            state.lock().$func_name(a1).map_err(|e| LuaError::RuntimeError(e.to_string()))
+        def_fn!($lua, $tbl, $name, move |_, $a1: Value| {
+            let $a1 = validate!($lua, $a1: $a1t)?;
+            state
+                .lock()
+                .$func_name($a1)
+                .map_err(|e| LuaError::RuntimeError(e.to_string()))
         });
     };
     ($state_arc: expr, $lua: expr, $tbl: expr, $name: expr, $func_name: ident) => {
         let state = $state_arc.clone();
         def_fn!($lua, $tbl, $name, move |_, (): ()| {
-            state.lock().$func_name().map_err(|e| LuaError::RuntimeError(e.to_string()))
+            state
+                .lock()
+                .$func_name()
+                .map_err(|e| LuaError::RuntimeError(e.to_string()))
         });
     };
 }
@@ -221,10 +249,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
         nog_tbl.set("version", option_env!("NOG_VERSION").unwrap_or("DEV"))?;
 
         let state = state_arc.clone();
-        nog_tbl.set(
-            "config",
-            LuaConfigProxy::new(state.clone()) ,
-        )?;
+        nog_tbl.set("config", LuaConfigProxy::new(state.clone()))?;
 
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "quit", move |_, (): ()| {
@@ -233,28 +258,24 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
         });
 
         let state = state_arc.clone();
-        def_fn!(lua, nog_tbl, "get_active_ws_of_display", move |_, display_id: i32| {
-            let state_g = state.lock();
-            let grids = state_g
-                .get_display_by_id(DisplayId(display_id))
-                .unwrap()
-                .get_active_grids();
+        def_fn!(
+            lua,
+            nog_tbl,
+            "get_active_ws_of_display",
+            move |_, display_id: i32| {
+                let state_g = state.lock();
+                let grids = state_g
+                    .get_display_by_id(DisplayId(display_id))
+                    .unwrap()
+                    .get_active_grids();
 
-            Ok(grids.iter().map(|g| g.id).collect::<Vec<_>>())
-        });
+                Ok(grids.iter().map(|g| g.id).collect::<Vec<_>>())
+            }
+        );
 
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "get_kb_mode", move |lua, (): ()| {
-            if let Some(mode) = state
-                .lock()
-                .keybindings_manager
-                .try_get_mode() {
-                    if let Some(mode) = mode {
-                        return Ok(Value::String(lua.create_string(&mode)?))
-                    }
-            }
-            
-            Ok(Value::Nil)
+            Ok(state.lock().keybindings_manager.try_get_mode().unwrap())
         });
 
         let state = state_arc.clone();
@@ -263,8 +284,56 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
         });
 
         let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "get_win_title", move |_, win_id: i32| {
+            let win_id = WindowId(win_id);
+            Ok(state
+                .lock()
+                .find_grid_containing_window(win_id)
+                .and_then(|g| g.get_window(win_id))
+                .map(|w| w.title.clone()))
+        });
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "get_ws_info", move |lua, ws_id: Value| {
+            validate!(lua, { ws_id: i32 });
+            Ok(state.lock().get_grid_by_id(ws_id).map(|ws| {
+                let tbl = lua.create_table().unwrap();
+                tbl.set("id", ws.id);
+                tbl.set("is_fullscreen", ws.is_fullscreened());
+                tbl.set("is_empty", ws.is_empty());
+                tbl.set("split_direction", ws.next_axis.to_string());
+                let windows = ws.get_windows().iter().map(|w| w.id.0).collect::<Vec<_>>();
+                tbl.set("windows", windows);
+                tbl
+            }))
+        });
+
+        let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "get_current_display_id", move |_, (): ()| {
             Ok(state.lock().get_current_display().id.0)
+        });
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "get_current_win", move |_, (): ()| {
+            let win_id = state
+                .lock()
+                .get_current_display()
+                .get_focused_grid()
+                .and_then(|g| g.get_focused_window())
+                .map(|w| w.id.0);
+
+            Ok(win_id)
+        });
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "get_current_ws", move |_, (): ()| {
+            let ws_id = state
+                .lock()
+                .get_current_display()
+                .get_focused_grid()
+                .map(|ws| ws.id);
+
+            Ok(ws_id)
         });
 
         let state = state_arc.clone();
@@ -274,7 +343,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
 
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "bind", move |_,
-                                          (mode, key, cb): (
+                                            (mode, key, cb): (
             String,
             String,
             Value
@@ -300,7 +369,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
 fn load_window_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) -> mlua::Result<()> {
     rt.with_lua(|lua| {
         let nog_tbl = lua.globals().get::<_, Table>("nog")?;
-        
+
         /// A local version of the `def_ffi_fn` macro for ease of use.
         ///
         /// **Note**: Also prefixes the name with `win_`
@@ -315,7 +384,7 @@ fn load_window_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) -> ml
         l_def_ffi_fn!("toggle_floating", toggle_floating);
         l_def_ffi_fn!("ignore", ignore_window);
         l_def_ffi_fn!("close", close_window);
-        l_def_ffi_fn!("move_to_ws", move_window_to_workspace, i32);
+        l_def_ffi_fn!("move_to_ws", move_window_to_workspace, ws_id: i32);
 
         Ok(())
     })
@@ -324,7 +393,7 @@ fn load_window_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) -> ml
 fn load_workspace_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) -> mlua::Result<()> {
     rt.with_lua(|lua| {
         let nog_tbl = lua.globals().get::<_, Table>("nog")?;
-        
+
         /// A local version of the `def_ffi_fn` macro for ease of use.
         ///
         /// **Note**: Also prefixes the name with `ws_`
@@ -337,15 +406,15 @@ fn load_workspace_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) ->
         l_def_ffi_fn!("toggle_fullscreen", toggle_fullscreen);
         l_def_ffi_fn!("reset_row", reset_row);
         l_def_ffi_fn!("reset_col", reset_column);
-        l_def_ffi_fn!("move_to_monitor", move_workspace_to_monitor, i32);
-        l_def_ffi_fn!("replace", move_workspace_to_workspace, i32);
-        l_def_ffi_fn!("change", emit_change_workspace, i32);
-        l_def_ffi_fn!("move_in", move_in, Direction);
-        l_def_ffi_fn!("move_out", move_out, Direction);
-        l_def_ffi_fn!("focus", focus, Direction);
-        l_def_ffi_fn!("resize", resize, Direction, i32);
-        l_def_ffi_fn!("swap", swap, Direction);
-        l_def_ffi_fn!("set_split_direction", set_split_direction, SplitDirection);
+        l_def_ffi_fn!("move_to_monitor", move_workspace_to_monitor, monitor_id: i32);
+        l_def_ffi_fn!("replace", move_workspace_to_workspace, ws_id: i32);
+        l_def_ffi_fn!("change", emit_change_workspace, ws_id: i32);
+        l_def_ffi_fn!("move_in", move_in, direction: Direction);
+        l_def_ffi_fn!("move_out", move_out, direction: Direction);
+        l_def_ffi_fn!("focus", focus, direction: Direction);
+        l_def_ffi_fn!("resize", resize, direction: Direction, amount: i32);
+        l_def_ffi_fn!("swap", swap, direction: Direction);
+        l_def_ffi_fn!("set_split_direction", set_split_direction, direction: SplitDirection);
 
         Ok(())
     })
