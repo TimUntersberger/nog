@@ -92,3 +92,31 @@ nog.components.active_mode = function()
     end
   }
 end
+
+nog.components.current_window = function()
+  return {
+    name = "CurrentWindow",
+    render = function()
+      local win_id = nog.get_current_win()
+      local title = nog.get_win_title(win_id)
+
+      return {{
+        text = title,
+      }}
+    end
+  }
+end
+
+nog.components.split_direction = function()
+  return {
+    name = "SplitDirection",
+    render = function()
+      local ws_id = nog.get_current_ws()
+      local info = nog.get_ws_info(ws_id)
+
+      return {{
+        text = info.split_direction,
+      }}
+    end
+  }
+end

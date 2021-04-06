@@ -1,8 +1,8 @@
 use mlua::FromLua;
 
-use std::str::FromStr;
 use crate::direction::Direction;
 use crate::split_direction::SplitDirection;
+use std::str::FromStr;
 
 impl FromLua<'_> for Direction {
     fn from_lua(lua_value: mlua::Value<'_>, lua: &'_ mlua::Lua) -> mlua::Result<Self> {
