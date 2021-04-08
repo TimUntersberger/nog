@@ -69,7 +69,8 @@ nog.config.rules = {
 }
 
 nog.wbind("F1", function()
-  nog.launch("notepad.exe")
+  print("THIS IS WORKING WTF")
+  -- nog.launch("notepad.exe")
 end)
 
 nog.nbind("Alt+I", nog.win_ignore)

@@ -1,6 +1,6 @@
 use std::{str::FromStr, sync::Arc};
 
-use mlua::{Error as LuaError, FromLua, Table, ToLua, Value, Lua};
+use mlua::{Error as LuaError, Function, FromLua, Table, ToLua, Value, Lua};
 use parking_lot::Mutex;
 use regex::Regex;
 
@@ -211,9 +211,9 @@ macro_rules! validate {
 macro_rules! def_ffi_fn {
     ($state_arc: expr, $lua: expr, $tbl: expr, $name: expr, $func_name: ident, $a1:ident : $a1t: ty, $a2:ident : $a2t: ty) => {
         let state = $state_arc.clone();
-        def_fn!($lua, $tbl, $name, move |_, ($a1, $a2): (Value, Value)| {
-            let $a1 = validate!($lua, $a1: $a1t)?;
-            let $a2 = validate!($lua, $a2: $a2t)?;
+        def_fn!($lua, $tbl, $name, move |lua, ($a1, $a2): (Value, Value)| {
+            let $a1 = validate!(lua, $a1: $a1t)?;
+            let $a2 = validate!(lua, $a2: $a2t)?;
             state
                 .lock()
                 .$func_name($a1, $a2)
@@ -222,8 +222,8 @@ macro_rules! def_ffi_fn {
     };
     ($state_arc: expr, $lua: expr, $tbl: expr, $name: expr, $func_name: ident, $a1: ident : $a1t: tt) => {
         let state = $state_arc.clone();
-        def_fn!($lua, $tbl, $name, move |_, $a1: Value| {
-            let $a1 = validate!($lua, $a1: $a1t)?;
+        def_fn!($lua, $tbl, $name, move |lua, $a1: Value| {
+            let $a1 = validate!(lua, $a1: $a1t)?;
             state
                 .lock()
                 .$func_name($a1)
@@ -262,7 +262,8 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             lua,
             nog_tbl,
             "get_active_ws_of_display",
-            move |_, display_id: i32| {
+            move |lua, display_id: Value| {
+                validate!(lua, { display_id: i32 });
                 let state_g = state.lock();
                 let grids = state_g
                     .get_display_by_id(DisplayId(display_id))
@@ -274,17 +275,19 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
         );
 
         let state = state_arc.clone();
-        def_fn!(lua, nog_tbl, "get_kb_mode", move |lua, (): ()| {
+        def_fn!(lua, nog_tbl, "get_kb_mode", move |_, (): ()| {
             Ok(state.lock().keybindings_manager.try_get_mode().unwrap())
         });
 
         let state = state_arc.clone();
-        def_fn!(lua, nog_tbl, "is_ws_focused", move |_, ws_id: i32| {
+        def_fn!(lua, nog_tbl, "is_ws_focused", move |lua, ws_id: Value| {
+            validate!(lua, { ws_id: i32 });
             Ok(state.lock().workspace_id == ws_id)
         });
 
         let state = state_arc.clone();
-        def_fn!(lua, nog_tbl, "get_win_title", move |_, win_id: i32| {
+        def_fn!(lua, nog_tbl, "get_win_title", move |lua, win_id: Value| {
+            validate!(lua, { win_id: i32 });
             let win_id = WindowId(win_id);
             Ok(state
                 .lock()
@@ -337,23 +340,32 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
         });
 
         let state = state_arc.clone();
-        def_fn!(lua, nog_tbl, "get_ws_text", move |_, ws_id: i32| {
+        def_fn!(lua, nog_tbl, "get_ws_text", move |lua, ws_id: Value| {
+            validate!(lua, {
+                ws_id: i32
+            });
             Ok(state.lock().get_ws_text(ws_id))
         });
 
         let state = state_arc.clone();
-        def_fn!(lua, nog_tbl, "bind", move |_,
+        def_fn!(lua, nog_tbl, "bind", move |lua,
                                             (mode, key, cb): (
-            String,
-            String,
+            Value,
+            Value,
             Value
         )| {
+            validate!(lua, {
+                mode: String,
+                key: String,
+                cb: Function
+            });
             let mut kb = Keybinding::from_str(&key).unwrap();
             kb.kind = match mode.as_str() {
                 "g" => KeybindingKind::Global,
                 "w" => KeybindingKind::Work,
                 _ => KeybindingKind::Normal,
             };
+            // kb.callback_id = cb;
             state.lock().add_keybinding(kb);
             Ok(())
         });

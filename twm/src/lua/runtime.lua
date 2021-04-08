@@ -15,10 +15,6 @@ local function create_bind_fn(mode)
   end
 end
 
-for key, val in pairs(nog.get_ws_info(nog.get_current_ws())) do
-  print(key, " = ", val)
-end
-
 nog.nbind = create_bind_fn("n")
 nog.nbind_tbl = create_bind_tbl_fn("n")
 
@@ -111,7 +107,7 @@ nog.components.current_window = function()
   }
 end
 
-nog.components.split_direction = function()
+nog.components.split_direction = function(values)
   return {
     name = "SplitDirection",
     render = function()
@@ -119,7 +115,21 @@ nog.components.split_direction = function()
       local info = nog.get_ws_info(ws_id)
 
       return {{
-        text = info.split_direction,
+        text = info.split_direction == "Vertical" and values[1] or values[2],
+      }}
+    end
+  }
+end
+
+nog.components.fullscreen_indicator = function(indicator)
+  return {
+    name = "FullscreenIndicator",
+    render = function()
+      local ws_id = nog.get_current_ws()
+      local info = nog.get_ws_info(ws_id)
+
+      return {{
+        text = info.is_fullscreen and indicator or "",
       }}
     end
   }

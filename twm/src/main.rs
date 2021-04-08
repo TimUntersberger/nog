@@ -146,6 +146,7 @@ mod window;
 #[derive(Debug, Clone)]
 pub struct AppState {
     pub lua_rt: LuaRuntime,
+    pub callbacks: Vec<mlua::Function<'static>>,
     pub config: Config,
     pub work_mode: bool,
     pub displays: Vec<Display>,
@@ -161,6 +162,7 @@ impl Default for AppState {
         let config = Config::default();
         Self {
             work_mode: true,
+            callbacks: Vec::new(),
             lua_rt: LuaRuntime::new(),
             displays: time!("initializing displays", display::init(&config)),
             keybindings_manager: KbManager::new(
@@ -178,8 +180,7 @@ impl Default for AppState {
 }
 
 impl AppState {
-    pub fn init(&mut self, config: Config) {
-        self.config = config;
+    pub fn init(&mut self) {
         self.work_mode = self.config.work_mode;
         self.displays = display::init(&self.config);
         self.keybindings_manager = KbManager::new(
@@ -395,11 +396,11 @@ impl AppState {
         if !focused_workspaces.is_empty() {
             // re-focus to show each display's focused workspace
             for id in focused_workspaces.iter().rev() {
-                this.change_workspace(*id, false);
+                this.change_workspace(*id, false)?;
             }
         } else {
             // otherwise just focus first workspace
-            this.change_workspace(1, false);
+            this.change_workspace(1, false)?;
         }
 
         info!("Registering windows event handler");
@@ -457,7 +458,7 @@ impl AppState {
         if let Some(grid) = display.get_focused_grid_mut() {
             if !config.ignore_fullscreen_actions || !grid.is_fullscreened() {
                 grid.swap_focused(direction);
-                display.refresh_grid(&config);
+                display.refresh_grid(&config)?;
             }
         }
 
@@ -499,7 +500,7 @@ impl AppState {
         if let Some(grid) = display.get_focused_grid_mut() {
             if !config.ignore_fullscreen_actions || !grid.is_fullscreened() {
                 grid.focus(direction)?;
-                display.refresh_grid(&config);
+                display.refresh_grid(&config)?;
             }
         }
 
@@ -899,15 +900,13 @@ fn parse_config(
 }
 
 fn run(
-    state_arc: Arc<Mutex<AppState>>,
-    callbacks_arc: Arc<Mutex<Vec<Function>>>,
-    interpreter_arc: Arc<Mutex<Interpreter>>,
+    state_arc: Arc<Mutex<AppState>>
 ) -> Result<(), Box<dyn std::error::Error>> {
     let receiver = state_arc.lock().event_channel.receiver.clone();
     let sender = state_arc.lock().event_channel.sender.clone();
 
-    info!("Starting hot reloading of config");
-    config::hot_reloading::start(state_arc.clone());
+//     info!("Starting hot reloading of config");
+//     config::hot_reloading::start(state_arc.clone());
 
     startup::set_launch_on_startup(state_arc.lock().config.launch_on_startup);
 
@@ -957,18 +956,18 @@ fn run(
                         Ok(())
                     },
                     Event::ConfigError(err) => {
-                        error!("{}", err.message(&interpreter_arc.lock().program()));
+                        // error!("{}", err.message(&interpreter_arc.lock().program()));
 
                         Ok(())
                     }
                     Event::CallCallback { idx, is_mode_callback } => {
-                        let cb = callbacks_arc.lock().get(idx).unwrap().clone();
-                        if let Err(e) = cb.invoke(&mut interpreter_arc.lock(), vec![]) {
-                            state_arc.lock().event_channel.sender.send(Event::ConfigError(e)).unwrap();
-                        }
-                        if is_mode_callback {
-                            state_arc.lock().keybindings_manager.sender.send(keybindings::ChanMessage::ModeCbExecuted);
-                        }
+                        // let cb = callbacks_arc.lock().get(idx).unwrap().clone();
+                        // if let Err(e) = cb.invoke(&mut interpreter_arc.lock(), vec![]) {
+                        //     state_arc.lock().event_channel.sender.send(Event::ConfigError(e)).unwrap();
+                        // }
+                        // if is_mode_callback {
+                        //     state_arc.lock().keybindings_manager.sender.send(keybindings::ChanMessage::ModeCbExecuted);
+                        // }
                         Ok(())
                     },
                     Event::RedrawAppBar => {
@@ -986,15 +985,16 @@ fn run(
                         break;
                     },
                     Event::ReloadConfig => {
-                        info!("Reloading Config");
-                        match parse_config(state_arc.clone(), callbacks_arc.clone(), interpreter_arc.clone()) {
-                            Ok(new_config) => update_config(state_arc.clone(), new_config),
-                            Err(e) => {
-                                sender.send(Event::NewPopup(Popup::new_error(vec![e])));
-                                Ok(())
-                            }
+                        // info!("Reloading Config");
+                        // match parse_config(state_arc.clone(), callbacks_arc.clone(), interpreter_arc.clone()) {
+                        //     Ok(new_config) => update_config(state_arc.clone(), new_config),
+                        //     Err(e) => {
+                        //         sender.send(Event::NewPopup(Popup::new_error(vec![e])));
+                        //         Ok(())
+                        //     }
 
-                        }
+                        // }
+                        Ok(())
                     },
                     Event::UpdateBarSections(display_id, left, center, right) => {
                         let mut state = state_arc.lock();
@@ -1062,38 +1062,39 @@ fn main() {
     let state_arc = Arc::new(Mutex::new(AppState::default()));
 
     setup_lua_rt(state_arc.clone());
-    let rt = state_arc.lock().lua_rt.clone();
-    rt.run_file("twm/init.lua");
-
-    dbg!(&state_arc.lock().config);
-
-    todo!();
-
-    let callbacks_arc: Arc<Mutex<Vec<Function>>> = Arc::new(Mutex::new(Vec::new()));
-    let mut interpreter = Interpreter::new();
-
-    load_plugin_source_locations(&mut interpreter);
-
-    let interpreter_arc = Arc::new(Mutex::new(interpreter));
 
     {
-        let config = parse_config(
-            state_arc.clone(),
-            callbacks_arc.clone(),
-            interpreter_arc.clone(),
-        )
-        .map_err(|e| {
-            let state_arc = state_arc.clone();
-            Popup::error(vec![e], state_arc);
-        })
-        .unwrap_or_else(|_| {
-            let mut config = Config::default();
-            config.bar.use_default_components(state_arc.clone());
-            config
-        });
-
-        state_arc.lock().init(config)
+        let rt = state_arc.lock().lua_rt.clone();
+        rt.run_file("twm/init.lua");
     }
+
+    state_arc.lock().init();
+
+    // let callbacks_arc: Arc<Mutex<Vec<Function>>> = Arc::new(Mutex::new(Vec::new()));
+    // let mut interpreter = Interpreter::new();
+
+    // load_plugin_source_locations(&mut interpreter);
+
+    // let interpreter_arc = Arc::new(Mutex::new(interpreter));
+
+//     {
+//         let config = parse_config(
+//             state_arc.clone(),
+//             callbacks_arc.clone(),
+//             interpreter_arc.clone(),
+//         )
+//         .map_err(|e| {
+//             let state_arc = state_arc.clone();
+//             Popup::error(vec![e], state_arc);
+//         })
+//         .unwrap_or_else(|_| {
+//             let mut config = Config::default();
+//             config.bar.use_default_components(state_arc.clone());
+//             config
+//         });
+
+//         state_arc.lock().init(config)
+//     }
 
     let arc = state_arc.clone();
 
@@ -1127,11 +1128,7 @@ fn main() {
     .unwrap();
 
     let arc = state_arc.clone();
-    if let Err(e) = run(
-        state_arc.clone(),
-        callbacks_arc.clone(),
-        interpreter_arc.clone(),
-    ) {
+    if let Err(e) = run(state_arc.clone()) {
         error!("An error occured {:?}", e);
         if let Err(e) = on_quit(&mut arc.lock()) {
             error!("Something happend when cleaning up. {}", e);
