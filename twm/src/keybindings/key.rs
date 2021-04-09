@@ -83,4 +83,13 @@ pub enum Key {
     Eight = 0x38,
     #[strum(serialize = "9")]
     Nine = 0x39,
+    OEM_1 = VK_OEM_1 as isize,
+    OEM_2 = VK_OEM_2 as isize,
+    OEM_3 = VK_OEM_3 as isize,
+    OEM_4 = VK_OEM_4 as isize,
+    OEM_5 = VK_OEM_5 as isize,
+    OEM_6 = VK_OEM_6 as isize,
+    OEM_7 = VK_OEM_7 as isize,
+    OEM_8 = VK_OEM_8 as isize,
+    OEM_102 = VK_OEM_102 as isize,
 }
