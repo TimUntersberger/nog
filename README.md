@@ -38,10 +38,22 @@ If the previous application mentioned in step 3 is managed by nog, the workspace
 
 ## Development
 
+### Set up Rust
+
+Install [rustup](https://rustup.rs/).
+
+Install and set the nightly toolchain:
+
+```
+rustup toolchain install nightly
+rustup override set nightly
+```
+
 ### Create Executable
 
 ```
 $env:NOG_VERSION="<version>"
 cargo build --release
+cp ./target/release/twm.exe ./target/release/nog.exe
 ./rcedit ./target/release/nog.exe --set-icon ./assets/logo.ico
 ```
