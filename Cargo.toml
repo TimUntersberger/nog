@@ -1,7 +1,5 @@
 [workspace]
 members = [
-  "interpreter",
   "twm",
-  "ns-cli",
   "doc-gen"
 ]
