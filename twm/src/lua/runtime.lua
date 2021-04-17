@@ -136,3 +136,20 @@ nog.components.fullscreen_indicator = function(indicator)
     end
   }
 end
+
+nog.config.bar.components = {
+  left = {
+    nog.components.workspaces()
+  },
+  center = {
+    nog.components.datetime("%T")
+  },
+  right = {
+    nog.components.active_mode(),
+    nog.components.padding(5),
+    nog.components.split_direction("V", "H"),
+    nog.components.padding(5),
+    nog.components.datetime("%e %b %Y"),
+    nog.components.padding(1),
+  }
+}

@@ -9,19 +9,6 @@ local workspaces = { 1, 2, 3, 4, 5, 6, 7, 8, 9 }
 
 nog.config.bar.font = "CaskaydiaCove NF"
 nog.config.bar.font_size = 18
-nog.config.bar.components = {
-  left = {
-    nog.components.workspaces(),
-    nog.components.padding(10),
-    nog.components.datetime("%T %e %b %Y"),
-    nog.components.current_window(),
-    nog.components.active_mode(),
-    nog.components.split_direction("V", "H"),
-    nog.components.fullscreen_indicator("FULL"),
-  },
-  center = {},
-  right = {}
-}
 
 nog.config.work_mode = false
 nog.config.display_app_bar = true

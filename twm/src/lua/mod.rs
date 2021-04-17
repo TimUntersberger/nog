@@ -66,6 +66,29 @@ impl LuaBarConfigProxy {
     }
 }
 
+fn comp_from_tbl(state_arc: Arc<Mutex<AppState>>, lua: &Lua, tbl: Table) -> mlua::Result<Component> {
+    validate_tbl_prop!(lua, tbl, name, String);
+    validate_tbl_prop!(lua, tbl, render, Function);
+    let id = LuaRuntime::add_callback(lua, render)?;
+    let comp = Component::new(&name, move |disp_id| {
+        let rt = state_arc.lock().lua_rt.clone();
+        let res = rt.with_lua(|lua| {
+            let cb = LuaRuntime::get_callback(&lua, id)?;
+            cb.call(disp_id.0)
+        });
+
+        Ok(match res {
+            Err(e) => {
+                error!("{}", crate::lua::get_err_msg(&e));
+                vec![]
+            },
+            Ok(x) => x
+        })
+    });
+
+    Ok(comp)
+}
+
 impl mlua::UserData for LuaBarConfigProxy {
     fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
         methods.add_meta_function(mlua::MetaMethod::Index, |_, (this, key): (Self, String)| {
@@ -84,35 +107,30 @@ impl mlua::UserData for LuaBarConfigProxy {
                     if let Ok(tbl) = tbl.get::<_, Table>("left") {
                         for res in tbl.sequence_values::<Table>() {
                             if let Ok(comp_tbl) = res {
-                                validate_tbl_prop!(lua, comp_tbl, name, String);
-                                validate_tbl_prop!(lua, comp_tbl, render, Function);
-                                let id = LuaRuntime::add_callback(lua, render)?;
-                                let state_arc = this.state.clone();
-                                let comp = Component::new(&name, move |disp_id| {
-                                    let rt = state_arc.lock().lua_rt.clone();
-                                    let res = rt.with_lua(|lua| {
-                                        let cb = LuaRuntime::get_callback(&lua, id)?;
-                                        cb.call(disp_id.0)
-                                    });
+                                this.state.lock().config.bar.components.left.push(comp_from_tbl(this.state.clone(), lua, comp_tbl)?);
+                            }
+                        }
+                    } 
 
-									Ok(match res {
-										Err(e) => {
-											error!("{}", crate::lua::get_err_msg(&e));
-											vec![]
-										},
-										Ok(x) => x
-									})
-                                });
-                                this.state.lock().config.bar.components.left.push(comp);
+                    if let Ok(tbl) = tbl.get::<_, Table>("center") {
+                        for res in tbl.sequence_values::<Table>() {
+                            if let Ok(comp_tbl) = res {
+                                this.state.lock().config.bar.components.center.push(comp_from_tbl(this.state.clone(), lua, comp_tbl)?);
+                            }
+                        }
+                    } 
+
+                    if let Ok(tbl) = tbl.get::<_, Table>("right") {
+                        for res in tbl.sequence_values::<Table>() {
+                            if let Ok(comp_tbl) = res {
+                                this.state.lock().config.bar.components.right.push(comp_from_tbl(this.state.clone(), lua, comp_tbl)?);
                             }
                         }
                     }
 
                     return Ok(());
                 }
-                //TODO: Support components
-                //
-                //      pub components: BarComponentsConfig,
+
                 macro_rules! map_props {
                     ($($prop_name: ident),*) => {
                         match key.as_str() {
@@ -296,7 +314,6 @@ macro_rules! def_ffi_fn {
 }
 
 fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
-    //TODO: bind functions need to set callback correctly
     rt.with_lua(move |lua| {
         let nog_tbl = lua.create_table()?;
         let cb_tbl = lua.create_table()?;
