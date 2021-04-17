@@ -410,7 +410,7 @@ impl Window {
                                     .lock()
                                     .event_channel
                                     .sender
-                                    .send(Event::ConfigError(e))
+                                    .send(Event::LuaRuntimeError(e))
                                     .unwrap();
                             }
                         };

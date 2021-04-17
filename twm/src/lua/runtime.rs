@@ -1,24 +1,22 @@
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
 
-use mlua::Lua;
+use mlua::{Function, Lua, Table};
 use parking_lot::Mutex;
+
+const CALLBACK_TBL_NAME: &'static str = "__callbacks";
 
 //TODO: Fix unwraps
 
 #[derive(Clone)]
 pub struct LuaRuntime(pub Arc<Mutex<Lua>>);
 
-fn get_err_msg(e: &mlua::Error) -> String {
+pub fn get_err_msg(e: &mlua::Error) -> String {
     match e {
         mlua::Error::CallbackError { traceback, cause } => {
             format!("{} \n{}", get_err_msg(&cause), traceback)
         }
-        mlua::Error::RuntimeError(x) => {
-            format!("{}", x)
-        }
-        e => {
-            format!("{}", e)
-        }
+        mlua::Error::RuntimeError(x) => format!("{}", x),
+        e => format!("{}", e),
     }
 }
 impl LuaRuntime {
@@ -26,8 +24,46 @@ impl LuaRuntime {
         Self(Arc::new(Mutex::new(Lua::new())))
     }
 
-    pub fn with_lua(&self, f: impl Fn(&mut Lua) -> mlua::Result<()>) -> mlua::Result<()> {
+    pub fn with_lua<R>(&self, f: impl Fn(&mut Lua) -> mlua::Result<R>) -> mlua::Result<R> {
         f(&mut self.0.lock())
+    }
+
+    pub fn add_callback(lua: &Lua, cb: Function) -> mlua::Result<usize> {
+        let cb_tbl = lua
+            .globals()
+            .get::<_, Table>("nog")?
+            .get::<_, Table>("__callbacks")?;
+
+        let id = cb_tbl.raw_len() + 1;
+        cb_tbl.set(id, cb)?;
+
+        Ok(id as usize)
+    }
+
+    pub fn get_callback(lua: &Lua, id: usize) -> mlua::Result<Function>
+    {
+        lua
+            .globals()
+            .get::<_, Table>("nog")?
+            .get::<_, Table>(CALLBACK_TBL_NAME)?
+            .get::<_, _>(id)
+    }
+
+    pub fn print_callbacks(&self) -> mlua::Result<()> {
+        let rt = self.0.lock();
+        let cbs_tbl = rt
+            .globals()
+            .get::<_, Table>("nog")?
+            .get::<_, Table>(CALLBACK_TBL_NAME)?;
+
+        println!("callbacks");
+        for res in cbs_tbl.pairs::<i32, Function>() {
+            if let Ok((key, value)) = res {
+                println!("{} = {:#?}", key, value);
+            }
+        }
+
+        Ok(())
     }
 
     pub fn run_str(&self, name: &str, s: &str) {

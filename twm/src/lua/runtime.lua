@@ -41,10 +41,12 @@ nog.components.workspaces = function()
           factor = nog.is_ws_focused(ws_id) and 2.0 or 1.5
         end
 
+        local bg = nog.scale_color(c.bar.color, factor)
+
         table.insert(result, {
           text = nog.get_ws_text(ws_id),
           value = ws_id,
-          bg = c.bar.color
+          bg = bg
         })
       end
 

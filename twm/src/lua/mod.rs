@@ -1,23 +1,58 @@
 use std::{str::FromStr, sync::Arc};
 
-use mlua::{Error as LuaError, Function, FromLua, Table, ToLua, Value, Lua};
+use mlua::{Error as LuaError, FromLua, Function, Lua, Table, ToLua, Value};
 use parking_lot::Mutex;
 use regex::Regex;
 
 use log::{error, warn};
 
 use crate::{
-    config::rule::Rule, config::workspace_setting::WorkspaceSetting, direction::Direction,
-    event::Event, keybindings::keybinding::Keybinding, keybindings::keybinding::KeybindingKind,
-    split_direction::SplitDirection, system::DisplayId, system::WindowId, AppState,
-};
+    bar::component::Component, config::rule::Rule, config::workspace_setting::WorkspaceSetting,
+    direction::Direction, event::Event, keybindings::keybinding::Keybinding,
+    keybindings::keybinding::KeybindingKind, split_direction::SplitDirection, system::DisplayId,
+    system::WindowId, AppState,
+system};
 
 mod conversions;
 mod runtime;
 
-pub use runtime::LuaRuntime;
+pub use runtime::{LuaRuntime, get_err_msg};
 
-static RUNTIME_FILE_CONTENT: &'static str = include_str!("../lua/runtime.lua");
+/// This is macro is necessary, because if you use the default way of type checking input
+/// (specifying the type in the function declaration) the error is different than how it would look
+/// like when you check the type at runtime.
+///
+/// This macro basically does the same thing, but throws a
+/// runtime error on the lua side instead of a CallbackError on the rust side.
+macro_rules! validate {
+    ($lua: tt, $x: ident : $type: tt) => {
+        match <$type>::from_lua($x.clone(), $lua) {
+            Ok(x) => Ok(x),
+            Err(_) => {
+                let msg = format!("Expected `{}` to be of type `{}` (found `{}`)", stringify!($x), stringify!($type), $x.type_name());
+                Err(LuaError::RuntimeError(msg))
+            }
+        }
+    };
+    ($lua: ident, { $($x: ident : $type: ty),* }) => {
+        $(let $x = validate!($lua, $x: $type)?;)*
+    }
+}
+
+macro_rules! validate_tbl_prop {
+    ($lua: tt, $tbl: tt, $x: ident, $t: tt) => {
+        let $x = match $tbl.get::<_, Value>(stringify!($x)) {
+            Err(_) => {
+                return Err(LuaError::RuntimeError(format!(
+                    "A component needs to have a {} field",
+                    stringify!($x)
+                )))
+            }
+            Ok(x) => x,
+        };
+        let $x = validate!($lua, $x: $t)?;
+    };
+}
 
 #[derive(Clone)]
 struct LuaBarConfigProxy {
@@ -34,13 +69,46 @@ impl mlua::UserData for LuaBarConfigProxy {
     fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
         methods.add_meta_function(mlua::MetaMethod::Index, |_, (this, key): (Self, String)| {
             Ok(match key.as_str() {
-                _ => (),
+				"color" => Value::Integer(this.state.lock().config.bar.color as i64),
+                _ => Value::Nil,
             })
         });
 
         methods.add_meta_function(
             mlua::MetaMethod::NewIndex,
             |lua, (this, key, val): (Self, String, Value)| {
+                if key == "components" {
+                    let tbl = validate!(lua, val: Table)?;
+
+                    if let Ok(tbl) = tbl.get::<_, Table>("left") {
+                        for res in tbl.sequence_values::<Table>() {
+                            if let Ok(comp_tbl) = res {
+                                validate_tbl_prop!(lua, comp_tbl, name, String);
+                                validate_tbl_prop!(lua, comp_tbl, render, Function);
+                                let id = LuaRuntime::add_callback(lua, render)?;
+                                let state_arc = this.state.clone();
+                                let comp = Component::new(&name, move |disp_id| {
+                                    let rt = state_arc.lock().lua_rt.clone();
+                                    let res = rt.with_lua(|lua| {
+                                        let cb = LuaRuntime::get_callback(&lua, id)?;
+                                        cb.call(disp_id.0)
+                                    });
+
+									Ok(match res {
+										Err(e) => {
+											error!("{}", crate::lua::get_err_msg(&e));
+											vec![]
+										},
+										Ok(x) => x
+									})
+                                });
+                                this.state.lock().config.bar.components.left.push(comp);
+                            }
+                        }
+                    }
+
+                    return Ok(());
+                }
                 //TODO: Support components
                 //
                 //      pub components: BarComponentsConfig,
@@ -75,10 +143,11 @@ impl LuaConfigProxy {
 
 impl mlua::UserData for LuaConfigProxy {
     fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_meta_function(mlua::MetaMethod::Index, |_, (this, key): (Self, String)| {
+        methods.add_meta_function(mlua::MetaMethod::Index, |lua, (this, key): (Self, String)| {
             Ok(match key.as_str() {
-                "bar" => LuaBarConfigProxy::new(this.state.clone()),
-                _ => todo!(),
+                "bar" => Value::UserData(lua.create_userdata(LuaBarConfigProxy::new(this.state.clone()))?),
+                "light_theme" => Value::Boolean(this.state.lock().config.light_theme),
+                _ => Value::Nil,
             })
         });
 
@@ -186,27 +255,6 @@ macro_rules! def_fn {
     };
 }
 
-/// This is macro is necessary, because if you use the default way of type checking input
-/// (specifying the type in the function declaration) the error is different than how it would look
-/// like when you check the type at runtime.
-///
-/// This macro basically does the same thing, but throws a
-/// runtime error on the lua side instead of a CallbackError on the rust side.
-macro_rules! validate {
-    ($lua: tt, $x: ident : $type: tt) => {
-        match <$type>::from_lua($x.clone(), $lua) {
-            Ok(x) => Ok(x),
-            Err(_) => {
-                let msg = format!("Expected `{}` to be of type `{}` (found `{}`)", stringify!($x), stringify!($type), $x.type_name());
-                Err(LuaError::RuntimeError(msg))
-            }
-        }
-    };
-    ($lua: ident, { $($x: ident : $type: ty),* }) => {
-        $(let $x = validate!($lua, $x: $type)?;)*
-    }
-}
-
 /// This is used to map a lua function to a rust function.
 macro_rules! def_ffi_fn {
     ($state_arc: expr, $lua: expr, $tbl: expr, $name: expr, $func_name: ident, $a1:ident : $a1t: ty, $a2:ident : $a2t: ty) => {
@@ -245,7 +293,9 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
     //TODO: bind functions need to set callback correctly
     rt.with_lua(move |lua| {
         let nog_tbl = lua.create_table()?;
+        let cb_tbl = lua.create_table()?;
 
+        nog_tbl.set("__callbacks", cb_tbl)?;
         nog_tbl.set("version", option_env!("NOG_VERSION").unwrap_or("DEV"))?;
 
         let state = state_arc.clone();
@@ -254,6 +304,12 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "quit", move |_, (): ()| {
             let _ = state.lock().event_channel.sender.send(Event::Exit);
+            Ok(())
+        });
+
+        def_fn!(lua, nog_tbl, "launch", move |lua, name: Value| {
+            validate!(lua, { name: String });
+            system::api::launch_program(name)?;
             Ok(())
         });
 
@@ -277,6 +333,12 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "get_kb_mode", move |_, (): ()| {
             Ok(state.lock().keybindings_manager.try_get_mode().unwrap())
+        });
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "toggle_work_mode", move |_, (): ()| {
+            AppState::toggle_work_mode(state.clone())
+                .map_err(|e| LuaError::RuntimeError(e.to_string()))
         });
 
         let state = state_arc.clone();
@@ -316,6 +378,15 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             Ok(state.lock().get_current_display().id.0)
         });
 
+        def_fn!(lua, nog_tbl, "scale_color", move |lua, (color, factor): (Value, Value)| {
+			validate!(lua, {
+				color: i32,
+				factor: f64
+			});
+
+            Ok(crate::util::scale_color(color, factor))
+        });
+
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "get_current_win", move |_, (): ()| {
             let win_id = state
@@ -341,9 +412,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
 
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "get_ws_text", move |lua, ws_id: Value| {
-            validate!(lua, {
-                ws_id: i32
-            });
+            validate!(lua, { ws_id: i32 });
             Ok(state.lock().get_ws_text(ws_id))
         });
 
@@ -365,7 +434,10 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                 "w" => KeybindingKind::Work,
                 _ => KeybindingKind::Normal,
             };
-            // kb.callback_id = cb;
+
+            let id = LuaRuntime::add_callback(lua, cb)?;
+
+            kb.callback_id = id as usize;
             state.lock().add_keybinding(kb);
             Ok(())
         });
@@ -418,7 +490,11 @@ fn load_workspace_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) ->
         l_def_ffi_fn!("toggle_fullscreen", toggle_fullscreen);
         l_def_ffi_fn!("reset_row", reset_row);
         l_def_ffi_fn!("reset_col", reset_column);
-        l_def_ffi_fn!("move_to_monitor", move_workspace_to_monitor, monitor_id: i32);
+        l_def_ffi_fn!(
+            "move_to_monitor",
+            move_workspace_to_monitor,
+            monitor_id: i32
+        );
         l_def_ffi_fn!("replace", move_workspace_to_workspace, ws_id: i32);
         l_def_ffi_fn!("change", emit_change_workspace, ws_id: i32);
         l_def_ffi_fn!("move_in", move_in, direction: Direction);
@@ -426,7 +502,11 @@ fn load_workspace_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) ->
         l_def_ffi_fn!("focus", focus, direction: Direction);
         l_def_ffi_fn!("resize", resize, direction: Direction, amount: i32);
         l_def_ffi_fn!("swap", swap, direction: Direction);
-        l_def_ffi_fn!("set_split_direction", set_split_direction, direction: SplitDirection);
+        l_def_ffi_fn!(
+            "set_split_direction",
+            set_split_direction,
+            direction: SplitDirection
+        );
 
         Ok(())
     })
@@ -437,7 +517,8 @@ pub fn setup_lua_rt(state_arc: Arc<Mutex<AppState>>) {
 
     setup_nog_global(state_arc.clone(), &rt);
 
-    rt.run_str("NOG_RUNTIME", RUNTIME_FILE_CONTENT);
+    rt.run_str("NOG_INSPECT", include_str!("../lua/inspect.lua"));
+    rt.run_str("NOG_RUNTIME", include_str!("../lua/runtime.lua"));
 
     load_window_functions(state_arc.clone(), &rt).unwrap();
     load_workspace_functions(state_arc.clone(), &rt).unwrap();

@@ -12,7 +12,7 @@ pub enum Event {
     Keybinding(Keybinding),
     WinEvent(WinEvent),
     NewPopup(Popup),
-    ConfigError(RuntimeError),
+    LuaRuntimeError(RuntimeError),
     CallCallback {
         idx: usize,
         /// This is required, because the callbacks run in a seperate thread and mode callbacks
