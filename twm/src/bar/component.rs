@@ -1,5 +1,6 @@
 use crate::{display::Display, system::DisplayId, AppState};
-use interpreter::{Dynamic, Function, Interpreter, RuntimeError, RuntimeResult};
+use interpreter::{Dynamic, Function, Interpreter, RuntimeError};
+use mlua::Result as RuntimeResult;
 use parking_lot::Mutex;
 use std::{any::Any, collections::HashMap, fmt::Debug, sync::Arc};
 
@@ -80,7 +81,7 @@ impl Component {
             on_click_fn: None,
         }
     }
-   
+
     pub fn on_click(&self, display_id: DisplayId, value: i32, idx: usize) -> RuntimeResult<()> {
         if let Some(f) = self.on_click_fn.clone() {
             f(display_id, value, idx)?;

@@ -1,5 +1,6 @@
 use std::{str::FromStr, sync::Arc};
 
+use chrono::Local;
 use mlua::{Error as LuaError, FromLua, Function, Lua, Table, ToLua, Value};
 use parking_lot::Mutex;
 use regex::Regex;
@@ -9,14 +10,14 @@ use log::{error, warn};
 use crate::{
     bar::component::Component, config::rule::Rule, config::workspace_setting::WorkspaceSetting,
     direction::Direction, event::Event, keybindings::keybinding::Keybinding,
-    keybindings::keybinding::KeybindingKind, split_direction::SplitDirection, system::DisplayId,
-    system::WindowId, AppState,
-system};
+    keybindings::keybinding::KeybindingKind, split_direction::SplitDirection, system,
+    system::DisplayId, system::WindowId, AppState,
+};
 
 mod conversions;
 mod runtime;
 
-pub use runtime::{LuaRuntime, get_err_msg};
+pub use runtime::{get_err_msg, LuaRuntime};
 
 /// This is macro is necessary, because if you use the default way of type checking input
 /// (specifying the type in the function declaration) the error is different than how it would look
@@ -69,7 +70,7 @@ impl mlua::UserData for LuaBarConfigProxy {
     fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
         methods.add_meta_function(mlua::MetaMethod::Index, |_, (this, key): (Self, String)| {
             Ok(match key.as_str() {
-				"color" => Value::Integer(this.state.lock().config.bar.color as i64),
+                "color" => Value::Integer(this.state.lock().config.bar.color as i64),
                 _ => Value::Nil,
             })
         });
@@ -143,13 +144,18 @@ impl LuaConfigProxy {
 
 impl mlua::UserData for LuaConfigProxy {
     fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_meta_function(mlua::MetaMethod::Index, |lua, (this, key): (Self, String)| {
-            Ok(match key.as_str() {
-                "bar" => Value::UserData(lua.create_userdata(LuaBarConfigProxy::new(this.state.clone()))?),
-                "light_theme" => Value::Boolean(this.state.lock().config.light_theme),
-                _ => Value::Nil,
-            })
-        });
+        methods.add_meta_function(
+            mlua::MetaMethod::Index,
+            |lua, (this, key): (Self, String)| {
+                Ok(match key.as_str() {
+                    "bar" => Value::UserData(
+                        lua.create_userdata(LuaBarConfigProxy::new(this.state.clone()))?,
+                    ),
+                    "light_theme" => Value::Boolean(this.state.lock().config.light_theme),
+                    _ => Value::Nil,
+                })
+            },
+        );
 
         methods.add_meta_function(
             mlua::MetaMethod::NewIndex,
@@ -313,6 +319,19 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             Ok(())
         });
 
+        def_fn!(lua, nog_tbl, "fmt_datetime", move |lua, pat: Value| {
+            validate!(lua, { pat: String });
+            let text = Local::now().format(&pat).to_string();
+            Ok(text)
+        });
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "toggle_mode", move |lua, name: Value| {
+            validate!(lua, { name: String });
+            state.lock().toggle_mode(name);
+            Ok(())
+        });
+
         let state = state_arc.clone();
         def_fn!(
             lua,
@@ -332,7 +351,12 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
 
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "get_kb_mode", move |_, (): ()| {
-            Ok(state.lock().keybindings_manager.try_get_mode().unwrap())
+            Ok(state
+                .lock()
+                .keybindings_manager
+                .as_ref()
+                .unwrap()
+                .try_get_mode())
         });
 
         let state = state_arc.clone();
@@ -355,7 +379,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                 .lock()
                 .find_grid_containing_window(win_id)
                 .and_then(|g| g.get_window(win_id))
-                .map(|w| w.title.clone()))
+                .map(|w| w.get_title().unwrap_or_default()))
         });
 
         let state = state_arc.clone();
@@ -378,11 +402,15 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             Ok(state.lock().get_current_display().id.0)
         });
 
-        def_fn!(lua, nog_tbl, "scale_color", move |lua, (color, factor): (Value, Value)| {
-			validate!(lua, {
-				color: i32,
-				factor: f64
-			});
+        def_fn!(lua, nog_tbl, "scale_color", move |lua,
+                                                   (color, factor): (
+            Value,
+            Value
+        )| {
+            validate!(lua, {
+                color: i32,
+                factor: f64
+            });
 
             Ok(crate::util::scale_color(color, factor))
         });
@@ -411,10 +439,84 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
         });
 
         let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "unbind", move |lua, key: Value| {
+            validate!(lua, { key: String });
+            let mut state_g = state.lock();
+            // The dummy keybinding that is being searched for
+            let s_kb = Keybinding::from_str(&key).unwrap();
+            if let Some((i, kb)) = state_g
+                .config
+                .keybindings
+                .iter()
+                .enumerate()
+                .find(|(_, kb)| {
+                    kb.key == s_kb.key && kb.modifier == s_kb.modifier
+                })
+                .map(|(i, kb)| (i, kb.clone()))
+            {
+                state_g.config.keybindings.remove(i);
+                state_g.keybindings_manager.as_ref().unwrap().unregister_keybinding(kb);
+            }
+
+            Ok(())
+        });
+
+        let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "get_ws_text", move |lua, ws_id: Value| {
             validate!(lua, { ws_id: i32 });
             Ok(state.lock().get_ws_text(ws_id))
         });
+
+        let state = state_arc.clone();
+        def_fn!(
+            lua,
+            nog_tbl,
+            "mode",
+            move |lua, (name, cb): (Value, Value)| {
+                validate!(lua, {
+                    name: String,
+                    cb: Function
+                });
+
+                let state2 = state.clone();
+                let cb_id = LuaRuntime::add_callback(lua, cb)?;
+
+                let wrapped_cb = lua.create_function(move |lua, (): ()| {
+                    let state3 = state2.clone();
+                    let bind_fn = lua.create_function(move |lua, (key, cb): (Value, Value)| {
+                        validate!(lua, {
+                            key: String,
+                            cb: Function
+                        });
+                        let id = LuaRuntime::add_callback(lua, cb)?;
+                        let mut kb = Keybinding::from_str(&key).unwrap();
+                        kb.callback_id = id as usize;
+                        state3
+                            .lock()
+                            .keybindings_manager
+                            .as_mut()
+                            .unwrap()
+                            .add_mode_keybinding(kb);
+
+                        Ok(())
+                    })?;
+
+                    let cb = LuaRuntime::get_callback(lua, cb_id)?;
+                    cb.call(bind_fn)?;
+
+                    Ok(())
+                })?;
+
+                let wrapped_cb_id = LuaRuntime::add_callback(lua, wrapped_cb)?;
+                state
+                    .lock()
+                    .config
+                    .mode_handlers
+                    .insert(name.clone(), wrapped_cb_id);
+
+                Ok(())
+            }
+        );
 
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "bind", move |lua,

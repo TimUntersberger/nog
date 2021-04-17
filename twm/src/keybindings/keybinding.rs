@@ -17,7 +17,7 @@ impl Default for KeybindingKind {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Keybinding {
     pub kind: KeybindingKind,
     /// This is the id of the callback in the global callbacks store

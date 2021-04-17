@@ -5,14 +5,14 @@ use crate::{
 use crossbeam_channel::unbounded;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
-use interpreter::RuntimeError;
+use mlua::Error as LuaError;
 
 #[derive(Debug, Clone)]
 pub enum Event {
     Keybinding(Keybinding),
     WinEvent(WinEvent),
     NewPopup(Popup),
-    LuaRuntimeError(RuntimeError),
+    LuaRuntimeError(LuaError),
     CallCallback {
         idx: usize,
         /// This is required, because the callbacks run in a seperate thread and mode callbacks

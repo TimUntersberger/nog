@@ -100,7 +100,7 @@ nog.components.current_window = function()
     name = "CurrentWindow",
     render = function()
       local win_id = nog.get_current_win()
-      local title = nog.get_win_title(win_id)
+      local title = win_id and nog.get_win_title(win_id) or ""
 
       return {{
         text = title,

@@ -150,7 +150,7 @@ pub struct AppState {
     pub work_mode: bool,
     pub displays: Vec<Display>,
     pub event_channel: EventChannel,
-    pub keybindings_manager: KbManager,
+    pub keybindings_manager: Option<KbManager>,
     pub additonal_rules: Vec<Rule>,
     pub window_event_listener: WinEventListener,
     pub workspace_id: i32,
@@ -163,11 +163,7 @@ impl Default for AppState {
             work_mode: true,
             lua_rt: LuaRuntime::new(),
             displays: time!("initializing displays", display::init(&config)),
-            keybindings_manager: KbManager::new(
-                config.keybindings.clone(),
-                config.mode_handlers.clone(),
-                config.allow_right_alt,
-            ),
+            keybindings_manager: None,
             event_channel: EventChannel::default(),
             additonal_rules: Vec::new(),
             window_event_listener: WinEventListener::default(),
@@ -178,14 +174,10 @@ impl Default for AppState {
 }
 
 impl AppState {
-    pub fn init(&mut self) {
+    pub fn init(&mut self, state_arc: Arc<Mutex<AppState>>) {
         self.work_mode = self.config.work_mode;
         self.displays = display::init(&self.config);
-        self.keybindings_manager = KbManager::new(
-            self.config.keybindings.clone(),
-            self.config.mode_handlers.clone(),
-            self.config.allow_right_alt,
-        );
+        self.keybindings_manager = Some(KbManager::new(state_arc, self.config.allow_right_alt));
     }
 
     /// TODO: maybe rename this function
@@ -218,6 +210,14 @@ impl AppState {
             .send(Event::ChangeWorkspace(id, true));
 
         Ok(())
+    }
+
+    pub fn emit_lua_rt_error(&mut self, msg: &str) {
+        self.event_channel
+            .sender
+            .send(Event::LuaRuntimeError(mlua::Error::RuntimeError(
+                msg.to_string(),
+            )));
     }
 
     pub fn move_workspace_to_monitor(&mut self, monitor: i32) -> SystemResult {
@@ -404,7 +404,7 @@ impl AppState {
         info!("Registering windows event handler");
         this.window_event_listener.start(&this.event_channel);
 
-        let kb = this.keybindings_manager.clone();
+        let kb = this.keybindings_manager.as_ref().unwrap().clone();
 
         drop(this);
 
@@ -416,7 +416,7 @@ impl AppState {
     pub fn leave_work_mode(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
         let mut this = state_arc.lock();
         this.window_event_listener.stop();
-        this.keybindings_manager.leave_work_mode();
+        this.keybindings_manager.as_ref().unwrap().leave_work_mode();
 
         popup::cleanup()?;
 
@@ -586,12 +586,12 @@ impl AppState {
     }
 
     pub fn toggle_mode(&mut self, mode: String) {
-        if self.keybindings_manager.get_mode() == Some(mode.clone()) {
+        if self.keybindings_manager.as_ref().unwrap().get_mode() == Some(mode.clone()) {
             info!("Disabling {} mode", mode);
-            self.keybindings_manager.leave_mode();
+            self.keybindings_manager.as_mut().unwrap().leave_mode();
         } else {
             info!("Enabling {} mode", mode);
-            self.keybindings_manager.enter_mode(&mode);
+            self.keybindings_manager.as_mut().unwrap().enter_mode(&mode);
         }
     }
 
@@ -912,6 +912,8 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
     state_arc
         .lock()
         .keybindings_manager
+        .as_ref()
+        .unwrap()
         .start(state_arc.clone());
 
     if state_arc.lock().config.work_mode {
@@ -952,7 +954,7 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
                         Ok(())
                     },
                     Event::LuaRuntimeError(err) => {
-                        // error!("{}", err.message(&interpreter_arc.lock().program()));
+                        error!("{}", lua::get_err_msg(&err));
 
                         Ok(())
                     }
@@ -963,11 +965,9 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
                         });
 
                         if let Err(e) = res {
-                            let msg = lua::get_err_msg(&e);
-
-                            error!("{}", msg);
+                            sender.send(Event::LuaRuntimeError(e));
                         } else if is_mode_callback {
-                            state_arc.lock().keybindings_manager.sender.send(keybindings::ChanMessage::ModeCbExecuted);
+                            state_arc.lock().keybindings_manager.as_ref().map(|x| x.sender.clone()).unwrap().send(keybindings::ChanMessage::ModeCbExecuted);
                         }
 
                         Ok(())
@@ -1072,9 +1072,8 @@ fn main() {
         rt.run_file("twm/init.lua");
     }
 
-
     info!("Initializing Application");
-    state_arc.lock().init();
+    state_arc.lock().init(state_arc.clone());
     info!("Initialized Application");
 
     // let callbacks_arc: Arc<Mutex<Vec<Function>>> = Arc::new(Mutex::new(Vec::new()));

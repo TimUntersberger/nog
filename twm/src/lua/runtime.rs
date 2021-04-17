@@ -40,10 +40,8 @@ impl LuaRuntime {
         Ok(id as usize)
     }
 
-    pub fn get_callback(lua: &Lua, id: usize) -> mlua::Result<Function>
-    {
-        lua
-            .globals()
+    pub fn get_callback(lua: &Lua, id: usize) -> mlua::Result<Function> {
+        lua.globals()
             .get::<_, Table>("nog")?
             .get::<_, Table>(CALLBACK_TBL_NAME)?
             .get::<_, _>(id)

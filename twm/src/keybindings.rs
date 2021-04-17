@@ -29,6 +29,7 @@ pub enum ChanMessage {
     LeaveWorkMode,
     EnterWorkMode,
     RegisterKeybindings,
+    UnregisterKeybinding(Keybinding),
     UnregisterKeybindings,
     ChangeMode(Mode),
     ModeCbExecuted,
@@ -37,27 +38,19 @@ pub enum ChanMessage {
 struct KbManagerInner {
     running: AtomicBool,
     stopped: AtomicBool,
-    /// Holds all of the handlers that get called when entering a mode
-    /// Key is mode name and value is the callback id
-    pub mode_handlers: HashMap<String, usize>,
-    pub keybindings: Vec<Keybinding>,
     allow_right_alt: bool,
+    state: Arc<Mutex<AppState>>,
     mode_keybindings: Mutex<HashMap<String, Vec<Keybinding>>>,
     mode: Mutex<Mode>,
 }
 
 impl KbManagerInner {
-    pub fn new(
-        kbs: Vec<Keybinding>,
-        handlers: HashMap<String, usize>,
-        allow_right_alt: bool,
-    ) -> Self {
+    pub fn new(state: Arc<Mutex<AppState>>, allow_right_alt: bool) -> Self {
         Self {
             running: AtomicBool::new(false),
-            mode_handlers: handlers,
             stopped: AtomicBool::new(false),
+            state,
             mode: Mutex::new(None),
-            keybindings: kbs,
             mode_keybindings: Mutex::new(HashMap::new()),
             allow_right_alt,
         }
@@ -71,7 +64,10 @@ impl KbManagerInner {
     }
 
     pub fn unregister_all(&self) {
-        self.keybindings
+        self.state
+            .lock()
+            .config
+            .keybindings
             .iter()
             .for_each(|kb| self.unregister_kb(kb));
     }
@@ -111,6 +107,9 @@ impl KbManagerInner {
                 .find(|kb| kb.key == key && kb.modifier == modifier)
                 .map(|kb| kb.clone()),
             None => self
+                .state
+                .lock()
+                .config
                 .keybindings
                 .iter()
                 .find(|kb| kb.key == key && kb.modifier == modifier)
@@ -133,21 +132,16 @@ impl Debug for KbManager {
 }
 
 impl KbManager {
-    pub fn new(
-        kbs: Vec<Keybinding>,
-        handlers: HashMap<String, usize>,
-        allow_right_alt: bool,
-    ) -> Self {
+    pub fn new(state: Arc<Mutex<AppState>>, allow_right_alt: bool) -> Self {
         let (sender, receiver) = channel();
         Self {
-            inner: Arc::new(Mutex::new(KbManagerInner::new(
-                kbs,
-                handlers,
-                allow_right_alt,
-            ))),
+            inner: Arc::new(Mutex::new(KbManagerInner::new(state, allow_right_alt))),
             sender,
             receiver: Arc::new(Mutex::new(receiver)),
         }
+    }
+    pub fn set_state(&mut self, state: Arc<Mutex<AppState>>) {
+        self.inner.lock().state = state;
     }
     fn change_mode(&mut self, mode: Mode) {
         self.sender
@@ -167,14 +161,14 @@ impl KbManager {
             .send(ChanMessage::EnterWorkMode)
             .expect("Failed to send enter work mode");
     }
-    pub fn set_keybindings(&self, kbs: Vec<Keybinding>, handlers: HashMap<String, usize>) {
-        let mut inner = self.inner.lock();
-        inner.keybindings = kbs;
-        inner.mode_handlers = handlers;
-    }
     pub fn unregister_keybindings(&self) {
         self.sender
             .send(ChanMessage::UnregisterKeybindings)
+            .expect("Failed to send UnregisterKeybindings");
+    }
+    pub fn unregister_keybinding(&self, kb: Keybinding) {
+        self.sender
+            .send(ChanMessage::UnregisterKeybinding(kb))
             .expect("Failed to send UnregisterKeybindings");
     }
     pub fn register_keybindings(&self) {
@@ -225,7 +219,9 @@ impl KbManager {
             {
                 let inner = inner.lock();
                 inner.register_all(
-                    &inner
+                    &state
+                        .lock()
+                        .config
                         .keybindings
                         .iter()
                         .filter(|kb| kb.is_global())
@@ -248,22 +244,44 @@ impl KbManager {
                         }
                         ChanMessage::LeaveWorkMode => {
                             let inner = inner.lock();
-                            for kb in inner.keybindings.iter().filter(|kb| !kb.is_global()) {
+                            for kb in state
+                                .lock()
+                                .config
+                                .keybindings
+                                .iter()
+                                .filter(|kb| !kb.is_global())
+                            {
                                 inner.unregister_kb(kb);
                             }
                         }
                         ChanMessage::EnterWorkMode => {
                             let inner = inner.lock();
-                            for kb in inner.keybindings.iter().filter(|kb| !kb.is_global()) {
+                            for kb in state
+                                .lock()
+                                .config
+                                .keybindings
+                                .iter()
+                                .filter(|kb| !kb.is_global())
+                            {
                                 inner.register_kb(kb);
                             }
+                        }
+                        ChanMessage::UnregisterKeybinding(kb) => {
+                            let inner = inner.lock();
+                            inner.unregister_kb(&kb);
                         }
                         ChanMessage::UnregisterKeybindings => {
                             let inner = inner.lock();
                             if state.lock().work_mode {
                                 inner.unregister_all();
                             } else {
-                                for kb in inner.keybindings.iter().filter(|kb| kb.is_global()) {
+                                for kb in state
+                                    .lock()
+                                    .config
+                                    .keybindings
+                                    .iter()
+                                    .filter(|kb| kb.is_global())
+                                {
                                     inner.unregister_kb(kb);
                                 }
                             }
@@ -273,7 +291,9 @@ impl KbManager {
                             let inner = inner.lock();
                             let work_mode = state.lock().work_mode;
                             inner.register_all(
-                                &inner
+                                &state
+                                    .lock()
+                                    .config
                                     .keybindings
                                     .iter()
                                     .filter(|kb| kb.is_global() || work_mode)
@@ -283,37 +303,60 @@ impl KbManager {
                         }
                         ChanMessage::ChangeMode(new_mode) => {
                             let mut inner_g = inner.lock();
-                            // Unregister all none global keybindings to ensure a clean state
-                            for kb in inner_g.keybindings.iter().filter(|kb| kb.is_normal()) {
-                                inner_g.unregister_kb(kb);
+                            let mode_is_defined = match &new_mode {
+                                Some(mode) => state.lock().config.mode_handlers.contains_key(mode),
+                                None => true,
+                            };
+
+                            dbg!(&mode_is_defined);
+
+                            if !mode_is_defined {
+                                state.lock().emit_lua_rt_error(&format!("You are trying to toggle the mode '{}' which hasn't been defined yet", new_mode.unwrap()));
+                                continue;
                             }
 
                             if let Some(mode) = new_mode.as_ref() {
-                                *inner_g.mode.lock() = new_mode.clone();
-                                if !inner_g.mode_keybindings.lock().contains_key(mode) {
-                                    if let Some(id) = inner_g.mode_handlers.get(mode).map(|x| *x) {
-                                        let sender = state.lock().event_channel.sender.clone();
-                                        inner_g
-                                            .mode_keybindings
-                                            .lock()
-                                            .insert(mode.clone(), Vec::new());
-
-                                        sender
-                                            .send(Event::CallCallback {
-                                                idx: id,
-                                                is_mode_callback: true,
-                                            })
-                                            .unwrap();
-
-                                        drop(inner_g);
-                                        receiver.recv().unwrap();
-                                        inner_g = inner.lock();
-                                    }
+                                // Unregister all normal keybindings to ensure a clean state
+                                for kb in state
+                                    .lock()
+                                    .config
+                                    .keybindings
+                                    .iter()
+                                    .filter(|kb| kb.is_normal())
+                                {
+                                    inner_g.unregister_kb(kb);
                                 }
+
+                                inner_g.mode_keybindings.lock().clear();
+
+                                *inner_g.mode.lock() = new_mode.clone();
+                                let id = state
+                                    .lock()
+                                    .config
+                                    .mode_handlers
+                                    .get(mode)
+                                    .map(|x| *x)
+                                    .unwrap();
+                                let sender = state.lock().event_channel.sender.clone();
+
+                                inner_g
+                                    .mode_keybindings
+                                    .lock()
+                                    .insert(mode.clone(), Vec::new());
+
+                                sender
+                                    .send(Event::CallCallback {
+                                        idx: id,
+                                        is_mode_callback: true,
+                                    })
+                                    .unwrap();
+
+                                drop(inner_g);
+                                receiver.recv().unwrap();
+                                inner_g = inner.lock();
 
                                 let kbs_lock = inner_g.mode_keybindings.lock();
                                 let kbs = kbs_lock.get(mode).unwrap();
-
                                 inner_g.register_all(&kbs.iter().collect(), state_arc.clone());
                             } else {
                                 let mut mode_lock = inner_g.mode.lock();
@@ -321,13 +364,15 @@ impl KbManager {
                                 let kbs = kbs_lock.get(mode_lock.as_ref().unwrap()).unwrap();
 
                                 for kb in kbs.iter() {
-                                    api::unregister_keybinding(kb);
+                                    inner_g.unregister_kb(kb);
                                 }
 
                                 *mode_lock = new_mode.clone();
 
                                 inner_g.register_all(
-                                    &inner_g
+                                    &state
+                                        .lock()
+                                        .config
                                         .keybindings
                                         .iter()
                                         .filter(|kb| kb.is_normal())

@@ -11,7 +11,13 @@ nog.config.bar.font = "CaskaydiaCove NF"
 nog.config.bar.font_size = 18
 nog.config.bar.components = {
   left = {
-    nog.components.workspaces()
+    nog.components.workspaces(),
+    nog.components.padding(10),
+    nog.components.datetime("%T %e %b %Y"),
+    nog.components.current_window(),
+    nog.components.active_mode(),
+    nog.components.split_direction("V", "H"),
+    nog.components.fullscreen_indicator("FULL"),
   },
   center = {},
   right = {}
@@ -70,8 +76,19 @@ nog.config.rules = {
   },
 }
 
+nog.mode("resize", function(bind)
+  bind("Escape", function()
+    nog.toggle_mode("resize")
+  end)
+end)
+
 nog.wbind("F1", function()
   nog.launch("notepad.exe")
+end)
+
+nog.nbind("F2", function()
+  print("This keybinding prints this message once and then unbinds itself")
+  nog.unbind("F2")
 end)
 
 nog.nbind("Alt+I", nog.win_ignore)

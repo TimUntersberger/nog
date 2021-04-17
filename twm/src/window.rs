@@ -305,7 +305,7 @@ impl Window {
 
         Ok(())
     }
-    pub fn create<TEventHandler: Fn(&WindowEvent) -> RuntimeResult<()> + Sync + Send + 'static>(
+    pub fn create<TEventHandler: Fn(&WindowEvent) -> mlua::Result<()> + Sync + Send + 'static>(
         &mut self,
         state_arc: Arc<Mutex<AppState>>,
         show: bool,

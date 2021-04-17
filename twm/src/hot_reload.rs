@@ -5,13 +5,24 @@ use crate::{bar, config::Config, keybindings::KbManager, startup, system::System
 
 pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> SystemResult {
     let state = state_arc.lock();
-    state.keybindings_manager.update_configuration(&new_config);
+    state
+        .keybindings_manager
+        .as_ref()
+        .unwrap()
+        .update_configuration(&new_config);
     drop(state);
 
-    let prev_mode = state_arc.lock().keybindings_manager.get_mode();
+    let prev_mode = state_arc
+        .lock()
+        .keybindings_manager
+        .as_ref()
+        .unwrap()
+        .get_mode();
     state_arc
         .lock()
         .keybindings_manager
+        .as_ref()
+        .unwrap()
         .unregister_keybindings();
 
     let mut state = state_arc.lock();
@@ -22,10 +33,6 @@ pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> Sys
     let mut close_app_bars = false;
 
     state.config = new_config;
-    state.keybindings_manager.set_keybindings(
-        state.config.keybindings.clone(),
-        state.config.mode_handlers.clone(),
-    );
 
     if work_mode {
         if old_config.remove_task_bar && !state.config.remove_task_bar {
@@ -93,9 +100,17 @@ pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> Sys
         state = state_arc.lock();
     }
 
-    state.keybindings_manager.register_keybindings();
+    state
+        .keybindings_manager
+        .as_ref()
+        .unwrap()
+        .register_keybindings();
     if let Some(mode) = prev_mode {
-        state.keybindings_manager.enter_mode(&mode);
+        state
+            .keybindings_manager
+            .as_mut()
+            .unwrap()
+            .enter_mode(&mode);
     }
 
     for d in state.displays.iter() {

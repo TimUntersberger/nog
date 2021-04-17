@@ -425,7 +425,9 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     pub fn get_windows(self: &Self) -> Vec<&NativeWindow> {
         self.graph
             .nodes()
-            .map(|id| self.graph.node(id).get_window())
+            .map(|id| self.graph.node(id))
+            .filter(|node| node.is_tile())
+            .map(|node| node.get_window())
             .collect()
     }
     /// Swaps position of the focused tile with the tile in the supplied direction. See swap for more details on behavior.
