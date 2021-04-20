@@ -1,3 +1,42 @@
+function nog.clone(value, is_deep)
+  local t = type(value)
+
+  if t == "string" then
+    local len = #value
+    local res = ""
+    local i = 1
+
+    while i <= len do
+      res = res .. string.char(value:byte(len))
+      len = len - 1
+    end
+
+    return res
+  end
+
+  error("Unsupported type: " .. t)
+end
+
+function nog.split(sep)
+  if sep == nil then
+    sep = "%s"
+  end
+  local t={}
+  for str in string.gmatch(self, "([^"..sep.."]+)") do
+    table.insert(t, str)
+  end
+  return t
+end
+
+local initial_package_path = nog.clone(package.path)
+
+local function setup_package_path()
+  package.path = initial_package_path
+  for _, p in ipairs(nog.plug_list()) do
+    package.path = p .. "\\lua\\?.lua;" .. package.path
+  end
+end
+
 local function create_bind_tbl_fn(mode)
   return function(modifier, cb, tbl)
     for key, val in pairs(tbl) do
@@ -153,3 +192,5 @@ nog.config.bar.components = {
     nog.components.padding(1),
   }
 }
+
+setup_package_path()

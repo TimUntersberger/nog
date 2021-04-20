@@ -1,5 +1,4 @@
 [workspace]
 members = [
-  "twm",
-  "doc-gen"
+  "twm"
 ]

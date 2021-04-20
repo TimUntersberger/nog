@@ -8,6 +8,7 @@ use regex::Regex;
 use log::{error, warn};
 
 use crate::{
+    get_config_path,
     bar::component::Component, config::rule::Rule, config::workspace_setting::WorkspaceSetting,
     direction::Direction, event::Event, keybindings::keybinding::Keybinding,
     keybindings::keybinding::KeybindingKind, split_direction::SplitDirection, system,
@@ -320,6 +321,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
 
         nog_tbl.set("__callbacks", cb_tbl)?;
         nog_tbl.set("version", option_env!("NOG_VERSION").unwrap_or("DEV"))?;
+        nog_tbl.set("config_path", get_config_path().to_str())?;
 
         let state = state_arc.clone();
         nog_tbl.set("config", LuaConfigProxy::new(state.clone()))?;
@@ -593,6 +595,28 @@ fn load_window_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) -> ml
     })
 }
 
+fn load_plugin_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) -> mlua::Result<()> {
+    rt.with_lua(|lua| {
+        let nog_tbl = lua.globals().get::<_, Table>("nog")?;
+
+        /// A local version of the `def_ffi_fn` macro for ease of use.
+        ///
+        /// **Note**: Also prefixes the name with `win_`
+        macro_rules! l_def_ffi_fn {
+            ($name: expr, $($rest: tt)*) => {
+                def_ffi_fn!(state_arc, lua, nog_tbl, format!("{}_{}", "plug", $name), $($rest)*);
+            };
+        }
+
+        l_def_ffi_fn!("install", install_plugin, name: String);
+        l_def_ffi_fn!("update", update_plugins);
+        l_def_ffi_fn!("uninstall", uninstall_plugin, name: String);
+        l_def_ffi_fn!("list", get_plugins);
+
+        Ok(())
+    })
+}
+
 fn load_workspace_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) -> mlua::Result<()> {
     rt.with_lua(|lua| {
         let nog_tbl = lua.globals().get::<_, Table>("nog")?;
@@ -637,13 +661,10 @@ pub fn setup_lua_rt(state_arc: Arc<Mutex<AppState>>) {
     setup_nog_global(state_arc.clone(), &rt);
 
     rt.run_str("NOG_INSPECT", include_str!("../lua/inspect.lua"));
-    rt.run_str("NOG_RUNTIME", include_str!("../lua/runtime.lua"));
 
     load_window_functions(state_arc.clone(), &rt).unwrap();
     load_workspace_functions(state_arc.clone(), &rt).unwrap();
-    // load_plugin_functions(state_arc.clone(), &rt);
-    //  plug_update
-    //  plug_install
-    //  plug_uninstall
-    //  plug_update_all
+    load_plugin_functions(state_arc.clone(), &rt);
+
+    rt.run_str("NOG_RUNTIME", include_str!("../lua/runtime.lua"));
 }

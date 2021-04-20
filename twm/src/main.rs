@@ -4,8 +4,6 @@
 extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
-#[macro_use]
-extern crate interpreter;
 
 use bar::component::{self, Component, ComponentText};
 use config::{bar_config::BarConfig, rule::Rule, workspace_setting::WorkspaceSetting, Config};
@@ -15,7 +13,6 @@ use display::Display;
 use event::Event;
 use event::EventChannel;
 use hot_reload::update_config;
-use interpreter::{Dynamic, Function, Interpreter, Module, RuntimeError};
 use itertools::Itertools;
 use keybindings::{keybinding::Keybinding, keybinding::KeybindingKind, KbManager};
 use log::debug;
@@ -189,6 +186,114 @@ impl AppState {
         }
 
         Ok(())
+    }
+
+    pub fn install_plugin(&mut self, name: String) -> SystemResult {
+        let url = format!("https://www.github.com/{}", &name);
+        let mut path = self.config.plugins_path.clone();
+        path.push(name.split("/").join("_"));
+
+        if path.exists() {
+            debug!("{} is already installed", name);
+        } else {
+            debug!("Installing {} from {}", name, url);
+            Command::new("git")
+                .arg("clone")
+                .arg(&url)
+                .arg(&path)
+                .spawn()
+                .unwrap()
+                .wait()
+                .unwrap();
+
+            path.push("plugin");
+        }
+        
+        Ok(())
+    }
+
+    pub fn update_plugins(&mut self) -> SystemResult {
+        if let Ok(dirs) = get_plugins_path_iter() {
+            for dir in dirs {
+                if let Ok(dir) = dir {
+                    let name = dir.file_name().to_str().unwrap().to_string();
+
+                    let mut path = self.config.plugins_path.clone();
+                    path.push(&name);
+
+                    let name = name.split("_").join("/");
+                    let url = format!("https://www.github.com/{}", name);
+
+                    let output = Command::new("git")
+                        .arg("rev-parse")
+                        .arg("--is-inside-work-tree")
+                        .current_dir(&path)
+                        .output()
+                        .unwrap();
+
+                    let is_git_repo = output.stdout.iter().map(|&x| x as char).count() != 0;
+
+                    if !is_git_repo {
+                        debug!("{} is not a git repo", name);
+                        continue;
+                    }
+
+                    let output = Command::new("git")
+                        .arg("rev-list")
+                        .arg("HEAD...origin/master")
+                        .arg("--count")
+                        .current_dir(&path)
+                        .output()
+                        .unwrap();
+
+                    let has_updates =
+                        output.stdout.iter().map(|&x| x as char).collect::<String>() != "0\n";
+
+                    if has_updates {
+                        debug!("Updating {}", name);
+                        Command::new("git")
+                            .arg("pull")
+                            .arg(&url)
+                            .spawn()
+                            .unwrap()
+                            .wait()
+                            .unwrap();
+                    } else {
+                        debug!("{} is up to date", &name);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn uninstall_plugin(&mut self, name: String) -> SystemResult {
+        let mut path = self.config.plugins_path.clone();
+        path.push(name.split("/").join("_"));
+
+        if path.exists() {
+            debug!("Uninstalling {}", name);
+            if let Err(e) = std::fs::remove_dir_all(path) {
+                error!("Failed to remove plugin: {}", e.to_string());
+            }
+        } else {
+            debug!("{} is not installed", name);
+        }
+        Ok(())
+    }
+
+    pub fn get_plugins(&mut self) -> SystemResult<Vec<String>> {
+        let mut list: Vec<String> = Vec::new();
+
+        if let Ok(dirs) = get_plugins_path_iter() {
+            for dir in dirs {
+                if let Ok(dir) = dir {
+                    list.push(dir.path().to_str().unwrap().into());
+                }
+            }
+        }
+
+        Ok(list)
     }
 
     pub fn get_window_title(&mut self) -> SystemResult<String> {
@@ -1027,9 +1132,14 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
-fn get_plugins_path() -> Result<PathBuf, String> {
+fn get_config_path() -> PathBuf {
     let mut plugins_path: PathBuf = dirs::config_dir().unwrap_or_default();
     plugins_path.push("nog");
+    plugins_path
+}
+
+fn get_plugins_path() -> Result<PathBuf, String> {
+    let mut plugins_path: PathBuf = get_config_path();
     plugins_path.push("plugins");
 
     if !plugins_path.exists() {
@@ -1044,18 +1154,18 @@ fn get_plugins_path_iter() -> Result<ReadDir, String> {
     Ok(get_plugins_path()?.read_dir().unwrap())
 }
 
-/// Fill source_locations of interpreter with plugin paths
-fn load_plugin_source_locations(i: &mut Interpreter) {
-    if let Ok(dirs) = get_plugins_path_iter() {
-        for dir in dirs {
-            if let Ok(dir) = dir {
-                let mut path = dir.path();
-                path.push("plugin");
-                i.source_locations.push(path);
-            }
-        }
-    }
-}
+// /// Fill source_locations of interpreter with plugin paths
+// fn load_plugin_source_locations(i: &mut Interpreter) {
+//     if let Ok(dirs) = get_plugins_path_iter() {
+//         for dir in dirs {
+//             if let Ok(dir) = dir {
+//                 let mut path = dir.path();
+//                 path.push("plugin");
+//                 i.source_locations.push(path);
+//             }
+//         }
+//     }
+// }
 
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");

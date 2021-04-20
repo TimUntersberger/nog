@@ -1,3 +1,7 @@
+function inspect(...)
+  print(nog.inspect(...))
+end
+
 local direction_keys = {
   H = "Left",
   J = "Down",
@@ -71,11 +75,6 @@ end)
 
 nog.wbind("F1", function()
   nog.launch("notepad.exe")
-end)
-
-nog.nbind("F2", function()
-  print("This keybinding prints this message once and then unbinds itself")
-  nog.unbind("F2")
 end)
 
 nog.nbind("Alt+I", nog.win_ignore)

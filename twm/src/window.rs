@@ -1,4 +1,3 @@
-use interpreter::RuntimeResult;
 use log::error;
 use parking_lot::Mutex;
 use std::{

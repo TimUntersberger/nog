@@ -3,6 +3,7 @@ use bar_config::BarConfig;
 use log::error;
 use rule::Rule;
 use std::{collections::HashMap, path::PathBuf, time::Duration};
+use crate::get_plugins_path;
 use update_channel::UpdateChannel;
 use workspace_setting::WorkspaceSetting;
 
@@ -48,7 +49,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             path: "".into(),
-            plugins_path: "".into(),
+            plugins_path: get_plugins_path().unwrap(),
             launch_on_startup: false,
             min_height: 200,
             min_width: 200,

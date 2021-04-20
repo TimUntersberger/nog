@@ -1,5 +1,4 @@
 use crate::{display::Display, system::DisplayId, AppState};
-use interpreter::{Dynamic, Function, Interpreter, RuntimeError};
 use mlua::Result as RuntimeResult;
 use parking_lot::Mutex;
 use std::{any::Any, collections::HashMap, fmt::Debug, sync::Arc};
