@@ -934,80 +934,12 @@ fn os_specific_setup(state: Arc<Mutex<AppState>>) {
     tray::create(state);
 }
 
-// fn parse_config(
-//     state_arc: Arc<Mutex<AppState>>,
-//     callbacks_arc: Arc<Mutex<Vec<Function>>>,
-//     interpreter_arc: Arc<Mutex<Interpreter>>,
-// ) -> Result<Config, String> {
-//     callbacks_arc.lock().clear();
-//     let mut config = Config::default();
-
-//     config.bar.use_default_components(state_arc.clone());
-
-//     let config = Arc::new(Mutex::new(config));
-//     let mut interpreter = Interpreter::new();
-
-//     let is_init_inner = Arc::new(AtomicBool::new(true));
-//     let is_init_inner2 = is_init_inner.clone();
-//     let is_init = move || is_init_inner2.load(std::sync::atomic::Ordering::SeqCst);
-
-//     interpreter.debug = true;
-//     interpreter.source_locations = interpreter_arc.lock().source_locations.clone();
-//     let root = nogscript::lib::create_root_module(
-//         is_init,
-//         state_arc.clone(),
-//         callbacks_arc.clone(),
-//         interpreter_arc.clone(),
-//         config.clone(),
-//     );
-//     interpreter.add_module(root);
-
-//     let mut config_path: PathBuf = dirs::config_dir().unwrap_or_default();
-//     config_path.push("nog");
-//     let mut plugins_path = get_plugins_path().unwrap_or_default();
-
-//     config.lock().path = config_path.clone();
-//     interpreter.source_locations.push(config_path.clone());
-
-//     if !config_path.exists() {
-//         debug!("nog folder doesn't exist yet. Creating the folder");
-//         std::fs::create_dir(config_path.clone()).map_err(|e| e.to_string())?;
-//     }
-
-//     config.lock().plugins_path = plugins_path.clone();
-
-//     interpreter.source_locations.push(plugins_path.clone());
-
-//     config_path.push("config.ns");
-
-//     if !config_path.exists() {
-//         debug!("config file doesn't exist yet. Creating the file");
-//         if let Ok(mut file) = std::fs::File::create(config_path.clone()) {
-//             debug!("Initializing config with default values");
-//             // file.write_all(include_bytes!("../../../assets/default_config.nog"))
-//             //     .map_err(|e| e.to_string())?;
-//         }
-//     }
-
-//     debug!("Running config file");
-
-//     interpreter.execute_file(config_path)?;
-
-//     is_init_inner.store(false, std::sync::atomic::Ordering::SeqCst);
-
-//     *interpreter_arc.lock() = interpreter;
-
-//     let cfg = config.lock();
-
-//     Ok(cfg.clone())
-// }
-
 fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>> {
     let receiver = state_arc.lock().event_channel.receiver.clone();
     let sender = state_arc.lock().event_channel.sender.clone();
 
-    //     info!("Starting hot reloading of config");
-    //     config::hot_reloading::start(state_arc.clone());
+    info!("Starting hot reloading of config");
+    config::hot_reloading::start(state_arc.clone());
 
     startup::set_launch_on_startup(state_arc.lock().config.launch_on_startup);
 
@@ -1092,15 +1024,7 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
                         break;
                     },
                     Event::ReloadConfig => {
-                        // info!("Reloading Config");
-                        // match parse_config(state_arc.clone(), callbacks_arc.clone(), interpreter_arc.clone()) {
-                        //     Ok(new_config) => update_config(state_arc.clone(), new_config),
-                        //     Err(e) => {
-                        //         sender.send(Event::NewPopup(Popup::new_error(vec![e])));
-                        //         Ok(())
-                        //     }
-
-                        // }
+                        info!("Reloading Config");
                         Ok(())
                     },
                     Event::UpdateBarSections(display_id, left, center, right) => {
@@ -1133,39 +1057,34 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
 }
 
 fn get_config_path() -> PathBuf {
-    let mut plugins_path: PathBuf = dirs::config_dir().unwrap_or_default();
-    plugins_path.push("nog");
-    plugins_path
+    let mut path: PathBuf = dirs::config_dir().unwrap_or_default();
+    path.push("nog");
+    path
 }
 
 fn get_plugins_path() -> Result<PathBuf, String> {
-    let mut plugins_path: PathBuf = get_config_path();
-    plugins_path.push("plugins");
+    let mut path: PathBuf = get_config_path();
+    path.push("plugins");
 
-    if !plugins_path.exists() {
+    if !path.exists() {
         debug!("plugins folder doesn't exist yet. Creating the folder");
-        std::fs::create_dir(plugins_path.clone()).map_err(|e| e.to_string())?;
+        std::fs::create_dir(path.clone()).map_err(|e| e.to_string())?;
     }
 
-    Ok(plugins_path)
+    Ok(path)
 }
 
 fn get_plugins_path_iter() -> Result<ReadDir, String> {
     Ok(get_plugins_path()?.read_dir().unwrap())
 }
 
-// /// Fill source_locations of interpreter with plugin paths
-// fn load_plugin_source_locations(i: &mut Interpreter) {
-//     if let Ok(dirs) = get_plugins_path_iter() {
-//         for dir in dirs {
-//             if let Ok(dir) = dir {
-//                 let mut path = dir.path();
-//                 path.push("plugin");
-//                 i.source_locations.push(path);
-//             }
-//         }
-//     }
-// }
+fn run_config(rt: &LuaRuntime) {
+    let mut path = get_config_path();
+    path.push("lua");
+    path.push("init.lua");
+
+    rt.run_file(path);
+}
 
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
@@ -1176,41 +1095,11 @@ fn main() {
     debug!("Setting up lua runtime");
     setup_lua_rt(state_arc.clone());
 
-    {
-        let rt = state_arc.lock().lua_rt.clone();
-        info!("Running config file");
-        rt.run_file("twm/init.lua");
-    }
+    run_config(&state_arc.lock().lua_rt);
 
     info!("Initializing Application");
     state_arc.lock().init(state_arc.clone());
     info!("Initialized Application");
-
-    // let callbacks_arc: Arc<Mutex<Vec<Function>>> = Arc::new(Mutex::new(Vec::new()));
-    // let mut interpreter = Interpreter::new();
-
-    // load_plugin_source_locations(&mut interpreter);
-
-    // let interpreter_arc = Arc::new(Mutex::new(interpreter));
-
-    //     {
-    //         let config = parse_config(
-    //             state_arc.clone(),
-    //             callbacks_arc.clone(),
-    //             interpreter_arc.clone(),
-    //         )
-    //         .map_err(|e| {
-    //             let state_arc = state_arc.clone();
-    //             Popup::error(vec![e], state_arc);
-    //         })
-    //         .unwrap_or_else(|_| {
-    //             let mut config = Config::default();
-    //             config.bar.use_default_components(state_arc.clone());
-    //             config
-    //         });
-
-    //         state_arc.lock().init(config)
-    //     }
 
     let arc = state_arc.clone();
 

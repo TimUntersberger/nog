@@ -1,5 +1,6 @@
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
 
+use log::debug;
 use mlua::{Function, Lua, Table};
 use parking_lot::Mutex;
 
@@ -73,8 +74,11 @@ impl LuaRuntime {
     }
 
     pub fn run_file<P: Into<PathBuf>>(&self, p: P) {
-        let content = std::fs::read_to_string(p.into()).unwrap();
-        self.run_str("init.lua", &content);
+        let path: PathBuf = p.into();
+        let path_str: String = path.display().to_string();
+        debug!("Executing {}", &path_str);
+        let content = std::fs::read_to_string(&path).unwrap();
+        self.run_str(&path_str, &content);
     }
 }
 

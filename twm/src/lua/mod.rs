@@ -658,13 +658,19 @@ fn load_workspace_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) ->
 pub fn setup_lua_rt(state_arc: Arc<Mutex<AppState>>) {
     let rt = state_arc.lock().lua_rt.clone();
 
+    macro_rules! run_lua_file {
+        ($path: tt) => {
+            rt.run_str(concat!("[internal] ", $path), include_str!(concat!("../../lua/", $path)));
+        }
+    }
+
     setup_nog_global(state_arc.clone(), &rt);
 
-    rt.run_str("NOG_INSPECT", include_str!("../lua/inspect.lua"));
+    run_lua_file!("inspect.lua");
 
     load_window_functions(state_arc.clone(), &rt).unwrap();
     load_workspace_functions(state_arc.clone(), &rt).unwrap();
-    load_plugin_functions(state_arc.clone(), &rt);
+    load_plugin_functions(state_arc.clone(), &rt).unwrap();
 
-    rt.run_str("NOG_RUNTIME", include_str!("../lua/runtime.lua"));
+    run_lua_file!("runtime.lua");
 }
