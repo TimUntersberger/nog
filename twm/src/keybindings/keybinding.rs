@@ -11,6 +11,16 @@ pub enum KeybindingKind {
     Normal,
 }
 
+impl KeybindingKind {
+    pub fn to_short_string(&self) -> String {
+        String::from(match self {
+            Self::Global => "g",
+            Self::Work => "w",
+            Self::Normal => "n",
+        })
+    }
+}
+
 impl Default for KeybindingKind {
     fn default() -> Self {
         Self::Normal
@@ -43,6 +53,15 @@ impl Keybinding {
     pub fn is_normal(&self) -> bool {
         self.kind == KeybindingKind::Normal
     }
+
+    pub fn as_key_combo(&self) -> String {
+        if self.modifier.is_empty() {
+            format!("{:?}", self.key)
+        } else {
+            let modifier_str = format!("{:?}", self.modifier).replace(" | ", "+");
+            format!("{}+{:?}", modifier_str, self.key)
+        }
+    }
 }
 
 impl FromStr for Keybinding {
@@ -54,10 +73,10 @@ impl FromStr for Keybinding {
         let modifier = key_combo_parts
             .iter()
             .take(modifier_count)
-            .map(|x| match *x {
-                "Alt" => Modifier::ALT,
-                "Control" => Modifier::CONTROL,
-                "Shift" => Modifier::SHIFT,
+            .map(|x| match x.to_lowercase().as_str() {
+                "alt" => Modifier::ALT,
+                "control" => Modifier::CONTROL,
+                "shift" => Modifier::SHIFT,
                 _ => Modifier::default(),
             })
             .fold(Modifier::default(), |mut sum, crr| {
@@ -66,8 +85,14 @@ impl FromStr for Keybinding {
                 sum
             });
 
-        let raw_key = key_combo_parts.iter().last().unwrap();
-        let key = Key::from_str(raw_key)
+        let mut raw_key = key_combo_parts.iter().last().unwrap().to_string();
+        let mut raw_key_chars = raw_key.chars();
+        raw_key = format!(
+            "{}{}",
+            raw_key_chars.next().unwrap().to_uppercase(),
+            raw_key_chars.collect::<String>()
+        );
+        let key = Key::from_str(&raw_key)
             .ok()
             .ok_or(format!("Invalid key {}", raw_key))?;
 

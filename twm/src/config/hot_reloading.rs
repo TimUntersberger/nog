@@ -33,8 +33,8 @@ pub fn start(state: Arc<Mutex<AppState>>) {
             match rx.recv() {
                 Ok(ev) => match ev {
                     DebouncedEvent::Write(path) => {
-                        if path.extension().unwrap() == "ns" {
-                            debug!("Nogscript file {:?} changed! Reloading config", &path);
+                        if path.extension().unwrap() == "lua" {
+                            debug!("Lua file {:?} changed! Reloading config", &path);
                             state
                                 .lock()
                                 .event_channel

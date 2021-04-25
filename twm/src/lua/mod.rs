@@ -8,9 +8,9 @@ use regex::Regex;
 use log::{error, warn};
 
 use crate::{
-    get_config_path,
-    bar::component::Component, config::rule::Rule, config::workspace_setting::WorkspaceSetting,
-    direction::Direction, event::Event, keybindings::keybinding::Keybinding,
+    bar::component::Component, config::bar_config::BarComponentsConfig, config::rule::Rule,
+    config::workspace_setting::WorkspaceSetting, config::Config, direction::Direction,
+    event::Event, get_config_path, keybindings::keybinding::Keybinding,
     keybindings::keybinding::KeybindingKind, split_direction::SplitDirection, system,
     system::DisplayId, system::WindowId, AppState,
 };
@@ -42,7 +42,7 @@ macro_rules! validate {
 }
 
 macro_rules! validate_tbl_prop {
-    ($lua: tt, $tbl: tt, $x: ident, $t: tt) => {
+    ($lua: tt, $tbl: tt, $x: ident, $t: ty) => {
         let $x = match $tbl.get::<_, Value>(stringify!($x)) {
             Err(_) => {
                 return Err(LuaError::RuntimeError(format!(
@@ -67,12 +67,19 @@ impl LuaBarConfigProxy {
     }
 }
 
-fn comp_from_tbl(state_arc: Arc<Mutex<AppState>>, lua: &Lua, tbl: Table) -> mlua::Result<Component> {
+fn comp_from_tbl(
+    state_arc: Arc<Mutex<AppState>>,
+    lua: &Lua,
+    tbl: Table,
+) -> mlua::Result<Component> {
     validate_tbl_prop!(lua, tbl, name, String);
     validate_tbl_prop!(lua, tbl, render, Function);
+    validate_tbl_prop!(lua, tbl, on_click, Option<Function>);
+
     let id = LuaRuntime::add_callback(lua, render)?;
-    let comp = Component::new(&name, move |disp_id| {
-        let rt = state_arc.lock().lua_rt.clone();
+    let state = state_arc.clone();
+    let mut comp = Component::new(&name, move |disp_id| {
+        let rt = state.lock().lua_rt.clone();
         let res = rt.with_lua(|lua| {
             let cb = LuaRuntime::get_callback(&lua, id)?;
             cb.call(disp_id.0)
@@ -80,198 +87,39 @@ fn comp_from_tbl(state_arc: Arc<Mutex<AppState>>, lua: &Lua, tbl: Table) -> mlua
 
         Ok(match res {
             Err(e) => {
-                error!("{}", crate::lua::get_err_msg(&e));
+                state
+                    .lock()
+                    .emit_lua_rt_error(&crate::lua::get_err_msg(&e));
                 vec![]
-            },
-            Ok(x) => x
+            }
+            Ok(x) => x,
         })
     });
 
-    Ok(comp)
-}
+    if let Some(on_click_fn) = on_click {
+        let id = LuaRuntime::add_callback(lua, on_click_fn)?;
+        let state = state_arc.clone();
+        comp.with_on_click(move |display_id, value, idx| {
+            let rt = state.lock().lua_rt.clone();
+            let res = rt.with_lua(|lua| {
+                let cb = LuaRuntime::get_callback(&lua, id)?;
+                cb.call::<_, ()>((display_id.0, value, idx))
+            });
 
-impl mlua::UserData for LuaBarConfigProxy {
-    fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_meta_function(mlua::MetaMethod::Index, |_, (this, key): (Self, String)| {
-            Ok(match key.as_str() {
-                "color" => Value::Integer(this.state.lock().config.bar.color as i64),
-                _ => Value::Nil,
-            })
+            if let Err(e) = res {
+                state
+                    .lock()
+                    .emit_lua_rt_error(&crate::lua::get_err_msg(&e));
+            }
+
+            Ok(())
         });
-
-        methods.add_meta_function(
-            mlua::MetaMethod::NewIndex,
-            |lua, (this, key, val): (Self, String, Value)| {
-                if key == "components" {
-                    let tbl = validate!(lua, val: Table)?;
-
-                    if let Ok(tbl) = tbl.get::<_, Table>("left") {
-                        for res in tbl.sequence_values::<Table>() {
-                            if let Ok(comp_tbl) = res {
-                                this.state.lock().config.bar.components.left.push(comp_from_tbl(this.state.clone(), lua, comp_tbl)?);
-                            }
-                        }
-                    } 
-
-                    if let Ok(tbl) = tbl.get::<_, Table>("center") {
-                        for res in tbl.sequence_values::<Table>() {
-                            if let Ok(comp_tbl) = res {
-                                this.state.lock().config.bar.components.center.push(comp_from_tbl(this.state.clone(), lua, comp_tbl)?);
-                            }
-                        }
-                    } 
-
-                    if let Ok(tbl) = tbl.get::<_, Table>("right") {
-                        for res in tbl.sequence_values::<Table>() {
-                            if let Ok(comp_tbl) = res {
-                                this.state.lock().config.bar.components.right.push(comp_from_tbl(this.state.clone(), lua, comp_tbl)?);
-                            }
-                        }
-                    }
-
-                    return Ok(());
-                }
-
-                macro_rules! map_props {
-                    ($($prop_name: ident),*) => {
-                        match key.as_str() {
-                            $(stringify!($prop_name) => {
-                                this.state.lock().config.bar.$prop_name = FromLua::from_lua(val, lua).unwrap()
-                            })*,
-                            x => {
-                                warn!("Unknown bar config property '{}'", x);
-                            }
-                        }
-                    }
-                }
-                Ok(map_props!(height, color, font, font_size))
-            },
-        );
+        comp.lua_on_click_id = Some(id);
     }
-}
 
-#[derive(Clone)]
-struct LuaConfigProxy {
-    state: Arc<Mutex<AppState>>,
-}
+    comp.lua_render_id = Some(id);
 
-impl LuaConfigProxy {
-    pub fn new(state: Arc<Mutex<AppState>>) -> Self {
-        Self { state }
-    }
-}
-
-impl mlua::UserData for LuaConfigProxy {
-    fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_meta_function(
-            mlua::MetaMethod::Index,
-            |lua, (this, key): (Self, String)| {
-                Ok(match key.as_str() {
-                    "bar" => Value::UserData(
-                        lua.create_userdata(LuaBarConfigProxy::new(this.state.clone()))?,
-                    ),
-                    "light_theme" => Value::Boolean(this.state.lock().config.light_theme),
-                    _ => Value::Nil,
-                })
-            },
-        );
-
-        methods.add_meta_function(
-            mlua::MetaMethod::NewIndex,
-            |lua, (this, key, val): (Self, String, Value)| {
-                if key == "rules" {
-                    match val {
-                        Value::Table(tbl) => {
-                            for pair in tbl.pairs::<String, Table>() {
-                                if let Ok((key, val)) = pair {
-                                    let mut rule = Rule::default();
-                                    //TODO: remove unwrap
-                                    rule.pattern = Regex::new(&key).unwrap();
-
-                                    for pair in val.pairs::<String, Value>() {
-                                        if let Ok((key, val)) = pair {
-                                            match key.as_str() {
-                                                "ignore" => rule.manage = !FromLua::from_lua(val, lua)?,
-                                                "chromium" => rule.chromium = FromLua::from_lua(val, lua)?,
-                                                "firefox" => rule.firefox = FromLua::from_lua(val, lua)?,
-                                                "has_custom_titlebar" => rule.has_custom_titlebar = FromLua::from_lua(val, lua)?,
-                                                "workspace_id" => rule.workspace_id = FromLua::from_lua(val, lua)?,
-                                                _ => {}
-                                            }
-                                        }
-                                    }
-
-                                    this.state.lock().config.rules.push(rule);
-                                }
-                            }
-                        },
-                        x => {
-                            error!("nog.config.rules has to be a table (found {})", x.type_name());
-                        }
-                    }
-                    return Ok(());
-                } 
-
-                if key == "workspaces" {
-                    match val {
-                        Value::Table(tbl) => {
-                            for pair in tbl.pairs::<i32, Table>() {
-                                if let Ok((key, val)) = pair {
-                                    let mut settings = WorkspaceSetting::default();
-                                    settings.id = key;
-
-                                    for pair in val.pairs::<String, Value>() {
-                                        if let Ok((key, val)) = pair {
-                                            match key.as_str() {
-                                                "text" => settings.text = FromLua::from_lua(val, lua)?,
-                                                "monitor" => settings.monitor = FromLua::from_lua(val, lua)?,
-                                                _ => {}
-                                            }
-                                        }
-                                    }
-
-                                    this.state.lock().config.workspace_settings.push(settings);
-                                }
-                            }
-                        },
-                        x => {
-                            error!("nog.config.workspaces has to be a table (found {})", x.type_name());
-                        }
-                    }
-                    return Ok(());
-                }
-
-                macro_rules! map_props {
-                    ($($prop_name: ident),*) => {
-                        match key.as_str() {
-                            $(stringify!($prop_name) => {
-                                this.state.lock().config.$prop_name = FromLua::from_lua(val, lua).unwrap()
-                            })*,
-                            x => {
-                                warn!("Unknown config property '{}'", x);
-                            }
-                        }
-                    }
-                }
-
-                Ok(map_props!(
-                    work_mode,
-                    display_app_bar,
-                    remove_task_bar,
-                    remove_title_bar,
-                    launch_on_startup,
-                    multi_monitor,
-                    use_border,
-                    min_height,
-                    min_width,
-                    light_theme,
-                    outer_gap,
-                    inner_gap,
-                    ignore_fullscreen_actions
-                ))
-            },
-        );
-    }
+    Ok(comp)
 }
 
 macro_rules! def_fn {
@@ -314,17 +162,244 @@ macro_rules! def_ffi_fn {
     };
 }
 
+fn config_to_lua<'a>(lua: &'a Lua, config: &Config) -> mlua::Result<Table<'a>> {
+    let tbl = lua.create_table()?;
+    let rules_tbl = lua.create_table()?;
+    let workspaces_tbl = lua.create_table()?;
+    let bar_tbl = lua.create_table()?;
+    let bar_components_tbl = lua.create_table()?;
+
+    macro_rules! map_prop {
+        ($tbl: tt, $path: expr, $name: tt) => {
+            $tbl.set(stringify!($name), $path.$name)?;
+        };
+        ($tbl: tt, $path: expr, $name: tt, true) => {
+            $tbl.set(stringify!($name), $path.$name.clone())?;
+        };
+    }
+
+    map_prop!(tbl, config, launch_on_startup);
+    map_prop!(tbl, config, enable_hot_reloading);
+    map_prop!(tbl, config, min_height);
+    map_prop!(tbl, config, min_width);
+    map_prop!(tbl, config, use_border);
+    map_prop!(tbl, config, outer_gap);
+    map_prop!(tbl, config, inner_gap);
+    map_prop!(tbl, config, remove_title_bar);
+    map_prop!(tbl, config, work_mode);
+    map_prop!(tbl, config, light_theme);
+    map_prop!(tbl, config, multi_monitor);
+    map_prop!(tbl, config, remove_task_bar);
+    map_prop!(tbl, config, display_app_bar);
+    map_prop!(tbl, config, ignore_fullscreen_actions);
+    map_prop!(tbl, config, allow_right_alt);
+
+    map_prop!(bar_tbl, config.bar, color);
+    map_prop!(bar_tbl, config.bar, height);
+    map_prop!(bar_tbl, config.bar, font, true);
+    map_prop!(bar_tbl, config.bar, font_size);
+
+    map_prop!(bar_components_tbl, config.bar.components, left, true);
+    map_prop!(bar_components_tbl, config.bar.components, center, true);
+    map_prop!(bar_components_tbl, config.bar.components, right, true);
+
+    for ws in &config.workspaces {
+        let tbl = lua.create_table()?;
+
+        tbl.set("monitor", ws.monitor)?;
+        tbl.set("text", ws.text.clone())?;
+
+        workspaces_tbl.set(ws.id, tbl)?;
+    }
+
+    for rule in &config.rules {
+        let tbl = lua.create_table()?;
+
+        tbl.set("chromium", rule.chromium)?;
+        tbl.set("firefox", rule.firefox)?;
+        tbl.set("has_custom_titlebar", rule.has_custom_titlebar)?;
+        tbl.set("ignore", !rule.manage)?;
+        tbl.set("workspace_id", rule.workspace_id)?;
+
+        rules_tbl.set(rule.pattern.to_string(), tbl)?;
+    }
+
+    bar_tbl.set("components", bar_components_tbl)?;
+    tbl.set("bar", bar_tbl)?;
+    tbl.set("workspaces", workspaces_tbl)?;
+    tbl.set("rules", rules_tbl)?;
+
+    Ok(tbl)
+}
+
+fn ws_from_tbl(lua: &Lua, id: i32, tbl: Table) -> mlua::Result<WorkspaceSetting> {
+    let mut ws = WorkspaceSetting::default();
+    ws.id = id;
+
+    for pair in tbl.pairs::<String, Value>() {
+        if let Ok((key, val)) = pair {
+            match key.as_str() {
+                "text" => ws.text = FromLua::from_lua(val, lua)?,
+                "monitor" => ws.monitor = FromLua::from_lua(val, lua)?,
+                _ => {}
+            }
+        }
+    }
+
+    Ok(ws)
+}
+
+fn rule_from_tbl(lua: &Lua, raw_pat: String, tbl: Table) -> mlua::Result<Rule> {
+    let mut rule = Rule::default();
+    rule.pattern = Regex::new(&raw_pat).map_err(|e| LuaError::RuntimeError(e.to_string()))?;
+
+    for pair in tbl.pairs::<String, Value>() {
+        if let Ok((key, val)) = pair {
+            match key.as_str() {
+                "ignore" => rule.manage = !FromLua::from_lua(val, lua)?,
+                "chromium" => rule.chromium = FromLua::from_lua(val, lua)?,
+                "firefox" => rule.firefox = FromLua::from_lua(val, lua)?,
+                "has_custom_titlebar" => rule.has_custom_titlebar = FromLua::from_lua(val, lua)?,
+                "workspace_id" => rule.workspace_id = FromLua::from_lua(val, lua)?,
+                _ => {}
+            }
+        }
+    }
+
+    Ok(rule)
+}
+
+fn components_from_tbl(
+    state_arc: Arc<Mutex<AppState>>,
+    lua: &Lua,
+    tbl: Table,
+) -> mlua::Result<BarComponentsConfig> {
+    let mut components = BarComponentsConfig::new();
+
+    if let Ok(tbl) = tbl.get::<_, Table>("left") {
+        for res in tbl.sequence_values::<Table>() {
+            if let Ok(comp_tbl) = res {
+                components
+                    .left
+                    .push(comp_from_tbl(state_arc.clone(), lua, comp_tbl)?);
+            }
+        }
+    }
+
+    if let Ok(tbl) = tbl.get::<_, Table>("center") {
+        for res in tbl.sequence_values::<Table>() {
+            if let Ok(comp_tbl) = res {
+                components
+                    .center
+                    .push(comp_from_tbl(state_arc.clone(), lua, comp_tbl)?);
+            }
+        }
+    }
+
+    if let Ok(tbl) = tbl.get::<_, Table>("right") {
+        for res in tbl.sequence_values::<Table>() {
+            if let Ok(comp_tbl) = res {
+                components
+                    .right
+                    .push(comp_from_tbl(state_arc.clone(), lua, comp_tbl)?);
+            }
+        }
+    }
+
+    Ok(components)
+}
+
 fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
     rt.with_lua(move |lua| {
         let nog_tbl = lua.create_table()?;
         let cb_tbl = lua.create_table()?;
 
         nog_tbl.set("__callbacks", cb_tbl)?;
+        nog_tbl.set("__is_setup", true)?;
         nog_tbl.set("version", option_env!("NOG_VERSION").unwrap_or("DEV"))?;
         nog_tbl.set("config_path", get_config_path().to_str())?;
 
         let state = state_arc.clone();
-        nog_tbl.set("config", LuaConfigProxy::new(state.clone()))?;
+        nog_tbl.set("config", config_to_lua(lua, &state.lock().config)?)?;
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "__on_config_updated", move |lua,
+                                                           (
+            prefix,
+            key,
+            value,
+        ): (
+            Value,
+            Value,
+            Value
+        )| {
+            validate!(lua, { prefix: String, key: String });
+            let parts = prefix.split('.').collect::<Vec<_>>();
+            let state_arc = state.clone();
+            let mut state = state_arc.lock();
+            macro_rules! set_prop {
+                (bar, $name: tt, $type: ty) => {
+                    state.config.bar.$name = validate!(lua, value: $type)?
+                };
+                ($name: tt, $type: ty) => {
+                    state.config.$name = validate!(lua, value: $type)?
+                };
+            }
+            match parts.as_slice() {
+                ["nog", "config"] => match key.as_str() {
+                    "launch_on_startup" => set_prop!(launch_on_startup, bool),
+                    "enable_hot_reloading" => set_prop!(enable_hot_reloading, bool),
+                    "min_height" => set_prop!(min_height, i32),
+                    "min_width" => set_prop!(min_width, i32),
+                    "use_border" => set_prop!(use_border, bool),
+                    "outer_gap" => set_prop!(outer_gap, i32),
+                    "inner_gap" => set_prop!(inner_gap, i32),
+                    "remove_title_bar" => set_prop!(remove_title_bar, bool),
+                    "work_mode" => set_prop!(work_mode, bool),
+                    "light_theme" => set_prop!(light_theme, bool),
+                    "multi_monitor" => set_prop!(multi_monitor, bool),
+                    "remove_task_bar" => set_prop!(remove_task_bar, bool),
+                    "display_app_bar" => set_prop!(display_app_bar, bool),
+                    "ignore_fullscreen_actions" => set_prop!(ignore_fullscreen_actions, bool),
+                    "allow_right_alt" => set_prop!(allow_right_alt, bool),
+                    "workspaces" => {
+                        let tbl = validate!(lua, value: Table)?;
+                        let mut workspaces = Vec::new();
+                        for res in tbl.pairs::<i32, Table>() {
+                            if let Ok((id, tbl)) = res {
+                                workspaces.push(ws_from_tbl(lua, id, tbl)?);
+                            }
+                        }
+                        state.config.workspaces = workspaces;
+                    }
+                    "rules" => {
+                        let tbl = validate!(lua, value: Table)?;
+                        let mut rules = Vec::new();
+                        for res in tbl.pairs::<String, Table>() {
+                            if let Ok((pat, tbl)) = res {
+                                rules.push(rule_from_tbl(lua, pat, tbl)?);
+                            }
+                        }
+                        state.config.rules = rules;
+                    }
+                    x => warn!("Unknown config key {}", x),
+                },
+                ["nog", "config", "bar"] => match key.as_str() {
+                    "color" => set_prop!(bar, color, i32),
+                    "height" => set_prop!(bar, height, i32),
+                    "font" => set_prop!(bar, font, String),
+                    "font_size" => set_prop!(bar, font_size, i32),
+                    "components" => {
+                        let tbl = validate!(lua, value: Table)?;
+                        state.config.bar.components =
+                            components_from_tbl(state_arc.clone(), lua, tbl)?;
+                    }
+                    x => warn!("Unknown config key {}", x),
+                },
+                x => unreachable!("Unsupported {:?}", x),
+            }
+            Ok(())
+        });
 
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "quit", move |_, (): ()| {
@@ -468,13 +543,15 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                 .keybindings
                 .iter()
                 .enumerate()
-                .find(|(_, kb)| {
-                    kb.key == s_kb.key && kb.modifier == s_kb.modifier
-                })
+                .find(|(_, kb)| kb.key == s_kb.key && kb.modifier == s_kb.modifier)
                 .map(|(i, kb)| (i, kb.clone()))
             {
                 state_g.config.keybindings.remove(i);
-                state_g.keybindings_manager.as_ref().unwrap().unregister_keybinding(kb);
+                state_g
+                    .keybindings_manager
+                    .as_ref()
+                    .unwrap()
+                    .unregister_keybinding(kb);
             }
 
             Ok(())
@@ -660,8 +737,11 @@ pub fn setup_lua_rt(state_arc: Arc<Mutex<AppState>>) {
 
     macro_rules! run_lua_file {
         ($path: tt) => {
-            rt.run_str(concat!("[internal] ", $path), include_str!(concat!("../../lua/", $path)));
-        }
+            rt.run_str(
+                concat!("[internal] ", $path),
+                include_str!(concat!("../../lua/", $path)),
+            );
+        };
     }
 
     setup_nog_global(state_arc.clone(), &rt);

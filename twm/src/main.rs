@@ -208,7 +208,7 @@ impl AppState {
 
             path.push("plugin");
         }
-        
+
         Ok(())
     }
 
@@ -701,7 +701,7 @@ impl AppState {
     }
 
     pub fn get_workspace_settings(&self, id: i32) -> Option<&WorkspaceSetting> {
-        self.config.workspace_settings.iter().find(|s| s.id == id)
+        self.config.workspaces.iter().find(|s| s.id == id)
     }
 
     pub fn is_workspace_visible(&self, id: i32) -> bool {
@@ -730,7 +730,7 @@ impl AppState {
 
     pub fn get_ws_text(&mut self, id: i32) -> String {
         self.config
-            .workspace_settings
+            .workspaces
             .iter()
             .find(|s| s.id == id)
             .map(|s| s.text.clone())
@@ -938,8 +938,10 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
     let receiver = state_arc.lock().event_channel.receiver.clone();
     let sender = state_arc.lock().event_channel.sender.clone();
 
-    info!("Starting hot reloading of config");
-    config::hot_reloading::start(state_arc.clone());
+    if state_arc.lock().config.enable_hot_reloading {
+        info!("Starting hot reloading of config");
+        config::hot_reloading::start(state_arc.clone());
+    }
 
     startup::set_launch_on_startup(state_arc.lock().config.launch_on_startup);
 
@@ -1025,6 +1027,9 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
                     },
                     Event::ReloadConfig => {
                         info!("Reloading Config");
+                        let rt = state_arc.lock().lua_rt.clone();
+                        run_config(&rt);
+
                         Ok(())
                     },
                     Event::UpdateBarSections(display_id, left, center, right) => {
@@ -1095,7 +1100,9 @@ fn main() {
     debug!("Setting up lua runtime");
     setup_lua_rt(state_arc.clone());
 
-    run_config(&state_arc.lock().lua_rt);
+    let rt = state_arc.lock().lua_rt.clone();
+    run_config(&rt);
+    rt.disable_setup().unwrap();
 
     info!("Initializing Application");
     state_arc.lock().init(state_arc.clone());

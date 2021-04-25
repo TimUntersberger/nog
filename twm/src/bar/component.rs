@@ -53,6 +53,8 @@ impl ComponentText {
 pub struct Component {
     pub name: String,
     pub is_clickable: bool,
+    pub lua_render_id: Option<usize>,
+    pub lua_on_click_id: Option<usize>,
     render_fn: Arc<dyn for<'a> Fn(DisplayId) -> RuntimeResult<Vec<ComponentText>> + Send + Sync>,
     on_click_fn: Option<Arc<dyn Fn(DisplayId, i32, usize) -> RuntimeResult<()> + Send + Sync>>,
 }
@@ -62,6 +64,8 @@ impl Default for Component {
         Self {
             name: "Default".into(),
             is_clickable: false,
+            lua_render_id: None,
+            lua_on_click_id: None,
             render_fn: Arc::new(|_| Ok(vec![])),
             on_click_fn: None,
         }
@@ -69,13 +73,15 @@ impl Default for Component {
 }
 
 impl Component {
-    pub fn new<'a>(
+    pub fn new(
         name: &str,
         render_fn: impl Fn(DisplayId) -> RuntimeResult<Vec<ComponentText>> + Send + Sync + 'static,
     ) -> Self {
         Self {
             name: name.into(),
             is_clickable: false,
+            lua_render_id: None,
+            lua_on_click_id: None,
             render_fn: Arc::new(render_fn),
             on_click_fn: None,
         }

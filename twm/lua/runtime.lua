@@ -176,6 +176,53 @@ nog.components.fullscreen_indicator = function(indicator)
   }
 end
 
+-- This is used to create a proxy table which notifies nog when a config value changes
+function create_proxy(path)
+  path = path or {}
+
+  local prefix = "nog.config"
+  local tbl = nog.config
+  local parts_len = #path
+  local proxy = {}
+
+  for _, part in ipairs(path) do
+    prefix = prefix .. "." .. part
+    tbl = tbl[part]
+  end
+
+  setmetatable(proxy, {
+    __index = tbl,
+    __newindex = function(t, k, v)
+      nog.__on_config_updated(prefix, k, v, nog.__is_setup)
+      tbl[k] = v
+    end
+  })
+
+  local tmp_tbl = nog
+  -- name of the field that gets replaced
+  local last_part = "config"
+
+  for i, part in ipairs(path) do
+    if i == 1 then
+      tmp_tbl = nog.config
+    end
+    if i == parts_len then
+      last_part = part
+      break
+    else
+      tmp_tbl = tmp_tbl[part]
+    end
+  end
+
+  tmp_tbl[last_part] = proxy
+end
+
+create_proxy({"bar", "components"})
+create_proxy({"bar"})
+create_proxy({"rules"})
+create_proxy({"workspaces"})
+create_proxy({})
+
 nog.config.bar.components = {
   left = {
     nog.components.workspaces()

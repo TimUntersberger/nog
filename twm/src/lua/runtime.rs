@@ -4,7 +4,7 @@ use log::debug;
 use mlua::{Function, Lua, Table};
 use parking_lot::Mutex;
 
-const CALLBACK_TBL_NAME: &'static str = "__callbacks";
+pub const CALLBACK_TBL_NAME: &'static str = "__callbacks";
 
 //TODO: Fix unwraps
 
@@ -27,6 +27,26 @@ impl LuaRuntime {
 
     pub fn with_lua<R>(&self, f: impl Fn(&mut Lua) -> mlua::Result<R>) -> mlua::Result<R> {
         f(&mut self.0.lock())
+    }
+
+    pub fn enable_setup(&self) -> mlua::Result<()> {
+        self.with_lua(|lua| {
+            lua.globals()
+                .get::<_, Table>("nog")?
+                .set("__is_setup", true)?;
+
+            Ok(())
+        })
+    }
+
+    pub fn disable_setup(&self) -> mlua::Result<()> {
+        self.with_lua(|lua| {
+            lua.globals()
+                .get::<_, Table>("nog")?
+                .set("__is_setup", false)?;
+
+            Ok(())
+        })
     }
 
     pub fn add_callback(lua: &Lua, cb: Function) -> mlua::Result<usize> {

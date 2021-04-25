@@ -15,6 +15,13 @@ pub struct BarComponentsConfig {
 }
 
 impl BarComponentsConfig {
+    pub fn new() -> Self {
+        Self {
+            left: Vec::new(),
+            center: Vec::new(),
+            right: Vec::new(),
+        }
+    }
     pub fn empty(&mut self) {
         self.left = Vec::new();
         self.center = Vec::new();
