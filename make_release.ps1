@@ -15,15 +15,19 @@ if (!$?) {
   return
 }
 
-./rcedit.exe ./$root_dir/bin/nog.exe --set-icon ./assets/logo.ico
-
-if (test-path ./$root_dir) {
-  remove-item -Path ./$root_dir -Recurse
+if (test-path ./$root_dir.zip) {
+  remove-item -Path ./$root_dir.zip
 }
 
 new-item -path . -name $root_dir -itemtype "Directory"
 new-item -path ./$root_dir -name "runtime" -itemtype "Directory"
 new-item -path ./$root_dir -name "bin" -itemtype "Directory"
 
-copy-item ./twm/runtime/* ./$root_dir/runtime -Recurse
+copy-item ./twm/runtime/* ./$root_dir/runtime -recurse
 copy-item ./target/release/twm.exe ./$root_dir/bin/nog.exe
+
+./rcedit.exe ./$root_dir/bin/nog.exe --set-icon ./assets/logo.ico
+
+compress-archive ./$root_dir ./$root_dir.zip
+
+remove-item -Path ./$root_dir -recurse
