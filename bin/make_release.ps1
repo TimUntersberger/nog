@@ -26,7 +26,7 @@ new-item -path ./$root_dir -name "bin" -itemtype "Directory"
 copy-item ./twm/runtime/* ./$root_dir/runtime -recurse
 copy-item ./target/release/twm.exe ./$root_dir/bin/nog.exe
 
-./rcedit.exe ./$root_dir/bin/nog.exe --set-icon ./assets/logo.ico
+./bin/rcedit.exe ./$root_dir/bin/nog.exe --set-icon ./assets/logo.ico
 
 compress-archive ./$root_dir ./$root_dir.zip
 
