@@ -56,10 +56,10 @@ impl Keybinding {
 
     pub fn as_key_combo(&self) -> String {
         if self.modifier.is_empty() {
-            format!("{:?}", self.key)
+            format!("{}", self.key)
         } else {
             let modifier_str = format!("{:?}", self.modifier).replace(" | ", "+");
-            format!("{}+{:?}", modifier_str, self.key)
+            format!("{}+{}", modifier_str, self.key)
         }
     }
 }

@@ -29,7 +29,10 @@ pub enum ChanMessage {
     LeaveWorkMode,
     EnterWorkMode,
     RegisterKeybindings,
+    RegisterKeybinding(Keybinding),
+    RegisterKeybindingBatch(Vec<Keybinding>),
     UnregisterKeybinding(Keybinding),
+    UnregisterKeybindingBatch(Vec<Keybinding>),
     UnregisterKeybindings,
     ChangeMode(Mode),
     ModeCbExecuted,
@@ -171,10 +174,25 @@ impl KbManager {
             .send(ChanMessage::UnregisterKeybinding(kb))
             .expect("Failed to send UnregisterKeybindings");
     }
+    pub fn unregister_keybinding_batch(&self, kbs: Vec<Keybinding>) {
+        self.sender
+            .send(ChanMessage::UnregisterKeybindingBatch(kbs))
+            .expect("Failed to send UnregisterKeybindingBatch");
+    }
     pub fn register_keybindings(&self) {
         self.sender
             .send(ChanMessage::RegisterKeybindings)
             .expect("Failed to send RegisterKeybindings");
+    }
+    pub fn register_keybinding(&self, kb: Keybinding) {
+        self.sender
+            .send(ChanMessage::RegisterKeybinding(kb))
+            .expect("Failed to send RegisterKeybinding");
+    }
+    pub fn register_keybinding_batch(&self, kbs: Vec<Keybinding>) {
+        self.sender
+            .send(ChanMessage::RegisterKeybindingBatch(kbs))
+            .expect("Failed to send RegisterKeybindingBatch");
     }
     pub fn enter_mode(&mut self, mode: &str) {
         self.change_mode(Some(mode.into()));
@@ -269,6 +287,22 @@ impl KbManager {
                         ChanMessage::UnregisterKeybinding(kb) => {
                             let inner = inner.lock();
                             inner.unregister_kb(&kb);
+                        }
+                        ChanMessage::UnregisterKeybindingBatch(kbs) => {
+                            let inner = inner.lock();
+                            for kb in kbs {
+                                inner.unregister_kb(&kb);
+                            }
+                        }
+                        ChanMessage::RegisterKeybinding(kb) => {
+                            let inner = inner.lock();
+                            inner.register_kb(&kb);
+                        }
+                        ChanMessage::RegisterKeybindingBatch(kbs) => {
+                            let inner = inner.lock();
+                            for kb in kbs {
+                                inner.register_kb(&kb);
+                            }
                         }
                         ChanMessage::UnregisterKeybindings => {
                             let inner = inner.lock();

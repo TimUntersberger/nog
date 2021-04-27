@@ -87,9 +87,7 @@ fn comp_from_tbl(
 
         Ok(match res {
             Err(e) => {
-                state
-                    .lock()
-                    .emit_lua_rt_error(&crate::lua::get_err_msg(&e));
+                state.lock().emit_lua_rt_error(&crate::lua::get_err_msg(&e));
                 vec![]
             }
             Ok(x) => x,
@@ -107,9 +105,7 @@ fn comp_from_tbl(
             });
 
             if let Err(e) = res {
-                state
-                    .lock()
-                    .emit_lua_rt_error(&crate::lua::get_err_msg(&e));
+                state.lock().emit_lua_rt_error(&crate::lua::get_err_msg(&e));
             }
 
             Ok(())
@@ -314,6 +310,8 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
         let nog_tbl = lua.create_table()?;
         let cb_tbl = lua.create_table()?;
 
+        // This never gets cleaned up which could causes some performance problems after a long
+        // time
         nog_tbl.set("__callbacks", cb_tbl)?;
         nog_tbl.set("__is_setup", true)?;
         nog_tbl.set("version", option_env!("NOG_VERSION").unwrap_or("DEV"))?;
@@ -407,6 +405,11 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             Ok(())
         });
 
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "get_keybindings", move |lua, (): ()| {
+            Ok(state.lock().config.keybindings.clone())
+        });
+
         def_fn!(lua, nog_tbl, "launch", move |lua, name: Value| {
             validate!(lua, { name: String });
             system::api::launch_program(name)?;
@@ -419,12 +422,12 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             Ok(text)
         });
 
-        let state = state_arc.clone();
-        def_fn!(lua, nog_tbl, "toggle_mode", move |lua, name: Value| {
-            validate!(lua, { name: String });
-            state.lock().toggle_mode(name);
-            Ok(())
-        });
+        //         let state = state_arc.clone();
+        //         def_fn!(lua, nog_tbl, "toggle_mode", move |lua, name: Value| {
+        //             validate!(lua, { name: String });
+        //             state.lock().toggle_mode(name);
+        //             Ok(())
+        //         });
 
         let state = state_arc.clone();
         def_fn!(
@@ -443,15 +446,15 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             }
         );
 
-        let state = state_arc.clone();
-        def_fn!(lua, nog_tbl, "get_kb_mode", move |_, (): ()| {
-            Ok(state
-                .lock()
-                .keybindings_manager
-                .as_ref()
-                .unwrap()
-                .try_get_mode())
-        });
+        //         let state = state_arc.clone();
+        //         def_fn!(lua, nog_tbl, "get_kb_mode", move |_, (): ()| {
+        //             Ok(state
+        //                 .lock()
+        //                 .keybindings_manager
+        //                 .as_ref()
+        //                 .unwrap()
+        //                 .try_get_mode())
+        //         });
 
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "toggle_work_mode", move |_, (): ()| {
@@ -533,6 +536,31 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
         });
 
         let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "__unbind_batch", move |lua, kbs: Value| {
+            validate!(lua, {
+                kbs: Vec<Keybinding>
+            });
+
+            let mut state = state.lock();
+            for s_kb in &kbs {
+                if let Some(i) = state
+                    .config
+                    .keybindings
+                    .iter()
+                    .enumerate()
+                    .find(|(_, kb)| kb.key == s_kb.key && kb.modifier == s_kb.modifier)
+                    .map(|(i, _)| i)
+                {
+                    state.config.keybindings.remove(i);
+                }
+            }
+            if let Some(kbm) = state.keybindings_manager.as_ref() {
+                kbm.unregister_keybinding_batch(kbs);
+            }
+            Ok(())
+        });
+
+        let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "unbind", move |lua, key: Value| {
             validate!(lua, { key: String });
             let mut state_g = state.lock();
@@ -547,11 +575,9 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                 .map(|(i, kb)| (i, kb.clone()))
             {
                 state_g.config.keybindings.remove(i);
-                state_g
-                    .keybindings_manager
-                    .as_ref()
-                    .unwrap()
-                    .unregister_keybinding(kb);
+                if let Some(kbm) = state_g.keybindings_manager.as_ref() {
+                    kbm.unregister_keybinding(kb);
+                }
             }
 
             Ok(())
@@ -563,60 +589,76 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             Ok(state.lock().get_ws_text(ws_id))
         });
 
+        //         let state = state_arc.clone();
+        //         def_fn!(
+        //             lua,
+        //             nog_tbl,
+        //             "mode",
+        //             move |lua, (name, cb): (Value, Value)| {
+        //                 validate!(lua, {
+        //                     name: String,
+        //                     cb: Function
+        //                 });
+
+        //                 let state2 = state.clone();
+        //                 let cb_id = LuaRuntime::add_callback(lua, cb)?;
+
+        //                 let wrapped_cb = lua.create_function(move |lua, (): ()| {
+        //                     let state3 = state2.clone();
+        //                     let bind_fn = lua.create_function(move |lua, (key, cb): (Value, Value)| {
+        //                         validate!(lua, {
+        //                             key: String,
+        //                             cb: Function
+        //                         });
+        //                         let id = LuaRuntime::add_callback(lua, cb)?;
+        //                         let mut kb = Keybinding::from_str(&key).unwrap();
+        //                         kb.callback_id = id as usize;
+        //                         state3
+        //                             .lock()
+        //                             .keybindings_manager
+        //                             .as_mut()
+        //                             .unwrap()
+        //                             .add_mode_keybinding(kb);
+
+        //                         Ok(())
+        //                     })?;
+
+        //                     let cb = LuaRuntime::get_callback(lua, cb_id)?;
+        //                     cb.call(bind_fn)?;
+
+        //                     Ok(())
+        //                 })?;
+
+        //                 let wrapped_cb_id = LuaRuntime::add_callback(lua, wrapped_cb)?;
+        //                 state
+        //                     .lock()
+        //                     .config
+        //                     .mode_handlers
+        //                     .insert(name.clone(), wrapped_cb_id);
+
+        //                 Ok(())
+        //             }
+        //         );
+
         let state = state_arc.clone();
-        def_fn!(
-            lua,
-            nog_tbl,
-            "mode",
-            move |lua, (name, cb): (Value, Value)| {
-                validate!(lua, {
-                    name: String,
-                    cb: Function
-                });
+        def_fn!(lua, nog_tbl, "__bind_batch", move |lua, kbs: Value| {
+            validate!(lua, {
+                kbs: Vec<Keybinding>
+            });
 
-                let state2 = state.clone();
-                let cb_id = LuaRuntime::add_callback(lua, cb)?;
-
-                let wrapped_cb = lua.create_function(move |lua, (): ()| {
-                    let state3 = state2.clone();
-                    let bind_fn = lua.create_function(move |lua, (key, cb): (Value, Value)| {
-                        validate!(lua, {
-                            key: String,
-                            cb: Function
-                        });
-                        let id = LuaRuntime::add_callback(lua, cb)?;
-                        let mut kb = Keybinding::from_str(&key).unwrap();
-                        kb.callback_id = id as usize;
-                        state3
-                            .lock()
-                            .keybindings_manager
-                            .as_mut()
-                            .unwrap()
-                            .add_mode_keybinding(kb);
-
-                        Ok(())
-                    })?;
-
-                    let cb = LuaRuntime::get_callback(lua, cb_id)?;
-                    cb.call(bind_fn)?;
-
-                    Ok(())
-                })?;
-
-                let wrapped_cb_id = LuaRuntime::add_callback(lua, wrapped_cb)?;
-                state
-                    .lock()
-                    .config
-                    .mode_handlers
-                    .insert(name.clone(), wrapped_cb_id);
-
-                Ok(())
+            let mut state = state.lock();
+            for kb in &kbs {
+                state.config.keybindings.push(kb.clone());
             }
-        );
+            if let Some(kbm) = state.keybindings_manager.as_ref() {
+                kbm.register_keybinding_batch(kbs);
+            }
+            Ok(())
+        });
 
         let state = state_arc.clone();
-        def_fn!(lua, nog_tbl, "bind", move |lua,
-                                            (mode, key, cb): (
+        def_fn!(lua, nog_tbl, "__bind", move |lua,
+                                            (mode, key, id): (
             Value,
             Value,
             Value
@@ -624,7 +666,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             validate!(lua, {
                 mode: String,
                 key: String,
-                cb: Function
+                id: usize
             });
             let mut kb = Keybinding::from_str(&key).unwrap();
             kb.kind = match mode.as_str() {
@@ -633,10 +675,12 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                 _ => KeybindingKind::Normal,
             };
 
-            let id = LuaRuntime::add_callback(lua, cb)?;
-
-            kb.callback_id = id as usize;
-            state.lock().add_keybinding(kb);
+            kb.callback_id = id;
+            let mut state = state.lock();
+            state.config.keybindings.push(kb.clone());
+            if let Some(kbm) = state.keybindings_manager.as_ref() {
+                kbm.register_keybinding(kb);
+            }
             Ok(())
         });
 

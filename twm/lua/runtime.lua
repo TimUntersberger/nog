@@ -17,6 +17,16 @@ function nog.clone(value, is_deep)
   error("Unsupported type: " .. t)
 end
 
+function nog.tbl_filter(tbl, f)
+  local res = {}
+  for _, x in ipairs(tbl) do
+    if f(x) then
+      table.insert(res, x)
+    end
+  end
+  return res
+end
+
 function nog.split(sep)
   if sep == nil then
     sep = "%s"
@@ -29,6 +39,46 @@ function nog.split(sep)
 end
 
 local initial_package_path = nog.clone(package.path)
+local modes = {}
+local previous_kbs = nil
+local current_mode = nil
+
+function nog.mode(name, cb)
+  modes[name] = cb
+end
+
+function nog.toggle_mode(name)
+  local cb = modes[name]
+
+  assert(cb ~= nil, string.format("Mode '%s' has not been defined yet", name))
+
+  if current_mode ~= nil then
+    if current_mode == name then
+      local mode_kbs = nog.get_keybindings()
+
+      nog.__unbind_batch(nog.tbl_filter(mode_kbs, function(kb)
+        return kb.mode == "n"
+      end))
+
+      nog.__bind_batch(nog.tbl_filter(previous_kbs, function(kb)
+        return kb.mode == "n"
+      end))
+
+      current_mode = nil
+    else
+    end
+  else
+    previous_kbs = nog.get_keybindings()
+
+    nog.__unbind_batch(nog.tbl_filter(previous_kbs, function(kb)
+      return kb.mode == "n"
+    end))
+
+    cb()
+
+    current_mode = name
+  end
+end
 
 local function setup_package_path()
   package.path = initial_package_path
@@ -52,6 +102,11 @@ local function create_bind_fn(mode)
   return function(key, cb)
     nog.bind(mode, key, cb)
   end
+end
+
+nog.bind = function(m, k, f)
+  table.insert(nog.__callbacks, f)
+  nog.__bind(m, k, #nog.__callbacks)
 end
 
 nog.nbind = create_bind_fn("n")
@@ -123,9 +178,9 @@ nog.components.active_mode = function()
   return {
     name = "ActiveMode",
     render = function()
-      local mode = nog.get_kb_mode()
-      if mode ~= nil then
-        mode = mode .. " is active"
+      local mode
+      if current_mode ~= nil then
+        mode = current_mode .. " is active"
       end
       return {{
         text = mode or "",
