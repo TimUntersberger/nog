@@ -15,7 +15,11 @@ Since nog uses a custom language we will provide official plugins for syntax hig
 
 ## Download
 
-In almost all cases the [master](https://github.com/TimUntersberger/nog/releases/tag/master-release) release is the way to go.
+### Windows
+
+```powershell
+(iwr "https://raw.githubusercontent.com/TimUntersberger/nog/master/bin/download_release.ps1").Content > download.ps1; ./download.ps1 master-release; rm download.ps1
+```
 
 ## Known Problems
 
