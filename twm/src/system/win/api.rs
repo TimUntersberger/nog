@@ -131,6 +131,7 @@ pub fn add_launch_on_startup() {
         let source_path = std::env::current_exe().unwrap();
 
         target_path.push("nog");
+        target_path.push("bin");
         target_path.push("nog.exe");
 
         if source_path != target_path {

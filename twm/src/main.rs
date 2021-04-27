@@ -1067,6 +1067,26 @@ fn get_config_path() -> PathBuf {
     path
 }
 
+fn get_runtime_path() -> PathBuf {
+    #[cfg(debug_assertions)] // dev
+    {
+        let mut path: PathBuf = std::env::current_exe().unwrap();
+        path.pop();
+        path.pop();
+        path.pop();
+        path.push("twm");
+        path.push("runtime");
+        path
+    }
+    #[cfg(not(debug_assertions))] // prod
+    {
+        let mut path: PathBuf = dirs::data_dir().unwrap_or_default();
+        path.push("nog");
+        path.push("runtime");
+        path
+    }
+}
+
 fn get_plugins_path() -> Result<PathBuf, String> {
     let mut path: PathBuf = get_config_path();
     path.push("plugins");

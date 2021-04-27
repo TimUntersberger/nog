@@ -13,7 +13,7 @@ use crate::{
     event::Event, get_config_path, keybindings::keybinding::Keybinding,
     keybindings::keybinding::KeybindingKind, split_direction::SplitDirection, system,
     system::DisplayId, system::WindowId, AppState,
-};
+get_runtime_path};
 
 mod conversions;
 mod runtime;
@@ -304,6 +304,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
         nog_tbl.set("__callbacks", cb_tbl)?;
         nog_tbl.set("__is_setup", true)?;
         nog_tbl.set("version", option_env!("NOG_VERSION").unwrap_or("DEV"))?;
+        nog_tbl.set("runtime_path", get_runtime_path().to_str())?;
         nog_tbl.set("config_path", get_config_path().to_str())?;
 
         let state = state_arc.clone();
@@ -700,14 +701,9 @@ fn load_workspace_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) ->
 pub fn setup_lua_rt(state_arc: Arc<Mutex<AppState>>) {
     let rt = state_arc.lock().lua_rt.clone();
 
-    macro_rules! run_lua_file {
-        ($path: tt) => {
-            rt.run_str(
-                concat!("[internal] ", $path),
-                include_str!(concat!("../../runtime/lua/", $path)),
-            );
-        };
-    }
+    setup_nog_global(state_arc.clone(), &rt);
+
+    rt.run_file(format!("{}/lua/runtime.lua", get_runtime_path().to_str().unwrap()));
 
     rt.with_lua(|lua| {
         let state = state_arc.lock();
@@ -738,13 +734,7 @@ pub fn setup_lua_rt(state_arc: Arc<Mutex<AppState>>) {
         Ok(())
     }).unwrap();
 
-    setup_nog_global(state_arc.clone(), &rt);
-
-    run_lua_file!("inspect.lua");
-
     load_window_functions(state_arc.clone(), &rt).unwrap();
     load_workspace_functions(state_arc.clone(), &rt).unwrap();
     load_plugin_functions(state_arc.clone(), &rt).unwrap();
-
-    run_lua_file!("runtime.lua");
 }
