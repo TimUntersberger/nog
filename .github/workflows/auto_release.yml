@@ -29,7 +29,7 @@ jobs:
         # enable command workflow processing
         echo "::pause-logging::"
     - name: Make Release
-      run: ./make_release.ps1 "${{ env.BRANCH_NAME }} ${{ env.COMMIT_HASH }}"
+      run: ./bin/make_release.ps1 "${{ env.BRANCH_NAME }} ${{ env.COMMIT_HASH }}"
     - name: Create Release
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
