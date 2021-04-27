@@ -10,6 +10,11 @@ $out_path = "$env:APPDATA/nog_lua"
 
 invoke-webrequest $asset_url -outfile "$asset_name.zip"
 expand-archive "./$asset_name.zip" "$asset_name"
+
+if (test-path $out_path) {
+  remove-item $out_path -Recurse
+}
+
 move-item "$asset_name/Nog" $out_path
 
 remove-item "./$asset_name.zip"
