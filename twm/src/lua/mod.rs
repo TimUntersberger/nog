@@ -56,17 +56,6 @@ macro_rules! validate_tbl_prop {
     };
 }
 
-#[derive(Clone)]
-struct LuaBarConfigProxy {
-    state: Arc<Mutex<AppState>>,
-}
-
-impl LuaBarConfigProxy {
-    pub fn new(state: Arc<Mutex<AppState>>) -> Self {
-        Self { state }
-    }
-}
-
 fn comp_from_tbl(
     state_arc: Arc<Mutex<AppState>>,
     lua: &Lua,
@@ -422,13 +411,6 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             Ok(text)
         });
 
-        //         let state = state_arc.clone();
-        //         def_fn!(lua, nog_tbl, "toggle_mode", move |lua, name: Value| {
-        //             validate!(lua, { name: String });
-        //             state.lock().toggle_mode(name);
-        //             Ok(())
-        //         });
-
         let state = state_arc.clone();
         def_fn!(
             lua,
@@ -445,16 +427,6 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                 Ok(grids.iter().map(|g| g.id).collect::<Vec<_>>())
             }
         );
-
-        //         let state = state_arc.clone();
-        //         def_fn!(lua, nog_tbl, "get_kb_mode", move |_, (): ()| {
-        //             Ok(state
-        //                 .lock()
-        //                 .keybindings_manager
-        //                 .as_ref()
-        //                 .unwrap()
-        //                 .try_get_mode())
-        //         });
 
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "toggle_work_mode", move |_, (): ()| {
@@ -588,57 +560,6 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             validate!(lua, { ws_id: i32 });
             Ok(state.lock().get_ws_text(ws_id))
         });
-
-        //         let state = state_arc.clone();
-        //         def_fn!(
-        //             lua,
-        //             nog_tbl,
-        //             "mode",
-        //             move |lua, (name, cb): (Value, Value)| {
-        //                 validate!(lua, {
-        //                     name: String,
-        //                     cb: Function
-        //                 });
-
-        //                 let state2 = state.clone();
-        //                 let cb_id = LuaRuntime::add_callback(lua, cb)?;
-
-        //                 let wrapped_cb = lua.create_function(move |lua, (): ()| {
-        //                     let state3 = state2.clone();
-        //                     let bind_fn = lua.create_function(move |lua, (key, cb): (Value, Value)| {
-        //                         validate!(lua, {
-        //                             key: String,
-        //                             cb: Function
-        //                         });
-        //                         let id = LuaRuntime::add_callback(lua, cb)?;
-        //                         let mut kb = Keybinding::from_str(&key).unwrap();
-        //                         kb.callback_id = id as usize;
-        //                         state3
-        //                             .lock()
-        //                             .keybindings_manager
-        //                             .as_mut()
-        //                             .unwrap()
-        //                             .add_mode_keybinding(kb);
-
-        //                         Ok(())
-        //                     })?;
-
-        //                     let cb = LuaRuntime::get_callback(lua, cb_id)?;
-        //                     cb.call(bind_fn)?;
-
-        //                     Ok(())
-        //                 })?;
-
-        //                 let wrapped_cb_id = LuaRuntime::add_callback(lua, wrapped_cb)?;
-        //                 state
-        //                     .lock()
-        //                     .config
-        //                     .mode_handlers
-        //                     .insert(name.clone(), wrapped_cb_id);
-
-        //                 Ok(())
-        //             }
-        //         );
 
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "__bind_batch", move |lua, kbs: Value| {
@@ -783,10 +704,39 @@ pub fn setup_lua_rt(state_arc: Arc<Mutex<AppState>>) {
         ($path: tt) => {
             rt.run_str(
                 concat!("[internal] ", $path),
-                include_str!(concat!("../../lua/", $path)),
+                include_str!(concat!("../../runtime/lua/", $path)),
             );
         };
     }
+
+    rt.with_lua(|lua| {
+        let state = state_arc.lock();
+        let package_tbl = lua.globals().get::<_, Table>("package")?;
+        let mut path = package_tbl.get::<_, String>("path")?;
+        let mut cpath = package_tbl.get::<_, String>("cpath")?;
+
+        for plug_path in state.get_plugins().unwrap() {
+            path = format!("{}\\lua\\?.lua;{}", plug_path, path);
+        }
+
+        let dll_path = {
+            let mut path = std::env::current_exe().unwrap();
+            path.pop();
+            path.pop();
+            path.pop();
+            path.push("twm");
+            path.push("runtime");
+            path.push("dll");
+            path
+        };
+
+        cpath = format!("{}\\?.dll;{}", dll_path.to_str().unwrap(), cpath);
+
+        package_tbl.set("path", path)?;
+        package_tbl.set("cpath", cpath)?;
+
+        Ok(())
+    }).unwrap();
 
     setup_nog_global(state_arc.clone(), &rt);
 

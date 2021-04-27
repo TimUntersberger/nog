@@ -38,7 +38,6 @@ function nog.split(sep)
   return t
 end
 
-local initial_package_path = nog.clone(package.path)
 local modes = {}
 local previous_kbs = nil
 local current_mode = nil
@@ -77,13 +76,6 @@ function nog.toggle_mode(name)
     cb()
 
     current_mode = name
-  end
-end
-
-local function setup_package_path()
-  package.path = initial_package_path
-  for _, p in ipairs(nog.plug_list()) do
-    package.path = p .. "\\lua\\?.lua;" .. package.path
   end
 end
 
@@ -295,4 +287,3 @@ nog.config.bar.components = {
   }
 }
 
-setup_package_path()

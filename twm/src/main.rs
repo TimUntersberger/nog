@@ -282,7 +282,7 @@ impl AppState {
         Ok(())
     }
 
-    pub fn get_plugins(&mut self) -> SystemResult<Vec<String>> {
+    pub fn get_plugins(&self) -> SystemResult<Vec<String>> {
         let mut list: Vec<String> = Vec::new();
 
         if let Ok(dirs) = get_plugins_path_iter() {

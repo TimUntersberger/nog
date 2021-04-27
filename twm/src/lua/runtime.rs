@@ -22,7 +22,9 @@ pub fn get_err_msg(e: &mlua::Error) -> String {
 }
 impl LuaRuntime {
     pub fn new() -> Self {
-        Self(Arc::new(Mutex::new(Lua::new())))
+        // We have to use the `unsafe_new` function instead of `new`, because we need the dll
+        // lookup.
+        Self(Arc::new(Mutex::new(unsafe { Lua::unsafe_new() })))
     }
 
     pub fn with_lua<R>(&self, f: impl Fn(&mut Lua) -> mlua::Result<R>) -> mlua::Result<R> {
