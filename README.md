@@ -42,3 +42,23 @@ Nog requires `nightly` rust.
 ```
 ./bin/make_release.ps1 <VERSION>
 ```
+
+### Serve documentation
+
+This requires you to have [mdbook](https://github.com/rust-lang/mdBook) installed.
+
+The command will serve the book at `https://localhost:3000` and automatically rebuild whenever you change the source.
+
+```
+mdbook serve ./book
+```
+
+### Build documentation
+
+This requires you to have [mdbook](https://github.com/rust-lang/mdBook) installed.
+
+The command will build the book directory and output the generated files into the docs directory.
+
+```
+mdbook build ./book
+```
