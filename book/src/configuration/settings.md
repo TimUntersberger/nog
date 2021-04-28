@@ -1,13 +1,5 @@
 # Settings
 
-When Nog gets started for the first time it creates a new folder at `%APPDATA%/nog`.
-
-This folder contains all of the machine specific configurations/plugins.
-
-At startup the program looks for a `config.ns` file in the root of this folder and executes it if it can find one.
-
-The config uses a custom language called `Nogscript` which is explained in more detail in the [scripting]() section.
-
 Below you can find a list of settings you can change and their description:
 
 | Key                       | Value   | Description                                                                   |
@@ -18,7 +10,7 @@ Below you can find a list of settings you can change and their description:
 | outer_gap                 | Number  | The margin between workspace and the display                                  |
 | launch_on_startup         | Boolean | Start when you start your computer                                            |
 | multi_monitor             | Boolean | Use all monitors                                                              |
-| work_mode                 | Boolean | Start in [work mode]()                |
+| work_mode                 | Boolean | Start in [work mode](/getting-started/work_mode.html)                         |
 | use_border                | Boolean | Force managed windows to draw a border. (This can help clarity)               |
 | light_theme               | Boolean | Changes how the bar colors get generated to fit light colors                  |
 | display_app_bar           | Boolean | Enable the bar                                                                |
@@ -26,14 +18,10 @@ Below you can find a list of settings you can change and their description:
 | remove_task_bar           | Boolean | Remove the taskbar while the program is running                               |
 | ignore_fullscreen_actions | Boolean | Ignore grid-modifying keybindings (swap, focus, move, etc) while fullscreened |
 
-All of these settings can be modified by using any of the functions in the [nog.config]() module.
-
 ## Examples
 
-```nogscript
-import nog.config
-
-config.set("min_height", 200)
-config.set("min_width", 200)
-config.enable("light_theme")
+```lua
+nog.config.min_height = 200
+nog.config.min_width = 200
+nog.config.light_theme = true
 ```
