@@ -52,7 +52,7 @@ A bar component is a table which has to have a `name` and `render` field.
 The `name` can be any `string` of your chosing and is only used for debugging purposes.
 
 `render` is the important part. It has to be a function which returns a list of components texts.
-A component text is a `table` with a required `text` field and optional `fg` and `bg` fields 
+A component text is a `table` with a required `text` field and optional `fg`, `bg` and `value` fields 
 which take a `number` and change the colors of the component. 
 The function also receives the current display id as argument 
 so you can know which display the component is currently being rendered on.
@@ -71,7 +71,33 @@ end
 
 nog.config.bar.components = {
   left = {},
-  center = { hello("User" },
+  center = { hello("User") },
+  right = {}
+}
+```
+
+A component can also have an `on_click` function. If a component has a valid `on_click` field, 
+the cursor changes to a pointer when hovered over the rendered component. This function receives three arguments.
+The `display_id` where the component is rendered on, the `value` and `index` of the component text which was clicked.
+
+```lua
+-- The `counter` component tracks the amout of the times the component has been clicked globally.
+local counter_value = 0
+local counter = function(increment)
+  return {
+    name = "counter",
+    render = function()
+      return {{ text = counter_value }}
+    end,
+    on_click = function()
+      counter_value = counter_value + increment
+    end
+  }
+end
+
+nog.config.bar.components = {
+  left = {},
+  center = { counter(1) },
   right = {}
 }
 ```

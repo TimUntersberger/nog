@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Plugins - Nog Documentation</title>
+        <title>General - Nog Documentation</title>
         
         
 
@@ -95,7 +95,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item affix "><a href="../index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="../getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="../getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="../getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="../configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="../configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="../configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="../configuration/modes.html">Modes</a></li><li class="chapter-item "><a href="../configuration/rules.html">Rules</a></li><li class="chapter-item "><a href="../configuration/bar.html">Bar</a></li><li class="chapter-item expanded "><a href="../configuration/plugins.html" class="active">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="../api/General.html">General</a></li><li class="chapter-item "><a href="../api/Window.html">Window</a></li><li class="chapter-item "><a href="../api/Workspace.html">Workspace</a></li><li class="chapter-item "><a href="../api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="../api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../api/Popup.html">Popup</a></li><li class="chapter-item "><a href="../api/Popup.html">Display</a></li></ol>
+                <ol class="chapter"><li class="chapter-item affix "><a href="../index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="../getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="../getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="../getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="../configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="../configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="../configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="../configuration/modes.html">Modes</a></li><li class="chapter-item "><a href="../configuration/rules.html">Rules</a></li><li class="chapter-item "><a href="../configuration/bar.html">Bar</a></li><li class="chapter-item "><a href="../configuration/plugins.html">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item expanded "><a href="../api/General.html" class="active">General</a></li><li class="chapter-item "><a href="../api/Window.html">Window</a></li><li class="chapter-item "><a href="../api/Workspace.html">Workspace</a></li><li class="chapter-item "><a href="../api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="../api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../api/Popup.html">Popup</a></li><li class="chapter-item "><a href="../api/Popup.html">Display</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -167,53 +167,63 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#plugins" id="plugins">Plugins</a></h1>
-<p>The plugins live the in the <code>plugins</code> folder located next to the <code>config</code> (<a href="/configuration/introduction.html">ref</a>).</p>
-<p>You can install plugins either manually or using the provided API. Manually installing plugins is as 
-easy as cloning a valid plugin into the <code>plugins</code> folder. This works because nog uses this folder as the plugins index.
-If you don't want to install the plugins manually you can use <code>nog.plug_install</code>.</p>
-<pre><code class="language-lua">nog.plug_install(&quot;GithubUser/NogPlugin&quot;)
-</code></pre>
-<p>This function will clone the repo if it hasn't been cloned yet.</p>
-<p>You can update your plugins by calling <code>nog.plug_update</code>. This function will check for any new commits upstream and pull them if there are some.
-Uninstalling is as simple as removing its folder or calling <code>nog.plug_uninstall</code>.</p>
-<pre><code class="language-lua">nog.plug_uninstall(&quot;GithubUser/NogPlugin&quot;)
-</code></pre>
-<p>If you want to get a list of all installed plugins you can use the <code>nog.plug_list</code> functions which will return a list of absolute file paths.</p>
-<h2><a class="header" href="#writing-plugins" id="writing-plugins">Writing Plugins</a></h2>
-<p>Any repository that contains a top-level <code>lua</code> folder inside is a valid nog plugin. 
-At startup nog will add the path to the <code>lua</code> folder to the <code>package.path</code> variable so you can <code>require</code> its content.
-This also means that you will have to namespace your lua files to not cause conflicts. 
-Usually you would have a folder with your plugins name underneath the <code>lua</code> folder where all of your source lives.</p>
-<p><strong>Example Structure</strong></p>
+                        <h1><a class="header" href="#general" id="general">General</a></h1>
+<h2><a class="header" href="#version" id="version">version</a></h2>
+<p>A <code>string</code> that contains the nog version you are currently running. If you downloaded a <code>vX.X.X</code> release this will contain the version number,
+but if you downloaded a release of a branch like <code>development</code> this will contain the branch name together with the commit hash.</p>
+<h2><a class="header" href="#runtime_path" id="runtime_path">runtime_path</a></h2>
+<p>A <code>string</code> that contains the path to the <code>runtime</code> folder.</p>
+<h2><a class="header" href="#config_path" id="config_path">config_path</a></h2>
+<p>A <code>string</code> that contains the path to the <code>nog</code> folder.</p>
+<h2><a class="header" href="#config" id="config">config</a></h2>
+<p>A <code>table</code> that contains the configuration of nog.</p>
+<h2><a class="header" href="#quit" id="quit">quit()</a></h2>
+<p>Exits the nog process.</p>
+<h2><a class="header" href="#fmt_datetimepattern" id="fmt_datetimepattern">fmt_datetime(pattern)</a></h2>
+<p>Formats the local time using the provided <code>pattern</code> and returns it.</p>
+<p><strong>Arguments</strong>:</p>
 <ul>
-<li>README.md</li>
-<li>lua
+<li><code>pattern</code> a string that follows the <a href="https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html">chrono spec</a></li>
+</ul>
+<p><strong>Return</strong>: a <code>string</code> that contains the local time formatted using the provided <code>pattern</code>.</p>
+<h2><a class="header" href="#scale_colorcolor-factor" id="scale_colorcolor-factor">scale_color(color, factor)</a></h2>
+<p>Scales the <code>color</code> by <code>factor</code>. Useful for creating different shades of a color.</p>
+<p><strong>Arguments</strong>:</p>
 <ul>
-<li>cool_plugin
+<li><code>color</code> [number] the color to be scaled</li>
+<li><code>factor</code> [number] how much the color gets scaled</li>
+</ul>
+<p><strong>Return</strong>: <code>color</code> scaled by <code>factor</code>.</p>
+<h2><a class="header" href="#toggle_work_mode" id="toggle_work_mode">toggle_work_mode()</a></h2>
+<p>Either leaves or enters <a href="/getting-started/work_mode.html">work mode</a></p>
+<h2><a class="header" href="#inspectvalue-options" id="inspectvalue-options">inspect(value, [options])</a></h2>
+<p>The <a href="https://github.com/kikito/inspect.lua">kikito/inspect.lua</a> function.</p>
+<p><strong>Arguments</strong>:</p>
 <ul>
-<li>init.lua</li>
+<li><code>value</code> the value you want information on</li>
+<li><code>options</code> an optional table which can have the following fields
+<ul>
+<li><code>depth</code> sets the maximum depth that will be printed out. When the max depth is reached, it will stop parsing tables and just return <code>{...}</code></li>
+<li><code>newline</code> the string used to add a newline to each level of a table. (Default <code>\n</code>)</li>
+<li><code>indent</code> the string used to add an indent to each level of a table. (Default <code>  </code>  - two spaces)</li>
+<li><code>process</code> a function which allow altering the passed object before transforming it into a string. A typical way to use it would be to remove certain values so that they don't appear at all.</li>
 </ul>
 </li>
 </ul>
-</li>
-</ul>
-<p>You can then use the plugin by requiring <code>cool_plugin</code>.</p>
-<pre><code class="language-lua">local x = require 'cool_plugin'
-</code></pre>
+<p><strong>Return</strong>: a human readable representation of the lua value in a <code>string</code>.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
                         
-                            <a rel="prev" href="../configuration/bar.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../configuration/plugins.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
                         
 
                         
-                            <a rel="next" href="../api/General.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="../api/Window.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         
@@ -225,13 +235,13 @@ Usually you would have a folder with your plugins name underneath the <code>lua<
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
-                    <a rel="prev" href="../configuration/bar.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../configuration/plugins.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
 
                 
-                    <a rel="next" href="../api/General.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="../api/Window.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
                 

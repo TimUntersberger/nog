@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Plugins - Nog Documentation</title>
+        <title>Display - Nog Documentation</title>
         
         
 
@@ -95,7 +95,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item affix "><a href="../index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="../getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="../getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="../getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="../configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="../configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="../configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="../configuration/modes.html">Modes</a></li><li class="chapter-item "><a href="../configuration/rules.html">Rules</a></li><li class="chapter-item "><a href="../configuration/bar.html">Bar</a></li><li class="chapter-item expanded "><a href="../configuration/plugins.html" class="active">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="../api/General.html">General</a></li><li class="chapter-item "><a href="../api/Window.html">Window</a></li><li class="chapter-item "><a href="../api/Workspace.html">Workspace</a></li><li class="chapter-item "><a href="../api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="../api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../api/Popup.html">Popup</a></li><li class="chapter-item "><a href="../api/Popup.html">Display</a></li></ol>
+                <ol class="chapter"><li class="chapter-item affix "><a href="../index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="../getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="../getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="../getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="../configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="../configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="../configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="../configuration/modes.html">Modes</a></li><li class="chapter-item "><a href="../configuration/rules.html">Rules</a></li><li class="chapter-item "><a href="../configuration/bar.html">Bar</a></li><li class="chapter-item "><a href="../configuration/plugins.html">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="../api/General.html">General</a></li><li class="chapter-item "><a href="../api/Window.html">Window</a></li><li class="chapter-item "><a href="../api/Workspace.html">Workspace</a></li><li class="chapter-item "><a href="../api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="../api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../api/Popup.html" class="active">Popup</a></li><li class="chapter-item expanded "><a href="../api/Popup.html" class="active">Display</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -167,53 +167,20 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#plugins" id="plugins">Plugins</a></h1>
-<p>The plugins live the in the <code>plugins</code> folder located next to the <code>config</code> (<a href="/configuration/introduction.html">ref</a>).</p>
-<p>You can install plugins either manually or using the provided API. Manually installing plugins is as 
-easy as cloning a valid plugin into the <code>plugins</code> folder. This works because nog uses this folder as the plugins index.
-If you don't want to install the plugins manually you can use <code>nog.plug_install</code>.</p>
-<pre><code class="language-lua">nog.plug_install(&quot;GithubUser/NogPlugin&quot;)
-</code></pre>
-<p>This function will clone the repo if it hasn't been cloned yet.</p>
-<p>You can update your plugins by calling <code>nog.plug_update</code>. This function will check for any new commits upstream and pull them if there are some.
-Uninstalling is as simple as removing its folder or calling <code>nog.plug_uninstall</code>.</p>
-<pre><code class="language-lua">nog.plug_uninstall(&quot;GithubUser/NogPlugin&quot;)
-</code></pre>
-<p>If you want to get a list of all installed plugins you can use the <code>nog.plug_list</code> functions which will return a list of absolute file paths.</p>
-<h2><a class="header" href="#writing-plugins" id="writing-plugins">Writing Plugins</a></h2>
-<p>Any repository that contains a top-level <code>lua</code> folder inside is a valid nog plugin. 
-At startup nog will add the path to the <code>lua</code> folder to the <code>package.path</code> variable so you can <code>require</code> its content.
-This also means that you will have to namespace your lua files to not cause conflicts. 
-Usually you would have a folder with your plugins name underneath the <code>lua</code> folder where all of your source lives.</p>
-<p><strong>Example Structure</strong></p>
-<ul>
-<li>README.md</li>
-<li>lua
-<ul>
-<li>cool_plugin
-<ul>
-<li>init.lua</li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-<p>You can then use the plugin by requiring <code>cool_plugin</code>.</p>
-<pre><code class="language-lua">local x = require 'cool_plugin'
-</code></pre>
+                        <h1><a class="header" href="#popup" id="popup">Popup</a></h1>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
                         
-                            <a rel="prev" href="../configuration/bar.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../api/Keybindings.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
                         
 
                         
-                            <a rel="next" href="../api/General.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="../api/Popup.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         
@@ -225,13 +192,13 @@ Usually you would have a folder with your plugins name underneath the <code>lua<
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
-                    <a rel="prev" href="../configuration/bar.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../api/Keybindings.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
 
                 
-                    <a rel="next" href="../api/General.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="../api/Popup.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
                 
