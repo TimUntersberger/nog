@@ -5,6 +5,8 @@
 - [Installation](./getting-started/installation.md)
 - [Quick Start](./getting-started/quick_start.md)
 - [Work Mode](./getting-started/work_mode.md)
+- [Floating Mode](./getting-started/floating_mode.md)
+- [Fullscreen Mode](./getting-started/fullscreen_mode.md)
 
 # Configuration
 
