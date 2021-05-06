@@ -34,6 +34,13 @@ Formats the local time using the provided `pattern` and returns it.
 
 **Return**: a `string` that contains the local time formatted using the provided `pattern`.
 
+## launch(name)
+
+Runs the executable with `name` in a subprocess.
+
+**Arguments**:
+* `name` [string] name of the executable (ex. `notepad.exe`)
+
 ## scale_color(color, factor)
 
 Scales the `color` by `factor`. Useful for creating different shades of a color.
