@@ -144,6 +144,8 @@ pub fn close() -> SystemResult {
         window.close()?;
     }
 
+    *POPUP.lock() = None;
+
     Ok(())
 }
 

@@ -13,7 +13,7 @@ use crate::{
     event::Event, get_config_path, keybindings::keybinding::Keybinding,
     keybindings::keybinding::KeybindingKind, split_direction::SplitDirection, system,
     system::DisplayId, system::WindowId, AppState,
-get_runtime_path};
+get_runtime_path, popup::Popup};
 
 mod conversions;
 mod runtime;
@@ -27,11 +27,29 @@ pub use runtime::{get_err_msg, LuaRuntime};
 /// This macro basically does the same thing, but throws a
 /// runtime error on the lua side instead of a CallbackError on the rust side.
 macro_rules! validate {
-    ($lua: tt, $x: ident : $type: tt) => {
+    ($lua: tt, $x: ident : $type: ty) => {
         match <$type>::from_lua($x.clone(), $lua) {
             Ok(x) => Ok(x),
             Err(_) => {
                 let msg = format!("Expected `{}` to be of type `{}` (found `{}`)", stringify!($x), stringify!($type), $x.type_name());
+                Err(LuaError::RuntimeError(msg))
+            }
+        }
+    };
+    ($lua: tt, $x: ident : $type: ty, $x_name: tt) => {
+        match <$type>::from_lua($x.clone(), $lua) {
+            Ok(x) => Ok(x),
+            Err(_) => {
+                let msg = format!("Expected `{}` to be of type `{}` (found `{}`)", $x_name, stringify!($type), $x.type_name());
+                Err(LuaError::RuntimeError(msg))
+            }
+        }
+    };
+    ($lua: tt, $x: ident : $type: ty, $x_name: tt, $ty_name: tt) => {
+        match <$type>::from_lua($x.clone(), $lua) {
+            Ok(x) => Ok(x),
+            Err(_) => {
+                let msg = format!("Expected `{}` to be of type `{}` (found `{}`)", $x_name, $ty_name, $x.type_name());
                 Err(LuaError::RuntimeError(msg))
             }
         }
@@ -398,6 +416,34 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "get_keybindings", move |lua, (): ()| {
             Ok(state.lock().config.keybindings.clone())
+        });
+
+        def_fn!(lua, nog_tbl, "popup_close", move |_, (): ()| {
+            crate::popup::close();
+
+            Ok(())
+        });
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "popup_create", move |lua, settings: Value| {
+            validate!(lua, { settings: Table });
+            let mut popup = Popup::new();
+
+            for res in settings.pairs::<String, Value>() {
+                if let Ok((key, value)) = res {
+                    popup = match key.as_str() {
+                        "text" => popup.with_text(validate!(lua, value : Vec<String>, "text", "string[]")?),
+                        "padding" => popup.with_padding(validate!(lua, value : i32)?),
+                        _ => popup
+                    }
+                }
+            }
+
+            popup
+                .create(state.clone())
+                .map_err(|e| LuaError::RuntimeError(e.to_string()))?;
+
+            Ok(())
         });
 
         def_fn!(lua, nog_tbl, "launch", move |lua, name: Value| {

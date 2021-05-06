@@ -296,6 +296,10 @@ impl AppState {
         Ok(list)
     }
 
+    pub fn create_popup(&mut self) -> SystemResult {
+        Ok(())
+    }
+
     pub fn get_window_title(&mut self) -> SystemResult<String> {
         Ok(self
             .get_current_grid()
