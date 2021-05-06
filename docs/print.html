@@ -206,17 +206,20 @@ which contains the following configuration.</p>
   l = &quot;right&quot;
 }
 
+-- Nog has 10 workspaces
 local workspaces = { 1, 2, 3, 4, 5, 6, 7, 8, 9 }
 
-nog.config.bar.font = &quot;CaskaydiaCove NF&quot;
 nog.config.bar.font_size = 18
 
 nog.config.work_mode = false
+-- draws the app bar while nog is in work mode
 nog.config.display_app_bar = true
 nog.config.launch_on_startup = true
 nog.config.multi_monitor = true
+-- hides the task bar while nog is in work mode
 nog.config.remove_task_bar = true
 
+-- We customize the first two workspaces with a custom display text
 nog.config.workspaces = {
   [1] = {
     text = &quot; Code &quot;
@@ -227,21 +230,26 @@ nog.config.workspaces = {
 }
 
 nog.config.rules = {
+  -- we want to ignore explorer.exe, because the user experience is better when in floating mode IMO
   [&quot;explorer.exe&quot;] = { 
     ignore = true 
   },
+  -- same thing here
   [&quot;taskmgr.exe&quot;] = { 
     ignore = true 
   },
+  -- same thing here
   [&quot;snippingtool.exe&quot;] = { 
     ignore = true 
   },
   [&quot;firefox.exe&quot;] = {
     has_custom_titlebar = true,
+    -- Adds special handling for firefox
     firefox = true
   },
   [&quot;chrome.exe&quot;] = {
     has_custom_titlebar = true,
+    -- Adds special handling for chrome
     chromium = true
   },
   [&quot;discord.exe&quot;] = {
@@ -260,6 +268,11 @@ nog.nbind(&quot;alt+q&quot;, nog.win_close)
 nog.nbind(&quot;alt+m&quot;, nog.win_minimize)
 nog.nbind(&quot;alt+x&quot;, nog.quit)
 
+-- nog.nbind_tbl will map each key to its value so writing the nog.nbind_tbl line is equal to the following
+-- nog.nbind(&quot;alt+l&quot;, function() nog.ws_focus(&quot;Right&quot;) end)
+-- nog.nbind(&quot;alt+k&quot;, function() nog.ws_focus(&quot;Up&quot;) end)
+-- nog.nbind(&quot;alt+j&quot;, function() nog.ws_focus(&quot;Down&quot;) end)
+-- nog.nbind(&quot;alt+h&quot;, function() nog.ws_focus(&quot;Left&quot;) end)
 nog.nbind_tbl(&quot;alt&quot;, nog.ws_focus, direction_keys)
 nog.nbind_tbl(&quot;alt+control&quot;, nog.ws_swap, direction_keys)
 
@@ -938,21 +951,6 @@ and the value gets passed to the callback when activated.</p>
 
         </div>
 
-        
-        <!-- Livereload script (if served using the cli tool) -->
-        <script type="text/javascript">
-            var socket = new WebSocket("ws://localhost:3000/__livereload");
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
         
 
         
