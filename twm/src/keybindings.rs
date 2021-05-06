@@ -34,7 +34,6 @@ pub enum ChanMessage {
     UnregisterKeybinding(Keybinding),
     UnregisterKeybindingBatch(Vec<Keybinding>),
     UnregisterKeybindings,
-    ChangeMode(Mode),
     ModeCbExecuted,
 }
 
@@ -42,9 +41,7 @@ struct KbManagerInner {
     running: AtomicBool,
     stopped: AtomicBool,
     allow_right_alt: bool,
-    state: Arc<Mutex<AppState>>,
-    mode_keybindings: Mutex<HashMap<String, Vec<Keybinding>>>,
-    mode: Mutex<Mode>,
+    state: Arc<Mutex<AppState>>
 }
 
 impl KbManagerInner {
@@ -53,8 +50,6 @@ impl KbManagerInner {
             running: AtomicBool::new(false),
             stopped: AtomicBool::new(false),
             state,
-            mode: Mutex::new(None),
-            mode_keybindings: Mutex::new(HashMap::new()),
             allow_right_alt,
         }
     }
@@ -99,25 +94,13 @@ impl KbManagerInner {
     }
 
     pub fn get_keybinding(&self, key: Key, modifier: Modifier) -> Option<Keybinding> {
-        let mode = self.mode.lock();
-        match mode.as_ref() {
-            Some(mode) => self
-                .mode_keybindings
-                .lock()
-                .get(mode)
-                .unwrap()
-                .iter()
-                .find(|kb| kb.key == key && kb.modifier == modifier)
-                .map(|kb| kb.clone()),
-            None => self
-                .state
+                self.state
                 .lock()
                 .config
                 .keybindings
                 .iter()
                 .find(|kb| kb.key == key && kb.modifier == modifier)
-                .map(|kb| kb.clone()),
-        }
+                .map(|kb| kb.clone())
     }
 }
 
@@ -145,11 +128,6 @@ impl KbManager {
     }
     pub fn set_state(&mut self, state: Arc<Mutex<AppState>>) {
         self.inner.lock().state = state;
-    }
-    fn change_mode(&mut self, mode: Mode) {
-        self.sender
-            .send(ChanMessage::ChangeMode(mode.clone()))
-            .expect("Failed to change mode of kb manager");
     }
     pub fn update_configuration(&self, config: &Config) {
         self.inner.lock().allow_right_alt = config.allow_right_alt;
@@ -194,33 +172,8 @@ impl KbManager {
             .send(ChanMessage::RegisterKeybindingBatch(kbs))
             .expect("Failed to send RegisterKeybindingBatch");
     }
-    pub fn enter_mode(&mut self, mode: &str) {
-        self.change_mode(Some(mode.into()));
-    }
-    pub fn leave_mode(&mut self) {
-        self.change_mode(None);
-    }
-    pub fn add_mode_keybinding(&mut self, kb: Keybinding) {
-        if let Some(mode) = self.get_mode() {
-            self.inner
-                .lock()
-                .mode_keybindings
-                .lock()
-                .get_mut(&mode)
-                .unwrap()
-                .push(kb);
-        }
-    }
     pub fn is_running(&self) -> bool {
         self.inner.lock().running.load(Ordering::SeqCst)
-    }
-    pub fn get_mode(&self) -> Mode {
-        self.inner.lock().mode.lock().clone()
-    }
-    pub fn try_get_mode(&self) -> Option<Mode> {
-        self.inner
-            .try_lock_for(Duration::from_millis(20))
-            .map(|inner| inner.mode.lock().clone())
     }
     fn make_keybinding_error(keybinding: &Keybinding) -> String {
         let message = format!("Failed to register {:?}.\nAnother running application may already have this binding registered.", &keybinding);
@@ -334,86 +287,6 @@ impl KbManager {
                                     .collect(),
                                 state.clone(),
                             );
-                        }
-                        ChanMessage::ChangeMode(new_mode) => {
-                            let mut inner_g = inner.lock();
-                            let mode_is_defined = match &new_mode {
-                                Some(mode) => state.lock().config.mode_handlers.contains_key(mode),
-                                None => true,
-                            };
-
-                            dbg!(&mode_is_defined);
-
-                            if !mode_is_defined {
-                                state.lock().emit_lua_rt_error(&format!("You are trying to toggle the mode '{}' which hasn't been defined yet", new_mode.unwrap()));
-                                continue;
-                            }
-
-                            if let Some(mode) = new_mode.as_ref() {
-                                // Unregister all normal keybindings to ensure a clean state
-                                for kb in state
-                                    .lock()
-                                    .config
-                                    .keybindings
-                                    .iter()
-                                    .filter(|kb| kb.is_normal())
-                                {
-                                    inner_g.unregister_kb(kb);
-                                }
-
-                                inner_g.mode_keybindings.lock().clear();
-
-                                *inner_g.mode.lock() = new_mode.clone();
-                                let id = state
-                                    .lock()
-                                    .config
-                                    .mode_handlers
-                                    .get(mode)
-                                    .map(|x| *x)
-                                    .unwrap();
-                                let sender = state.lock().event_channel.sender.clone();
-
-                                inner_g
-                                    .mode_keybindings
-                                    .lock()
-                                    .insert(mode.clone(), Vec::new());
-
-                                sender
-                                    .send(Event::CallCallback {
-                                        idx: id,
-                                        is_mode_callback: true,
-                                    })
-                                    .unwrap();
-
-                                drop(inner_g);
-                                receiver.recv().unwrap();
-                                inner_g = inner.lock();
-
-                                let kbs_lock = inner_g.mode_keybindings.lock();
-                                let kbs = kbs_lock.get(mode).unwrap();
-                                inner_g.register_all(&kbs.iter().collect(), state_arc.clone());
-                            } else {
-                                let mut mode_lock = inner_g.mode.lock();
-                                let kbs_lock = inner_g.mode_keybindings.lock();
-                                let kbs = kbs_lock.get(mode_lock.as_ref().unwrap()).unwrap();
-
-                                for kb in kbs.iter() {
-                                    inner_g.unregister_kb(kb);
-                                }
-
-                                *mode_lock = new_mode.clone();
-
-                                inner_g.register_all(
-                                    &state
-                                        .lock()
-                                        .config
-                                        .keybindings
-                                        .iter()
-                                        .filter(|kb| kb.is_normal())
-                                        .collect(),
-                                    state_arc.clone(),
-                                );
-                            }
                         }
                     };
                 }

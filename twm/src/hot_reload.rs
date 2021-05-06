@@ -12,12 +12,6 @@ pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> Sys
         .update_configuration(&new_config);
     drop(state);
 
-    let prev_mode = state_arc
-        .lock()
-        .keybindings_manager
-        .as_ref()
-        .unwrap()
-        .get_mode();
     state_arc
         .lock()
         .keybindings_manager
@@ -105,13 +99,6 @@ pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> Sys
         .as_ref()
         .unwrap()
         .register_keybindings();
-    if let Some(mode) = prev_mode {
-        state
-            .keybindings_manager
-            .as_mut()
-            .unwrap()
-            .enter_mode(&mode);
-    }
 
     for d in state.displays.iter() {
         if let Some(grid) = d.get_focused_grid() {

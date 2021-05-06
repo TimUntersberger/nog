@@ -694,16 +694,6 @@ impl AppState {
         Ok(())
     }
 
-    pub fn toggle_mode(&mut self, mode: String) {
-        if self.keybindings_manager.as_ref().unwrap().get_mode() == Some(mode.clone()) {
-            info!("Disabling {} mode", mode);
-            self.keybindings_manager.as_mut().unwrap().leave_mode();
-        } else {
-            info!("Enabling {} mode", mode);
-            self.keybindings_manager.as_mut().unwrap().enter_mode(&mode);
-        }
-    }
-
     pub fn get_workspace_settings(&self, id: i32) -> Option<&WorkspaceSetting> {
         self.config.workspaces.iter().find(|s| s.id == id)
     }
