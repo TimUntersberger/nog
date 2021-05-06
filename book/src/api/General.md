@@ -1,5 +1,9 @@
 # General
 
+## uv
+
+lua bindings for libuv provided by [luv](https://github.com/luvit/luv). You can also require it directly by using `require 'luv'`.
+
 ## version
 
 A `string` that contains the nog version you are currently running. If you downloaded a `vX.X.X` release this will contain the version number,
