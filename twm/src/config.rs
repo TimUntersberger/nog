@@ -82,9 +82,7 @@ impl Default for Config {
 impl Config {
     /// Creates a new default config.
     pub fn new() -> Self {
-        let mut temp = Self::default();
-        temp.keybindings = Vec::new();
-        temp
+        Self::default()
     }
 
     pub fn increment_field(&mut self, field: &str, value: i32) {

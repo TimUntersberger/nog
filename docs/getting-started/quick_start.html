@@ -174,6 +174,87 @@
 <li>Execute <code>x</code> to start nog</li>
 <li>Press <code>Ctrl+Alt+W</code> to enter <a href="work_mode.html">work mode</a></li>
 </ol>
+<p>When nog is started for the first time it creates an <code>init.lua</code> file in the config folder 
+which contains the following configuration.</p>
+<pre><code class="language-lua">local direction_keys = {
+  h = &quot;left&quot;,
+  j = &quot;down&quot;,
+  k = &quot;up&quot;,
+  l = &quot;right&quot;
+}
+
+local workspaces = { 1, 2, 3, 4, 5, 6, 7, 8, 9 }
+
+nog.config.bar.font = &quot;CaskaydiaCove NF&quot;
+nog.config.bar.font_size = 18
+
+nog.config.work_mode = false
+nog.config.display_app_bar = true
+nog.config.launch_on_startup = true
+nog.config.multi_monitor = true
+nog.config.remove_task_bar = true
+
+nog.config.workspaces = {
+  [1] = {
+    text = &quot; Code &quot;
+  },
+  [2] = {
+    text = &quot; Browser &quot;
+  }
+}
+
+nog.config.rules = {
+  [&quot;explorer.exe&quot;] = { 
+    ignore = true 
+  },
+  [&quot;taskmgr.exe&quot;] = { 
+    ignore = true 
+  },
+  [&quot;snippingtool.exe&quot;] = { 
+    ignore = true 
+  },
+  [&quot;firefox.exe&quot;] = {
+    has_custom_titlebar = true,
+    firefox = true
+  },
+  [&quot;chrome.exe&quot;] = {
+    has_custom_titlebar = true,
+    chromium = true
+  },
+  [&quot;discord.exe&quot;] = {
+    has_custom_titlebar = true
+  },
+  [&quot;spotify.exe&quot;] = {
+    has_custom_titlebar = true
+  },
+  [&quot;code.exe&quot;] = {
+    has_custom_titlebar = true
+  },
+}
+
+nog.nbind(&quot;alt+i&quot;, nog.win_ignore)
+nog.nbind(&quot;alt+q&quot;, nog.win_close)
+nog.nbind(&quot;alt+m&quot;, nog.win_minimize)
+nog.nbind(&quot;alt+x&quot;, nog.quit)
+
+nog.nbind_tbl(&quot;alt&quot;, nog.ws_focus, direction_keys)
+nog.nbind_tbl(&quot;alt+control&quot;, nog.ws_swap, direction_keys)
+
+nog.nbind(&quot;alt+plus&quot;, function()
+  nog.ws_set_split_direction(&quot;Vertical&quot;)
+end)
+nog.nbind(&quot;alt+minus&quot;, function()
+  nog.ws_set_split_direction(&quot;Horizontal&quot;)
+end)
+
+nog.nbind(&quot;alt+control+f&quot;, nog.win_toggle_floating)
+nog.gbind(&quot;alt+control+w&quot;, nog.toggle_work_mode)
+nog.nbind(&quot;alt+f&quot;, nog.ws_toggle_fullscreen)
+
+nog.nbind_tbl(&quot;alt+shift&quot;, nog.win_move_to_workspace, workspaces)
+nog.nbind_tbl(&quot;alt+control&quot;, nog.ws_move_to_monitor, workspaces)
+nog.nbind_tbl(&quot;alt&quot;, nog.ws_change, workspaces)
+</code></pre>
 
                     </main>
 

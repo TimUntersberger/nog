@@ -174,7 +174,7 @@ At startup the program looks for a <code>init.lua</code> file in the root of thi
 We try to explain everything as good as possible with comments in our config so you shouldn't have to look anything up.
 If you want to know what keybindings are available to you by default please look at the <code>init.lua</code>.</p>
 <p>The configuration itself is written in lua and tries to have a similar style to neovim. 
-Any lua code executed by nog has access to the global <a href="">nog</a> variable which contains a bunch of functions to make it easy to control nog programmatically.</p>
+Any lua code executed by nog has access to the global <a href="/API/general.html">nog</a> variable which contains a bunch of functions to make it easy to control nog programmatically.</p>
 <p>Nog also includes <a href="https://github.com/luvit/luv">luv</a> and <a href="https://github.com/kikito/inspect.lua">inspect</a> to make development easier for the user.</p>
 <p>If you ever want to look at the structure of a lua table you can easily print a very nice overview using the following statement</p>
 <pre><code class="language-lua">print(nog.inspect(tbl))

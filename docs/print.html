@@ -197,6 +197,88 @@
 <li>Execute <code>x</code> to start nog</li>
 <li>Press <code>Ctrl+Alt+W</code> to enter <a href="getting-started/work_mode.html">work mode</a></li>
 </ol>
+<p>When nog is started for the first time it creates an <code>init.lua</code> file in the config folder 
+which contains the following configuration.</p>
+<pre><code class="language-lua">local direction_keys = {
+  h = &quot;left&quot;,
+  j = &quot;down&quot;,
+  k = &quot;up&quot;,
+  l = &quot;right&quot;
+}
+
+local workspaces = { 1, 2, 3, 4, 5, 6, 7, 8, 9 }
+
+nog.config.bar.font = &quot;CaskaydiaCove NF&quot;
+nog.config.bar.font_size = 18
+
+nog.config.work_mode = false
+nog.config.display_app_bar = true
+nog.config.launch_on_startup = true
+nog.config.multi_monitor = true
+nog.config.remove_task_bar = true
+
+nog.config.workspaces = {
+  [1] = {
+    text = &quot; Code &quot;
+  },
+  [2] = {
+    text = &quot; Browser &quot;
+  }
+}
+
+nog.config.rules = {
+  [&quot;explorer.exe&quot;] = { 
+    ignore = true 
+  },
+  [&quot;taskmgr.exe&quot;] = { 
+    ignore = true 
+  },
+  [&quot;snippingtool.exe&quot;] = { 
+    ignore = true 
+  },
+  [&quot;firefox.exe&quot;] = {
+    has_custom_titlebar = true,
+    firefox = true
+  },
+  [&quot;chrome.exe&quot;] = {
+    has_custom_titlebar = true,
+    chromium = true
+  },
+  [&quot;discord.exe&quot;] = {
+    has_custom_titlebar = true
+  },
+  [&quot;spotify.exe&quot;] = {
+    has_custom_titlebar = true
+  },
+  [&quot;code.exe&quot;] = {
+    has_custom_titlebar = true
+  },
+}
+
+nog.nbind(&quot;alt+i&quot;, nog.win_ignore)
+nog.nbind(&quot;alt+q&quot;, nog.win_close)
+nog.nbind(&quot;alt+m&quot;, nog.win_minimize)
+nog.nbind(&quot;alt+x&quot;, nog.quit)
+
+nog.nbind_tbl(&quot;alt&quot;, nog.ws_focus, direction_keys)
+nog.nbind_tbl(&quot;alt+control&quot;, nog.ws_swap, direction_keys)
+
+nog.nbind(&quot;alt+plus&quot;, function()
+  nog.ws_set_split_direction(&quot;Vertical&quot;)
+end)
+nog.nbind(&quot;alt+minus&quot;, function()
+  nog.ws_set_split_direction(&quot;Horizontal&quot;)
+end)
+
+nog.nbind(&quot;alt+control+f&quot;, nog.win_toggle_floating)
+nog.gbind(&quot;alt+control+w&quot;, nog.toggle_work_mode)
+nog.nbind(&quot;alt+f&quot;, nog.ws_toggle_fullscreen)
+
+nog.nbind_tbl(&quot;alt+shift&quot;, nog.win_move_to_workspace, workspaces)
+nog.nbind_tbl(&quot;alt+control&quot;, nog.ws_move_to_monitor, workspaces)
+nog.nbind_tbl(&quot;alt&quot;, nog.ws_change, workspaces)
+</code></pre>
+<h1><a class="header" href="#work-mode" id="work-mode">Work mode</a></h1>
 <h1><a class="header" href="#floating-mode" id="floating-mode">Floating Mode</a></h1>
 <h1><a class="header" href="#fullscreen-mode" id="fullscreen-mode">Fullscreen Mode</a></h1>
 <h1><a class="header" href="#introduction" id="introduction">Introduction</a></h1>
@@ -206,7 +288,7 @@ At startup the program looks for a <code>init.lua</code> file in the root of thi
 We try to explain everything as good as possible with comments in our config so you shouldn't have to look anything up.
 If you want to know what keybindings are available to you by default please look at the <code>init.lua</code>.</p>
 <p>The configuration itself is written in lua and tries to have a similar style to neovim. 
-Any lua code executed by nog has access to the global <a href="configuration/">nog</a> variable which contains a bunch of functions to make it easy to control nog programmatically.</p>
+Any lua code executed by nog has access to the global <a href="configuration//API/general.html">nog</a> variable which contains a bunch of functions to make it easy to control nog programmatically.</p>
 <p>Nog also includes <a href="https://github.com/luvit/luv">luv</a> and <a href="https://github.com/kikito/inspect.lua">inspect</a> to make development easier for the user.</p>
 <p>If you ever want to look at the structure of a lua table you can easily print a very nice overview using the following statement</p>
 <pre><code class="language-lua">print(nog.inspect(tbl))
@@ -472,6 +554,8 @@ Usually you would have a folder with your plugins name underneath the <code>lua<
 <pre><code class="language-lua">local x = require 'cool_plugin'
 </code></pre>
 <h1><a class="header" href="#general" id="general">General</a></h1>
+<h2><a class="header" href="#uv" id="uv">uv</a></h2>
+<p>lua bindings for libuv provided by <a href="https://github.com/luvit/luv">luv</a>. You can also require it directly by using <code>require 'luv'</code>.</p>
 <h2><a class="header" href="#version" id="version">version</a></h2>
 <p>A <code>string</code> that contains the nog version you are currently running. If you downloaded a <code>vX.X.X</code> release this will contain the version number,
 but if you downloaded a release of a branch like <code>development</code> this will contain the branch name together with the commit hash.</p>
@@ -490,6 +574,12 @@ but if you downloaded a release of a branch like <code>development</code> this w
 <li><code>pattern</code> a string that follows the <a href="https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html">chrono spec</a></li>
 </ul>
 <p><strong>Return</strong>: a <code>string</code> that contains the local time formatted using the provided <code>pattern</code>.</p>
+<h2><a class="header" href="#launchname" id="launchname">launch(name)</a></h2>
+<p>Runs the executable with <code>name</code> in a subprocess.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>name</code> [string] name of the executable (ex. <code>notepad.exe</code>)</li>
+</ul>
 <h2><a class="header" href="#scale_colorcolor-factor" id="scale_colorcolor-factor">scale_color(color, factor)</a></h2>
 <p>Scales the <code>color</code> by <code>factor</code>. Useful for creating different shades of a color.</p>
 <p><strong>Arguments</strong>:</p>
@@ -707,8 +797,125 @@ The behavior of this movement is essentially moving the current window so that i
 <p>Returns a list of installed plugins.</p>
 <p><strong>Return</strong>: a list of absolute paths</p>
 <h1><a class="header" href="#keybindings-1" id="keybindings-1">Keybindings</a></h1>
+<h2><a class="header" href="#bindmode-key-cb" id="bindmode-key-cb">bind(mode, key, cb)</a></h2>
+<p>Registers a new keybinding.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>mode</code> [string] one of the following:
+<ul>
+<li><code>n</code> for normal</li>
+<li><code>w</code> for work</li>
+<li><code>g</code> for global</li>
+</ul>
+</li>
+<li><code>key</code> [string] the key combination that activates this binding</li>
+<li><code>cb</code> [function] the function that gets called on keybinding activation</li>
+</ul>
+<p><strong>See Also</strong>:</p>
+<ul>
+<li><a href="api//configuration/keybindings.html">configuring keybindings</a></li>
+</ul>
+<h2><a class="header" href="#nbindkey-cb" id="nbindkey-cb">nbind(key, cb)</a></h2>
+<p>Registers a new keybinding in <code>normal</code> mode.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>key</code> [string] the key combination that activates this binding</li>
+<li><code>cb</code> [function] the function that gets called on keybinding activation</li>
+</ul>
+<p><strong>See Also</strong>:</p>
+<ul>
+<li><a href="api//configuration/keybindings.html">configuring keybindings</a></li>
+</ul>
+<h2><a class="header" href="#gbindkey-cb" id="gbindkey-cb">gbind(key, cb)</a></h2>
+<p>Registers a new keybinding in <code>global</code> mode.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>key</code> [string] the key combination that activates this binding</li>
+<li><code>cb</code> [function] the function that gets called on keybinding activation</li>
+</ul>
+<p><strong>See Also</strong>:</p>
+<ul>
+<li><a href="api//configuration/keybindings.html">configuring keybindings</a></li>
+</ul>
+<h2><a class="header" href="#wbindkey-cb" id="wbindkey-cb">wbind(key, cb)</a></h2>
+<p>Registers a new keybinding in <code>work</code> mode.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>key</code> [string] the key combination that activates this binding</li>
+<li><code>cb</code> [function] the function that gets called on keybinding activation</li>
+</ul>
+<p><strong>See Also</strong>:</p>
+<ul>
+<li><a href="api//configuration/keybindings.html">configuring keybindings</a></li>
+</ul>
+<h2><a class="header" href="#nbind_tblmodifiers-cb-tbl" id="nbind_tblmodifiers-cb-tbl">nbind_tbl(modifiers, cb, tbl)</a></h2>
+<p>Registers a new keybinding for each pair from the given <code>tbl</code> in <code>normal</code> mode,
+where the key of the pair is prepended with the <code>modifiers</code> and used as the key 
+and the value gets passed to the callback when activated.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>modifiers</code> [string] the modifiers which will get prepended when registering the keybindings</li>
+<li><code>cb</code> [function] the function that gets called on keybinding activation</li>
+<li><code>tb</code> [table] the mappgins</li>
+</ul>
+<h2><a class="header" href="#wbind_tblmodifiers-cb-tbl" id="wbind_tblmodifiers-cb-tbl">wbind_tbl(modifiers, cb, tbl)</a></h2>
+<p>Registers a new keybinding for each pair from the given <code>tbl</code> in <code>work</code> mode,
+where the key of the pair is prepended with the <code>modifiers</code> and used as the key 
+and the value gets passed to the callback when activated.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>modifiers</code> [string] the modifiers which will get prepended when registering the keybindings</li>
+<li><code>cb</code> [function] the function that gets called on keybinding activation</li>
+<li><code>tb</code> [table] the mappgins</li>
+</ul>
+<h2><a class="header" href="#gbind_tblmodifiers-cb-tbl" id="gbind_tblmodifiers-cb-tbl">gbind_tbl(modifiers, cb, tbl)</a></h2>
+<p>Registers a new keybinding for each pair from the given <code>tbl</code> in <code>global</code> mode,
+where the key of the pair is prepended with the <code>modifiers</code> and used as the key 
+and the value gets passed to the callback when activated.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>modifiers</code> [string] the modifiers which will get prepended when registering the keybindings</li>
+<li><code>cb</code> [function] the function that gets called on keybinding activation</li>
+<li><code>tb</code> [table] the mappgins</li>
+</ul>
+<h2><a class="header" href="#unbindkey" id="unbindkey">unbind(key)</a></h2>
+<p>Unregisters the keybinding that has the given <code>key</code>.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>key</code> [string] the key combination that activates this binding</li>
+</ul>
+<p><strong>See Also</strong>:</p>
+<ul>
+<li><a href="api//configuration/keybindings.html">configuring keybindings</a></li>
+</ul>
 <h1><a class="header" href="#popup" id="popup">Popup</a></h1>
+<h2><a class="header" href="#popup_createsettings" id="popup_createsettings">popup_create(settings)</a></h2>
+<p>Closes the current popup and opens a new one.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>settings</code> [table] popup settings
+<ul>
+<li><code>text</code> [table] array of strings. Each item represents a separate line.</li>
+<li><code>padding</code> [number] the padding of the popup.</li>
+</ul>
+</li>
+</ul>
+<h2><a class="header" href="#popup_close" id="popup_close">popup_close()</a></h2>
+<p>Closes the current popup.</p>
 <h1><a class="header" href="#popup-1" id="popup-1">Popup</a></h1>
+<h2><a class="header" href="#popup_createsettings-1" id="popup_createsettings-1">popup_create(settings)</a></h2>
+<p>Closes the current popup and opens a new one.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>settings</code> [table] popup settings
+<ul>
+<li><code>text</code> [table] array of strings. Each item represents a separate line.</li>
+<li><code>padding</code> [number] the padding of the popup.</li>
+</ul>
+</li>
+</ul>
+<h2><a class="header" href="#popup_close-1" id="popup_close-1">popup_close()</a></h2>
+<p>Closes the current popup.</p>
 
                     </main>
 

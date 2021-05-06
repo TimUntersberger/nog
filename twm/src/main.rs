@@ -1102,6 +1102,10 @@ fn run_config(rt: &LuaRuntime) {
     path.push("lua");
     path.push("init.lua");
 
+    if !path.exists() {
+        std::fs::write(&path, include_bytes!("../../assets/default_config.lua")).unwrap();
+    }
+
     rt.run_file(path);
 }
 

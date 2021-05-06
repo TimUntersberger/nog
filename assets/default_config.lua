@@ -1,15 +1,3 @@
-# Quick Start
-
-After [installing](installation.html) nog I would recommend you to do the following steps:
-
-1. [configure](/configuration/introduction.html) nog to fit your needs
-2. Execute `x` to start nog
-2. Press `Ctrl+Alt+W` to enter [work mode](work_mode.html)
-
-When nog is started for the first time it creates an `init.lua` file in the config folder 
-which contains the following configuration.
-
-```lua
 local direction_keys = {
   h = "left",
   j = "down",
@@ -88,4 +76,3 @@ nog.nbind("alt+f", nog.ws_toggle_fullscreen)
 nog.nbind_tbl("alt+shift", nog.win_move_to_workspace, workspaces)
 nog.nbind_tbl("alt+control", nog.ws_move_to_monitor, workspaces)
 nog.nbind_tbl("alt", nog.ws_change, workspaces)
-```
