@@ -1,4 +1,5 @@
 nog.inspect = dofile(nog.runtime_path .. "/lua/inspect.lua")
+nog.uv = require 'luv'
 
 function nog.clone(value, is_deep)
   local t = type(value)

@@ -8,7 +8,7 @@ We try to explain everything as good as possible with comments in our config so 
 If you want to know what keybindings are available to you by default please look at the `init.lua`.
 
 The configuration itself is written in lua and tries to have a similar style to neovim. 
-Any lua code executed by nog has access to the global [nog]() variable which contains a bunch of functions to make it easy to control nog programmatically.
+Any lua code executed by nog has access to the global [nog](/API/general.html) variable which contains a bunch of functions to make it easy to control nog programmatically.
 
 Nog also includes [luv](https://github.com/luvit/luv) and [inspect](https://github.com/kikito/inspect.lua) to make development easier for the user.
 

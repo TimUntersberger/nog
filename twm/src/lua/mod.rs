@@ -748,8 +748,6 @@ pub fn setup_lua_rt(state_arc: Arc<Mutex<AppState>>) {
 
     setup_nog_global(state_arc.clone(), &rt);
 
-    rt.run_file(format!("{}/lua/runtime.lua", get_runtime_path().to_str().unwrap()));
-
     rt.with_lua(|lua| {
         let state = state_arc.lock();
         let package_tbl = lua.globals().get::<_, Table>("package")?;
@@ -778,6 +776,8 @@ pub fn setup_lua_rt(state_arc: Arc<Mutex<AppState>>) {
 
         Ok(())
     }).unwrap();
+
+    rt.run_file(format!("{}/lua/runtime.lua", get_runtime_path().to_str().unwrap()));
 
     load_window_functions(state_arc.clone(), &rt).unwrap();
     load_workspace_functions(state_arc.clone(), &rt).unwrap();
