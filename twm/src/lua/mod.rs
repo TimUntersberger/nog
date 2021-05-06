@@ -627,7 +627,6 @@ fn load_window_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) -> ml
             };
         }
 
-        l_def_ffi_fn!("get_title", get_window_title);
         l_def_ffi_fn!("minimize", minimize_window);
         l_def_ffi_fn!("toggle_floating", toggle_floating);
         l_def_ffi_fn!("ignore", ignore_window);

@@ -5,14 +5,14 @@
 Clones the github repository with the given `id` into the plugins folder. If a folder with the same name already exists, this function is noop.
 
 **Arguments**:
-* `id` [number] id of repo (ex. `TimUntersberger/nog`)
+* `id` [string] id of repo (ex. `TimUntersberger/nog`)
 
 ## plug_install(id)
 
 Removes the cloned repo locally.
 
 **Arguments**:
-* `id` [number] id of repo (ex. `TimUntersberger/nog`)
+* `id` [string] id of repo (ex. `TimUntersberger/nog`)
 
 ## plug_update()
 
