@@ -292,8 +292,18 @@ nog.nbind_tbl(&quot;alt+control&quot;, nog.ws_move_to_monitor, workspaces)
 nog.nbind_tbl(&quot;alt&quot;, nog.ws_change, workspaces)
 </code></pre>
 <h1><a class="header" href="#work-mode" id="work-mode">Work mode</a></h1>
+<p><code>Work mode</code> is when nog actively tries to manage windows. </p>
+<p>Nog is intended to be used along Windows 10 instead of completely replacing it, that is why it is possible to &quot;activate&quot; and &quot;deactivate&quot; nog.
+People that use Windows for development usually use the same machine for gaming and can't be bothered to switch constantly.
+I am part of this group so I wanted to create a window manager that supports this use case.</p>
+<p>Nog constantly saves a snapshot of the current workspace/window layout and when reentering the work mode it tries to recreate the layout.
+The default state can be configured by setting the <a href="getting-started//configuration/settings.html">work_mode</a> setting. 
+You can always leave/enter the work mode by calling the <a href="getting-started//api/general.html#toggle_work_mode">toggle_work_mode</a> function.</p>
 <h1><a class="header" href="#floating-mode" id="floating-mode">Floating Mode</a></h1>
+<p>We describe windows that are not managed by nog as being in <code>floating mode</code>.</p>
 <h1><a class="header" href="#fullscreen-mode" id="fullscreen-mode">Fullscreen Mode</a></h1>
+<p>When a workspace is in fullscreen mode it only displays the window that has focus, everything else stays the same.
+If you want to disable focus changing while being in fullscreen mode you can set the <code>ignore_fullscreen_actions</code> to <code>true</code> (defaults to <code>false</code>).</p>
 <h1><a class="header" href="#introduction" id="introduction">Introduction</a></h1>
 <p>The configuration lives in <code>%APPDATA%/nog/config</code>.
 At startup the program looks for a <code>init.lua</code> file in the root of this folder and executes it.</p>
@@ -335,7 +345,7 @@ nog.config.light_theme = true
 <li>Work (w)</li>
 <li>Global (g)</li>
 </ul>
-<p><code>Normal</code> keybindings are only active while being inside <a href="configuration//getting-started/work_mode.html">work mode</a> <strong>and</strong> not inside any mode.</p>
+<p><code>Normal</code> keybindings are only active while being inside <a href="configuration//getting-started/work_mode.html">work mode</a> <strong>and</strong> not inside any other user-defined <a href="configuration//configuration/modes.html">mode</a>.</p>
 <p><code>Work</code> keybindings are only active while being inside <a href="configuration//getting-started/work_mode.html">work mode</a>.</p>
 <p><code>Global</code> keybindings are always active as long as nog is running.</p>
 <p>Nog comes with 4 different functions which can be used to define a new keybinding:</p>
@@ -567,6 +577,8 @@ Usually you would have a folder with your plugins name underneath the <code>lua<
 <pre><code class="language-lua">local x = require 'cool_plugin'
 </code></pre>
 <h1><a class="header" href="#general" id="general">General</a></h1>
+<p><strong>Note:</strong> keep in mind that all of the functions/variables in the api documentation are part of the <code>nog</code> global.
+So to use the below <code>uv</code> variable you will have to write <code>nog.uv</code>.</p>
 <h2><a class="header" href="#uv" id="uv">uv</a></h2>
 <p>lua bindings for libuv provided by <a href="https://github.com/luvit/luv">luv</a>. You can also require it directly by using <code>require 'luv'</code>.</p>
 <h2><a class="header" href="#version" id="version">version</a></h2>
@@ -798,7 +810,7 @@ The behavior of this movement is essentially moving the current window so that i
 <ul>
 <li><code>id</code> [string] id of repo (ex. <code>TimUntersberger/nog</code>)</li>
 </ul>
-<h2><a class="header" href="#plug_installid-1" id="plug_installid-1">plug_install(id)</a></h2>
+<h2><a class="header" href="#plug_uninstallid" id="plug_uninstallid">plug_uninstall(id)</a></h2>
 <p>Removes the cloned repo locally.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>

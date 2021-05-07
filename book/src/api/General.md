@@ -1,5 +1,8 @@
 # General
 
+**Note:** keep in mind that all of the functions/variables in the api documentation are part of the `nog` global.
+So to use the below `uv` variable you will have to write `nog.uv`.
+
 ## uv
 
 lua bindings for libuv provided by [luv](https://github.com/luvit/luv). You can also require it directly by using `require 'luv'`.
