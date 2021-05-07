@@ -7,7 +7,7 @@ Clones the github repository with the given `id` into the plugins folder. If a f
 **Arguments**:
 * `id` [string] id of repo (ex. `TimUntersberger/nog`)
 
-## plug_install(id)
+## plug_uninstall(id)
 
 Removes the cloned repo locally.
 

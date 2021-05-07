@@ -689,7 +689,7 @@ fn load_plugin_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) -> ml
 
         /// A local version of the `def_ffi_fn` macro for ease of use.
         ///
-        /// **Note**: Also prefixes the name with `win_`
+        /// **Note**: Also prefixes the name with `plug_`
         macro_rules! l_def_ffi_fn {
             ($name: expr, $($rest: tt)*) => {
                 def_ffi_fn!(state_arc, lua, nog_tbl, format!("{}_{}", "plug", $name), $($rest)*);
