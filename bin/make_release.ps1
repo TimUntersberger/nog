@@ -8,7 +8,7 @@ $root_dir = "Nog"
 
 $env:NOG_VERSION=$Version
 
-cargo build -p twm --release
+cargo build --release -p twm
 
 if (!$?) {
   echo "Build was not successful. Aborting."
