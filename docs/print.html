@@ -97,7 +97,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item affix "><a href="index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item "><a href="getting-started/floating_mode.html">Floating Mode</a></li><li class="chapter-item "><a href="getting-started/fullscreen_mode.html">Fullscreen Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="configuration/modes.html">Modes</a></li><li class="chapter-item "><a href="configuration/rules.html">Rules</a></li><li class="chapter-item "><a href="configuration/bar.html">Bar</a></li><li class="chapter-item "><a href="configuration/plugins.html">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="api/General.html">General</a></li><li class="chapter-item "><a href="api/Window.html">Window</a></li><li class="chapter-item "><a href="api/Workspace.html">Workspace</a></li><li class="chapter-item "><a href="api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="api/Popup.html">Popup</a></li><li class="chapter-item "><a href="api/Popup.html">Display</a></li></ol>
+                <ol class="chapter"><li class="chapter-item affix "><a href="index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item "><a href="getting-started/floating_mode.html">Floating Mode</a></li><li class="chapter-item "><a href="getting-started/fullscreen_mode.html">Fullscreen Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="configuration/modes.html">Modes</a></li><li class="chapter-item "><a href="configuration/rules.html">Rules</a></li><li class="chapter-item "><a href="configuration/bar.html">Bar</a></li><li class="chapter-item "><a href="configuration/plugins.html">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="api/General.html">General</a></li><li class="chapter-item "><a href="api/Window.html">Window</a></li><li class="chapter-item "><a href="api/Workspace.html">Workspace</a></li><li class="chapter-item "><a href="api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="api/Popup.html">Popup</a></li><li class="chapter-item "><a href="api/Display.html">Display</a></li><li class="chapter-item "><a href="api/Components.html">Components</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -194,7 +194,7 @@
 <p>After <a href="getting-started/installation.html">installing</a> nog I would recommend you to do the following steps:</p>
 <ol>
 <li><a href="getting-started//configuration/introduction.html">configure</a> nog to fit your needs</li>
-<li>Execute <code>x</code> to start nog</li>
+<li>Execute <code>start-process $(&quot;$env:APPDATA\nog\bin\nog.exe&quot;)</code> to start nog</li>
 <li>Press <code>Ctrl+Alt+W</code> to enter <a href="getting-started/work_mode.html">work mode</a></li>
 </ol>
 <p>When nog is started for the first time it creates an <code>init.lua</code> file in the config folder 
@@ -345,7 +345,7 @@ nog.config.light_theme = true
 <li>Work (w)</li>
 <li>Global (g)</li>
 </ul>
-<p><code>Normal</code> keybindings are only active while being inside <a href="configuration//getting-started/work_mode.html">work mode</a> <strong>and</strong> not inside any other user-defined <a href="configuration//configuration/modes.html">mode</a>.</p>
+<p><code>Normal</code> keybindings are only active while being inside <a href="configuration//getting-started/work_mode.html">work mode</a> <strong>and</strong> inside the current <a href="configuration//configuration/modes.html">mode</a> (or while not in any mode).</p>
 <p><code>Work</code> keybindings are only active while being inside <a href="configuration//getting-started/work_mode.html">work mode</a>.</p>
 <p><code>Global</code> keybindings are always active as long as nog is running.</p>
 <p>Nog comes with 4 different functions which can be used to define a new keybinding:</p>
@@ -927,20 +927,53 @@ and the value gets passed to the callback when activated.</p>
 </ul>
 <h2><a class="header" href="#popup_close" id="popup_close">popup_close()</a></h2>
 <p>Closes the current popup.</p>
-<h1><a class="header" href="#popup-1" id="popup-1">Popup</a></h1>
-<h2><a class="header" href="#popup_createsettings-1" id="popup_createsettings-1">popup_create(settings)</a></h2>
-<p>Closes the current popup and opens a new one.</p>
+<h1><a class="header" href="#display" id="display">Display</a></h1>
+<h1><a class="header" href="#components-1" id="components-1">Components</a></h1>
+<h2><a class="header" href="#component" id="component">Component</a></h2>
+<p>A component is a table with the following fields:</p>
+<ul>
+<li><code>name</code></li>
+<li><code>render</code></li>
+<li><code>on_click</code> (optional)</li>
+</ul>
+<h2><a class="header" href="#workspaces-1" id="workspaces-1">workspaces()</a></h2>
+<p>Creates a component that displays the workspaces currently being used on this display. 
+The workspace that has focus is highlighted.</p>
+<p><strong>Return</strong>: <a href="api/Components.html#component">Component</a></p>
+<h2><a class="header" href="#datetimepattern" id="datetimepattern">datetime(pattern)</a></h2>
+<p>Creates a component that displays the current datetime formatted with the <code>pattern</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
-<li><code>settings</code> [table] popup settings
+<li><code>pattern</code> [string] a pattern for <a href="api//api/general#fmt-datetime">fmt_datetime</a></li>
+</ul>
+<p><strong>Return</strong>: <a href="api/Components.html#component">Component</a></p>
+<h2><a class="header" href="#paddingamount" id="paddingamount">padding(amount)</a></h2>
+<p>Creates a component that displays a space for <code>amount</code>.</p>
+<p><strong>Arguments</strong>:</p>
 <ul>
-<li><code>text</code> [table] array of strings. Each item represents a separate line.</li>
-<li><code>padding</code> [number] the padding of the popup.</li>
+<li><code>amount</code> [number] amount of spaces</li>
 </ul>
-</li>
+<p><strong>Return</strong>: <a href="api/Components.html#component">Component</a></p>
+<h2><a class="header" href="#active_mode" id="active_mode">active_mode()</a></h2>
+<p>Creates a component that displays either nothing or the active mode.</p>
+<p><strong>Return</strong>: <a href="api/Components.html#component">Component</a></p>
+<h2><a class="header" href="#current_window" id="current_window">current_window()</a></h2>
+<p>Creates a component that displays either nothing or the title of the window that has focus.</p>
+<p><strong>Return</strong>: <a href="api/Components.html#component">Component</a></p>
+<h2><a class="header" href="#split_directionvalues" id="split_directionvalues">split_direction(values)</a></h2>
+<p>Creates a component that displays either the first item of <code>values</code> or the last one depending on the current split direction.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>values</code> [table] must have 2 items where the first one is for vertical and the second one for horizontal</li>
 </ul>
-<h2><a class="header" href="#popup_close-1" id="popup_close-1">popup_close()</a></h2>
-<p>Closes the current popup.</p>
+<p><strong>Return</strong>: <a href="api/Components.html#component">Component</a></p>
+<h2><a class="header" href="#fullscreen_indicatorindicator" id="fullscreen_indicatorindicator">fullscreen_indicator(indicator)</a></h2>
+<p>Creates a component that displays either nothing or the <code>indicator</code> if the workspace is in <a href="api//getting-started/fullscreen-mode">fullscreen mode</a>.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>indicator</code> [string] the text to display</li>
+</ul>
+<p><strong>Return</strong>: <a href="api/Components.html#component">Component</a></p>
 
                     </main>
 
