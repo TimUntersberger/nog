@@ -213,12 +213,12 @@ impl Window {
         let mut buffer = [0; 0x200];
 
         unsafe {
-            nullable_to_result(GetWindowTextA(
+            nullable_to_result(GetWindowTextW(
                 self.id.into(),
                 buffer.as_mut_ptr(),
                 buffer.len() as i32,
             ))
-            .map(|_| util::bytes_to_string(&buffer))
+            .map(|_| String::from_utf16(&buffer).unwrap())
         }
     }
     pub fn get_rect(&self) -> WinResult<Rectangle> {
