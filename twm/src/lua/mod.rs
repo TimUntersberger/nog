@@ -758,6 +758,8 @@ pub fn setup_lua_rt(state_arc: Arc<Mutex<AppState>>) {
             path = format!("{}\\lua\\?.lua;{}", plug_path, path);
         }
 
+        path = format!("{}\\config\\?.lua;{}", get_config_path().to_str().unwrap(), path);
+
         let dll_path = {
             let mut path = std::env::current_exe().unwrap();
             path.pop();
