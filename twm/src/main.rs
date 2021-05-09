@@ -1099,14 +1099,17 @@ fn get_plugins_path_iter() -> Result<ReadDir, String> {
 
 fn run_config(rt: &LuaRuntime) {
     let mut path = get_config_path();
-    path.push("lua");
+    path.push("config");
     path.push("init.lua");
 
     if !path.exists() {
+        dbg!(&path);
         std::fs::write(&path, include_bytes!("../../assets/default_config.lua")).unwrap();
     }
 
     rt.run_file(path);
+
+    debug!("config execution finished");
 }
 
 fn main() {

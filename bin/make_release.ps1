@@ -21,6 +21,7 @@ if (test-path ./$root_dir.zip) {
 
 new-item -path . -name $root_dir -itemtype "Directory"
 new-item -path ./$root_dir -name "runtime" -itemtype "Directory"
+new-item -path ./$root_dir -name "config" -itemtype "Directory"
 new-item -path ./$root_dir -name "bin" -itemtype "Directory"
 
 copy-item ./twm/runtime/* ./$root_dir/runtime -recurse

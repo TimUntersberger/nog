@@ -19,8 +19,8 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
         path.push("log");
     }
 
-    Logger::with_env_or_str(DEBUG)
-        .log_to_file()
+    #[allow(unused_mut)]
+    let mut logger = Logger::with_env_or_str(DEBUG)
         .duplicate_to_stderr(Duplicate::All)
         .directory(path)
         .format(opt_format)
@@ -28,8 +28,14 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
             Criterion::Age(Age::Day),
             Naming::Timestamps,
             Cleanup::KeepLogFiles(6),
-        )
-        .start()
+        );
+
+    #[cfg(not(debug_assertions))]
+    {
+        logger = logger.log_to_file();
+    }
+        
+    logger.start()
         .expect("Failed to initialize logger");
 
     Ok(())

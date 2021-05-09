@@ -21,7 +21,7 @@ pub fn start(state: Arc<Mutex<AppState>>) {
         let mut path = dirs::config_dir().expect("Failed to get config dir");
 
         path.push("nog");
-        path.push("lua");
+        path.push("config");
 
         debug!("Watching {:?} recursively for file changes", &path);
 
