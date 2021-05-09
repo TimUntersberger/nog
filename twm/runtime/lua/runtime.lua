@@ -30,12 +30,12 @@ function nog.tbl_filter(tbl, f)
   return res
 end
 
-function nog.split(sep)
+function nog.split(s, sep)
   if sep == nil then
     sep = "%s"
   end
   local t={}
-  for str in string.gmatch(self, "([^"..sep.."]+)") do
+  for str in string.gmatch(s, "([^"..sep.."]+)") do
     table.insert(t, str)
   end
   return t
