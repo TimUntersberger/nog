@@ -17,7 +17,9 @@ impl From<SystemError> for LuaError {
 
 impl FromLua<'_> for Direction {
     fn from_lua(lua_value: mlua::Value<'_>, lua: &'_ mlua::Lua) -> mlua::Result<Self> {
-        let raw_direction = String::from_lua(lua_value, lua)?;
+        let mut raw_direction = String::from_lua(lua_value, lua)?.to_lowercase();
+
+        raw_direction.get_mut(0..1).map(|s| s.make_ascii_uppercase());
 
         Ok(Direction::from_str(&raw_direction).unwrap_or(Direction::Right))
     }
@@ -25,7 +27,9 @@ impl FromLua<'_> for Direction {
 
 impl FromLua<'_> for SplitDirection {
     fn from_lua(lua_value: mlua::Value<'_>, lua: &'_ mlua::Lua) -> mlua::Result<Self> {
-        let raw_direction = String::from_lua(lua_value, lua)?;
+        let mut raw_direction = String::from_lua(lua_value, lua)?.to_lowercase();
+
+        raw_direction.get_mut(0..1).map(|s| s.make_ascii_uppercase());
 
         Ok(SplitDirection::from_str(&raw_direction).unwrap_or(SplitDirection::Horizontal))
     }
