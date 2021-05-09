@@ -777,7 +777,11 @@ pub fn setup_lua_rt(state_arc: Arc<Mutex<AppState>>) {
         Ok(())
     }).unwrap();
 
-    rt.run_file(format!("{}/lua/runtime.lua", get_runtime_path().to_str().unwrap()));
+    let mut path = get_runtime_path();
+    path.push("lua");
+    path.push("runtime.lua");
+
+    rt.run_file(path);
 
     load_window_functions(state_arc.clone(), &rt).unwrap();
     load_workspace_functions(state_arc.clone(), &rt).unwrap();

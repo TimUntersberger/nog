@@ -100,7 +100,13 @@ impl LuaRuntime {
         let path_str: String = path.display().to_string();
         debug!("Executing {}", &path_str);
         match std::fs::read_to_string(&path) {
-            Ok(content) => { self.run_str(&path_str, &content); },
+            Ok(content) => { 
+                #[cfg(not(debug_assertions))]
+                {
+                    println!("{}", content);
+                }
+                self.run_str(&path_str, &content); 
+            },
             Err(e) => { error!("{}", e); }
         };
         debug!("Finished execution");
