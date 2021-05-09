@@ -1,6 +1,6 @@
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
 
-use log::debug;
+use log::{debug, error};
 use mlua::{Function, Lua, Table};
 use parking_lot::Mutex;
 
@@ -99,8 +99,11 @@ impl LuaRuntime {
         let path: PathBuf = p.into();
         let path_str: String = path.display().to_string();
         debug!("Executing {}", &path_str);
-        let content = std::fs::read_to_string(&path).unwrap();
-        self.run_str(&path_str, &content);
+        match std::fs::read_to_string(&path) {
+            Ok(content) => { self.run_str(&path_str, &content); },
+            Err(e) => { error!("{}", e); }
+        };
+        debug!("Finished execution");
     }
 }
 
