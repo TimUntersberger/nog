@@ -1103,7 +1103,7 @@ fn run_config(rt: &LuaRuntime) {
     path.push("init.lua");
 
     if !path.exists() {
-        dbg!(&path);
+        info!("Config file is missing. Creating default config");
         std::fs::write(&path, include_bytes!("../../assets/default_config.lua")).unwrap();
     }
 
@@ -1115,6 +1115,9 @@ fn run_config(rt: &LuaRuntime) {
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
     logging::setup().expect("Failed to setup logging");
+
+    info!("Config: {:?}", get_config_path());
+    info!("Runtime: {:?}", get_runtime_path());
 
     let state_arc = Arc::new(Mutex::new(AppState::default()));
 

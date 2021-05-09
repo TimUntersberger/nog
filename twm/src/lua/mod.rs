@@ -5,7 +5,7 @@ use mlua::{Error as LuaError, FromLua, Function, Lua, Table, ToLua, Value};
 use parking_lot::Mutex;
 use regex::Regex;
 
-use log::{error, warn};
+use log::{info, error, warn};
 
 use crate::{
     bar::component::Component, config::bar_config::BarComponentsConfig, config::rule::Rule,
@@ -760,6 +760,7 @@ pub fn setup_lua_rt(state_arc: Arc<Mutex<AppState>>) {
 
         path = format!("{}\\config\\?.lua;{}", get_config_path().to_str().unwrap(), path);
 
+        #[cfg(debug_assertions)]
         let dll_path = {
             let mut path = std::env::current_exe().unwrap();
             path.pop();
@@ -770,6 +771,14 @@ pub fn setup_lua_rt(state_arc: Arc<Mutex<AppState>>) {
             path.push("dll");
             path
         };
+        #[cfg(not(debug_assertions))]
+        let dll_path = {
+            let mut path = get_runtime_path();
+            path.push("dll");
+            path
+        };
+
+        info!("DLL path: {:?}", dll_path);
 
         cpath = format!("{}\\?.dll;{}", dll_path.to_str().unwrap(), cpath);
 
