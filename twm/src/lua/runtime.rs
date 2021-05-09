@@ -103,7 +103,7 @@ impl LuaRuntime {
             Ok(content) => { 
                 #[cfg(not(debug_assertions))]
                 {
-                    println!("{}", content);
+                    debug!("\n{}", content);
                 }
                 self.run_str(&path_str, &content); 
             },
