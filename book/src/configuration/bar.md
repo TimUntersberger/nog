@@ -43,7 +43,7 @@ All of the builtin components can be found under `nog.components`.
 * padding
 * fullscreen_indicator
 * split_direction
-* current_mode
+* active_mode
 
 ### Custom
 
