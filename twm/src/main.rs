@@ -1100,6 +1100,12 @@ fn get_plugins_path_iter() -> Result<ReadDir, String> {
 fn run_config(rt: &LuaRuntime) {
     let mut path = get_config_path();
     path.push("config");
+
+    if !path.exists() {
+        info!("config folder doesn't exist yet. Creating the folder");
+        std::fs::create_dir(path.clone()).unwrap();
+    }
+
     path.push("init.lua");
 
     if !path.exists() {
