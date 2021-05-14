@@ -62,3 +62,6 @@ The command will build the book directory and output the generated files into th
 ```
 mdbook build ./book
 ```
+
+### Updating .ns Config Files
+We recently changed the config scripting language to use Lua. If you need help converting your config to the new format, consult the config guide [here]( https://github.com/TimUntersberger/nog/blob/master/config.md) or feel free to post on the [documentation feedback issue](https://github.com/TimUntersberger/nog/issues/106).

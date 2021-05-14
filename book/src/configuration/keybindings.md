@@ -65,6 +65,15 @@ and separated by `+`.
 * Up
 * Right
 * Down
+* OEM_1
+* OEM_2
+* OEM_3
+* OEM_4
+* OEM_5
+* OEM_6
+* OEM_7
+* OEM_8
+* OEM_102
 
 ### Modifiers
 
