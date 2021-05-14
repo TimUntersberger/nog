@@ -441,7 +441,6 @@ impl AppState {
 
         window.map(|window| {
             self.get_grid_by_id_mut(id).unwrap().push(window);
-            self.change_workspace(id, false);
         });
 
         Ok(())
