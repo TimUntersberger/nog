@@ -27,5 +27,4 @@
 - [Plugin](./api/Plugin.md)
 - [Keybindings](./api/Keybindings.md)
 - [Popup](./api/Popup.md)
-- [Display](./api/Display.md)
 - [Components](./api/Components.md)
