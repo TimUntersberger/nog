@@ -5,8 +5,8 @@ use crate::{
     config::Config, display::Display, event::Event, system::DisplayId, system::Rectangle,
     window::Api, window::WindowEvent, AppState, NOG_BAR_NAME,
 };
-use interpreter::RuntimeResult;
 use log::{debug, error, info};
+use mlua::Result as RuntimeResult;
 use parking_lot::Mutex;
 use std::sync::Arc;
 use std::time::Duration;

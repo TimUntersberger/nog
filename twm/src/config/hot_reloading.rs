@@ -21,6 +21,7 @@ pub fn start(state: Arc<Mutex<AppState>>) {
         let mut path = dirs::config_dir().expect("Failed to get config dir");
 
         path.push("nog");
+        path.push("config");
 
         debug!("Watching {:?} recursively for file changes", &path);
 
@@ -32,8 +33,8 @@ pub fn start(state: Arc<Mutex<AppState>>) {
             match rx.recv() {
                 Ok(ev) => match ev {
                     DebouncedEvent::Write(path) => {
-                        if path.extension().unwrap() == "ns" {
-                            debug!("Nogscript file {:?} changed! Reloading config", &path);
+                        if path.extension().unwrap() == "lua" {
+                            debug!("Lua file {:?} changed! Reloading config", &path);
                             state
                                 .lock()
                                 .event_channel

@@ -1,3 +1,4 @@
+use crate::get_plugins_path;
 use crate::keybindings::keybinding::Keybinding;
 use bar_config::BarConfig;
 use log::error;
@@ -18,6 +19,7 @@ pub struct Config {
     pub path: PathBuf,
     pub plugins_path: PathBuf,
     pub use_border: bool,
+    pub enable_hot_reloading: bool,
     pub min_width: i32,
     pub min_height: i32,
     pub work_mode: bool,
@@ -31,7 +33,7 @@ pub struct Config {
     pub ignore_fullscreen_actions: bool,
     pub display_app_bar: bool,
     pub bar: BarConfig,
-    pub workspace_settings: Vec<WorkspaceSetting>,
+    pub workspaces: Vec<WorkspaceSetting>,
     pub keybindings: Vec<Keybinding>,
     pub rules: Vec<Rule>,
     pub update_channels: Vec<UpdateChannel>,
@@ -48,8 +50,9 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             path: "".into(),
-            plugins_path: "".into(),
+            plugins_path: get_plugins_path().unwrap(),
             launch_on_startup: false,
+            enable_hot_reloading: true,
             min_height: 200,
             min_width: 200,
             use_border: true,
@@ -65,7 +68,7 @@ impl Default for Config {
             bar: BarConfig::default(),
             mode_handlers: HashMap::new(),
             mode_meta: HashMap::new(),
-            workspace_settings: Vec::new(),
+            workspaces: Vec::new(),
             keybindings: vec![],
             rules: Vec::new(),
             update_channels: Vec::new(),
@@ -79,9 +82,7 @@ impl Default for Config {
 impl Config {
     /// Creates a new default config.
     pub fn new() -> Self {
-        let mut temp = Self::default();
-        temp.keybindings = Vec::new();
-        temp
+        Self::default()
     }
 
     pub fn increment_field(&mut self, field: &str, value: i32) {
@@ -99,6 +100,7 @@ impl Config {
             "light_theme" => self.light_theme = value.parse().unwrap(),
             "multi_monitor" => self.multi_monitor = value.parse().unwrap(),
             "launch_on_startup" => self.launch_on_startup = value.parse().unwrap(),
+            "enable_hot_reloading" => self.enable_hot_reloading = value.parse().unwrap(),
             "remove_title_bar" => self.remove_title_bar = value.parse().unwrap(),
             "remove_task_bar" => self.remove_task_bar = value.parse().unwrap(),
             "display_app_bar" => self.display_app_bar = value.parse().unwrap(),
@@ -128,6 +130,7 @@ impl Config {
             "light_theme" => self.light_theme = !self.light_theme,
             "launch_on_startup" => self.launch_on_startup = !self.launch_on_startup,
             "remove_title_bar" => self.remove_title_bar = !self.remove_title_bar,
+            "enable_hot_reloading" => self.enable_hot_reloading = !self.enable_hot_reloading,
             "remove_task_bar" => self.remove_task_bar = !self.remove_task_bar,
             "display_app_bar" => self.display_app_bar = !self.display_app_bar,
             "allow_right_alt" => self.allow_right_alt = !self.allow_right_alt,
@@ -160,6 +163,7 @@ impl Config {
             "launch_on_startup" => config.launch_on_startup = value,
             "remove_title_bar" => config.remove_title_bar = value,
             "remove_task_bar" => config.remove_task_bar = value,
+            "enable_hot_reloading" => config.enable_hot_reloading = value,
             "ignore_fullscreen_actions" => config.ignore_fullscreen_actions = value,
             "display_app_bar" => config.display_app_bar = value,
             "allow_right_alt" => config.allow_right_alt = value,

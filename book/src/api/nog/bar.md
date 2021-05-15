@@ -1,4 +1,0 @@
-# bar
-
-## Functions
-* [configure]()

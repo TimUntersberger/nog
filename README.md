@@ -6,16 +6,13 @@
 
 https://timuntersberger.github.io/nog
 
-## Syntax highlighting
-
-Since nog uses a custom language we will provide official plugins for syntax highlighting.
-
-* [vim](https://github.com/TimUntersberger/nog.vim)
-* [vscode](https://marketplace.visualstudio.com/items?itemName=TimUntersberger.nogscript-language-support)
-
 ## Download
 
-In almost all cases the [master](https://github.com/TimUntersberger/nog/releases/tag/master-release) release is the way to go.
+### Windows
+
+```powershell
+(iwr "https://raw.githubusercontent.com/TimUntersberger/nog/master/bin/download_release.ps1").Content > download.ps1; ./download.ps1 master-release; rm download.ps1
+```
 
 ## Known Problems
 
@@ -38,22 +35,33 @@ If the previous application mentioned in step 3 is managed by nog, the workspace
 
 ## Development
 
-### Set up Rust
+Nog requires `nightly` rust.
 
-Install [rustup](https://rustup.rs/).
-
-Install and set the nightly toolchain:
+### Make Release
 
 ```
-rustup toolchain install nightly
-rustup override set nightly
+./bin/make_release.ps1 <VERSION>
 ```
 
-### Create Executable
+### Serve documentation
+
+This requires you to have [mdbook](https://github.com/rust-lang/mdBook) installed.
+
+The command will serve the book at `https://localhost:3000` and automatically rebuild whenever you change the source.
 
 ```
-$env:NOG_VERSION="<version>"
-cargo build --release
-cp ./target/release/twm.exe ./target/release/nog.exe
-./rcedit ./target/release/nog.exe --set-icon ./assets/logo.ico
+mdbook serve ./book
 ```
+
+### Build documentation
+
+This requires you to have [mdbook](https://github.com/rust-lang/mdBook) installed.
+
+The command will build the book directory and output the generated files into the docs directory.
+
+```
+mdbook build ./book
+```
+
+### Updating .ns Config Files
+We recently changed the config scripting language to use Lua. If you need help converting your config to the new format, consult the config guide [here]( https://github.com/TimUntersberger/nog/blob/master/config.md) or feel free to post on the [documentation feedback issue](https://github.com/TimUntersberger/nog/issues/106).

@@ -212,7 +212,7 @@ pub fn init(config: &Config) -> Vec<Display> {
 
     for i in 1..11 {
         let monitor = config
-            .workspace_settings
+            .workspaces
             .iter()
             .find(|s| s.id == i)
             .map(|s| s.monitor)

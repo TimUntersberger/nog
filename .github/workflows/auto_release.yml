@@ -28,18 +28,8 @@ jobs:
         echo "::set-env name=COMMIT_HASH::$(git rev-parse --short HEAD)"
         # enable command workflow processing
         echo "::pause-logging::"
-    - name: Build
-      run: cargo build --release
-      env:
-        NOG_VERSION: "${{ env.BRANCH_NAME }} ${{ env.COMMIT_HASH }}"
-    - name: Add Icon
-      run: ./rcedit ./target/release/twm.exe --set-icon ./assets/logo.ico
-    - name: Rename executable
-      run: |
-        if (Test-Path ./target/release/nog.exe) {
-          rm ./target/release/nog.exe
-        }
-        mv ./target/release/twm.exe ./target/release/nog.exe
+    - name: Make Release
+      run: ./bin/make_release.ps1 "${{ env.BRANCH_NAME }} ${{ env.COMMIT_HASH }}"
     - name: Create Release
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
@@ -48,4 +38,4 @@ jobs:
         prerelease: true
         title: "${{ env.BRANCH_NAME }} branch"
         files: |
-          ./target/release/nog.exe
+          ./Nog.zip

@@ -15,6 +15,13 @@ pub struct BarComponentsConfig {
 }
 
 impl BarComponentsConfig {
+    pub fn new() -> Self {
+        Self {
+            left: Vec::new(),
+            center: Vec::new(),
+            right: Vec::new(),
+        }
+    }
     pub fn empty(&mut self) {
         self.left = Vec::new();
         self.center = Vec::new();
@@ -29,21 +36,6 @@ pub struct BarConfig {
     pub font: String,
     pub font_size: i32,
     pub components: BarComponentsConfig,
-}
-
-impl BarConfig {
-    pub fn use_default_components(&mut self, state_arc: Arc<Mutex<AppState>>) {
-        self.components.left = vec![component::workspaces::create(state_arc.clone())];
-        self.components.center = vec![component::time::create("%T".into())];
-        self.components.right = vec![
-            component::active_mode::create(state_arc.clone()),
-            component::padding::create(5),
-            component::split_direction::create(state_arc.clone(), "V".into(), "H".into()),
-            component::padding::create(5),
-            component::date::create("%e %b %Y".into()),
-            component::padding::create(1),
-        ];
-    }
 }
 
 impl PartialEq for BarConfig {

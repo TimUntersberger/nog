@@ -4,30 +4,28 @@
 extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
-#[macro_use]
-extern crate interpreter;
 
 use bar::component::{self, Component, ComponentText};
-use config::{rule::Rule, workspace_setting::WorkspaceSetting, Config};
+use config::{bar_config::BarConfig, rule::Rule, workspace_setting::WorkspaceSetting, Config};
 use crossbeam_channel::select;
 use direction::Direction;
 use display::Display;
 use event::Event;
 use event::EventChannel;
 use hot_reload::update_config;
-use interpreter::{Dynamic, Function, Interpreter, Module, RuntimeError};
 use itertools::Itertools;
-use keybindings::{keybinding::Keybinding, KbManager};
+use keybindings::{keybinding::Keybinding, keybinding::KeybindingKind, KbManager};
 use log::debug;
 use log::{error, info};
+use lua::{setup_lua_rt, LuaRuntime};
 use parking_lot::{deadlock, Mutex};
 use popup::Popup;
 use regex::Regex;
 use split_direction::SplitDirection;
-use std::fs::ReadDir;
 use std::path::PathBuf;
 use std::process::Command;
 use std::str::FromStr;
+use std::{fmt::Debug, fs::ReadDir, path::Path};
 use std::{mem, thread, time::Duration};
 use std::{process, sync::atomic::AtomicBool, sync::Arc};
 use system::NativeWindow;
@@ -125,8 +123,9 @@ mod event_handler;
 mod hot_reload;
 mod keybindings;
 mod logging;
+mod lua;
 mod message_loop;
-mod nogscript;
+// mod nogscript;
 mod popup;
 mod renderer;
 mod split_direction;
@@ -143,11 +142,12 @@ mod window;
 
 #[derive(Debug, Clone)]
 pub struct AppState {
+    pub lua_rt: LuaRuntime,
     pub config: Config,
     pub work_mode: bool,
     pub displays: Vec<Display>,
     pub event_channel: EventChannel,
-    pub keybindings_manager: KbManager,
+    pub keybindings_manager: Option<KbManager>,
     pub additonal_rules: Vec<Rule>,
     pub window_event_listener: WinEventListener,
     pub workspace_id: i32,
@@ -158,12 +158,9 @@ impl Default for AppState {
         let config = Config::default();
         Self {
             work_mode: true,
+            lua_rt: LuaRuntime::new(),
             displays: time!("initializing displays", display::init(&config)),
-            keybindings_manager: KbManager::new(
-                config.keybindings.clone(),
-                config.mode_handlers.clone(),
-                config.allow_right_alt,
-            ),
+            keybindings_manager: None,
             event_channel: EventChannel::default(),
             additonal_rules: Vec::new(),
             window_event_listener: WinEventListener::default(),
@@ -174,31 +171,10 @@ impl Default for AppState {
 }
 
 impl AppState {
-    pub fn new(config: Config) -> Self {
-        Self {
-            work_mode: config.work_mode,
-            displays: display::init(&config),
-            keybindings_manager: KbManager::new(
-                config.keybindings.clone(),
-                config.mode_handlers.clone(),
-                config.allow_right_alt,
-            ),
-            event_channel: EventChannel::default(),
-            additonal_rules: Vec::new(),
-            window_event_listener: WinEventListener::default(),
-            workspace_id: 1,
-            config,
-        }
-    }
-    pub fn init(&mut self, config: Config) {
-        self.config = config;
+    pub fn init(&mut self, state_arc: Arc<Mutex<AppState>>) {
         self.work_mode = self.config.work_mode;
         self.displays = display::init(&self.config);
-        self.keybindings_manager = KbManager::new(
-            self.config.keybindings.clone(),
-            self.config.mode_handlers.clone(),
-            self.config.allow_right_alt,
-        );
+        self.keybindings_manager = Some(KbManager::new(state_arc, self.config.allow_right_alt));
     }
 
     /// TODO: maybe rename this function
@@ -210,6 +186,147 @@ impl AppState {
         }
 
         Ok(())
+    }
+
+    pub fn install_plugin(&mut self, name: String) -> SystemResult {
+        let url = format!("https://www.github.com/{}", &name);
+        let mut path = self.config.plugins_path.clone();
+        path.push(name.split("/").join("_"));
+
+        if path.exists() {
+            debug!("{} is already installed", name);
+        } else {
+            debug!("Installing {} from {}", name, url);
+            Command::new("git")
+                .arg("clone")
+                .arg(&url)
+                .arg(&path)
+                .spawn()
+                .unwrap()
+                .wait()
+                .unwrap();
+
+            path.push("plugin");
+        }
+
+        Ok(())
+    }
+
+    pub fn update_plugins(&mut self) -> SystemResult {
+        if let Ok(dirs) = get_plugins_path_iter() {
+            for dir in dirs {
+                if let Ok(dir) = dir {
+                    let name = dir.file_name().to_str().unwrap().to_string();
+
+                    let mut path = self.config.plugins_path.clone();
+                    path.push(&name);
+
+                    let name = name.split("_").join("/");
+                    let url = format!("https://www.github.com/{}", name);
+
+                    let output = Command::new("git")
+                        .arg("rev-parse")
+                        .arg("--is-inside-work-tree")
+                        .current_dir(&path)
+                        .output()
+                        .unwrap();
+
+                    let is_git_repo = output.stdout.iter().map(|&x| x as char).count() != 0;
+
+                    if !is_git_repo {
+                        debug!("{} is not a git repo", name);
+                        continue;
+                    }
+
+                    let output = Command::new("git")
+                        .arg("rev-list")
+                        .arg("HEAD...origin/master")
+                        .arg("--count")
+                        .current_dir(&path)
+                        .output()
+                        .unwrap();
+
+                    let has_updates =
+                        output.stdout.iter().map(|&x| x as char).collect::<String>() != "0\n";
+
+                    if has_updates {
+                        debug!("Updating {}", name);
+                        Command::new("git")
+                            .arg("pull")
+                            .arg(&url)
+                            .spawn()
+                            .unwrap()
+                            .wait()
+                            .unwrap();
+                    } else {
+                        debug!("{} is up to date", &name);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn uninstall_plugin(&mut self, name: String) -> SystemResult {
+        let mut path = self.config.plugins_path.clone();
+        path.push(name.split("/").join("_"));
+
+        if path.exists() {
+            debug!("Uninstalling {}", name);
+            if let Err(e) = std::fs::remove_dir_all(path) {
+                error!("Failed to remove plugin: {}", e.to_string());
+            }
+        } else {
+            debug!("{} is not installed", name);
+        }
+        Ok(())
+    }
+
+    pub fn get_plugins(&self) -> SystemResult<Vec<String>> {
+        let mut list: Vec<String> = Vec::new();
+
+        if let Ok(dirs) = get_plugins_path_iter() {
+            for dir in dirs {
+                if let Ok(dir) = dir {
+                    list.push(dir.path().to_str().unwrap().into());
+                }
+            }
+        }
+
+        Ok(list)
+    }
+
+    pub fn create_popup(&mut self) -> SystemResult {
+        Ok(())
+    }
+
+    pub fn get_window_title(&mut self) -> SystemResult<String> {
+        Ok(self
+            .get_current_grid()
+            .and_then(|g| g.get_focused_window())
+            .and_then(|w| w.get_title().ok())
+            .unwrap_or_default())
+    }
+
+    //TODO: Make this work at runtime after initilization
+    pub fn add_keybinding(&mut self, kb: Keybinding) {
+        self.config.add_keybinding(kb.clone());
+    }
+
+    pub fn emit_change_workspace(&mut self, id: i32) -> SystemResult {
+        self.event_channel
+            .sender
+            .send(Event::ChangeWorkspace(id, true));
+
+        Ok(())
+    }
+
+    pub fn emit_lua_rt_error(&mut self, msg: &str) {
+        self.event_channel
+            .sender
+            .send(Event::LuaRuntimeError(mlua::Error::RuntimeError(
+                msg.to_string(),
+            )));
     }
 
     pub fn move_workspace_to_monitor(&mut self, monitor: i32) -> SystemResult {
@@ -323,9 +440,16 @@ impl AppState {
         let window = grid.pop();
 
         window.map(|window| {
-            self.get_grid_by_id_mut(id).unwrap().push(window);
-            self.change_workspace(id, false);
+            if let Some(target_grid) = self.get_grid_by_id_mut(id) {
+                window.hide();
+                target_grid.push(window);
+                Store::save(id, target_grid.to_string());
+            }
         });
+
+        let config = self.config.clone();
+        let display = self.get_current_display_mut();
+        display.refresh_grid(&config)?;
 
         Ok(())
     }
@@ -386,17 +510,17 @@ impl AppState {
         if !focused_workspaces.is_empty() {
             // re-focus to show each display's focused workspace
             for id in focused_workspaces.iter().rev() {
-                this.change_workspace(*id, false);
+                this.change_workspace(*id, false)?;
             }
         } else {
             // otherwise just focus first workspace
-            this.change_workspace(1, false);
+            this.change_workspace(1, false)?;
         }
 
         info!("Registering windows event handler");
         this.window_event_listener.start(&this.event_channel);
 
-        let kb = this.keybindings_manager.clone();
+        let kb = this.keybindings_manager.as_ref().unwrap().clone();
 
         drop(this);
 
@@ -408,7 +532,7 @@ impl AppState {
     pub fn leave_work_mode(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
         let mut this = state_arc.lock();
         this.window_event_listener.stop();
-        this.keybindings_manager.leave_work_mode();
+        this.keybindings_manager.as_ref().unwrap().leave_work_mode();
 
         popup::cleanup()?;
 
@@ -448,7 +572,7 @@ impl AppState {
         if let Some(grid) = display.get_focused_grid_mut() {
             if !config.ignore_fullscreen_actions || !grid.is_fullscreened() {
                 grid.swap_focused(direction);
-                display.refresh_grid(&config);
+                display.refresh_grid(&config)?;
             }
         }
 
@@ -490,7 +614,7 @@ impl AppState {
         if let Some(grid) = display.get_focused_grid_mut() {
             if !config.ignore_fullscreen_actions || !grid.is_fullscreened() {
                 grid.focus(direction)?;
-                display.refresh_grid(&config);
+                display.refresh_grid(&config)?;
             }
         }
 
@@ -577,18 +701,8 @@ impl AppState {
         Ok(())
     }
 
-    pub fn toggle_mode(&mut self, mode: String) {
-        if self.keybindings_manager.get_mode() == Some(mode.clone()) {
-            info!("Disabling {} mode", mode);
-            self.keybindings_manager.leave_mode();
-        } else {
-            info!("Enabling {} mode", mode);
-            self.keybindings_manager.enter_mode(&mode);
-        }
-    }
-
     pub fn get_workspace_settings(&self, id: i32) -> Option<&WorkspaceSetting> {
-        self.config.workspace_settings.iter().find(|s| s.id == id)
+        self.config.workspaces.iter().find(|s| s.id == id)
     }
 
     pub fn is_workspace_visible(&self, id: i32) -> bool {
@@ -598,12 +712,12 @@ impl AppState {
             .is_some()
     }
 
-    pub fn change_workspace(&mut self, id: i32, _force: bool) {
+    pub fn change_workspace(&mut self, id: i32, _force: bool) -> SystemResult {
         let config = self.config.clone();
         let current = self.get_current_display().id;
         if let Some(d) = self.find_grid_display_mut(id) {
             let new = d.id;
-            d.focus_workspace(&config, id);
+            d.focus_workspace(&config, id)?;
             self.workspace_id = id;
             self.redraw_app_bars();
             if current != new {
@@ -611,6 +725,18 @@ impl AppState {
                     .map(|d| d.refresh_grid(&config));
             }
         }
+
+        Ok(())
+    }
+
+    pub fn get_ws_text(&mut self, id: i32) -> String {
+        self.config
+            .workspaces
+            .iter()
+            .find(|s| s.id == id)
+            .map(|s| s.text.clone())
+            .filter(|t| !t.is_empty())
+            .unwrap_or(format!(" {} ", id.to_string()))
     }
 
     pub fn redraw_app_bars(&self) {
@@ -809,84 +935,14 @@ fn os_specific_setup(state: Arc<Mutex<AppState>>) {
     tray::create(state);
 }
 
-fn parse_config(
-    state_arc: Arc<Mutex<AppState>>,
-    callbacks_arc: Arc<Mutex<Vec<Function>>>,
-    interpreter_arc: Arc<Mutex<Interpreter>>,
-) -> Result<Config, String> {
-    callbacks_arc.lock().clear();
-    let mut config = Config::default();
-
-    config.bar.use_default_components(state_arc.clone());
-
-    let config = Arc::new(Mutex::new(config));
-    let mut interpreter = Interpreter::new();
-
-    let is_init_inner = Arc::new(AtomicBool::new(true));
-    let is_init_inner2 = is_init_inner.clone();
-    let is_init = move || is_init_inner2.load(std::sync::atomic::Ordering::SeqCst);
-
-    interpreter.debug = true;
-    interpreter.source_locations = interpreter_arc.lock().source_locations.clone();
-    let root = nogscript::lib::create_root_module(
-        is_init,
-        state_arc.clone(),
-        callbacks_arc.clone(),
-        interpreter_arc.clone(),
-        config.clone(),
-    );
-    interpreter.add_module(root);
-
-    let mut config_path: PathBuf = dirs::config_dir().unwrap_or_default();
-    config_path.push("nog");
-    let mut plugins_path = get_plugins_path().unwrap_or_default();
-
-    config.lock().path = config_path.clone();
-    interpreter.source_locations.push(config_path.clone());
-
-    if !config_path.exists() {
-        debug!("nog folder doesn't exist yet. Creating the folder");
-        std::fs::create_dir(config_path.clone()).map_err(|e| e.to_string())?;
-    }
-
-    config.lock().plugins_path = plugins_path.clone();
-
-    interpreter.source_locations.push(plugins_path.clone());
-
-    config_path.push("config.ns");
-
-    if !config_path.exists() {
-        debug!("config file doesn't exist yet. Creating the file");
-        if let Ok(mut file) = std::fs::File::create(config_path.clone()) {
-            debug!("Initializing config with default values");
-            // file.write_all(include_bytes!("../../../assets/default_config.nog"))
-            //     .map_err(|e| e.to_string())?;
-        }
-    }
-
-    debug!("Running config file");
-
-    interpreter.execute_file(config_path)?;
-
-    is_init_inner.store(false, std::sync::atomic::Ordering::SeqCst);
-
-    *interpreter_arc.lock() = interpreter;
-
-    let cfg = config.lock();
-
-    Ok(cfg.clone())
-}
-
-fn run(
-    state_arc: Arc<Mutex<AppState>>,
-    callbacks_arc: Arc<Mutex<Vec<Function>>>,
-    interpreter_arc: Arc<Mutex<Interpreter>>,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>> {
     let receiver = state_arc.lock().event_channel.receiver.clone();
     let sender = state_arc.lock().event_channel.sender.clone();
 
-    info!("Starting hot reloading of config");
-    config::hot_reloading::start(state_arc.clone());
+    if state_arc.lock().config.enable_hot_reloading {
+        info!("Starting hot reloading of config");
+        config::hot_reloading::start(state_arc.clone());
+    }
 
     startup::set_launch_on_startup(state_arc.lock().config.launch_on_startup);
 
@@ -896,6 +952,8 @@ fn run(
     state_arc
         .lock()
         .keybindings_manager
+        .as_ref()
+        .unwrap()
         .start(state_arc.clone());
 
     if state_arc.lock().config.work_mode {
@@ -935,19 +993,23 @@ fn run(
                         sender.send(Event::CallCallback { idx: kb.callback_id, is_mode_callback: false } ).unwrap();
                         Ok(())
                     },
-                    Event::ConfigError(err) => {
-                        error!("{}", err.message(&interpreter_arc.lock().program()));
+                    Event::LuaRuntimeError(err) => {
+                        error!("{}", lua::get_err_msg(&err));
 
                         Ok(())
                     }
                     Event::CallCallback { idx, is_mode_callback } => {
-                        let cb = callbacks_arc.lock().get(idx).unwrap().clone();
-                        if let Err(e) = cb.invoke(&mut interpreter_arc.lock(), vec![]) {
-                            state_arc.lock().event_channel.sender.send(Event::ConfigError(e)).unwrap();
+                        let rt = state_arc.lock().lua_rt.clone();
+                        let res = rt.with_lua(|lua| {
+                            LuaRuntime::get_callback(lua, idx)?.call::<_, ()>(())
+                        });
+
+                        if let Err(e) = res {
+                            sender.send(Event::LuaRuntimeError(e));
+                        } else if is_mode_callback {
+                            state_arc.lock().keybindings_manager.as_ref().map(|x| x.sender.clone()).unwrap().send(keybindings::ChanMessage::ModeCbExecuted);
                         }
-                        if is_mode_callback {
-                            state_arc.lock().keybindings_manager.sender.send(keybindings::ChanMessage::ModeCbExecuted);
-                        }
+
                         Ok(())
                     },
                     Event::RedrawAppBar => {
@@ -966,14 +1028,10 @@ fn run(
                     },
                     Event::ReloadConfig => {
                         info!("Reloading Config");
-                        match parse_config(state_arc.clone(), callbacks_arc.clone(), interpreter_arc.clone()) {
-                            Ok(new_config) => update_config(state_arc.clone(), new_config),
-                            Err(e) => {
-                                sender.send(Event::NewPopup(Popup::new_error(vec![e])));
-                                Ok(())
-                            }
+                        let rt = state_arc.lock().lua_rt.clone();
+                        run_config(&rt);
 
-                        }
+                        Ok(())
                     },
                     Event::UpdateBarSections(display_id, left, center, right) => {
                         let mut state = state_arc.lock();
@@ -1004,66 +1062,88 @@ fn run(
     Ok(())
 }
 
-fn get_plugins_path() -> Result<PathBuf, String> {
-    let mut plugins_path: PathBuf = dirs::config_dir().unwrap_or_default();
-    plugins_path.push("nog");
-    plugins_path.push("plugins");
+fn get_config_path() -> PathBuf {
+    let mut path: PathBuf = dirs::config_dir().unwrap_or_default();
+    path.push("nog");
+    path
+}
 
-    if !plugins_path.exists() {
+fn get_runtime_path() -> PathBuf {
+    #[cfg(debug_assertions)] // dev
+    {
+        let mut path: PathBuf = std::env::current_exe().unwrap();
+        path.pop();
+        path.pop();
+        path.pop();
+        path.push("twm");
+        path.push("runtime");
+        path
+    }
+    #[cfg(not(debug_assertions))] // prod
+    {
+        let mut path: PathBuf = dirs::data_dir().unwrap_or_default();
+        path.push("nog");
+        path.push("runtime");
+        path
+    }
+}
+
+fn get_plugins_path() -> Result<PathBuf, String> {
+    let mut path: PathBuf = get_config_path();
+    path.push("plugins");
+
+    if !path.exists() {
         debug!("plugins folder doesn't exist yet. Creating the folder");
-        std::fs::create_dir(plugins_path.clone()).map_err(|e| e.to_string())?;
+        std::fs::create_dir(path.clone()).map_err(|e| e.to_string())?;
     }
 
-    Ok(plugins_path)
+    Ok(path)
 }
 
 fn get_plugins_path_iter() -> Result<ReadDir, String> {
     Ok(get_plugins_path()?.read_dir().unwrap())
 }
 
-/// Fill source_locations of interpreter with plugin paths
-fn load_plugin_source_locations(i: &mut Interpreter) {
-    if let Ok(dirs) = get_plugins_path_iter() {
-        for dir in dirs {
-            if let Ok(dir) = dir {
-                let mut path = dir.path();
-                path.push("plugin");
-                i.source_locations.push(path);
-            }
-        }
+fn run_config(rt: &LuaRuntime) {
+    let mut path = get_config_path();
+    path.push("config");
+
+    if !path.exists() {
+        info!("config folder doesn't exist yet. Creating the folder");
+        std::fs::create_dir(path.clone()).unwrap();
     }
+
+    path.push("init.lua");
+
+    if !path.exists() {
+        info!("Config file is missing. Creating default config");
+        std::fs::write(&path, include_bytes!("../../assets/default_config.lua")).unwrap();
+    }
+
+    rt.run_file(path);
+
+    debug!("config execution finished");
 }
 
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
     logging::setup().expect("Failed to setup logging");
 
+    info!("Config: {:?}", get_config_path());
+    info!("Runtime: {:?}", get_runtime_path());
+
     let state_arc = Arc::new(Mutex::new(AppState::default()));
-    let callbacks_arc: Arc<Mutex<Vec<Function>>> = Arc::new(Mutex::new(Vec::new()));
-    let mut interpreter = Interpreter::new();
 
-    load_plugin_source_locations(&mut interpreter);
+    debug!("Setting up lua runtime");
+    setup_lua_rt(state_arc.clone());
 
-    let interpreter_arc = Arc::new(Mutex::new(interpreter));
+    let rt = state_arc.lock().lua_rt.clone();
+    run_config(&rt);
+    rt.disable_setup().unwrap();
 
-    {
-        let mut config = parse_config(
-            state_arc.clone(),
-            callbacks_arc.clone(),
-            interpreter_arc.clone(),
-        )
-        .map_err(|e| {
-            let state_arc = state_arc.clone();
-            Popup::error(vec![e], state_arc);
-        })
-        .unwrap_or_else(|_| {
-            let mut config = Config::default();
-            config.bar.use_default_components(state_arc.clone());
-            config
-        });
-
-        state_arc.lock().init(config)
-    }
+    info!("Initializing Application");
+    state_arc.lock().init(state_arc.clone());
+    info!("Initialized Application");
 
     let arc = state_arc.clone();
 
@@ -1097,11 +1177,7 @@ fn main() {
     .unwrap();
 
     let arc = state_arc.clone();
-    if let Err(e) = run(
-        state_arc.clone(),
-        callbacks_arc.clone(),
-        interpreter_arc.clone(),
-    ) {
+    if let Err(e) = run(state_arc.clone()) {
         error!("An error occured {:?}", e);
         if let Err(e) = on_quit(&mut arc.lock()) {
             error!("Something happend when cleaning up. {}", e);

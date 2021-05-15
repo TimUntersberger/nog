@@ -407,7 +407,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
         }
         Ok(())
     }
-    /// Iterates across all tile nodes and runs the passed in function on them. Useful for
+    /// Calls the passed in function for each tile node with a mutable ref to the node. Useful for
     /// changing all windows in the current tile grid.
     pub fn modify_windows<TFunction>(self: &mut Self, f: TFunction) -> SystemResult
     where
@@ -420,6 +420,15 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             }
         }
         Ok(())
+    }
+    /// Returns a list of immutable window references.
+    pub fn get_windows(self: &Self) -> Vec<&NativeWindow> {
+        self.graph
+            .nodes()
+            .map(|id| self.graph.node(id))
+            .filter(|node| node.is_tile())
+            .map(|node| node.get_window())
+            .collect()
     }
     /// Swaps position of the focused tile with the tile in the supplied direction. See swap for more details on behavior.
     pub fn swap_focused(&mut self, direction: Direction) {

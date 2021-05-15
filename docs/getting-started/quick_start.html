@@ -1,0 +1,339 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Quick Start - Nog Documentation</title>
+        
+        
+
+
+        <!-- Custom HTML head -->
+        
+
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        
+        <link rel="icon" href="../favicon.svg">
+        
+        
+        <link rel="shortcut icon" href="../favicon.png">
+        
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        
+        <link rel="stylesheet" href="../css/print.css" media="print">
+        
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        
+        <link rel="stylesheet" href="../fonts/fonts.css">
+        
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item affix "><a href="../index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="../getting-started/installation.html">Installation</a></li><li class="chapter-item expanded "><a href="../getting-started/quick_start.html" class="active">Quick Start</a></li><li class="chapter-item "><a href="../getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item "><a href="../getting-started/floating_mode.html">Floating Mode</a></li><li class="chapter-item "><a href="../getting-started/fullscreen_mode.html">Fullscreen Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="../configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="../configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="../configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="../configuration/modes.html">Modes</a></li><li class="chapter-item "><a href="../configuration/rules.html">Rules</a></li><li class="chapter-item "><a href="../configuration/bar.html">Bar</a></li><li class="chapter-item "><a href="../configuration/plugins.html">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="../api/General.html">General</a></li><li class="chapter-item "><a href="../api/Window.html">Window</a></li><li class="chapter-item "><a href="../api/Workspace.html">Workspace</a></li><li class="chapter-item "><a href="../api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="../api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../api/Popup.html">Popup</a></li><li class="chapter-item "><a href="../api/Display.html">Display</a></li><li class="chapter-item "><a href="../api/Components.html">Components</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                        
+                    </div>
+
+                    <h1 class="menu-title">Nog Documentation</h1>
+
+                    <div class="right-buttons">
+                        
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        
+                        
+                        <a href="https://github.com/TimUntersberger/nog" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1><a class="header" href="#quick-start" id="quick-start">Quick Start</a></h1>
+<p>After <a href="installation.html">installing</a> nog I would recommend you to do the following steps:</p>
+<ol>
+<li><a href="/configuration/introduction.html">configure</a> nog to fit your needs</li>
+<li>Execute <code>start-process $(&quot;$env:APPDATA\nog\bin\nog.exe&quot;)</code> to start nog</li>
+<li>Press <code>Ctrl+Alt+W</code> to enter <a href="work_mode.html">work mode</a></li>
+</ol>
+<p>When nog is started for the first time it creates an <code>init.lua</code> file in the config folder 
+which contains the following configuration.</p>
+<pre><code class="language-lua">local direction_keys = {
+  h = &quot;left&quot;,
+  j = &quot;down&quot;,
+  k = &quot;up&quot;,
+  l = &quot;right&quot;
+}
+
+-- Nog has 10 workspaces
+local workspaces = { 1, 2, 3, 4, 5, 6, 7, 8, 9 }
+
+nog.config.bar.font_size = 18
+
+nog.config.work_mode = false
+-- draws the app bar while nog is in work mode
+nog.config.display_app_bar = true
+nog.config.launch_on_startup = true
+nog.config.multi_monitor = true
+-- hides the task bar while nog is in work mode
+nog.config.remove_task_bar = true
+
+-- We customize the first two workspaces with a custom display text
+nog.config.workspaces = {
+  [1] = {
+    text = &quot; Code &quot;
+  },
+  [2] = {
+    text = &quot; Browser &quot;
+  }
+}
+
+nog.config.rules = {
+  -- we want to ignore explorer.exe, because the user experience is better when in floating mode IMO
+  [&quot;explorer.exe&quot;] = { 
+    ignore = true 
+  },
+  -- same thing here
+  [&quot;taskmgr.exe&quot;] = { 
+    ignore = true 
+  },
+  -- same thing here
+  [&quot;snippingtool.exe&quot;] = { 
+    ignore = true 
+  },
+  [&quot;firefox.exe&quot;] = {
+    has_custom_titlebar = true,
+    -- Adds special handling for firefox
+    firefox = true
+  },
+  [&quot;chrome.exe&quot;] = {
+    has_custom_titlebar = true,
+    -- Adds special handling for chrome
+    chromium = true
+  },
+  [&quot;discord.exe&quot;] = {
+    has_custom_titlebar = true
+  },
+  [&quot;spotify.exe&quot;] = {
+    has_custom_titlebar = true
+  },
+  [&quot;code.exe&quot;] = {
+    has_custom_titlebar = true
+  },
+}
+
+nog.nbind(&quot;alt+i&quot;, nog.win_ignore)
+nog.nbind(&quot;alt+q&quot;, nog.win_close)
+nog.nbind(&quot;alt+m&quot;, nog.win_minimize)
+nog.nbind(&quot;alt+x&quot;, nog.quit)
+
+-- nog.nbind_tbl will map each key to its value so writing the nog.nbind_tbl line is equal to the following
+-- nog.nbind(&quot;alt+l&quot;, function() nog.ws_focus(&quot;Right&quot;) end)
+-- nog.nbind(&quot;alt+k&quot;, function() nog.ws_focus(&quot;Up&quot;) end)
+-- nog.nbind(&quot;alt+j&quot;, function() nog.ws_focus(&quot;Down&quot;) end)
+-- nog.nbind(&quot;alt+h&quot;, function() nog.ws_focus(&quot;Left&quot;) end)
+nog.nbind_tbl(&quot;alt&quot;, nog.ws_focus, direction_keys)
+nog.nbind_tbl(&quot;alt+control&quot;, nog.ws_swap, direction_keys)
+
+nog.nbind(&quot;alt+plus&quot;, function()
+  nog.ws_set_split_direction(&quot;Vertical&quot;)
+end)
+nog.nbind(&quot;alt+minus&quot;, function()
+  nog.ws_set_split_direction(&quot;Horizontal&quot;)
+end)
+
+nog.nbind(&quot;alt+control+f&quot;, nog.win_toggle_floating)
+nog.gbind(&quot;alt+control+w&quot;, nog.toggle_work_mode)
+nog.nbind(&quot;alt+f&quot;, nog.ws_toggle_fullscreen)
+
+nog.nbind_tbl(&quot;alt+shift&quot;, nog.win_move_to_workspace, workspaces)
+nog.nbind_tbl(&quot;alt+control&quot;, nog.ws_move_to_monitor, workspaces)
+nog.nbind_tbl(&quot;alt&quot;, nog.ws_change, workspaces)
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="../getting-started/installation.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="../getting-started/work_mode.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a rel="prev" href="../getting-started/installation.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="../getting-started/work_mode.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+
+        
+
+        
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>

@@ -1,4 +1,3 @@
-use interpreter::RuntimeResult;
 use log::error;
 use parking_lot::Mutex;
 use std::{
@@ -305,7 +304,7 @@ impl Window {
 
         Ok(())
     }
-    pub fn create<TEventHandler: Fn(&WindowEvent) -> RuntimeResult<()> + Sync + Send + 'static>(
+    pub fn create<TEventHandler: Fn(&WindowEvent) -> mlua::Result<()> + Sync + Send + 'static>(
         &mut self,
         state_arc: Arc<Mutex<AppState>>,
         show: bool,
@@ -410,7 +409,7 @@ impl Window {
                                     .lock()
                                     .event_channel
                                     .sender
-                                    .send(Event::ConfigError(e))
+                                    .send(Event::LuaRuntimeError(e))
                                     .unwrap();
                             }
                         };
