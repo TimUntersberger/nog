@@ -440,8 +440,16 @@ impl AppState {
         let window = grid.pop();
 
         window.map(|window| {
-            self.get_grid_by_id_mut(id).unwrap().push(window);
+            if let Some(target_grid) = self.get_grid_by_id_mut(id) {
+                window.hide();
+                target_grid.push(window);
+                Store::save(id, target_grid.to_string());
+            }
         });
+
+        let config = self.config.clone();
+        let display = self.get_current_display_mut();
+        display.refresh_grid(&config)?;
 
         Ok(())
     }

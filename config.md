@@ -203,6 +203,103 @@ Note:
 - split_direction takes a table `{ "|", "-" }` instead of two parameters `"|", "-"`
 - Date/Time has changed from `date("%e %b")` and `time("%T")` to just `datetime("%e %b %T")`
 
+## Rules
+
+_config.ns_
+```
+var ignored = [
+    "explorer.exe",
+    "Taskmgr.exe",
+    "SnippingTool.exe",
+]
+ignored.for_each(nog.rules.ignore);
+
+
+nog.rules.match("firefox.exe", #{
+    has_custom_titlebar: true,
+    firefox: true
+})
+nog.rules.match("chrome.exe", #{
+    has_custom_titlebar: true,
+    chromium: true
+})
+```
+
+_init.lua_
+```
+nog.config.rules = {
+  ["explorer.exe"] = { 
+    ignore = true 
+  },
+  ["taskmgr.exe"] = { 
+    ignore = true 
+  },
+  ["snippingtool.exe"] = { 
+    ignore = true 
+  },
+  ["firefox.exe"] = {
+    has_custom_titlebar = true,
+    firefox = true
+  },
+  ["chrome.exe"] = {
+    has_custom_titlebar = true,
+    chromium = true
+  },
+}
+```
+
+Note: 
+- `=` instead of `:`
+- keys are wrapped in `[" "]`
+
+## Modes
+
+_config.ns_
+```
+mode("move", bind => {
+    bind("Alt+M", () => nog.toggle_mode("move"))
+    bind("Escape", () => nog.toggle_mode("move"))
+
+    bind("W", () => nog.workspace.focus("Up"))
+    bind("A", () => nog.workspace.focus("Left"))
+    bind("S", () => nog.workspace.focus("Down"))
+    bind("D", () => nog.workspace.focus("Right"))
+
+    bind("H", () => nog.workspace.swap("Left"))
+    bind("J", () => nog.workspace.swap("Down"))
+    bind("K", () => nog.workspace.swap("Up"))
+    bind("L", () => nog.workspace.swap("Right"))
+})
+nog.bind("Alt+M", () => nog.toggle_mode("move"))
+
+```
+
+_init.lua_
+```
+nog.mode("move", function()
+    nog.nbind("Escape", function()
+      nog.toggle_mode("move")
+    end)
+    nog.nbind("alt+m", function()
+      nog.toggle_mode("move")
+    end)
+
+    nog.nbind("w", function() nog.ws_focus("up") end)
+    nog.nbind("a", function() nog.ws_focus("left") end)
+    nog.nbind("s", function() nog.ws_focus("down") end)
+    nog.nbind("d", function() nog.ws_focus("right") end)
+
+    nog.nbind("h", function() nog.ws_swap("Left") end)
+    nog.nbind("j", function() nog.ws_swap("Down") end)
+    nog.nbind("k", function() nog.ws_swap("Up") end)
+    nog.nbind("l", function() nog.ws_swap("Right") end)
+end)
+
+```
+
+Note:
+- `function () end` vs `() =>` syntax
+
 
 
 ## Having Issues?
