@@ -448,6 +448,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
 
         def_fn!(lua, nog_tbl, "launch", move |lua, name: Value| {
             validate!(lua, { name: String });
+            let name = name.replace("~", dirs::home_dir().unwrap().to_str().unwrap());
             system::api::launch_program(name)?;
             Ok(())
         });

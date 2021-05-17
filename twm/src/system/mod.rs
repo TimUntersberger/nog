@@ -86,7 +86,7 @@ pub enum SystemError {
     DrawTile(SpecificError),
     #[error("Failed to get foreground window")]
     GetForegroundWindow(SpecificError),
-    #[error("Failed to launch a program")]
+    #[error("Failed to launch `{0}`")]
     LaunchProgram(String),
     #[error("Failed to register keybinding")]
     RegisterKeybinding(String),
