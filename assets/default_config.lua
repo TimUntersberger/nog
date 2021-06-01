@@ -86,6 +86,6 @@ nog.nbind("alt+control+f", nog.win_toggle_floating)
 nog.gbind("alt+control+w", nog.toggle_work_mode)
 nog.nbind("alt+f", nog.ws_toggle_fullscreen)
 
-nog.nbind_tbl("alt+shift", nog.win_move_to_workspace, workspaces)
+nog.nbind_tbl("alt+shift", nog.win_move_to_ws, workspaces)
 nog.nbind_tbl("alt+control", nog.ws_move_to_monitor, workspaces)
 nog.nbind_tbl("alt", nog.ws_change, workspaces)
