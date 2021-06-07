@@ -95,7 +95,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item affix "><a href="../index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="../getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="../getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="../getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item "><a href="../getting-started/floating_mode.html">Floating Mode</a></li><li class="chapter-item "><a href="../getting-started/fullscreen_mode.html">Fullscreen Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="../configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="../configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="../configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="../configuration/modes.html">Modes</a></li><li class="chapter-item "><a href="../configuration/rules.html">Rules</a></li><li class="chapter-item "><a href="../configuration/bar.html">Bar</a></li><li class="chapter-item "><a href="../configuration/plugins.html">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="../api/General.html">General</a></li><li class="chapter-item "><a href="../api/Window.html">Window</a></li><li class="chapter-item expanded "><a href="../api/Workspace.html" class="active">Workspace</a></li><li class="chapter-item "><a href="../api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="../api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../api/Popup.html">Popup</a></li><li class="chapter-item "><a href="../api/Display.html">Display</a></li><li class="chapter-item "><a href="../api/Components.html">Components</a></li></ol>
+                <ol class="chapter"><li class="chapter-item affix "><a href="../index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="../getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="../getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="../getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item "><a href="../getting-started/floating_mode.html">Floating Mode</a></li><li class="chapter-item "><a href="../getting-started/fullscreen_mode.html">Fullscreen Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="../configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="../configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="../configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="../configuration/modes.html">Modes</a></li><li class="chapter-item "><a href="../configuration/rules.html">Rules</a></li><li class="chapter-item "><a href="../configuration/bar.html">Bar</a></li><li class="chapter-item "><a href="../configuration/plugins.html">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="../api/General.html">General</a></li><li class="chapter-item "><a href="../api/Window.html">Window</a></li><li class="chapter-item expanded "><a href="../api/Workspace.html" class="active">Workspace</a></li><li class="chapter-item "><a href="../api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="../api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../api/Popup.html">Popup</a></li><li class="chapter-item "><a href="../api/Components.html">Components</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -167,22 +167,22 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#workspace" id="workspace">Workspace</a></h1>
-<h2><a class="header" href="#get_active_ws_of_displaydisplay_id" id="get_active_ws_of_displaydisplay_id">get_active_ws_of_display(display_id)</a></h2>
+                        <h1 id="workspace"><a class="header" href="#workspace">Workspace</a></h1>
+<h2 id="get_active_ws_of_displaydisplay_id"><a class="header" href="#get_active_ws_of_displaydisplay_id">get_active_ws_of_display(display_id)</a></h2>
 <p>Returns the id of the currently focused workspace of the display with <code>display_id</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>display_id</code> [number] id of display</li>
 </ul>
 <p><strong>Return</strong>: [number] id of workspace</p>
-<h2><a class="header" href="#is_ws_focusedws_id" id="is_ws_focusedws_id">is_ws_focused(ws_id)</a></h2>
+<h2 id="is_ws_focusedws_id"><a class="header" href="#is_ws_focusedws_id">is_ws_focused(ws_id)</a></h2>
 <p>Checks if the workspace with the <code>ws_id</code> is focused.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>ws_id</code> [number] id of workspace</li>
 </ul>
 <p><strong>Return</strong>: [boolean] whether the workspace is focused</p>
-<h2><a class="header" href="#get_ws_infows_id" id="get_ws_infows_id">get_ws_info(ws_id)</a></h2>
+<h2 id="get_ws_infows_id"><a class="header" href="#get_ws_infows_id">get_ws_info(ws_id)</a></h2>
 <p>Returns a table with various information about the workspace with the <code>ws_id</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -196,41 +196,41 @@
 <li><code>split_direction</code> in which direction a new window gets managed (<code>&quot;Vertical&quot;</code> or <code>&quot;Horizontal&quot;</code>)</li>
 <li><code>windows</code> a list of window ids that are inside the workspace</li>
 </ul>
-<h2><a class="header" href="#get_current_ws" id="get_current_ws">get_current_ws()</a></h2>
+<h2 id="get_current_ws"><a class="header" href="#get_current_ws">get_current_ws()</a></h2>
 <p>Returns the id of the currently focused workspace.</p>
 <p><strong>Return</strong>: [number] id of workspace</p>
-<h2><a class="header" href="#get_ws_textws_id" id="get_ws_textws_id">get_ws_text(ws_id)</a></h2>
+<h2 id="get_ws_textws_id"><a class="header" href="#get_ws_textws_id">get_ws_text(ws_id)</a></h2>
 <p>Returns the display text of the workspace with the <code>ws_id</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>ws_id</code> [number] id of workspace</li>
 </ul>
 <p><strong>Return</strong>: [string] display text of workspace</p>
-<h2><a class="header" href="#ws_toggle_fullscreen" id="ws_toggle_fullscreen">ws_toggle_fullscreen()</a></h2>
+<h2 id="ws_toggle_fullscreen"><a class="header" href="#ws_toggle_fullscreen">ws_toggle_fullscreen()</a></h2>
 <p>Toggles the <a href="/getting-started/fullscreen_mode.html">fullscreen mode</a> of the current workspace.</p>
-<h2><a class="header" href="#ws_reset_row" id="ws_reset_row">ws_reset_row()</a></h2>
+<h2 id="ws_reset_row"><a class="header" href="#ws_reset_row">ws_reset_row()</a></h2>
 <p>Resets any resizing done on the current row.</p>
-<h2><a class="header" href="#ws_reset_col" id="ws_reset_col">ws_reset_col()</a></h2>
+<h2 id="ws_reset_col"><a class="header" href="#ws_reset_col">ws_reset_col()</a></h2>
 <p>Resets any resizing done on the current column.</p>
-<h2><a class="header" href="#ws_move_to_monitordisplay_id" id="ws_move_to_monitordisplay_id">ws_move_to_monitor(display_id)</a></h2>
+<h2 id="ws_move_to_monitordisplay_id"><a class="header" href="#ws_move_to_monitordisplay_id">ws_move_to_monitor(display_id)</a></h2>
 <p>Moves the current workspace to the display with the <code>display_id</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>display_id</code> [number] id of display</li>
 </ul>
-<h2><a class="header" href="#ws_replacews_id" id="ws_replacews_id">ws_replace(ws_id)</a></h2>
+<h2 id="ws_replacews_id"><a class="header" href="#ws_replacews_id">ws_replace(ws_id)</a></h2>
 <p>Empties the workspace with the <code>ws_id</code> and moves the content of the current workspace into the given one.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>ws_id</code> [number] id of workspace</li>
 </ul>
-<h2><a class="header" href="#ws_changews_id" id="ws_changews_id">ws_change(ws_id)</a></h2>
+<h2 id="ws_changews_id"><a class="header" href="#ws_changews_id">ws_change(ws_id)</a></h2>
 <p>Changes the focus from the current workspace to the workspace with the <code>ws_id</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>ws_id</code> [number] id of workspace</li>
 </ul>
-<h2><a class="header" href="#ws_focusdirection" id="ws_focusdirection">ws_focus(direction)</a></h2>
+<h2 id="ws_focusdirection"><a class="header" href="#ws_focusdirection">ws_focus(direction)</a></h2>
 <p>Changes the focus from the current window to the next window in the <code>direction</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -243,7 +243,7 @@
 </ul>
 </li>
 </ul>
-<h2><a class="header" href="#ws_resizedirection" id="ws_resizedirection">ws_resize(direction)</a></h2>
+<h2 id="ws_resizedirection"><a class="header" href="#ws_resizedirection">ws_resize(direction)</a></h2>
 <p>Resizes either the row or the column by the given <code>amount</code> depending on the given <code>direction</code>.</p>
 <p>Left | Right -&gt; Column</p>
 <p>Up | Down -&gt; Row</p>
@@ -259,7 +259,7 @@
 </li>
 <li><code>amount</code> [number] by how much to resize</li>
 </ul>
-<h2><a class="header" href="#ws_swapdirection" id="ws_swapdirection">ws_swap(direction)</a></h2>
+<h2 id="ws_swapdirection"><a class="header" href="#ws_swapdirection">ws_swap(direction)</a></h2>
 <p>Swaps the position of the current window with the next window in the <code>direction</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -272,7 +272,9 @@
 </ul>
 </li>
 </ul>
-<h2><a class="header" href="#ws_set_split_directiondirection" id="ws_set_split_directiondirection">ws_set_split_direction(direction)</a></h2>
+<h2 id="ws_swap_columns_and_rows"><a class="header" href="#ws_swap_columns_and_rows">ws_swap_columns_and_rows()</a></h2>
+<p>Turns all columns in the current workspace into rows and all rows into columns</p>
+<h2 id="ws_set_split_directiondirection"><a class="header" href="#ws_set_split_directiondirection">ws_set_split_direction(direction)</a></h2>
 <p>Sets the split direction of the current workspace.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -283,7 +285,7 @@
 </ul>
 </li>
 </ul>
-<h2><a class="header" href="#ws_move_indirection" id="ws_move_indirection">ws_move_in(direction)</a></h2>
+<h2 id="ws_move_indirection"><a class="header" href="#ws_move_indirection">ws_move_in(direction)</a></h2>
 <p>Moves the current window into the adjacent row/column/window found in the given <code>direction</code>.</p>
 <ul>
 <li>If the adjecent item is a row or column, this simply moves the window to the end of the row or column. </li>
@@ -301,7 +303,7 @@ whichever is the opposite of the current window's parent, and appends the window
 </ul>
 </li>
 </ul>
-<h2><a class="header" href="#ws_move_outdirection" id="ws_move_outdirection">ws_move_out(direction)</a></h2>
+<h2 id="ws_move_outdirection"><a class="header" href="#ws_move_outdirection">ws_move_out(direction)</a></h2>
 <p>Moves the current window out of a row/column in the given <code>direction</code>. 
 The behavior of this movement is essentially moving the current window so that it is a sibling of its parent and introducing a new parent node that is the opposite type of the previous parent if necessary.</p>
 <p><strong>Arguments</strong>:</p>
@@ -353,6 +355,21 @@ The behavior of this movement is essentially moving the current window so that i
 
         </div>
 
+        
+        <!-- Livereload script (if served using the cli tool) -->
+        <script type="text/javascript">
+            var socket = new WebSocket("ws://localhost:3000/__livereload");
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
         
 
         

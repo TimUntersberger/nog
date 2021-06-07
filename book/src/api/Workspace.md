@@ -118,6 +118,10 @@ Swaps the position of the current window with the next window in the `direction`
   * `Right`
   * `Down`
 
+## ws_swap_columns_and_rows()
+
+Turns all columns in the current workspace into rows and all rows into columns
+
 ## ws_set_split_direction(direction)
 
 Sets the split direction of the current workspace.

@@ -6,7 +6,7 @@
         <title></title>
         
         
-        <base href="/nog/">
+        <base href="/">
         
 
 
@@ -97,7 +97,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item affix "><a href="index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item "><a href="getting-started/floating_mode.html">Floating Mode</a></li><li class="chapter-item "><a href="getting-started/fullscreen_mode.html">Fullscreen Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="configuration/modes.html">Modes</a></li><li class="chapter-item "><a href="configuration/rules.html">Rules</a></li><li class="chapter-item "><a href="configuration/bar.html">Bar</a></li><li class="chapter-item "><a href="configuration/plugins.html">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="api/General.html">General</a></li><li class="chapter-item "><a href="api/Window.html">Window</a></li><li class="chapter-item "><a href="api/Workspace.html">Workspace</a></li><li class="chapter-item "><a href="api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="api/Popup.html">Popup</a></li><li class="chapter-item "><a href="api/Display.html">Display</a></li><li class="chapter-item "><a href="api/Components.html">Components</a></li></ol>
+                <ol class="chapter"><li class="chapter-item affix "><a href="index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item "><a href="getting-started/floating_mode.html">Floating Mode</a></li><li class="chapter-item "><a href="getting-started/fullscreen_mode.html">Fullscreen Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="configuration/modes.html">Modes</a></li><li class="chapter-item "><a href="configuration/rules.html">Rules</a></li><li class="chapter-item "><a href="configuration/bar.html">Bar</a></li><li class="chapter-item "><a href="configuration/plugins.html">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="api/General.html">General</a></li><li class="chapter-item "><a href="api/Window.html">Window</a></li><li class="chapter-item "><a href="api/Workspace.html">Workspace</a></li><li class="chapter-item "><a href="api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="api/Popup.html">Popup</a></li><li class="chapter-item "><a href="api/Components.html">Components</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -169,7 +169,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#document-not-found-404" id="document-not-found-404">Document not found (404)</a></h1>
+                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
 <p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
 
                     </main>
@@ -193,6 +193,21 @@
 
         </div>
 
+        
+        <!-- Livereload script (if served using the cli tool) -->
+        <script type="text/javascript">
+            var socket = new WebSocket("ws://localhost:3000/__livereload");
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
         
 
         
