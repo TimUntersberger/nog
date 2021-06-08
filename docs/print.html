@@ -97,7 +97,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item affix "><a href="index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item "><a href="getting-started/floating_mode.html">Floating Mode</a></li><li class="chapter-item "><a href="getting-started/fullscreen_mode.html">Fullscreen Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="configuration/modes.html">Modes</a></li><li class="chapter-item "><a href="configuration/rules.html">Rules</a></li><li class="chapter-item "><a href="configuration/bar.html">Bar</a></li><li class="chapter-item "><a href="configuration/plugins.html">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="api/General.html">General</a></li><li class="chapter-item "><a href="api/Window.html">Window</a></li><li class="chapter-item "><a href="api/Workspace.html">Workspace</a></li><li class="chapter-item "><a href="api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="api/Popup.html">Popup</a></li><li class="chapter-item "><a href="api/Display.html">Display</a></li><li class="chapter-item "><a href="api/Components.html">Components</a></li></ol>
+                <ol class="chapter"><li class="chapter-item affix "><a href="index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item "><a href="getting-started/floating_mode.html">Floating Mode</a></li><li class="chapter-item "><a href="getting-started/fullscreen_mode.html">Fullscreen Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="configuration/modes.html">Modes</a></li><li class="chapter-item "><a href="configuration/rules.html">Rules</a></li><li class="chapter-item "><a href="configuration/bar.html">Bar</a></li><li class="chapter-item "><a href="configuration/plugins.html">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="api/General.html">General</a></li><li class="chapter-item "><a href="api/Window.html">Window</a></li><li class="chapter-item "><a href="api/Workspace.html">Workspace</a></li><li class="chapter-item "><a href="api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="api/Popup.html">Popup</a></li><li class="chapter-item "><a href="api/Components.html">Components</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -169,13 +169,13 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#nog" id="nog">Nog</a></h1>
+                        <h1 id="nog"><a class="header" href="#nog">Nog</a></h1>
 <p><img src="https://user-images.githubusercontent.com/32014449/107612664-0490ac00-6c47-11eb-9620-e754aa38b5b0.png" alt="preview" /></p>
 <p><strong>Nog</strong> is a tiling window manager for Windows 10, which uses lua as its scripting language.</p>
-<h1><a class="header" href="#installation" id="installation">Installation</a></h1>
+<h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
 <p>Nog has a very useful powershell script which downloads a given release.</p>
 <p>It basically just downloads the <code>Nog.zip</code> file from the assets, unzips it and moves it to the correct location.</p>
-<h3><a class="header" href="#usage" id="usage">Usage</a></h3>
+<h3 id="usage"><a class="header" href="#usage">Usage</a></h3>
 <pre><code class="language-powershell">./bin/download_release.ps1 &lt;release_name&gt;
 </code></pre>
 <p>So if you want to download the latest master release you would call the script like this:</p>
@@ -190,7 +190,7 @@
 <li>Executes the script with <code>master-release</code></li>
 <li>Removes the <code>download.ps1</code> script</li>
 </ol>
-<h1><a class="header" href="#quick-start" id="quick-start">Quick Start</a></h1>
+<h1 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h1>
 <p>After <a href="getting-started/installation.html">installing</a> nog I would recommend you to do the following steps:</p>
 <ol>
 <li><a href="getting-started//configuration/introduction.html">configure</a> nog to fit your needs</li>
@@ -291,7 +291,7 @@ nog.nbind_tbl(&quot;alt+shift&quot;, nog.win_move_to_ws, workspaces)
 nog.nbind_tbl(&quot;alt+control&quot;, nog.ws_move_to_monitor, workspaces)
 nog.nbind_tbl(&quot;alt&quot;, nog.ws_change, workspaces)
 </code></pre>
-<h1><a class="header" href="#work-mode" id="work-mode">Work mode</a></h1>
+<h1 id="work-mode"><a class="header" href="#work-mode">Work mode</a></h1>
 <p><code>Work mode</code> is when nog actively tries to manage windows. </p>
 <p>Nog is intended to be used along Windows 10 instead of completely replacing it, that is why it is possible to &quot;activate&quot; and &quot;deactivate&quot; nog.
 People that use Windows for development usually use the same machine for gaming and can't be bothered to switch constantly.
@@ -299,12 +299,12 @@ I am part of this group so I wanted to create a window manager that supports thi
 <p>Nog constantly saves a snapshot of the current workspace/window layout and when reentering the work mode it tries to recreate the layout.
 The default state can be configured by setting the <a href="getting-started//configuration/settings.html">work_mode</a> setting. 
 You can always leave/enter the work mode by calling the <a href="getting-started//api/general.html#toggle_work_mode">toggle_work_mode</a> function.</p>
-<h1><a class="header" href="#floating-mode" id="floating-mode">Floating Mode</a></h1>
+<h1 id="floating-mode"><a class="header" href="#floating-mode">Floating Mode</a></h1>
 <p>We describe windows that are not managed by nog as being in <code>floating mode</code>.</p>
-<h1><a class="header" href="#fullscreen-mode" id="fullscreen-mode">Fullscreen Mode</a></h1>
+<h1 id="fullscreen-mode"><a class="header" href="#fullscreen-mode">Fullscreen Mode</a></h1>
 <p>When a workspace is in fullscreen mode it only displays the window that has focus, everything else stays the same.
 If you want to disable focus changing while being in fullscreen mode you can set the <code>ignore_fullscreen_actions</code> to <code>true</code> (defaults to <code>false</code>).</p>
-<h1><a class="header" href="#introduction" id="introduction">Introduction</a></h1>
+<h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
 <p>The configuration lives in <code>%APPDATA%/nog/config</code>.
 At startup the program looks for a <code>init.lua</code> file in the root of this folder and executes it.</p>
 <p>Nog comes with a preconfigured <code>init.lua</code> which aims to show you how you can build your own config.
@@ -316,7 +316,7 @@ Any lua code executed by nog has access to the global <a href="configuration//AP
 <p>If you ever want to look at the structure of a lua table you can easily print a very nice overview using the following statement</p>
 <pre><code class="language-lua">print(nog.inspect(tbl))
 </code></pre>
-<h1><a class="header" href="#settings" id="settings">Settings</a></h1>
+<h1 id="settings"><a class="header" href="#settings">Settings</a></h1>
 <p>Below you can find a list of settings you can change and their description:</p>
 <table><thead><tr><th>Key</th><th>Value</th><th>Description</th></tr></thead><tbody>
 <tr><td>min_height</td><td>Number</td><td>The minimum height a window has to have so that it gets managed automatically</td></tr>
@@ -333,12 +333,12 @@ Any lua code executed by nog has access to the global <a href="configuration//AP
 <tr><td>remove_task_bar</td><td>Boolean</td><td>Remove the taskbar while the program is running</td></tr>
 <tr><td>ignore_fullscreen_actions</td><td>Boolean</td><td>Ignore grid-modifying keybindings (swap, focus, move, etc) while fullscreened</td></tr>
 </tbody></table>
-<h2><a class="header" href="#examples" id="examples">Examples</a></h2>
+<h2 id="examples"><a class="header" href="#examples">Examples</a></h2>
 <pre><code class="language-lua">nog.config.min_height = 200
 nog.config.min_width = 200
 nog.config.light_theme = true
 </code></pre>
-<h1><a class="header" href="#keybindings" id="keybindings">Keybindings</a></h1>
+<h1 id="keybindings"><a class="header" href="#keybindings">Keybindings</a></h1>
 <p>Nog keybindings can be of three different kinds:</p>
 <ul>
 <li>Normal (n)</li>
@@ -367,7 +367,7 @@ nog.config.light_theme = true
 end)
 </code></pre>
 <p><strong>Note</strong> that any keybinding currently active will swallow the keys, meaning that if you bind <code>1</code> you won't be able to type <code>1</code>.</p>
-<h2><a class="header" href="#key-combos" id="key-combos">Key combos</a></h2>
+<h2 id="key-combos"><a class="header" href="#key-combos">Key combos</a></h2>
 <p>A key combo is a <code>string</code> which can either have just a <a href="configuration/keybindings.html#key-combos/keys">key</a> 
 or a list of <a href="configuration/keybindings.html#key-combos/modifiers">modifiers</a> followed by a <a href="configuration/keybindings.html#key-combos/keys">key</a> 
 and separated by <code>+</code>.</p>
@@ -377,7 +377,7 @@ and separated by <code>+</code>.</p>
 <li><code>Alt+Enter</code></li>
 <li><code>Alt+Control+T</code></li>
 </ul>
-<h3><a class="header" href="#keys" id="keys">Keys</a></h3>
+<h3 id="keys"><a class="header" href="#keys">Keys</a></h3>
 <ul>
 <li>A - Z</li>
 <li>0 - 9</li>
@@ -395,15 +395,24 @@ and separated by <code>+</code>.</p>
 <li>Up</li>
 <li>Right</li>
 <li>Down</li>
+<li>OEM_1</li>
+<li>OEM_2</li>
+<li>OEM_3</li>
+<li>OEM_4</li>
+<li>OEM_5</li>
+<li>OEM_6</li>
+<li>OEM_7</li>
+<li>OEM_8</li>
+<li>OEM_102</li>
 </ul>
-<h3><a class="header" href="#modifiers" id="modifiers">Modifiers</a></h3>
+<h3 id="modifiers"><a class="header" href="#modifiers">Modifiers</a></h3>
 <p>The windows key can't be bound, because windows 10 reserves all win key related keybindings for itself.</p>
 <ul>
 <li>Shift</li>
 <li>Control</li>
 <li>Alt</li>
 </ul>
-<h1><a class="header" href="#workspaces" id="workspaces">Workspaces</a></h1>
+<h1 id="workspaces"><a class="header" href="#workspaces">Workspaces</a></h1>
 <p><strong>Note</strong>: The monitor ids are counted from left to right and from top to bottom</p>
 </br>
 <p>Nog has <code>10</code> different workspaces. Each workspace can be customized.</p>
@@ -412,7 +421,7 @@ and separated by <code>+</code>.</p>
 <tr><td>monitor</td><td>Number</td><td>Id of the monitor this workspace resides on per default</td></tr>
 <tr><td>text</td><td>String</td><td>Text to display instead of the id (can be unicode)</td></tr>
 </tbody></table>
-<h2><a class="header" href="#example" id="example">Example</a></h2>
+<h2 id="example"><a class="header" href="#example">Example</a></h2>
 <pre><code class="language-lua">nog.workspaces = {
   [1] = {
     text = &quot;First Workspace&quot;
@@ -423,7 +432,7 @@ and separated by <code>+</code>.</p>
   },
 }
 </code></pre>
-<h1><a class="header" href="#modes" id="modes">Modes</a></h1>
+<h1 id="modes"><a class="header" href="#modes">Modes</a></h1>
 <p>Modes in nog are an easy way to condionally reuse keybindings for different actions.</p>
 <p>Defining a new mode is very easy</p>
 <pre><code class="language-lua">nog.mode(&quot;my mode&quot;, function()
@@ -441,7 +450,7 @@ end)
 </code></pre>
 <p>When entering a mode nog will unbind all <a href="configuration//configuration/keybindings.html">normal</a> keybindings and execute the provided <code>cb</code>.
 Leaving a mode will cause nog to unbind all normal keybindings again and afterwards rebind all normal keybindings that were defined previously.</p>
-<h1><a class="header" href="#rules" id="rules">Rules</a></h1>
+<h1 id="rules"><a class="header" href="#rules">Rules</a></h1>
 <p>Rules are used to add special handling to windows that match a regex pattern.</p>
 <pre><code class="language-lua">nog.rules = {
   [&quot;notepad.exe&quot;] = {
@@ -459,7 +468,7 @@ Leaving a mode will cause nog to unbind all normal keybindings again and afterwa
 <tr><td>workspace_id</td><td>Number</td><td>Which workspace this window gets moved to</td></tr>
 </tbody></table>
 <p>The default config contains a few useful rules if you want to see them in action.</p>
-<h1><a class="header" href="#bar" id="bar">Bar</a></h1>
+<h1 id="bar"><a class="header" href="#bar">Bar</a></h1>
 <p>The bar at the top of the screen when having <code>display_app_bar</code> enabled can display a lot of useful information.</p>
 <p>It is possible to change the following settings</p>
 <table><thead><tr><th>Key</th><th>Value</th><th>Description</th></tr></thead><tbody>
@@ -470,7 +479,7 @@ Leaving a mode will cause nog to unbind all normal keybindings again and afterwa
 </tbody></table>
 <pre><code class="language-lua">nog.config.bar.font_size = 20
 </code></pre>
-<h2><a class="header" href="#components" id="components">Components</a></h2>
+<h2 id="components"><a class="header" href="#components">Components</a></h2>
 <p>Components are the building blocks of the bar. The <code>components</code> table has the following properties:</p>
 <ul>
 <li><code>left</code> contains a list of components which are aligned to the left side of the bar</li>
@@ -484,7 +493,7 @@ Leaving a mode will cause nog to unbind all normal keybindings again and afterwa
 }
 </code></pre>
 <p>The above snippet changes the layout so that the left side and right side are empty and the center part gets replaced by the workspaces overview.</p>
-<h3><a class="header" href="#builtin" id="builtin">Builtin</a></h3>
+<h3 id="builtin"><a class="header" href="#builtin">Builtin</a></h3>
 <p>All of the builtin components can be found under <code>nog.components</code>.</p>
 <ul>
 <li>datetime</li>
@@ -493,9 +502,9 @@ Leaving a mode will cause nog to unbind all normal keybindings again and afterwa
 <li>padding</li>
 <li>fullscreen_indicator</li>
 <li>split_direction</li>
-<li>current_mode</li>
+<li>active_mode</li>
 </ul>
-<h3><a class="header" href="#custom" id="custom">Custom</a></h3>
+<h3 id="custom"><a class="header" href="#custom">Custom</a></h3>
 <p>A bar component is a table which has to have a <code>name</code> and <code>render</code> field.</p>
 <p>The <code>name</code> can be any <code>string</code> of your chosing and is only used for debugging purposes.</p>
 <p><code>render</code> is the important part. It has to be a function which returns a list of components texts.
@@ -542,7 +551,7 @@ nog.config.bar.components = {
   right = {}
 }
 </code></pre>
-<h1><a class="header" href="#plugins" id="plugins">Plugins</a></h1>
+<h1 id="plugins"><a class="header" href="#plugins">Plugins</a></h1>
 <p>The plugins live the in the <code>plugins</code> folder located next to the <code>config</code> (<a href="configuration//configuration/introduction.html">ref</a>).</p>
 <p>You can install plugins either manually or using the provided API. Manually installing plugins is as 
 easy as cloning a valid plugin into the <code>plugins</code> folder. This works because nog uses this folder as the plugins index.
@@ -555,7 +564,7 @@ Uninstalling is as simple as removing its folder or calling <code>nog.plug_unins
 <pre><code class="language-lua">nog.plug_uninstall(&quot;GithubUser/NogPlugin&quot;)
 </code></pre>
 <p>If you want to get a list of all installed plugins you can use the <code>nog.plug_list</code> functions which will return a list of absolute file paths.</p>
-<h2><a class="header" href="#writing-plugins" id="writing-plugins">Writing Plugins</a></h2>
+<h2 id="writing-plugins"><a class="header" href="#writing-plugins">Writing Plugins</a></h2>
 <p>Any repository that contains a top-level <code>lua</code> folder inside is a valid nog plugin. 
 At startup nog will add the path to the <code>lua</code> folder to the <code>package.path</code> variable so you can <code>require</code> its content.
 This also means that you will have to namespace your lua files to not cause conflicts. 
@@ -576,36 +585,36 @@ Usually you would have a folder with your plugins name underneath the <code>lua<
 <p>You can then use the plugin by requiring <code>cool_plugin</code>.</p>
 <pre><code class="language-lua">local x = require 'cool_plugin'
 </code></pre>
-<h1><a class="header" href="#general" id="general">General</a></h1>
+<h1 id="general"><a class="header" href="#general">General</a></h1>
 <p><strong>Note:</strong> keep in mind that all of the functions/variables in the api documentation are part of the <code>nog</code> global.
 So to use the below <code>uv</code> variable you will have to write <code>nog.uv</code>.</p>
-<h2><a class="header" href="#uv" id="uv">uv</a></h2>
+<h2 id="uv"><a class="header" href="#uv">uv</a></h2>
 <p>lua bindings for libuv provided by <a href="https://github.com/luvit/luv">luv</a>. You can also require it directly by using <code>require 'luv'</code>.</p>
-<h2><a class="header" href="#version" id="version">version</a></h2>
+<h2 id="version"><a class="header" href="#version">version</a></h2>
 <p>A <code>string</code> that contains the nog version you are currently running. If you downloaded a <code>vX.X.X</code> release this will contain the version number,
 but if you downloaded a release of a branch like <code>development</code> this will contain the branch name together with the commit hash.</p>
-<h2><a class="header" href="#runtime_path" id="runtime_path">runtime_path</a></h2>
+<h2 id="runtime_path"><a class="header" href="#runtime_path">runtime_path</a></h2>
 <p>A <code>string</code> that contains the path to the <code>runtime</code> folder.</p>
-<h2><a class="header" href="#config_path" id="config_path">config_path</a></h2>
+<h2 id="config_path"><a class="header" href="#config_path">config_path</a></h2>
 <p>A <code>string</code> that contains the path to the <code>nog</code> folder.</p>
-<h2><a class="header" href="#config" id="config">config</a></h2>
+<h2 id="config"><a class="header" href="#config">config</a></h2>
 <p>A <code>table</code> that contains the configuration of nog.</p>
-<h2><a class="header" href="#quit" id="quit">quit()</a></h2>
+<h2 id="quit"><a class="header" href="#quit">quit()</a></h2>
 <p>Exits the nog process.</p>
-<h2><a class="header" href="#fmt_datetimepattern" id="fmt_datetimepattern">fmt_datetime(pattern)</a></h2>
+<h2 id="fmt_datetimepattern"><a class="header" href="#fmt_datetimepattern">fmt_datetime(pattern)</a></h2>
 <p>Formats the local time using the provided <code>pattern</code> and returns it.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>pattern</code> a string that follows the <a href="https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html">chrono spec</a></li>
 </ul>
 <p><strong>Return</strong>: a <code>string</code> that contains the local time formatted using the provided <code>pattern</code>.</p>
-<h2><a class="header" href="#launchname" id="launchname">launch(name)</a></h2>
+<h2 id="launchname"><a class="header" href="#launchname">launch(name)</a></h2>
 <p>Runs the executable with <code>name</code> in a subprocess.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>name</code> [string] name of the executable (ex. <code>notepad.exe</code>)</li>
 </ul>
-<h2><a class="header" href="#scale_colorcolor-factor" id="scale_colorcolor-factor">scale_color(color, factor)</a></h2>
+<h2 id="scale_colorcolor-factor"><a class="header" href="#scale_colorcolor-factor">scale_color(color, factor)</a></h2>
 <p>Scales the <code>color</code> by <code>factor</code>. Useful for creating different shades of a color.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -613,9 +622,9 @@ but if you downloaded a release of a branch like <code>development</code> this w
 <li><code>factor</code> [number] how much the color gets scaled</li>
 </ul>
 <p><strong>Return</strong>: <code>color</code> scaled by <code>factor</code>.</p>
-<h2><a class="header" href="#toggle_work_mode" id="toggle_work_mode">toggle_work_mode()</a></h2>
+<h2 id="toggle_work_mode"><a class="header" href="#toggle_work_mode">toggle_work_mode()</a></h2>
 <p>Either leaves or enters <a href="api//getting-started/work_mode.html">work mode</a></p>
-<h2><a class="header" href="#inspectvalue-options" id="inspectvalue-options">inspect(value, [options])</a></h2>
+<h2 id="inspectvalue-options"><a class="header" href="#inspectvalue-options">inspect(value, [options])</a></h2>
 <p>The <a href="https://github.com/kikito/inspect.lua">kikito/inspect.lua</a> function.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -630,47 +639,47 @@ but if you downloaded a release of a branch like <code>development</code> this w
 </li>
 </ul>
 <p><strong>Return</strong>: a human readable representation of the lua value in a <code>string</code>.</p>
-<h1><a class="header" href="#window" id="window">Window</a></h1>
-<h2><a class="header" href="#get_win_titlewin_id" id="get_win_titlewin_id">get_win_title(win_id)</a></h2>
+<h1 id="window"><a class="header" href="#window">Window</a></h1>
+<h2 id="get_win_titlewin_id"><a class="header" href="#get_win_titlewin_id">get_win_title(win_id)</a></h2>
 <p>Returns the title of window with the given <code>win_id</code></p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>win_id</code> [number] id of window</li>
 </ul>
 <p><strong>Return</strong>: [string] window title</p>
-<h2><a class="header" href="#get_current_win" id="get_current_win">get_current_win()</a></h2>
+<h2 id="get_current_win"><a class="header" href="#get_current_win">get_current_win()</a></h2>
 <p>Returns the id of the window that has currently focus and is managed by nog.</p>
 <p><strong>Return</strong>: [number] window id</p>
-<h2><a class="header" href="#win_minimize" id="win_minimize">win_minimize()</a></h2>
+<h2 id="win_minimize"><a class="header" href="#win_minimize">win_minimize()</a></h2>
 <p>Minimizes the currently focused window and unmanages it.</p>
-<h2><a class="header" href="#win_ignore" id="win_ignore">win_ignore()</a></h2>
+<h2 id="win_ignore"><a class="header" href="#win_ignore">win_ignore()</a></h2>
 <p>Unmanages the currently focused window and adds a rule that prevents this window from being managed while nog is running.</p>
-<h2><a class="header" href="#win_close" id="win_close">win_close()</a></h2>
+<h2 id="win_close"><a class="header" href="#win_close">win_close()</a></h2>
 <p>Closes the currently focused window.</p>
-<h2><a class="header" href="#win_toggle_floating" id="win_toggle_floating">win_toggle_floating()</a></h2>
+<h2 id="win_toggle_floating"><a class="header" href="#win_toggle_floating">win_toggle_floating()</a></h2>
 <p>Toggles <a href="api//getting-started/floating_mode.html">floating mode</a> of the currently focused window.</p>
-<h2><a class="header" href="#win_move_to_wsws_id" id="win_move_to_wsws_id">win_move_to_ws(ws_id)</a></h2>
+<h2 id="win_move_to_wsws_id"><a class="header" href="#win_move_to_wsws_id">win_move_to_ws(ws_id)</a></h2>
 <p>Moves the currently focused window to the workspace with the provided <code>ws_id</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>ws_id</code> [number] id of workspace</li>
 </ul>
-<h1><a class="header" href="#workspace" id="workspace">Workspace</a></h1>
-<h2><a class="header" href="#get_active_ws_of_displaydisplay_id" id="get_active_ws_of_displaydisplay_id">get_active_ws_of_display(display_id)</a></h2>
+<h1 id="workspace"><a class="header" href="#workspace">Workspace</a></h1>
+<h2 id="get_active_ws_of_displaydisplay_id"><a class="header" href="#get_active_ws_of_displaydisplay_id">get_active_ws_of_display(display_id)</a></h2>
 <p>Returns the id of the currently focused workspace of the display with <code>display_id</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>display_id</code> [number] id of display</li>
 </ul>
 <p><strong>Return</strong>: [number] id of workspace</p>
-<h2><a class="header" href="#is_ws_focusedws_id" id="is_ws_focusedws_id">is_ws_focused(ws_id)</a></h2>
+<h2 id="is_ws_focusedws_id"><a class="header" href="#is_ws_focusedws_id">is_ws_focused(ws_id)</a></h2>
 <p>Checks if the workspace with the <code>ws_id</code> is focused.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>ws_id</code> [number] id of workspace</li>
 </ul>
 <p><strong>Return</strong>: [boolean] whether the workspace is focused</p>
-<h2><a class="header" href="#get_ws_infows_id" id="get_ws_infows_id">get_ws_info(ws_id)</a></h2>
+<h2 id="get_ws_infows_id"><a class="header" href="#get_ws_infows_id">get_ws_info(ws_id)</a></h2>
 <p>Returns a table with various information about the workspace with the <code>ws_id</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -684,41 +693,41 @@ but if you downloaded a release of a branch like <code>development</code> this w
 <li><code>split_direction</code> in which direction a new window gets managed (<code>&quot;Vertical&quot;</code> or <code>&quot;Horizontal&quot;</code>)</li>
 <li><code>windows</code> a list of window ids that are inside the workspace</li>
 </ul>
-<h2><a class="header" href="#get_current_ws" id="get_current_ws">get_current_ws()</a></h2>
+<h2 id="get_current_ws"><a class="header" href="#get_current_ws">get_current_ws()</a></h2>
 <p>Returns the id of the currently focused workspace.</p>
 <p><strong>Return</strong>: [number] id of workspace</p>
-<h2><a class="header" href="#get_ws_textws_id" id="get_ws_textws_id">get_ws_text(ws_id)</a></h2>
+<h2 id="get_ws_textws_id"><a class="header" href="#get_ws_textws_id">get_ws_text(ws_id)</a></h2>
 <p>Returns the display text of the workspace with the <code>ws_id</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>ws_id</code> [number] id of workspace</li>
 </ul>
 <p><strong>Return</strong>: [string] display text of workspace</p>
-<h2><a class="header" href="#ws_toggle_fullscreen" id="ws_toggle_fullscreen">ws_toggle_fullscreen()</a></h2>
+<h2 id="ws_toggle_fullscreen"><a class="header" href="#ws_toggle_fullscreen">ws_toggle_fullscreen()</a></h2>
 <p>Toggles the <a href="api//getting-started/fullscreen_mode.html">fullscreen mode</a> of the current workspace.</p>
-<h2><a class="header" href="#ws_reset_row" id="ws_reset_row">ws_reset_row()</a></h2>
+<h2 id="ws_reset_row"><a class="header" href="#ws_reset_row">ws_reset_row()</a></h2>
 <p>Resets any resizing done on the current row.</p>
-<h2><a class="header" href="#ws_reset_col" id="ws_reset_col">ws_reset_col()</a></h2>
+<h2 id="ws_reset_col"><a class="header" href="#ws_reset_col">ws_reset_col()</a></h2>
 <p>Resets any resizing done on the current column.</p>
-<h2><a class="header" href="#ws_move_to_monitordisplay_id" id="ws_move_to_monitordisplay_id">ws_move_to_monitor(display_id)</a></h2>
+<h2 id="ws_move_to_monitordisplay_id"><a class="header" href="#ws_move_to_monitordisplay_id">ws_move_to_monitor(display_id)</a></h2>
 <p>Moves the current workspace to the display with the <code>display_id</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>display_id</code> [number] id of display</li>
 </ul>
-<h2><a class="header" href="#ws_replacews_id" id="ws_replacews_id">ws_replace(ws_id)</a></h2>
+<h2 id="ws_replacews_id"><a class="header" href="#ws_replacews_id">ws_replace(ws_id)</a></h2>
 <p>Empties the workspace with the <code>ws_id</code> and moves the content of the current workspace into the given one.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>ws_id</code> [number] id of workspace</li>
 </ul>
-<h2><a class="header" href="#ws_changews_id" id="ws_changews_id">ws_change(ws_id)</a></h2>
+<h2 id="ws_changews_id"><a class="header" href="#ws_changews_id">ws_change(ws_id)</a></h2>
 <p>Changes the focus from the current workspace to the workspace with the <code>ws_id</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>ws_id</code> [number] id of workspace</li>
 </ul>
-<h2><a class="header" href="#ws_focusdirection" id="ws_focusdirection">ws_focus(direction)</a></h2>
+<h2 id="ws_focusdirection"><a class="header" href="#ws_focusdirection">ws_focus(direction)</a></h2>
 <p>Changes the focus from the current window to the next window in the <code>direction</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -731,7 +740,7 @@ but if you downloaded a release of a branch like <code>development</code> this w
 </ul>
 </li>
 </ul>
-<h2><a class="header" href="#ws_resizedirection" id="ws_resizedirection">ws_resize(direction)</a></h2>
+<h2 id="ws_resizedirection"><a class="header" href="#ws_resizedirection">ws_resize(direction)</a></h2>
 <p>Resizes either the row or the column by the given <code>amount</code> depending on the given <code>direction</code>.</p>
 <p>Left | Right -&gt; Column</p>
 <p>Up | Down -&gt; Row</p>
@@ -747,7 +756,7 @@ but if you downloaded a release of a branch like <code>development</code> this w
 </li>
 <li><code>amount</code> [number] by how much to resize</li>
 </ul>
-<h2><a class="header" href="#ws_swapdirection" id="ws_swapdirection">ws_swap(direction)</a></h2>
+<h2 id="ws_swapdirection"><a class="header" href="#ws_swapdirection">ws_swap(direction)</a></h2>
 <p>Swaps the position of the current window with the next window in the <code>direction</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -760,7 +769,9 @@ but if you downloaded a release of a branch like <code>development</code> this w
 </ul>
 </li>
 </ul>
-<h2><a class="header" href="#ws_set_split_directiondirection" id="ws_set_split_directiondirection">ws_set_split_direction(direction)</a></h2>
+<h2 id="ws_swap_columns_and_rows"><a class="header" href="#ws_swap_columns_and_rows">ws_swap_columns_and_rows()</a></h2>
+<p>Turns all columns in the current workspace into rows and all rows into columns</p>
+<h2 id="ws_set_split_directiondirection"><a class="header" href="#ws_set_split_directiondirection">ws_set_split_direction(direction)</a></h2>
 <p>Sets the split direction of the current workspace.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -771,7 +782,7 @@ but if you downloaded a release of a branch like <code>development</code> this w
 </ul>
 </li>
 </ul>
-<h2><a class="header" href="#ws_move_indirection" id="ws_move_indirection">ws_move_in(direction)</a></h2>
+<h2 id="ws_move_indirection"><a class="header" href="#ws_move_indirection">ws_move_in(direction)</a></h2>
 <p>Moves the current window into the adjacent row/column/window found in the given <code>direction</code>.</p>
 <ul>
 <li>If the adjecent item is a row or column, this simply moves the window to the end of the row or column. </li>
@@ -789,7 +800,7 @@ whichever is the opposite of the current window's parent, and appends the window
 </ul>
 </li>
 </ul>
-<h2><a class="header" href="#ws_move_outdirection" id="ws_move_outdirection">ws_move_out(direction)</a></h2>
+<h2 id="ws_move_outdirection"><a class="header" href="#ws_move_outdirection">ws_move_out(direction)</a></h2>
 <p>Moves the current window out of a row/column in the given <code>direction</code>. 
 The behavior of this movement is essentially moving the current window so that it is a sibling of its parent and introducing a new parent node that is the opposite type of the previous parent if necessary.</p>
 <p><strong>Arguments</strong>:</p>
@@ -803,26 +814,26 @@ The behavior of this movement is essentially moving the current window so that i
 </ul>
 </li>
 </ul>
-<h1><a class="header" href="#plugin" id="plugin">Plugin</a></h1>
-<h2><a class="header" href="#plug_installid" id="plug_installid">plug_install(id)</a></h2>
+<h1 id="plugin"><a class="header" href="#plugin">Plugin</a></h1>
+<h2 id="plug_installid"><a class="header" href="#plug_installid">plug_install(id)</a></h2>
 <p>Clones the github repository with the given <code>id</code> into the plugins folder. If a folder with the same name already exists, this function is noop.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>id</code> [string] id of repo (ex. <code>TimUntersberger/nog</code>)</li>
 </ul>
-<h2><a class="header" href="#plug_uninstallid" id="plug_uninstallid">plug_uninstall(id)</a></h2>
+<h2 id="plug_uninstallid"><a class="header" href="#plug_uninstallid">plug_uninstall(id)</a></h2>
 <p>Removes the cloned repo locally.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>id</code> [string] id of repo (ex. <code>TimUntersberger/nog</code>)</li>
 </ul>
-<h2><a class="header" href="#plug_update" id="plug_update">plug_update()</a></h2>
+<h2 id="plug_update"><a class="header" href="#plug_update">plug_update()</a></h2>
 <p>Checks each folder inside the plugins folder for new commits upstream and if some exist it pulls them.</p>
-<h2><a class="header" href="#plug_list" id="plug_list">plug_list()</a></h2>
+<h2 id="plug_list"><a class="header" href="#plug_list">plug_list()</a></h2>
 <p>Returns a list of installed plugins.</p>
 <p><strong>Return</strong>: a list of absolute paths</p>
-<h1><a class="header" href="#keybindings-1" id="keybindings-1">Keybindings</a></h1>
-<h2><a class="header" href="#bindmode-key-cb" id="bindmode-key-cb">bind(mode, key, cb)</a></h2>
+<h1 id="keybindings-1"><a class="header" href="#keybindings-1">Keybindings</a></h1>
+<h2 id="bindmode-key-cb"><a class="header" href="#bindmode-key-cb">bind(mode, key, cb)</a></h2>
 <p>Registers a new keybinding.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -840,7 +851,7 @@ The behavior of this movement is essentially moving the current window so that i
 <ul>
 <li><a href="api//configuration/keybindings.html">configuring keybindings</a></li>
 </ul>
-<h2><a class="header" href="#nbindkey-cb" id="nbindkey-cb">nbind(key, cb)</a></h2>
+<h2 id="nbindkey-cb"><a class="header" href="#nbindkey-cb">nbind(key, cb)</a></h2>
 <p>Registers a new keybinding in <code>normal</code> mode.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -851,7 +862,7 @@ The behavior of this movement is essentially moving the current window so that i
 <ul>
 <li><a href="api//configuration/keybindings.html">configuring keybindings</a></li>
 </ul>
-<h2><a class="header" href="#gbindkey-cb" id="gbindkey-cb">gbind(key, cb)</a></h2>
+<h2 id="gbindkey-cb"><a class="header" href="#gbindkey-cb">gbind(key, cb)</a></h2>
 <p>Registers a new keybinding in <code>global</code> mode.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -862,7 +873,7 @@ The behavior of this movement is essentially moving the current window so that i
 <ul>
 <li><a href="api//configuration/keybindings.html">configuring keybindings</a></li>
 </ul>
-<h2><a class="header" href="#wbindkey-cb" id="wbindkey-cb">wbind(key, cb)</a></h2>
+<h2 id="wbindkey-cb"><a class="header" href="#wbindkey-cb">wbind(key, cb)</a></h2>
 <p>Registers a new keybinding in <code>work</code> mode.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -873,7 +884,7 @@ The behavior of this movement is essentially moving the current window so that i
 <ul>
 <li><a href="api//configuration/keybindings.html">configuring keybindings</a></li>
 </ul>
-<h2><a class="header" href="#nbind_tblmodifiers-cb-tbl" id="nbind_tblmodifiers-cb-tbl">nbind_tbl(modifiers, cb, tbl)</a></h2>
+<h2 id="nbind_tblmodifiers-cb-tbl"><a class="header" href="#nbind_tblmodifiers-cb-tbl">nbind_tbl(modifiers, cb, tbl)</a></h2>
 <p>Registers a new keybinding for each pair from the given <code>tbl</code> in <code>normal</code> mode,
 where the key of the pair is prepended with the <code>modifiers</code> and used as the key 
 and the value gets passed to the callback when activated.</p>
@@ -883,7 +894,7 @@ and the value gets passed to the callback when activated.</p>
 <li><code>cb</code> [function] the function that gets called on keybinding activation</li>
 <li><code>tb</code> [table] the mappgins</li>
 </ul>
-<h2><a class="header" href="#wbind_tblmodifiers-cb-tbl" id="wbind_tblmodifiers-cb-tbl">wbind_tbl(modifiers, cb, tbl)</a></h2>
+<h2 id="wbind_tblmodifiers-cb-tbl"><a class="header" href="#wbind_tblmodifiers-cb-tbl">wbind_tbl(modifiers, cb, tbl)</a></h2>
 <p>Registers a new keybinding for each pair from the given <code>tbl</code> in <code>work</code> mode,
 where the key of the pair is prepended with the <code>modifiers</code> and used as the key 
 and the value gets passed to the callback when activated.</p>
@@ -893,7 +904,7 @@ and the value gets passed to the callback when activated.</p>
 <li><code>cb</code> [function] the function that gets called on keybinding activation</li>
 <li><code>tb</code> [table] the mappgins</li>
 </ul>
-<h2><a class="header" href="#gbind_tblmodifiers-cb-tbl" id="gbind_tblmodifiers-cb-tbl">gbind_tbl(modifiers, cb, tbl)</a></h2>
+<h2 id="gbind_tblmodifiers-cb-tbl"><a class="header" href="#gbind_tblmodifiers-cb-tbl">gbind_tbl(modifiers, cb, tbl)</a></h2>
 <p>Registers a new keybinding for each pair from the given <code>tbl</code> in <code>global</code> mode,
 where the key of the pair is prepended with the <code>modifiers</code> and used as the key 
 and the value gets passed to the callback when activated.</p>
@@ -903,7 +914,7 @@ and the value gets passed to the callback when activated.</p>
 <li><code>cb</code> [function] the function that gets called on keybinding activation</li>
 <li><code>tb</code> [table] the mappgins</li>
 </ul>
-<h2><a class="header" href="#unbindkey" id="unbindkey">unbind(key)</a></h2>
+<h2 id="unbindkey"><a class="header" href="#unbindkey">unbind(key)</a></h2>
 <p>Unregisters the keybinding that has the given <code>key</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -913,8 +924,8 @@ and the value gets passed to the callback when activated.</p>
 <ul>
 <li><a href="api//configuration/keybindings.html">configuring keybindings</a></li>
 </ul>
-<h1><a class="header" href="#popup" id="popup">Popup</a></h1>
-<h2><a class="header" href="#popup_createsettings" id="popup_createsettings">popup_create(settings)</a></h2>
+<h1 id="popup"><a class="header" href="#popup">Popup</a></h1>
+<h2 id="popup_createsettings"><a class="header" href="#popup_createsettings">popup_create(settings)</a></h2>
 <p>Closes the current popup and opens a new one.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -925,49 +936,48 @@ and the value gets passed to the callback when activated.</p>
 </ul>
 </li>
 </ul>
-<h2><a class="header" href="#popup_close" id="popup_close">popup_close()</a></h2>
+<h2 id="popup_close"><a class="header" href="#popup_close">popup_close()</a></h2>
 <p>Closes the current popup.</p>
-<h1><a class="header" href="#display" id="display">Display</a></h1>
-<h1><a class="header" href="#components-1" id="components-1">Components</a></h1>
-<h2><a class="header" href="#component" id="component">Component</a></h2>
+<h1 id="components-1"><a class="header" href="#components-1">Components</a></h1>
+<h2 id="component"><a class="header" href="#component">Component</a></h2>
 <p>A component is a table with the following fields:</p>
 <ul>
 <li><code>name</code></li>
 <li><code>render</code></li>
 <li><code>on_click</code> (optional)</li>
 </ul>
-<h2><a class="header" href="#workspaces-1" id="workspaces-1">workspaces()</a></h2>
+<h2 id="workspaces-1"><a class="header" href="#workspaces-1">workspaces()</a></h2>
 <p>Creates a component that displays the workspaces currently being used on this display. 
 The workspace that has focus is highlighted.</p>
 <p><strong>Return</strong>: <a href="api/Components.html#component">Component</a></p>
-<h2><a class="header" href="#datetimepattern" id="datetimepattern">datetime(pattern)</a></h2>
+<h2 id="datetimepattern"><a class="header" href="#datetimepattern">datetime(pattern)</a></h2>
 <p>Creates a component that displays the current datetime formatted with the <code>pattern</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>pattern</code> [string] a pattern for <a href="api//api/general#fmt-datetime">fmt_datetime</a></li>
 </ul>
 <p><strong>Return</strong>: <a href="api/Components.html#component">Component</a></p>
-<h2><a class="header" href="#paddingamount" id="paddingamount">padding(amount)</a></h2>
+<h2 id="paddingamount"><a class="header" href="#paddingamount">padding(amount)</a></h2>
 <p>Creates a component that displays a space for <code>amount</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>amount</code> [number] amount of spaces</li>
 </ul>
 <p><strong>Return</strong>: <a href="api/Components.html#component">Component</a></p>
-<h2><a class="header" href="#active_mode" id="active_mode">active_mode()</a></h2>
+<h2 id="active_mode"><a class="header" href="#active_mode">active_mode()</a></h2>
 <p>Creates a component that displays either nothing or the active mode.</p>
 <p><strong>Return</strong>: <a href="api/Components.html#component">Component</a></p>
-<h2><a class="header" href="#current_window" id="current_window">current_window()</a></h2>
+<h2 id="current_window"><a class="header" href="#current_window">current_window()</a></h2>
 <p>Creates a component that displays either nothing or the title of the window that has focus.</p>
 <p><strong>Return</strong>: <a href="api/Components.html#component">Component</a></p>
-<h2><a class="header" href="#split_directionvalues" id="split_directionvalues">split_direction(values)</a></h2>
+<h2 id="split_directionvalues"><a class="header" href="#split_directionvalues">split_direction(values)</a></h2>
 <p>Creates a component that displays either the first item of <code>values</code> or the last one depending on the current split direction.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>values</code> [table] must have 2 items where the first one is for vertical and the second one for horizontal</li>
 </ul>
 <p><strong>Return</strong>: <a href="api/Components.html#component">Component</a></p>
-<h2><a class="header" href="#fullscreen_indicatorindicator" id="fullscreen_indicatorindicator">fullscreen_indicator(indicator)</a></h2>
+<h2 id="fullscreen_indicatorindicator"><a class="header" href="#fullscreen_indicatorindicator">fullscreen_indicator(indicator)</a></h2>
 <p>Creates a component that displays either nothing or the <code>indicator</code> if the workspace is in <a href="api//getting-started/fullscreen-mode">fullscreen mode</a>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -996,6 +1006,21 @@ The workspace that has focus is highlighted.</p>
 
         </div>
 
+        
+        <!-- Livereload script (if served using the cli tool) -->
+        <script type="text/javascript">
+            var socket = new WebSocket("ws://localhost:3000/__livereload");
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
         
 
         

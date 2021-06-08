@@ -95,7 +95,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item affix "><a href="../index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="../getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="../getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="../getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item "><a href="../getting-started/floating_mode.html">Floating Mode</a></li><li class="chapter-item "><a href="../getting-started/fullscreen_mode.html">Fullscreen Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="../configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="../configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="../configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="../configuration/modes.html">Modes</a></li><li class="chapter-item "><a href="../configuration/rules.html">Rules</a></li><li class="chapter-item "><a href="../configuration/bar.html">Bar</a></li><li class="chapter-item "><a href="../configuration/plugins.html">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="../api/General.html">General</a></li><li class="chapter-item "><a href="../api/Window.html">Window</a></li><li class="chapter-item "><a href="../api/Workspace.html">Workspace</a></li><li class="chapter-item "><a href="../api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="../api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../api/Popup.html">Popup</a></li><li class="chapter-item "><a href="../api/Display.html">Display</a></li><li class="chapter-item expanded "><a href="../api/Components.html" class="active">Components</a></li></ol>
+                <ol class="chapter"><li class="chapter-item affix "><a href="../index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="../getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="../getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="../getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item "><a href="../getting-started/floating_mode.html">Floating Mode</a></li><li class="chapter-item "><a href="../getting-started/fullscreen_mode.html">Fullscreen Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="../configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="../configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="../configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="../configuration/modes.html">Modes</a></li><li class="chapter-item "><a href="../configuration/rules.html">Rules</a></li><li class="chapter-item "><a href="../configuration/bar.html">Bar</a></li><li class="chapter-item "><a href="../configuration/plugins.html">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="../api/General.html">General</a></li><li class="chapter-item "><a href="../api/Window.html">Window</a></li><li class="chapter-item "><a href="../api/Workspace.html">Workspace</a></li><li class="chapter-item "><a href="../api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="../api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../api/Popup.html">Popup</a></li><li class="chapter-item expanded "><a href="../api/Components.html" class="active">Components</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -167,46 +167,46 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#components" id="components">Components</a></h1>
-<h2><a class="header" href="#component" id="component">Component</a></h2>
+                        <h1 id="components"><a class="header" href="#components">Components</a></h1>
+<h2 id="component"><a class="header" href="#component">Component</a></h2>
 <p>A component is a table with the following fields:</p>
 <ul>
 <li><code>name</code></li>
 <li><code>render</code></li>
 <li><code>on_click</code> (optional)</li>
 </ul>
-<h2><a class="header" href="#workspaces" id="workspaces">workspaces()</a></h2>
+<h2 id="workspaces"><a class="header" href="#workspaces">workspaces()</a></h2>
 <p>Creates a component that displays the workspaces currently being used on this display. 
 The workspace that has focus is highlighted.</p>
 <p><strong>Return</strong>: <a href="#component">Component</a></p>
-<h2><a class="header" href="#datetimepattern" id="datetimepattern">datetime(pattern)</a></h2>
+<h2 id="datetimepattern"><a class="header" href="#datetimepattern">datetime(pattern)</a></h2>
 <p>Creates a component that displays the current datetime formatted with the <code>pattern</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>pattern</code> [string] a pattern for <a href="/api/general#fmt-datetime">fmt_datetime</a></li>
 </ul>
 <p><strong>Return</strong>: <a href="#component">Component</a></p>
-<h2><a class="header" href="#paddingamount" id="paddingamount">padding(amount)</a></h2>
+<h2 id="paddingamount"><a class="header" href="#paddingamount">padding(amount)</a></h2>
 <p>Creates a component that displays a space for <code>amount</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>amount</code> [number] amount of spaces</li>
 </ul>
 <p><strong>Return</strong>: <a href="#component">Component</a></p>
-<h2><a class="header" href="#active_mode" id="active_mode">active_mode()</a></h2>
+<h2 id="active_mode"><a class="header" href="#active_mode">active_mode()</a></h2>
 <p>Creates a component that displays either nothing or the active mode.</p>
 <p><strong>Return</strong>: <a href="#component">Component</a></p>
-<h2><a class="header" href="#current_window" id="current_window">current_window()</a></h2>
+<h2 id="current_window"><a class="header" href="#current_window">current_window()</a></h2>
 <p>Creates a component that displays either nothing or the title of the window that has focus.</p>
 <p><strong>Return</strong>: <a href="#component">Component</a></p>
-<h2><a class="header" href="#split_directionvalues" id="split_directionvalues">split_direction(values)</a></h2>
+<h2 id="split_directionvalues"><a class="header" href="#split_directionvalues">split_direction(values)</a></h2>
 <p>Creates a component that displays either the first item of <code>values</code> or the last one depending on the current split direction.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>values</code> [table] must have 2 items where the first one is for vertical and the second one for horizontal</li>
 </ul>
 <p><strong>Return</strong>: <a href="#component">Component</a></p>
-<h2><a class="header" href="#fullscreen_indicatorindicator" id="fullscreen_indicatorindicator">fullscreen_indicator(indicator)</a></h2>
+<h2 id="fullscreen_indicatorindicator"><a class="header" href="#fullscreen_indicatorindicator">fullscreen_indicator(indicator)</a></h2>
 <p>Creates a component that displays either nothing or the <code>indicator</code> if the workspace is in <a href="/getting-started/fullscreen-mode">fullscreen mode</a>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -219,7 +219,7 @@ The workspace that has focus is highlighted.</p>
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
                         
-                            <a rel="prev" href="../api/Display.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../api/Popup.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
                         
@@ -233,7 +233,7 @@ The workspace that has focus is highlighted.</p>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
-                    <a rel="prev" href="../api/Display.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../api/Popup.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
@@ -243,6 +243,21 @@ The workspace that has focus is highlighted.</p>
 
         </div>
 
+        
+        <!-- Livereload script (if served using the cli tool) -->
+        <script type="text/javascript">
+            var socket = new WebSocket("ws://localhost:3000/__livereload");
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
         
 
         

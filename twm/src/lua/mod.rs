@@ -731,6 +731,7 @@ fn load_workspace_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) ->
         l_def_ffi_fn!("change", emit_change_workspace, ws_id: i32);
         l_def_ffi_fn!("move_in", move_in, direction: Direction);
         l_def_ffi_fn!("move_out", move_out, direction: Direction);
+        l_def_ffi_fn!("swap_columns_and_rows", swap_columns_and_rows);
         l_def_ffi_fn!("focus", focus, direction: Direction);
         l_def_ffi_fn!("resize", resize, direction: Direction, amount: i32);
         l_def_ffi_fn!("swap", swap, direction: Direction);
