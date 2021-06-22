@@ -88,6 +88,8 @@ pub enum SystemError {
     GetForegroundWindow(SpecificError),
     #[error("Failed to launch `{0}`")]
     LaunchProgram(String),
+    #[error("Config `{0}` is invalid")]
+    InvalidConfig(String),
     #[error("Failed to register keybinding")]
     RegisterKeybinding(String),
     #[error("Failed to unregister keybinding")]

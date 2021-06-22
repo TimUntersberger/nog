@@ -483,6 +483,21 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
         });
 
         let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "toggle_config", move |lua, config: Value| {
+            validate!(lua, { config: String });
+            let result = state.lock()
+                              .config
+                              .toggle_field(&config)
+                              .map_err(|e| LuaError::RuntimeError(e.to_string()));
+            if let Ok(_) = result {
+                let _ = state.lock().event_channel.sender.send(Event::ReloadConfig);
+                Ok(())
+            } else {
+                result
+            }
+        });
+
+        let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "is_ws_focused", move |lua, ws_id: Value| {
             validate!(lua, { ws_id: i32 });
             Ok(state.lock().workspace_id == ws_id)

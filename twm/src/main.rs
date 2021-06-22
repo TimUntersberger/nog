@@ -1042,10 +1042,8 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
                     },
                     Event::ReloadConfig => {
                         info!("Reloading Config");
-                        let rt = state_arc.lock().lua_rt.clone();
-                        run_config(&rt);
-
-                        Ok(())
+                        let config = state_arc.lock().config.clone();
+                        update_config(state_arc.clone(), config)
                     },
                     Event::UpdateBarSections(display_id, left, center, right) => {
                         let mut state = state_arc.lock();

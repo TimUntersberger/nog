@@ -1,5 +1,6 @@
 use crate::get_plugins_path;
 use crate::keybindings::keybinding::Keybinding;
+use crate::system::{SystemError, SystemResult};
 use bar_config::BarConfig;
 use log::error;
 use rule::Rule;
@@ -124,7 +125,8 @@ impl Config {
         }
     }
 
-    pub fn toggle_field(&mut self, field: &str) {
+    pub fn toggle_field(&mut self, field: &str) -> SystemResult {
+        let mut result = Ok(());
         match field {
             "use_border" => self.use_border = !self.use_border,
             "light_theme" => self.light_theme = !self.light_theme,
@@ -137,8 +139,10 @@ impl Config {
             "ignore_fullscreen_actions" => {
                 self.ignore_fullscreen_actions = !self.ignore_fullscreen_actions
             }
-            _ => error!("Attempt to toggle unknown field: {}", field),
+            _ => result = Err(SystemError::InvalidConfig(field.to_string()))
         }
+
+        result 
     }
 
     pub fn add_keybinding(&mut self, keybinding: Keybinding) {
