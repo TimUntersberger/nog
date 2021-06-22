@@ -464,6 +464,14 @@ impl AppState {
         Ok(())
     }
 
+    pub fn create_app_bars(state_arc: Arc<Mutex<AppState>>) {
+        bar::create::create(state_arc.clone())
+    }
+
+    pub fn close_app_bars(state_arc: Arc<Mutex<AppState>>) {
+        bar::close_all(state_arc.clone());
+    }
+
     pub fn enter_work_mode(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
         let mut this = state_arc.lock();
         if this.config.remove_task_bar {
@@ -473,7 +481,7 @@ impl AppState {
 
         if this.config.display_app_bar {
             drop(this);
-            bar::create::create(state_arc.clone());
+            Self::create_app_bars(state_arc.clone());
             this = state_arc.lock();
         }
 
@@ -539,7 +547,7 @@ impl AppState {
 
         if this.config.display_app_bar {
             drop(this);
-            bar::close_all(state_arc.clone());
+            Self::close_app_bars(state_arc.clone());
             this = state_arc.lock();
         }
 
