@@ -344,12 +344,26 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             let state_arc = state.clone();
             let mut state = state_arc.lock();
             macro_rules! set_prop {
-                (bar, $name: tt, $type: ty) => {
-                    state.config.bar.$name = validate!(lua, value: $type)?
-                };
-                ($name: tt, $type: ty) => {
-                    state.config.$name = validate!(lua, value: $type)?
-                };
+                (bar, $name: tt, $type: ty) => {{
+                    state.config.bar.$name = validate!(lua, value: $type)?;
+                }};
+                ($name: tt, $type: ty) => {{
+                    state.config.$name = validate!(lua, value: $type)?;
+                }};
+                (bar, $name: tt, $type: ty, $cb: expr) => {{
+                    let old_value = state.config.bar.$name;
+                    state.config.bar.$name = validate!(lua, value: $type)?;
+                    let state_arc = state_arc.clone();
+                    let new_value = state.config.bar.$name;
+                    $cb(old_value, new_value, state_arc);
+                }};
+                ($name: tt, $type: ty, $cb: expr) => {{
+                    let old_value = state.config.$name;
+                    state.config.$name = validate!(lua, value: $type)?;
+                    let state_arc = state_arc.clone();
+                    let new_value = state.config.$name;
+                    $cb(old_value, new_value, state_arc);
+                }};
             }
             match parts.as_slice() {
                 ["nog", "config"] => match key.as_str() {
@@ -364,8 +378,25 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                     "work_mode" => set_prop!(work_mode, bool),
                     "light_theme" => set_prop!(light_theme, bool),
                     "multi_monitor" => set_prop!(multi_monitor, bool),
-                    "remove_task_bar" => set_prop!(remove_task_bar, bool),
-                    "display_app_bar" => set_prop!(display_app_bar, bool),
+                    "remove_task_bar" => set_prop!(remove_task_bar, bool, |old, new, _| {
+                        if state.work_mode {
+                            match (old, new) {
+                                (false, true) => state.hide_taskbars(),
+                                (true, false) => state.show_taskbars(),
+                                _ => {}
+                            }
+                        }
+                    }),
+                    "display_app_bar" => set_prop!(display_app_bar, bool, move |old, new, state_arc| {
+                        if state.work_mode {
+                            drop(state);
+                            match (old, new) {
+                                (false, true) => AppState::create_app_bars(state_arc),
+                                (true, false) => AppState::close_app_bars(state_arc),
+                                _ => {}
+                            }
+                        }
+                    }),
                     "ignore_fullscreen_actions" => set_prop!(ignore_fullscreen_actions, bool),
                     "allow_right_alt" => set_prop!(allow_right_alt, bool),
                     "workspaces" => {
