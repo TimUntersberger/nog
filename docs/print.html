@@ -650,6 +650,13 @@ but if you downloaded a release of a branch like <code>development</code> this w
 <h2 id="get_current_win"><a class="header" href="#get_current_win">get_current_win()</a></h2>
 <p>Returns the id of the window that has currently focus and is managed by nog.</p>
 <p><strong>Return</strong>: [number] window id</p>
+<h2 id="get_focused_win_of_displaydisplay_id"><a class="header" href="#get_focused_win_of_displaydisplay_id">get_focused_win_of_display(display_id)</a></h2>
+<p>Returns the id of the window on the given display that is focused and is managed by nog.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>display_id</code> [number] id of display</li>
+</ul>
+<p><strong>Return</strong>: [number] window id</p>
 <h2 id="win_minimize"><a class="header" href="#win_minimize">win_minimize()</a></h2>
 <p>Minimizes the currently focused window and unmanages it.</p>
 <h2 id="win_ignore"><a class="header" href="#win_ignore">win_ignore()</a></h2>
@@ -666,12 +673,12 @@ but if you downloaded a release of a branch like <code>development</code> this w
 </ul>
 <h1 id="workspace"><a class="header" href="#workspace">Workspace</a></h1>
 <h2 id="get_active_ws_of_displaydisplay_id"><a class="header" href="#get_active_ws_of_displaydisplay_id">get_active_ws_of_display(display_id)</a></h2>
-<p>Returns the id of the currently focused workspace of the display with <code>display_id</code>.</p>
+<p>Returns an array of ids of active workspaces of the display with <code>display_id</code>. An &quot;active&quot; workspace is a workspace that is managing windows.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>display_id</code> [number] id of display</li>
 </ul>
-<p><strong>Return</strong>: [number] id of workspace</p>
+<p><strong>Return</strong>: [array] ids of active workspaces</p>
 <h2 id="is_ws_focusedws_id"><a class="header" href="#is_ws_focusedws_id">is_ws_focused(ws_id)</a></h2>
 <p>Checks if the workspace with the <code>ws_id</code> is focused.</p>
 <p><strong>Arguments</strong>:</p>

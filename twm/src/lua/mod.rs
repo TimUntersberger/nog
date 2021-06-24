@@ -477,6 +477,24 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
         );
 
         let state = state_arc.clone();
+        def_fn!(
+            lua,
+            nog_tbl,
+            "get_focused_ws_of_display",
+            move |lua, display_id: Value| {
+                validate!(lua, { display_id: i32 });
+                let state_g = state.lock();
+                let ws_id = state_g
+                    .get_display_by_id(DisplayId(display_id))
+                    .unwrap()
+                    .get_focused_grid()
+                    .map(|ws| ws.id);
+
+                Ok(ws_id)
+            }
+        );
+
+        let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "toggle_work_mode", move |_, (): ()| {
             AppState::toggle_work_mode(state.clone())
                 .map_err(|e| LuaError::RuntimeError(e.to_string()))
@@ -537,6 +555,20 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             let win_id = state
                 .lock()
                 .get_current_display()
+                .get_focused_grid()
+                .and_then(|g| g.get_focused_window())
+                .map(|w| w.id.0);
+
+            Ok(win_id)
+        });
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "get_focused_win_of_display", move |lua, display_id: Value| {
+            validate!(lua, { display_id: i32 });
+            let win_id = state
+                .lock()
+                .get_display_by_id(DisplayId(display_id))
+                .unwrap()
                 .get_focused_grid()
                 .and_then(|g| g.get_focused_window())
                 .map(|w| w.id.0);

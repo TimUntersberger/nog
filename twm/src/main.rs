@@ -345,6 +345,7 @@ impl AppState {
             let id = grid.id;
 
             new_display.grids.push(grid);
+            new_display.grids.sort_by_key(|g| g.id);
             new_display.focus_workspace(&config, id)?;
             self.workspace_id = id;
         }
