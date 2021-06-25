@@ -367,14 +367,54 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             }
             match parts.as_slice() {
                 ["nog", "config"] => match key.as_str() {
-                    "launch_on_startup" => set_prop!(launch_on_startup, bool),
+                    "launch_on_startup" => set_prop!(launch_on_startup, bool, |old, new, _| {
+                        if old != new {
+                            crate::startup::set_launch_on_startup(new);
+                        }
+                    }),
                     "enable_hot_reloading" => set_prop!(enable_hot_reloading, bool),
                     "min_height" => set_prop!(min_height, i32),
                     "min_width" => set_prop!(min_width, i32),
-                    "use_border" => set_prop!(use_border, bool),
-                    "outer_gap" => set_prop!(outer_gap, i32),
-                    "inner_gap" => set_prop!(inner_gap, i32),
-                    "remove_title_bar" => set_prop!(remove_title_bar, bool),
+                    "use_border" => set_prop!(use_border, bool, |old, new, _| {
+                        if old != new {
+                            state.each_window(|w| {
+                                if new {
+                                    w.add_border()
+                                } else {
+                                    w.remove_border()
+                                }
+                            }).unwrap();
+
+                            state.config.use_border = new;
+                            state.redraw();
+                        }
+                    }),
+                    "outer_gap" => set_prop!(outer_gap, i32, |old, new, _| {
+                        if old != new {
+                            state.config.outer_gap = new;
+                            state.redraw();
+                        }
+                    }),
+                    "inner_gap" => set_prop!(inner_gap, i32, |old, new, _| {
+                        if old != new {
+                            state.config.inner_gap = new;
+                            state.redraw();
+                        }
+                    }),
+                    "remove_title_bar" => set_prop!(remove_title_bar, bool, |old, new, _| {
+                        if old != new {
+                            state.each_window(|w| {
+                                if new {
+                                    w.remove_title_bar()
+                                } else {
+                                    w.add_title_bar()
+                                }
+                            }).unwrap();
+
+                            state.config.remove_title_bar = new;
+                            state.redraw();
+                        }
+                    }),
                     "work_mode" => set_prop!(work_mode, bool),
                     "light_theme" => set_prop!(light_theme, bool),
                     "multi_monitor" => set_prop!(multi_monitor, bool),
@@ -423,7 +463,15 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                 },
                 ["nog", "config", "bar"] => match key.as_str() {
                     "color" => set_prop!(bar, color, i32),
-                    "height" => set_prop!(bar, height, i32),
+                    "height" => set_prop!(bar, height, i32, |old, new, _| {
+                        if old != new {
+                            for d in &state.displays {
+                                if let Some(bar) = d.appbar.as_ref() {
+                                    bar.change_height(new);
+                                }
+                            }
+                        }
+                    }),
                     "font" => set_prop!(bar, font, String),
                     "font_size" => set_prop!(bar, font_size, i32),
                     "components" => {
