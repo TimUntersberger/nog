@@ -69,7 +69,12 @@ pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> Sys
         let use_border = old_config.use_border;
         for grid in state.get_grids_mut() {
             grid.modify_windows(|window| {
-                window.remove_title_bar(use_border)?;
+                window.remove_title_bar()?;
+
+                if use_border {
+                    window.add_border()?;
+                }
+
                 window
                     .update_style()
                     .expect("Failed to update style of window");

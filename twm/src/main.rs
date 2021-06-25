@@ -29,7 +29,7 @@ use std::{fmt::Debug, fs::ReadDir, path::Path};
 use std::{mem, thread, time::Duration};
 use std::{process, sync::atomic::AtomicBool, sync::Arc};
 use system::NativeWindow;
-use system::{DisplayId, SystemResult, WinEventListener, WindowId};
+use system::{DisplayId, SystemResult, SystemError, WinEventListener, WindowId};
 use task_bar::Taskbar;
 use tile_grid::{store::Store, TileGrid};
 use win_event_handler::{win_event::WinEvent, win_event_type::WinEventType};
@@ -125,7 +125,6 @@ mod keybindings;
 mod logging;
 mod lua;
 mod message_loop;
-// mod nogscript;
 mod popup;
 mod renderer;
 mod split_direction;
@@ -416,6 +415,10 @@ impl AppState {
         Ok(())
     }
 
+    pub fn redraw(&mut self) -> SystemResult {
+        Ok(())
+    }
+
     pub fn ignore_window(&mut self) -> SystemResult {
         if let Some(window) = self.get_current_grid().unwrap().get_focused_window() {
             let mut rule = Rule::default();
@@ -664,6 +667,16 @@ impl AppState {
         if let Some(grid) = display.get_focused_grid_mut() {
             grid.next_axis = direction;
         }
+        Ok(())
+    }
+
+    pub fn each_window(&mut self, cb: impl Fn(&mut NativeWindow) -> SystemResult + Copy) -> SystemResult {
+        for d in &mut self.displays {
+            for g in &mut d.grids {
+                g.modify_windows(cb)?;
+            }
+        }
+
         Ok(())
     }
 
