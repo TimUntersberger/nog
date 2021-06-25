@@ -169,12 +169,12 @@
                     <main>
                         <h1 id="workspace"><a class="header" href="#workspace">Workspace</a></h1>
 <h2 id="get_active_ws_of_displaydisplay_id"><a class="header" href="#get_active_ws_of_displaydisplay_id">get_active_ws_of_display(display_id)</a></h2>
-<p>Returns the id of the currently focused workspace of the display with <code>display_id</code>.</p>
+<p>Returns an array of ids of active workspaces of the display with <code>display_id</code>. An &quot;active&quot; workspace is a workspace that is managing windows.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>display_id</code> [number] id of display</li>
 </ul>
-<p><strong>Return</strong>: [number] id of workspace</p>
+<p><strong>Return</strong>: [array] ids of active workspaces</p>
 <h2 id="is_ws_focusedws_id"><a class="header" href="#is_ws_focusedws_id">is_ws_focused(ws_id)</a></h2>
 <p>Checks if the workspace with the <code>ws_id</code> is focused.</p>
 <p><strong>Arguments</strong>:</p>

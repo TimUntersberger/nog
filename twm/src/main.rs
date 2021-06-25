@@ -345,6 +345,7 @@ impl AppState {
             let id = grid.id;
 
             new_display.grids.push(grid);
+            new_display.grids.sort_by_key(|g| g.id);
             new_display.focus_workspace(&config, id)?;
             self.workspace_id = id;
         }
@@ -751,6 +752,19 @@ impl AppState {
             .map(|s| s.text.clone())
             .filter(|t| !t.is_empty())
             .unwrap_or(format!(" {} ", id.to_string()))
+    }
+
+    pub fn get_focused_ws_of_display(&self, display_id: i32) -> Option<i32> {
+        self.get_display_by_id(DisplayId(display_id))
+            .and_then(|d| d.get_focused_grid())
+            .map(|ws| ws.id)
+    }
+
+    pub fn get_focused_win_of_display(&self, display_id: i32) -> Option<i32> {
+        self.get_display_by_id(DisplayId(display_id))
+            .and_then(|d| d.get_focused_grid())
+            .and_then(|g| g.get_focused_window())
+            .map(|w| w.id.0)
     }
 
     pub fn redraw_app_bars(&self) {

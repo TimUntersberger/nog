@@ -2,12 +2,12 @@
 
 ## get_active_ws_of_display(display_id)
 
-Returns the id of the currently focused workspace of the display with `display_id`.
+Returns an array of ids of active workspaces of the display with `display_id`. An "active" workspace is a workspace that is managing windows.
 
 **Arguments**:
 * `display_id` [number] id of display
 
-**Return**: [number] id of workspace
+**Return**: [array] ids of active workspaces
 
 ## is_ws_focused(ws_id)
 

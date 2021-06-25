@@ -15,6 +15,16 @@ Returns the id of the window that has currently focus and is managed by nog.
 
 **Return**: [number] window id
 
+
+## get_focused_win_of_display(display_id)
+
+Returns the id of the window on the given display that is focused and is managed by nog.
+
+**Arguments**:
+* `display_id` [number] id of display
+
+**Return**: [number] window id
+
 ## win_minimize()
 
 Minimizes the currently focused window and unmanages it.
