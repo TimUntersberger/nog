@@ -36,6 +36,23 @@ impl Display {
     pub fn get_rect(&self) -> Rectangle {
         api::get_display_rect(self.id)
     }
+    pub fn cleanup(&mut self, remove_task_bar: bool) -> SystemResult {
+        if let Some(bar) = self.appbar.as_ref() {
+            bar.window.close()?;
+        }
+
+        if remove_task_bar {
+            if let Some(tb) = self.taskbar.as_ref() {
+                tb.window.show();
+            }
+        }
+
+        for g in &mut self.grids {
+            g.cleanup()?;
+        }
+
+        Ok(())
+    }
     pub fn working_area_height(&self, config: &Config) -> i32 {
         let tb_height = self
             .taskbar

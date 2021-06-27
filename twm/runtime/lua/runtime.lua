@@ -209,6 +209,11 @@ nog.components.split_direction = function(values)
     name = "SplitDirection",
     render = function(display_id)
       local ws_id = nog.get_focused_ws_of_display(display_id)
+
+      if not ws_id then
+        return {{ text = "" }}
+      end
+
       local info = nog.get_ws_info(ws_id)
 
       return {{
@@ -223,6 +228,11 @@ nog.components.fullscreen_indicator = function(indicator)
     name = "FullscreenIndicator",
     render = function(display_id)
       local ws_id = nog.get_focused_ws_of_display(display_id)
+
+      if not ws_id then
+        return {{ text = "" }}
+      end
+
       local info = nog.get_ws_info(ws_id)
 
       return {{
@@ -249,7 +259,9 @@ function create_proxy(path)
   setmetatable(proxy, {
     __index = tbl,
     __newindex = function(t, k, v)
-      nog.__on_config_updated(prefix, k, v, nog.__is_setup)
+      if nog.config.enable_hot_reloading then
+        nog.__on_config_updated(prefix, k, v, nog.__is_setup)
+      end
       tbl[k] = v
     end
   })
