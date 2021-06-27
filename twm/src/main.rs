@@ -179,9 +179,7 @@ impl AppState {
     /// TODO: maybe rename this function
     pub fn cleanup(&mut self) -> SystemResult {
         for d in self.displays.iter_mut() {
-            for grid in d.grids.iter_mut() {
-                grid.cleanup()?;
-            }
+            d.cleanup(self.config.remove_task_bar)?;
         }
 
         Ok(())
@@ -416,6 +414,15 @@ impl AppState {
     }
 
     pub fn redraw(&mut self) -> SystemResult {
+        let fg_win = NativeWindow::get_foreground_window()?;
+        fg_win.to_foreground(true)?;
+        for d in &mut self.displays {
+            for g in &d.grids {
+                g.draw_grid(d, &self.config)?;
+                g.show()?;
+            }
+        }
+        fg_win.remove_topmost()?;
         Ok(())
     }
 
@@ -433,7 +440,7 @@ impl AppState {
 
             self.additonal_rules.push(rule);
 
-            self.toggle_floating();
+            self.toggle_floating()?;
         }
 
         Ok(())
@@ -961,10 +968,6 @@ fn on_quit(state: &mut AppState) -> SystemResult {
     state.cleanup()?;
 
     popup::cleanup();
-
-    if state.config.remove_task_bar {
-        state.show_taskbars();
-    }
 
     state.window_event_listener.stop();
 
