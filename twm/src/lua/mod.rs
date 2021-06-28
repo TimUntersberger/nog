@@ -345,6 +345,26 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             let parts = prefix.split('.').collect::<Vec<_>>();
             let state_arc = state.clone();
             let mut state = state_arc.lock();
+
+            /// This macro makes it a lot easier to update the config and handle transitions.
+            ///
+            /// The most basic usage looks like this:
+            ///
+            /// set_prop!("display_app_bar", bool)
+            ///
+            /// The above line validates the value argument as a bool and if the validation
+            /// succeeds it updates the config.
+            ///
+            /// To update the bar config you have to the same thing but with bar infront:
+            ///
+            /// set_prop!(bar, "height", i32)
+            ///
+            /// When given a function as third/fourth argument and not in setup it calls the
+            /// function like this: 
+            ///
+            /// f(old, new, state_arc)
+            ///
+            /// **Note**: the config value gets updated before calling the function
             macro_rules! set_prop {
                 (bar, $name: tt, $type: ty) => {{
                     state.config.bar.$name = validate!(lua, value: $type)?;
@@ -399,21 +419,18 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                                 }
                             }).unwrap();
 
-                            state.config.use_border = new;
                             state.redraw()?;
                         }
                         Ok(())
                     }),
                     "outer_gap" => set_prop!(outer_gap, i32, |old, new, _| -> RuntimeResult<()> {
                         if old != new && state.work_mode {
-                            state.config.outer_gap = new;
                             state.redraw()?;
                         }
                         Ok(())
                     }),
                     "inner_gap" => set_prop!(inner_gap, i32, |old, new, _| -> RuntimeResult<()> {
                         if old != new && state.work_mode {
-                            state.config.inner_gap = new;
                             state.redraw()?;
                         }
                         Ok(())
@@ -428,7 +445,6 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                                 }
                             }).unwrap();
 
-                            state.config.remove_title_bar = new;
                             state.redraw()?;
                         }
                         Ok(())
@@ -449,8 +465,6 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                                     }
                                 }
                             }
-
-                            state.config.multi_monitor = new;
 
                             if new {
                                 for d in crate::display::init(&state.config) {
