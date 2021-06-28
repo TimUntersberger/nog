@@ -37,14 +37,14 @@ pub enum InputEvent {
         win: bool,
         ctrl: bool,
     },
-    KeyUp {
-        key_code: usize,
-        lalt: bool,
-        ralt: bool,
-        shift: bool,
-        win: bool,
-        ctrl: bool,
-    },
+    // KeyUp {
+    //     key_code: usize,
+    //     lalt: bool,
+    //     ralt: bool,
+    //     shift: bool,
+    //     win: bool,
+    //     ctrl: bool,
+    // },
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -146,6 +146,12 @@ unsafe extern "system" fn hook_cb(ncode: i32, wparam: usize, lparam: isize) -> L
                                 ralt: RALT,
                             })
                             .unwrap();
+
+                        if let Ok(block) = block_rx.recv_timeout(TIMEOUT_DURATION) {
+                            if block {
+                                return 1;
+                            }
+                        }
                     }
                 };
             }
@@ -156,29 +162,22 @@ unsafe extern "system" fn hook_cb(ncode: i32, wparam: usize, lparam: isize) -> L
                     91 => WIN = false,
                     164 => LALT = false,
                     165 => RALT = false,
-                    key => {
-                        ie_tx
-                            .send(InputEvent::KeyUp {
-                                key_code: key as usize,
-                                ctrl: CTRL,
-                                shift: SHIFT,
-                                win: WIN,
-                                lalt: LALT,
-                                ralt: RALT,
-                            })
-                            .unwrap();
+                    _key => {
+                        // ie_tx
+                        //     .send(InputEvent::KeyUp {
+                        //         key_code: key as usize,
+                        //         ctrl: CTRL,
+                        //         shift: SHIFT,
+                        //         win: WIN,
+                        //         lalt: LALT,
+                        //         ralt: RALT,
+                        //     })
+                        //     .unwrap();
                     }
                 };
             }
         }
 
-        if let Ok(block) = block_rx.recv_timeout(TIMEOUT_DURATION) {
-            dbg!(&block);
-            if block {
-                return 1;
-
-            }
-        }
     }
     CallNextHookEx(std::ptr::null_mut(), ncode, wparam, lparam)
 }

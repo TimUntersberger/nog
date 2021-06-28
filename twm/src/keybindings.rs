@@ -3,6 +3,7 @@ use key::Key;
 use keybinding::Keybinding;
 use log::{debug, error, info};
 use modifier::Modifier;
+use std::collections::HashMap;
 use num_traits::FromPrimitive;
 use parking_lot::Mutex;
 use std::{
@@ -19,8 +20,6 @@ use std::{
 pub mod key;
 pub mod keybinding;
 pub mod modifier;
-
-pub type Mode = Option<String>;
 
 #[derive(Debug, Clone)]
 pub enum ChanMessage {
@@ -361,23 +360,44 @@ pub fn listen(state_arc: Arc<Mutex<AppState>>) -> Sender<()> {
     let (tx, rx) = channel::<()>();
 
     std::thread::spawn(move || {
-        let mut kbs = state_arc.lock().config.keybindings.clone();
-        dbg!(&kbs);
+        let mut kbs = HashMap::new();
+        for kb in &state_arc.lock().config.keybindings {
+            kbs.insert(kb.get_id(), kb.clone());
+        }
         let hook = keyboardhook::start();
         while let Ok(ev) = hook.recv() {
             if rx.try_recv().is_ok() {
-                kbs = state_arc.lock().config.keybindings.clone();
+                kbs = HashMap::new();
+                for kb in &state_arc.lock().config.keybindings {
+                    kbs.insert(kb.get_id(), kb.clone());
+                }
             }
 
             if let InputEvent::KeyDown { key_code, shift, ctrl, win, lalt, ralt } = ev {
-                if let Some(key) = Key::from_usize(key_code) {
-                    dbg!(&key);
-                    for kb in &kbs {
-                        if kb.key == key {
-                            hook.block(true);
-                            continue;
-                        }
-                    }
+                let mut modifiers = Modifier::empty();
+
+                if ctrl {
+                    modifiers |= Modifier::CONTROL;
+                }
+                if win {
+                    modifiers |= Modifier::WIN;
+                }
+                if shift {
+                    modifiers |= Modifier::SHIFT;
+                }
+                if lalt {
+                    modifiers |= Modifier::LALT;
+                }
+                if ralt {
+                    modifiers |= Modifier::RALT;
+                }
+
+                let id = (key_code as u32 + modifiers.bits() * 1000) as i32;
+
+                if let Some(kb) = kbs.get(&id) {
+                    hook.block(true);
+                    dbg!(&kb);
+                    continue;
                 }
             }
 
