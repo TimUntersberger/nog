@@ -483,13 +483,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             "get_focused_ws_of_display",
             move |lua, display_id: Value| {
                 validate!(lua, { display_id: i32 });
-                state.lock()
-                     .get_focused_ws_of_display(display_id)
-                     .ok_or(
-                         LuaError::RuntimeError(
-                             format!("Display {} does not exist or doesn't have a focused workspace", display_id).to_string()
-                         )
-                     )
+                Ok(state.lock().get_focused_ws_of_display(display_id))
             }
         );
 
@@ -564,13 +558,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "get_focused_win_of_display", move |lua, display_id: Value| {
             validate!(lua, { display_id: i32 });
-            state.lock()
-                 .get_focused_win_of_display(display_id)
-                 .ok_or(
-                     LuaError::RuntimeError(
-                         format!("Display {} does not exist or doesn't have a focused window", display_id).to_string()
-                     )
-                 )
+            Ok(state.lock().get_focused_win_of_display(display_id))
         });
 
         let state = state_arc.clone();
