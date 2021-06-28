@@ -1,5 +1,5 @@
 use crate::{
-    bar::item_section::ItemSection, keybindings::keybinding::Keybinding, popup::Popup,
+    keyboardhook::InputEvent, bar::item_section::ItemSection, keybindings::keybinding::Keybinding, popup::Popup,
     system::DisplayId, win_event_handler::win_event::WinEvent,
 };
 use crossbeam_channel::unbounded;
@@ -11,6 +11,7 @@ use mlua::Error as LuaError;
 pub enum Event {
     Keybinding(Keybinding),
     WinEvent(WinEvent),
+    InputEvent(InputEvent),
     NewPopup(Popup),
     LuaRuntimeError(LuaError),
     CallCallback {

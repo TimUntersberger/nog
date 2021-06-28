@@ -122,6 +122,7 @@ mod event;
 mod event_handler;
 mod hot_reload;
 mod keybindings;
+mod keyboardhook;
 mod logging;
 mod lua;
 mod message_loop;
@@ -977,12 +978,7 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
     os_specific_setup(state_arc.clone());
 
     info!("Listening for keybindings");
-    state_arc
-        .lock()
-        .keybindings_manager
-        .as_ref()
-        .unwrap()
-        .start(state_arc.clone());
+    keybindings::listen(state_arc.clone());
 
     if state_arc.lock().config.work_mode {
         AppState::enter_work_mode(state_arc.clone())?;
@@ -1014,6 +1010,10 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
                                 win.show();
                             }
                         }
+                        Ok(())
+                    },
+                    Event::InputEvent(ev) => {
+                        dbg!(ev);
                         Ok(())
                     },
                     Event::Keybinding(kb) => {

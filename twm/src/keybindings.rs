@@ -1,11 +1,10 @@
-use crate::{config::Config, event::Event, popup::Popup, system, system::api, AppState};
+use crate::{keyboardhook::{self, InputEvent}, config::Config, event::Event, popup::Popup, system, system::api, AppState};
 use key::Key;
 use keybinding::Keybinding;
 use log::{debug, error, info};
 use modifier::Modifier;
 use num_traits::FromPrimitive;
 use parking_lot::Mutex;
-use std::collections::HashMap;
 use std::{
     fmt::Debug,
     sync::atomic::{AtomicBool, Ordering},
@@ -106,6 +105,7 @@ impl KbManagerInner {
 
 #[derive(Clone)]
 pub struct KbManager {
+
     inner: Arc<Mutex<KbManagerInner>>,
     pub sender: Sender<ChanMessage>,
     receiver: Arc<Mutex<Receiver<ChanMessage>>>,
@@ -355,4 +355,35 @@ fn do_loop(inner: &KbManagerInner) -> Option<Keybinding> {
     }
 
     None
+}
+
+pub fn listen(state_arc: Arc<Mutex<AppState>>) -> Sender<()> {
+    let (tx, rx) = channel::<()>();
+
+    std::thread::spawn(move || {
+        let mut kbs = state_arc.lock().config.keybindings.clone();
+        dbg!(&kbs);
+        let hook = keyboardhook::start();
+        while let Ok(ev) = hook.recv() {
+            if rx.try_recv().is_ok() {
+                kbs = state_arc.lock().config.keybindings.clone();
+            }
+
+            if let InputEvent::KeyDown { key_code, shift, ctrl, win, lalt, ralt } = ev {
+                if let Some(key) = Key::from_usize(key_code) {
+                    dbg!(&key);
+                    for kb in &kbs {
+                        if kb.key == key {
+                            hook.block(true);
+                            continue;
+                        }
+                    }
+                }
+            }
+
+            hook.block(false);
+        }
+    });
+
+    tx
 }
