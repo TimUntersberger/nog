@@ -36,12 +36,12 @@ impl Display {
     pub fn get_rect(&self) -> Rectangle {
         api::get_display_rect(self.id)
     }
-    pub fn cleanup(&mut self, remove_task_bar: bool) -> SystemResult {
+    pub fn cleanup(&mut self, taskbar_is_hidden: bool) -> SystemResult {
         if let Some(bar) = self.appbar.as_ref() {
             bar.window.close()?;
         }
 
-        if remove_task_bar {
+        if taskbar_is_hidden {
             if let Some(tb) = self.taskbar.as_ref() {
                 tb.window.show();
             }
