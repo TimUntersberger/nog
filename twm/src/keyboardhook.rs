@@ -1,6 +1,7 @@
 use winapi::shared::minwindef::LRESULT;
+use winapi::shared::windef::HHOOK;
 use winapi::um::winuser::{
-    CallNextHookEx, DispatchMessageW, PeekMessageW, SetWindowsHookExW, TranslateMessage,
+    CallNextHookEx, DispatchMessageW, PeekMessageW, UnhookWindowsHookEx, SetWindowsHookExW, TranslateMessage,
     KBDLLHOOKSTRUCT, MSG, PM_REMOVE, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN,
     WM_SYSKEYUP,
 };
@@ -37,14 +38,14 @@ pub enum InputEvent {
         win: bool,
         ctrl: bool,
     },
-    // KeyUp {
-    //     key_code: usize,
-    //     lalt: bool,
-    //     ralt: bool,
-    //     shift: bool,
-    //     win: bool,
-    //     ctrl: bool,
-    // },
+    KeyUp {
+        key_code: usize,
+        lalt: bool,
+        ralt: bool,
+        shift: bool,
+        win: bool,
+        ctrl: bool,
+    },
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -103,14 +104,24 @@ pub fn start() -> KeyboardHook {
 
     unsafe {
         HOOK_STATE = Some((ie_sender, cf_receiver, block_receiver));
-
         std::thread::spawn(|| {
-            SetWindowsHookExW(WH_KEYBOARD_LL, Some(hook_cb), std::ptr::null_mut(), 0);
+            let hook = SetWindowsHookExW(WH_KEYBOARD_LL, Some(hook_cb), std::ptr::null_mut(), 0);
+            let (_, cf_receiver, _) = HOOK_STATE.as_ref().unwrap();
             loop {
                 let mut msg = MSG::default();
                 if PeekMessageW(&mut msg, std::ptr::null_mut(), 0, 0, PM_REMOVE) == 0 {
                     TranslateMessage(&msg);
                     DispatchMessageW(&msg);
+                }
+
+                if let Ok(cf) = cf_receiver.try_recv() {
+                    match cf {
+                        ControlFlow::Exit => {
+                            HOOK_STATE = None;
+                            UnhookWindowsHookEx(hook);
+                            break;
+                        }
+                    }
                 }
             }
         });
@@ -126,6 +137,7 @@ unsafe extern "system" fn hook_cb(ncode: i32, wparam: usize, lparam: isize) -> L
         let kbdhook = lparam as *mut KBDLLHOOKSTRUCT;
         let key = (*kbdhook).vkCode;
         let event = KbdHookEvent::from_usize(wparam).unwrap();
+        let mut block = false;
 
         match event {
             KbdHookEvent::KeyDown | KbdHookEvent::SysKeyDown => {
@@ -146,12 +158,7 @@ unsafe extern "system" fn hook_cb(ncode: i32, wparam: usize, lparam: isize) -> L
                                 ralt: RALT,
                             })
                             .unwrap();
-
-                        if let Ok(block) = block_rx.recv_timeout(TIMEOUT_DURATION) {
-                            if block {
-                                return 1;
-                            }
-                        }
+                        block = true;
                     }
                 };
             }
@@ -163,18 +170,27 @@ unsafe extern "system" fn hook_cb(ncode: i32, wparam: usize, lparam: isize) -> L
                     164 => LALT = false,
                     165 => RALT = false,
                     _key => {
-                        // ie_tx
-                        //     .send(InputEvent::KeyUp {
-                        //         key_code: key as usize,
-                        //         ctrl: CTRL,
-                        //         shift: SHIFT,
-                        //         win: WIN,
-                        //         lalt: LALT,
-                        //         ralt: RALT,
-                        //     })
-                        //     .unwrap();
+                        ie_tx
+                            .send(InputEvent::KeyUp {
+                                key_code: key as usize,
+                                ctrl: CTRL,
+                                shift: SHIFT,
+                                win: WIN,
+                                lalt: LALT,
+                                ralt: RALT,
+                            })
+                            .unwrap();
+                        block = true;
                     }
                 };
+            }
+        }
+
+        if block {
+            if let Ok(block) = block_rx.recv_timeout(TIMEOUT_DURATION) {
+                if block {
+                    return 1;
+                }
             }
         }
 
