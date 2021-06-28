@@ -167,33 +167,33 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="window"><a class="header" href="#window">Window</a></h1>
-<h2 id="get_win_titlewin_id"><a class="header" href="#get_win_titlewin_id">get_win_title(win_id)</a></h2>
+                        <h1><a class="header" href="#window" id="window">Window</a></h1>
+<h2><a class="header" href="#get_win_titlewin_id" id="get_win_titlewin_id">get_win_title(win_id)</a></h2>
 <p>Returns the title of window with the given <code>win_id</code></p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>win_id</code> [number] id of window</li>
 </ul>
 <p><strong>Return</strong>: [string] window title</p>
-<h2 id="get_current_win"><a class="header" href="#get_current_win">get_current_win()</a></h2>
+<h2><a class="header" href="#get_current_win" id="get_current_win">get_current_win()</a></h2>
 <p>Returns the id of the window that has currently focus and is managed by nog.</p>
 <p><strong>Return</strong>: [number] window id</p>
-<h2 id="get_focused_win_of_displaydisplay_id"><a class="header" href="#get_focused_win_of_displaydisplay_id">get_focused_win_of_display(display_id)</a></h2>
+<h2><a class="header" href="#get_focused_win_of_displaydisplay_id" id="get_focused_win_of_displaydisplay_id">get_focused_win_of_display(display_id)</a></h2>
 <p>Returns the id of the window on the given display that is focused and is managed by nog.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>display_id</code> [number] id of display</li>
 </ul>
 <p><strong>Return</strong>: [number] window id</p>
-<h2 id="win_minimize"><a class="header" href="#win_minimize">win_minimize()</a></h2>
+<h2><a class="header" href="#win_minimize" id="win_minimize">win_minimize()</a></h2>
 <p>Minimizes the currently focused window and unmanages it.</p>
-<h2 id="win_ignore"><a class="header" href="#win_ignore">win_ignore()</a></h2>
+<h2><a class="header" href="#win_ignore" id="win_ignore">win_ignore()</a></h2>
 <p>Unmanages the currently focused window and adds a rule that prevents this window from being managed while nog is running.</p>
-<h2 id="win_close"><a class="header" href="#win_close">win_close()</a></h2>
+<h2><a class="header" href="#win_close" id="win_close">win_close()</a></h2>
 <p>Closes the currently focused window.</p>
-<h2 id="win_toggle_floating"><a class="header" href="#win_toggle_floating">win_toggle_floating()</a></h2>
+<h2><a class="header" href="#win_toggle_floating" id="win_toggle_floating">win_toggle_floating()</a></h2>
 <p>Toggles <a href="/getting-started/floating_mode.html">floating mode</a> of the currently focused window.</p>
-<h2 id="win_move_to_wsws_id"><a class="header" href="#win_move_to_wsws_id">win_move_to_ws(ws_id)</a></h2>
+<h2><a class="header" href="#win_move_to_wsws_id" id="win_move_to_wsws_id">win_move_to_ws(ws_id)</a></h2>
 <p>Moves the currently focused window to the workspace with the provided <code>ws_id</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -237,21 +237,6 @@
 
         </div>
 
-        
-        <!-- Livereload script (if served using the cli tool) -->
-        <script type="text/javascript">
-            var socket = new WebSocket("ws://localhost:3000/__livereload");
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
         
 
         

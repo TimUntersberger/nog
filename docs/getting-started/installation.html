@@ -167,10 +167,10 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
+                        <h1><a class="header" href="#installation" id="installation">Installation</a></h1>
 <p>Nog has a very useful powershell script which downloads a given release.</p>
 <p>It basically just downloads the <code>Nog.zip</code> file from the assets, unzips it and moves it to the correct location.</p>
-<h3 id="usage"><a class="header" href="#usage">Usage</a></h3>
+<h3><a class="header" href="#usage" id="usage">Usage</a></h3>
 <pre><code class="language-powershell">./bin/download_release.ps1 &lt;release_name&gt;
 </code></pre>
 <p>So if you want to download the latest master release you would call the script like this:</p>
@@ -223,21 +223,6 @@
 
         </div>
 
-        
-        <!-- Livereload script (if served using the cli tool) -->
-        <script type="text/javascript">
-            var socket = new WebSocket("ws://localhost:3000/__livereload");
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
         
 
         

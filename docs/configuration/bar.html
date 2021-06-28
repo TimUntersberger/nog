@@ -167,7 +167,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="bar"><a class="header" href="#bar">Bar</a></h1>
+                        <h1><a class="header" href="#bar" id="bar">Bar</a></h1>
 <p>The bar at the top of the screen when having <code>display_app_bar</code> enabled can display a lot of useful information.</p>
 <p>It is possible to change the following settings</p>
 <table><thead><tr><th>Key</th><th>Value</th><th>Description</th></tr></thead><tbody>
@@ -178,7 +178,7 @@
 </tbody></table>
 <pre><code class="language-lua">nog.config.bar.font_size = 20
 </code></pre>
-<h2 id="components"><a class="header" href="#components">Components</a></h2>
+<h2><a class="header" href="#components" id="components">Components</a></h2>
 <p>Components are the building blocks of the bar. The <code>components</code> table has the following properties:</p>
 <ul>
 <li><code>left</code> contains a list of components which are aligned to the left side of the bar</li>
@@ -192,7 +192,7 @@
 }
 </code></pre>
 <p>The above snippet changes the layout so that the left side and right side are empty and the center part gets replaced by the workspaces overview.</p>
-<h3 id="builtin"><a class="header" href="#builtin">Builtin</a></h3>
+<h3><a class="header" href="#builtin" id="builtin">Builtin</a></h3>
 <p>All of the builtin components can be found under <code>nog.components</code>.</p>
 <ul>
 <li>datetime</li>
@@ -203,7 +203,7 @@
 <li>split_direction</li>
 <li>active_mode</li>
 </ul>
-<h3 id="custom"><a class="header" href="#custom">Custom</a></h3>
+<h3><a class="header" href="#custom" id="custom">Custom</a></h3>
 <p>A bar component is a table which has to have a <code>name</code> and <code>render</code> field.</p>
 <p>The <code>name</code> can be any <code>string</code> of your chosing and is only used for debugging purposes.</p>
 <p><code>render</code> is the important part. It has to be a function which returns a list of components texts.
@@ -288,21 +288,6 @@ nog.config.bar.components = {
 
         </div>
 
-        
-        <!-- Livereload script (if served using the cli tool) -->
-        <script type="text/javascript">
-            var socket = new WebSocket("ws://localhost:3000/__livereload");
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
         
 
         

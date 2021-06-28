@@ -167,7 +167,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="nog"><a class="header" href="#nog">Nog</a></h1>
+                        <h1><a class="header" href="#nog" id="nog">Nog</a></h1>
 <p><img src="https://user-images.githubusercontent.com/32014449/107612664-0490ac00-6c47-11eb-9620-e754aa38b5b0.png" alt="preview" /></p>
 <p><strong>Nog</strong> is a tiling window manager for Windows 10, which uses lua as its scripting language.</p>
 
@@ -200,21 +200,6 @@
 
         </div>
 
-        
-        <!-- Livereload script (if served using the cli tool) -->
-        <script type="text/javascript">
-            var socket = new WebSocket("ws://localhost:3000/__livereload");
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
         
 
         

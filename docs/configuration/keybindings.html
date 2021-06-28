@@ -167,7 +167,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="keybindings"><a class="header" href="#keybindings">Keybindings</a></h1>
+                        <h1><a class="header" href="#keybindings" id="keybindings">Keybindings</a></h1>
 <p>Nog keybindings can be of three different kinds:</p>
 <ul>
 <li>Normal (n)</li>
@@ -196,7 +196,7 @@
 end)
 </code></pre>
 <p><strong>Note</strong> that any keybinding currently active will swallow the keys, meaning that if you bind <code>1</code> you won't be able to type <code>1</code>.</p>
-<h2 id="key-combos"><a class="header" href="#key-combos">Key combos</a></h2>
+<h2><a class="header" href="#key-combos" id="key-combos">Key combos</a></h2>
 <p>A key combo is a <code>string</code> which can either have just a <a href="#key-combos/keys">key</a> 
 or a list of <a href="#key-combos/modifiers">modifiers</a> followed by a <a href="#key-combos/keys">key</a> 
 and separated by <code>+</code>.</p>
@@ -206,7 +206,7 @@ and separated by <code>+</code>.</p>
 <li><code>Alt+Enter</code></li>
 <li><code>Alt+Control+T</code></li>
 </ul>
-<h3 id="keys"><a class="header" href="#keys">Keys</a></h3>
+<h3><a class="header" href="#keys" id="keys">Keys</a></h3>
 <ul>
 <li>A - Z</li>
 <li>0 - 9</li>
@@ -234,7 +234,7 @@ and separated by <code>+</code>.</p>
 <li>OEM_8</li>
 <li>OEM_102</li>
 </ul>
-<h3 id="modifiers"><a class="header" href="#modifiers">Modifiers</a></h3>
+<h3><a class="header" href="#modifiers" id="modifiers">Modifiers</a></h3>
 <p>The windows key can't be bound, because windows 10 reserves all win key related keybindings for itself.</p>
 <ul>
 <li>Shift</li>
@@ -279,21 +279,6 @@ and separated by <code>+</code>.</p>
 
         </div>
 
-        
-        <!-- Livereload script (if served using the cli tool) -->
-        <script type="text/javascript">
-            var socket = new WebSocket("ws://localhost:3000/__livereload");
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
         
 
         

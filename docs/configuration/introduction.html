@@ -167,7 +167,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
+                        <h1><a class="header" href="#introduction" id="introduction">Introduction</a></h1>
 <p>The configuration lives in <code>%APPDATA%/nog/config</code>.
 At startup the program looks for a <code>init.lua</code> file in the root of this folder and executes it.</p>
 <p>Nog comes with a preconfigured <code>init.lua</code> which aims to show you how you can build your own config.
@@ -217,21 +217,6 @@ Any lua code executed by nog has access to the global <a href="/API/general.html
 
         </div>
 
-        
-        <!-- Livereload script (if served using the cli tool) -->
-        <script type="text/javascript">
-            var socket = new WebSocket("ws://localhost:3000/__livereload");
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
         
 
         

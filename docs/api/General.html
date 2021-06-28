@@ -167,36 +167,36 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="general"><a class="header" href="#general">General</a></h1>
+                        <h1><a class="header" href="#general" id="general">General</a></h1>
 <p><strong>Note:</strong> keep in mind that all of the functions/variables in the api documentation are part of the <code>nog</code> global.
 So to use the below <code>uv</code> variable you will have to write <code>nog.uv</code>.</p>
-<h2 id="uv"><a class="header" href="#uv">uv</a></h2>
+<h2><a class="header" href="#uv" id="uv">uv</a></h2>
 <p>lua bindings for libuv provided by <a href="https://github.com/luvit/luv">luv</a>. You can also require it directly by using <code>require 'luv'</code>.</p>
-<h2 id="version"><a class="header" href="#version">version</a></h2>
+<h2><a class="header" href="#version" id="version">version</a></h2>
 <p>A <code>string</code> that contains the nog version you are currently running. If you downloaded a <code>vX.X.X</code> release this will contain the version number,
 but if you downloaded a release of a branch like <code>development</code> this will contain the branch name together with the commit hash.</p>
-<h2 id="runtime_path"><a class="header" href="#runtime_path">runtime_path</a></h2>
+<h2><a class="header" href="#runtime_path" id="runtime_path">runtime_path</a></h2>
 <p>A <code>string</code> that contains the path to the <code>runtime</code> folder.</p>
-<h2 id="config_path"><a class="header" href="#config_path">config_path</a></h2>
+<h2><a class="header" href="#config_path" id="config_path">config_path</a></h2>
 <p>A <code>string</code> that contains the path to the <code>nog</code> folder.</p>
-<h2 id="config"><a class="header" href="#config">config</a></h2>
+<h2><a class="header" href="#config" id="config">config</a></h2>
 <p>A <code>table</code> that contains the configuration of nog.</p>
-<h2 id="quit"><a class="header" href="#quit">quit()</a></h2>
+<h2><a class="header" href="#quit" id="quit">quit()</a></h2>
 <p>Exits the nog process.</p>
-<h2 id="fmt_datetimepattern"><a class="header" href="#fmt_datetimepattern">fmt_datetime(pattern)</a></h2>
+<h2><a class="header" href="#fmt_datetimepattern" id="fmt_datetimepattern">fmt_datetime(pattern)</a></h2>
 <p>Formats the local time using the provided <code>pattern</code> and returns it.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>pattern</code> a string that follows the <a href="https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html">chrono spec</a></li>
 </ul>
 <p><strong>Return</strong>: a <code>string</code> that contains the local time formatted using the provided <code>pattern</code>.</p>
-<h2 id="launchname"><a class="header" href="#launchname">launch(name)</a></h2>
+<h2><a class="header" href="#launchname" id="launchname">launch(name)</a></h2>
 <p>Runs the executable with <code>name</code> in a subprocess.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>name</code> [string] name of the executable (ex. <code>notepad.exe</code>)</li>
 </ul>
-<h2 id="scale_colorcolor-factor"><a class="header" href="#scale_colorcolor-factor">scale_color(color, factor)</a></h2>
+<h2><a class="header" href="#scale_colorcolor-factor" id="scale_colorcolor-factor">scale_color(color, factor)</a></h2>
 <p>Scales the <code>color</code> by <code>factor</code>. Useful for creating different shades of a color.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -204,9 +204,9 @@ but if you downloaded a release of a branch like <code>development</code> this w
 <li><code>factor</code> [number] how much the color gets scaled</li>
 </ul>
 <p><strong>Return</strong>: <code>color</code> scaled by <code>factor</code>.</p>
-<h2 id="toggle_work_mode"><a class="header" href="#toggle_work_mode">toggle_work_mode()</a></h2>
+<h2><a class="header" href="#toggle_work_mode" id="toggle_work_mode">toggle_work_mode()</a></h2>
 <p>Either leaves or enters <a href="/getting-started/work_mode.html">work mode</a></p>
-<h2 id="inspectvalue-options"><a class="header" href="#inspectvalue-options">inspect(value, [options])</a></h2>
+<h2><a class="header" href="#inspectvalue-options" id="inspectvalue-options">inspect(value, [options])</a></h2>
 <p>The <a href="https://github.com/kikito/inspect.lua">kikito/inspect.lua</a> function.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -259,21 +259,6 @@ but if you downloaded a release of a branch like <code>development</code> this w
 
         </div>
 
-        
-        <!-- Livereload script (if served using the cli tool) -->
-        <script type="text/javascript">
-            var socket = new WebSocket("ws://localhost:3000/__livereload");
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
         
 
         

@@ -38,9 +38,12 @@ Creates a component that displays either nothing or the active mode.
 
 **Return**: [Component](#component)
 
-## current_window()
+## current_window(max_width)
 
 Creates a component that displays either nothing or the title of the window that has focus.
+
+**Arguments**:
+* `max_width` [number] the maximum width of the component
 
 **Return**: [Component](#component)
 

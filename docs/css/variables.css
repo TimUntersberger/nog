@@ -92,22 +92,22 @@
 
 .light {
     --bg: hsl(0, 0%, 100%);
-    --fg: hsl(0, 0%, 0%);
+    --fg: #333333;
 
     --sidebar-bg: #fafafa;
-    --sidebar-fg: hsl(0, 0%, 0%);
+    --sidebar-fg: #364149;
     --sidebar-non-existant: #aaaaaa;
-    --sidebar-active: #1f1fff;
+    --sidebar-active: #008cff;
     --sidebar-spacer: #f4f4f4;
 
-    --scrollbar: #8F8F8F;
+    --scrollbar: #cccccc;
 
-    --icons: #747474;
-    --icons-hover: #000000;
+    --icons: #cccccc;
+    --icons-hover: #333333;
 
-    --links: #20609f;
+    --links: #4183c4;
 
-    --inline-code-color: #301900;
+    --inline-code-color: #6e6b5e;
 
     --theme-popup-bg: #fafafa;
     --theme-popup-border: #cccccc;

@@ -167,7 +167,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h1>
+                        <h1><a class="header" href="#quick-start" id="quick-start">Quick Start</a></h1>
 <p>After <a href="installation.html">installing</a> nog I would recommend you to do the following steps:</p>
 <ol>
 <li><a href="/configuration/introduction.html">configure</a> nog to fit your needs</li>
@@ -306,21 +306,6 @@ nog.nbind_tbl(&quot;alt&quot;, nog.ws_change, workspaces)
 
         </div>
 
-        
-        <!-- Livereload script (if served using the cli tool) -->
-        <script type="text/javascript">
-            var socket = new WebSocket("ws://localhost:3000/__livereload");
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
         
 
         

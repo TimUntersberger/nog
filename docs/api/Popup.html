@@ -167,8 +167,8 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="popup"><a class="header" href="#popup">Popup</a></h1>
-<h2 id="popup_createsettings"><a class="header" href="#popup_createsettings">popup_create(settings)</a></h2>
+                        <h1><a class="header" href="#popup" id="popup">Popup</a></h1>
+<h2><a class="header" href="#popup_createsettings" id="popup_createsettings">popup_create(settings)</a></h2>
 <p>Closes the current popup and opens a new one.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -179,7 +179,7 @@
 </ul>
 </li>
 </ul>
-<h2 id="popup_close"><a class="header" href="#popup_close">popup_close()</a></h2>
+<h2><a class="header" href="#popup_close" id="popup_close">popup_close()</a></h2>
 <p>Closes the current popup.</p>
 
                     </main>
@@ -219,21 +219,6 @@
 
         </div>
 
-        
-        <!-- Livereload script (if served using the cli tool) -->
-        <script type="text/javascript">
-            var socket = new WebSocket("ws://localhost:3000/__livereload");
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
         
 
         

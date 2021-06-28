@@ -184,12 +184,18 @@ nog.components.active_mode = function()
   }
 end
 
-nog.components.current_window = function()
+nog.components.current_window = function(max_width)
+  max_width = max_width or 0
+
   return {
     name = "CurrentWindow",
     render = function(display_id)
       local win_id = nog.get_focused_win_of_display(display_id)
       local title = win_id and nog.get_win_title(win_id) or ""
+
+      if max_width ~= 0 then
+        title = title:sub(1, max_width)
+      end
 
       return {{
         text = title,

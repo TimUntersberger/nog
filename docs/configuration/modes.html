@@ -167,7 +167,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="modes"><a class="header" href="#modes">Modes</a></h1>
+                        <h1><a class="header" href="#modes" id="modes">Modes</a></h1>
 <p>Modes in nog are an easy way to condionally reuse keybindings for different actions.</p>
 <p>Defining a new mode is very easy</p>
 <pre><code class="language-lua">nog.mode(&quot;my mode&quot;, function()
@@ -223,21 +223,6 @@ Leaving a mode will cause nog to unbind all normal keybindings again and afterwa
 
         </div>
 
-        
-        <!-- Livereload script (if served using the cli tool) -->
-        <script type="text/javascript">
-            var socket = new WebSocket("ws://localhost:3000/__livereload");
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
         
 
         

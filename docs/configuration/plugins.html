@@ -167,7 +167,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="plugins"><a class="header" href="#plugins">Plugins</a></h1>
+                        <h1><a class="header" href="#plugins" id="plugins">Plugins</a></h1>
 <p>The plugins live the in the <code>plugins</code> folder located next to the <code>config</code> (<a href="/configuration/introduction.html">ref</a>).</p>
 <p>You can install plugins either manually or using the provided API. Manually installing plugins is as 
 easy as cloning a valid plugin into the <code>plugins</code> folder. This works because nog uses this folder as the plugins index.
@@ -180,7 +180,7 @@ Uninstalling is as simple as removing its folder or calling <code>nog.plug_unins
 <pre><code class="language-lua">nog.plug_uninstall(&quot;GithubUser/NogPlugin&quot;)
 </code></pre>
 <p>If you want to get a list of all installed plugins you can use the <code>nog.plug_list</code> functions which will return a list of absolute file paths.</p>
-<h2 id="writing-plugins"><a class="header" href="#writing-plugins">Writing Plugins</a></h2>
+<h2><a class="header" href="#writing-plugins" id="writing-plugins">Writing Plugins</a></h2>
 <p>Any repository that contains a top-level <code>lua</code> folder inside is a valid nog plugin. 
 At startup nog will add the path to the <code>lua</code> folder to the <code>package.path</code> variable so you can <code>require</code> its content.
 This also means that you will have to namespace your lua files to not cause conflicts. 
@@ -239,21 +239,6 @@ Usually you would have a folder with your plugins name underneath the <code>lua<
 
         </div>
 
-        
-        <!-- Livereload script (if served using the cli tool) -->
-        <script type="text/javascript">
-            var socket = new WebSocket("ws://localhost:3000/__livereload");
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
         
 
         
