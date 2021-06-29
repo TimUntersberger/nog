@@ -355,7 +355,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             /// The above line validates the value argument as a bool and if the validation
             /// succeeds it updates the config.
             ///
-            /// To update the bar config you have to the same thing but with bar infront:
+            /// To update the bar config you have to do the same thing but with bar infront:
             ///
             /// set_prop!(bar, "height", i32)
             ///
