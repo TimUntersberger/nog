@@ -255,67 +255,71 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
                         drop(state);
 
                         if let Some(bar) = bar {
-                            let working_area_width = display.working_area_width(&config);
-                            let left = components_to_section(
-                                api,
-                                *display_id,
-                                &config.bar.components.left,
-                            )?;
+                            api.with_font(&config.bar.font, config.bar.font_size, || {
+                                let working_area_width = display.working_area_width(&config);
+                                let left = components_to_section(
+                                    api,
+                                    *display_id,
+                                    &config.bar.components.left,
+                                )?;
 
-                            let mut center = components_to_section(
-                                api,
-                                *display_id,
-                                &config.bar.components.center,
-                            )?;
+                                let mut center = components_to_section(
+                                    api,
+                                    *display_id,
+                                    &config.bar.components.center,
+                                )?;
 
-                            center.left = working_area_width / 2 - center.right / 2;
-                            center.right += center.left;
+                                center.left = working_area_width / 2 - center.right / 2;
+                                center.right += center.left;
 
-                            let mut right = components_to_section(
-                                api,
-                                *display_id,
-                                &config.bar.components.right,
-                            )?;
-                            right.left = working_area_width - right.right;
-                            right.right += right.left;
+                                let mut right = components_to_section(
+                                    api,
+                                    *display_id,
+                                    &config.bar.components.right,
+                                )?;
+                                right.left = working_area_width - right.right;
+                                right.right += right.left;
 
-                            draw_components(
-                                api,
-                                &config,
-                                *display_id,
-                                left.left,
-                                &config.bar.components.left,
-                            )?;
-                            draw_components(
-                                api,
-                                &config,
-                                *display_id,
-                                center.left,
-                                &config.bar.components.center,
-                            )?;
-                            draw_components(
-                                api,
-                                &config,
-                                *display_id,
-                                right.left,
-                                &config.bar.components.right,
-                            )?;
+                                draw_components(
+                                    api,
+                                    &config,
+                                    *display_id,
+                                    left.left,
+                                    &config.bar.components.left,
+                                )?;
+                                draw_components(
+                                    api,
+                                    &config,
+                                    *display_id,
+                                    center.left,
+                                    &config.bar.components.center,
+                                )?;
+                                draw_components(
+                                    api,
+                                    &config,
+                                    *display_id,
+                                    right.left,
+                                    &config.bar.components.right,
+                                )?;
 
-                            if bar.left.width() > left.width() {
-                                clear_section(api, &config, left.right, bar.left.right);
-                            }
+                                if bar.left.width() > left.width() {
+                                    clear_section(api, &config, left.right, bar.left.right);
+                                }
 
-                            if bar.center.width() > center.width() {
-                                clear_section(api, &config, bar.center.left, bar.center.right);
-                            }
+                                if bar.center.width() > center.width() {
+                                    clear_section(api, &config, bar.center.left, bar.center.right);
+                                }
 
-                            if bar.right.width() > right.width() {
-                                clear_section(api, &config, bar.right.left, right.left);
-                            }
+                                if bar.right.width() > right.width() {
+                                    clear_section(api, &config, bar.right.left, right.left);
+                                }
 
-                            sender
-                                .send(Event::UpdateBarSections(display.id, left, center, right))
-                                .expect("Failed to send UpdateBarSections event");
+                                sender
+                                    .send(Event::UpdateBarSections(display.id, left, center, right))
+                                    .expect("Failed to send UpdateBarSections event");
+
+                                Ok(())
+                            })?;
                         }
                     }
                 }
