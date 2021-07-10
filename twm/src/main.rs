@@ -6,7 +6,7 @@ extern crate num_derive;
 extern crate strum_macros;
 
 use bar::component::{self, Component, ComponentText};
-use config::{bar_config::BarConfig, rule::Rule, workspace_setting::WorkspaceSetting, Config};
+use config::{bar_config::BarConfig, rule::{Rule, Action as RuleAction}, workspace_setting::WorkspaceSetting, Config};
 use crossbeam_channel::select;
 use direction::Direction;
 use display::Display;
@@ -436,7 +436,7 @@ impl AppState {
             debug!("Adding rule with pattern {}", pattern);
 
             rule.pattern = regex::Regex::new(&pattern).expect("Failed to build regex");
-            rule.manage = false;
+            rule.action = RuleAction::Ignore;
 
             self.additonal_rules.push(rule);
 

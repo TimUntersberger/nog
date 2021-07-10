@@ -31,15 +31,15 @@ nog.config.workspaces = {
 nog.config.rules = {
   -- we want to ignore explorer.exe, because the user experience is better when in floating mode IMO
   ["explorer.exe"] = { 
-    ignore = true 
+    action = "ignore"
   },
   -- same thing here
   ["taskmgr.exe"] = { 
-    ignore = true 
+    action = "ignore"
   },
   -- same thing here
   ["snippingtool.exe"] = { 
-    ignore = true 
+    action = "ignore"
   },
   ["firefox.exe"] = {
     has_custom_titlebar = true,

@@ -221,7 +221,7 @@ fn config_to_lua<'a>(lua: &'a Lua, config: &Config) -> mlua::Result<Table<'a>> {
         tbl.set("chromium", rule.chromium)?;
         tbl.set("firefox", rule.firefox)?;
         tbl.set("has_custom_titlebar", rule.has_custom_titlebar)?;
-        tbl.set("ignore", !rule.manage)?;
+        tbl.set("action", rule.action.to_string())?;
         tbl.set("workspace_id", rule.workspace_id)?;
 
         rules_tbl.set(rule.pattern.to_string(), tbl)?;
@@ -259,7 +259,7 @@ fn rule_from_tbl(lua: &Lua, raw_pat: String, tbl: Table) -> mlua::Result<Rule> {
     for pair in tbl.pairs::<String, Value>() {
         if let Ok((key, val)) = pair {
             match key.as_str() {
-                "ignore" => rule.manage = !FromLua::from_lua(val, lua)?,
+                "action" => rule.action = FromLua::from_lua(val, lua)?,
                 "chromium" => rule.chromium = FromLua::from_lua(val, lua)?,
                 "firefox" => rule.firefox = FromLua::from_lua(val, lua)?,
                 "has_custom_titlebar" => rule.has_custom_titlebar = FromLua::from_lua(val, lua)?,
