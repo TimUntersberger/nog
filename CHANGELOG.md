@@ -1,6 +1,6 @@
 ## 2021/10/07 
 
-* Removed `ignore` property of rules in favor of a `action`.
+* Removed `ignore` property of rules in favor of the `action` property.
 
 ```lua
 {
