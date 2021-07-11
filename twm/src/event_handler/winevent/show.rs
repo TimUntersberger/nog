@@ -32,12 +32,12 @@ pub fn handle(state: &mut AppState, mut window: NativeWindow, force: bool) -> Sy
 
     let parent = window.get_parent_window();
     let rule = window.rule.clone().unwrap_or_default();
-    let should_manage = rule.action == RuleAction::Manage || (rule.action == RuleAction::Validate && !too_small && parent.is_err() && window.should_manage() && grid_allows_managing);
+    let should_manage = force || rule.action == RuleAction::Manage || (rule.action == RuleAction::Validate && !too_small && parent.is_err() && window.should_manage() && grid_allows_managing);
 
     if should_manage {
         debug!("Managing window");
         if rule.workspace_id != -1 {
-            state.change_workspace(rule.workspace_id, false);
+            state.change_workspace(rule.workspace_id, false)?;
         }
 
         window.init(config.remove_title_bar, config.use_border)?;
