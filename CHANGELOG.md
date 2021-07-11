@@ -10,7 +10,7 @@
 -- is equivalent to
 
 {
-  action = "true"
+  action = "ignore"
 }
 
 -- it is now possible to tell nog to always manage a matched window
