@@ -1,16 +1,16 @@
-* 2021/10/07 
+## 2021/10/07 
 
-Removed `ignore` property of rules in favor of a `action`.
+* Removed `ignore` property of rules in favor of the `action` property.
 
 ```lua
 {
-  ignore = false
+  ignore = true
 }
 
 -- is equivalent to
 
 {
-  action = "true"
+  action = "ignore"
 }
 
 -- it is now possible to tell nog to always manage a matched window
