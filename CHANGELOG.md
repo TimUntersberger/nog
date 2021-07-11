@@ -4,7 +4,7 @@
 
 ```lua
 {
-  ignore = false
+  ignore = true
 }
 
 -- is equivalent to
