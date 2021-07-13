@@ -157,3 +157,6 @@ The behavior of this movement is essentially moving the current window so that i
   * `Up`
   * `Right`
   * `Down`
+
+## ws_toggle_view_pinned()
+Toggles the visibility of all programs pinned to the current workspace.

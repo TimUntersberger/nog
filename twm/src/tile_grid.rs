@@ -288,7 +288,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     }
     /// Returns whether the tile grid is populated or not
     pub fn is_empty(&self) -> bool {
-        self.graph.is_empty()
+        self.graph.is_empty() && self.pinned_windows.is_empty()
     }
     /// Returns whether the tile grid is fullscreened or not
     pub fn is_fullscreened(&self) -> bool {
@@ -706,6 +706,8 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                     self.fullscreen_id = None;
                 }
             }
+        } else if self.pinned_windows.contains_key(&id.into()) {
+            window = self.pinned_windows.remove(&id.into());
         }
 
         window

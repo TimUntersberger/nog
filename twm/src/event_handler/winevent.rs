@@ -20,6 +20,12 @@ pub fn handle(state: &mut AppState, ev: WinEvent) -> SystemResult {
             grid_id = Some(grid.id);
             break;
         }
+
+        if let Some(window) = grid.pinned_windows.get(&ev.window.id.into()) {
+            title = Some(window.title.clone());
+            grid_id = Some(grid.id);
+            break;
+        }
     }
 
     // window is not already managed and the event isn't `Show`

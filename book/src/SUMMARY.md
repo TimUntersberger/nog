@@ -7,6 +7,7 @@
 - [Work Mode](./getting-started/work_mode.md)
 - [Floating Mode](./getting-started/floating_mode.md)
 - [Fullscreen Mode](./getting-started/fullscreen_mode.md)
+- [Pinning Mode](./getting-started/pinning_mode.md)
 
 # Configuration
 

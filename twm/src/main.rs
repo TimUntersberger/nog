@@ -421,13 +421,16 @@ impl AppState {
     pub fn redraw(&mut self) -> SystemResult {
         let fg_win = NativeWindow::get_foreground_window()?;
         fg_win.to_foreground(true)?;
+
         for d in &mut self.displays {
             for g in &d.grids {
                 g.draw_grid(d, &self.config)?;
                 g.show()?;
             }
         }
+
         fg_win.remove_topmost()?;
+
         Ok(())
     }
 
@@ -511,9 +514,7 @@ impl AppState {
 
         let mut focused_workspaces = Vec::<i32>::new();
         let remove_title_bar = this.config.remove_title_bar;
-        let remove_title_bar_on_pinned = this.config.remove_title_bar_on_pinned;
         let use_border = this.config.use_border;
-        let use_border_on_pinned = this.config.use_border_on_pinned;
         let stored_data = Store::load();
 
         let rules = this.config.rules.clone();
@@ -537,7 +538,7 @@ impl AppState {
                     for window in grid.pinned_windows.values_mut() {
                         let rules = rules.iter().chain(additional_rules.iter()).collect();
                         window.set_matching_rule(rules);
-                        window.init(remove_title_bar_on_pinned, use_border_on_pinned)?;
+                        window.init(false, use_border)?;
                         window.to_foreground(true)?;
 
                         if grid.are_pinned_windows_visible {
@@ -572,10 +573,8 @@ impl AppState {
         let mut pinned_windows = this.pinned_windows.clone();
         for w in pinned_windows.values_mut() {
             if !stored_data.are_pinned_visible {
-                debug!("HIDING");
                 w.hide();
             } else {
-                debug!("SHOWING");
                 w.show();
             }
 
@@ -586,7 +585,7 @@ impl AppState {
                 .collect();
 
             w.set_matching_rule(rules);
-            w.init(this.config.remove_title_bar_on_pinned, this.config.use_border_on_pinned)?;
+            w.init(false, this.config.use_border)?;
             w.to_foreground(true)?;
         }
         this.store_pinned();
@@ -781,8 +780,9 @@ impl AppState {
         Ok(())
     }
 
-    pub fn toggle_pin(&mut self) -> SystemResult {
-        let window = NativeWindow::get_foreground_window().expect("Failed to get foreground window");
+    pub fn toggle_pin(&mut self, win_id: i32) -> SystemResult {
+        let win_id: WindowId = win_id.into();
+        let window: NativeWindow = NativeWindow::from(win_id);
 
         if self.pinned_windows.contains_key(&window.id.into()) {
             let mut window = self.pinned_windows.remove(&window.id.into()).unwrap();
@@ -804,9 +804,11 @@ impl AppState {
                .any(|g| g.pinned_windows.contains_key(window_id))
     }
 
-    pub fn toggle_pin_to_ws(&mut self) -> SystemResult {
+    pub fn toggle_pin_to_ws(&mut self, win_id: i32) -> SystemResult {
         let config = self.config.clone();
-        let mut window = NativeWindow::get_foreground_window().expect("Failed to get foreground window");
+        let win_id: WindowId = win_id.into();
+        let mut window: NativeWindow = NativeWindow::from(win_id);
+
         let current_workspace_id = self.workspace_id;
         let is_pinned = self.is_window_pinned(&window.id.into());
         let rules = self.config.rules.clone();
@@ -832,7 +834,7 @@ impl AppState {
             // pin window to ws
             if let Some(grid) = self.get_current_grid_mut() {
                 window.set_matching_rule(rules);
-                window.init(config.remove_title_bar_on_pinned, config.use_border_on_pinned)?;
+                window.init(false, config.use_border)?;
                 window.to_foreground(true)?;
                 grid.pinned_windows.insert(window.id.into(), window);
                 grid.are_pinned_windows_visible = true;
@@ -860,7 +862,12 @@ impl AppState {
                 .collect();
 
             window.set_matching_rule(rules);
-            window.init(config.remove_title_bar_on_pinned, config.use_border_on_pinned)?;
+            window.init(false, config.use_border)?;
+
+            if !window.is_visible() {
+                window.show();
+            }
+
             window.to_foreground(true)?;
 
             self.pinned_windows.insert(window.id.into(), window);
@@ -898,6 +905,58 @@ impl AppState {
                     window,
                 }))
                 .expect("Failed to send WinEvent");
+        }
+
+        Ok(())
+    }
+
+    pub fn show_title_bar(&mut self, window_id: i32) -> SystemResult {
+        let window_id: WindowId = window_id.into();
+        let mut window: NativeWindow = NativeWindow::from(window_id);
+
+        window.add_title_bar()?;
+
+        if window.is_hidden() {
+            window.show();
+        }
+
+        Ok(())
+    }
+
+    pub fn hide_title_bar(&mut self, window_id: i32) -> SystemResult {
+        let window_id: WindowId = window_id.into();
+        let mut window: NativeWindow = NativeWindow::from(window_id);
+
+        window.remove_title_bar()?;
+
+        if window.is_hidden() {
+            window.show();
+        }
+
+        Ok(())
+    }
+
+    pub fn show_border(&mut self, window_id: i32) -> SystemResult {
+        let window_id: WindowId = window_id.into();
+        let mut window: NativeWindow = NativeWindow::from(window_id);
+
+        window.add_border()?;
+
+        if window.is_hidden() {
+            window.show();
+        }
+
+        Ok(())
+    }
+
+    pub fn hide_border(&mut self, window_id: i32) -> SystemResult {
+        let window_id: WindowId = window_id.into();
+        let mut window: NativeWindow = NativeWindow::from(window_id);
+
+        window.remove_border()?;
+
+        if window.is_hidden() {
+            window.show();
         }
 
         Ok(())
@@ -976,6 +1035,12 @@ impl AppState {
             .and_then(|d| d.get_focused_grid())
             .and_then(|g| g.get_focused_window())
             .map(|w| w.id.0)
+    }
+
+    pub fn get_focused_win(&self) -> i32 {
+        NativeWindow::get_foreground_window()
+            .expect("Failed to get foreground window")
+            .id.into()
     }
 
     pub fn redraw_app_bars(&self) {
