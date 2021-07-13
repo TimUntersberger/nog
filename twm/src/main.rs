@@ -953,6 +953,10 @@ impl AppState {
             .collect()
     }
 
+    pub fn get_window_by_id(&self, id: i32) -> Option<&NativeWindow> {
+        self.get_grids().into_iter().map(|g| g.get_windows()).flatten().find(|w| w.id == id)
+    }
+
     pub fn get_grid_by_id_mut(&mut self, id: i32) -> Option<&mut TileGrid> {
         self.get_grids_mut().into_iter().find(|g| g.id == id)
     }

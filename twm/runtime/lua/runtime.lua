@@ -1,3 +1,6 @@
+Window = dofile(nog.runtime_path .. "/lua/window.lua")
+Workspace = dofile(nog.runtime_path .. "/lua/workspace.lua")
+
 nog.inspect = dofile(nog.runtime_path .. "/lua/inspect.lua")
 nog.uv = require 'luv'
 

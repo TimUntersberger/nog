@@ -684,6 +684,19 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
         });
 
         let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "get_win_info", move |lua, win_id: Value| {
+            validate!(lua, { win_id: i32 });
+            Ok(state.lock().get_window_by_id(win_id).map(|win| {
+                let tbl = lua.create_table().unwrap();
+                tbl.set("id", win.id.0);
+                tbl.set("title", win.get_title().ok());
+                tbl.set("process_name", win.get_process_name());
+                tbl.set("process_path", win.get_process_path());
+                tbl
+            }))
+        });
+
+        let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "get_current_display_id", move |_, (): ()| {
             Ok(state.lock().get_current_display().id.0)
         });
