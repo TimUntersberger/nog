@@ -186,9 +186,11 @@ fn config_to_lua<'a>(lua: &'a Lua, config: &Config) -> mlua::Result<Table<'a>> {
     map_prop!(tbl, config, min_height);
     map_prop!(tbl, config, min_width);
     map_prop!(tbl, config, use_border);
+    map_prop!(tbl, config, use_border_on_pinned);
     map_prop!(tbl, config, outer_gap);
     map_prop!(tbl, config, inner_gap);
     map_prop!(tbl, config, remove_title_bar);
+    map_prop!(tbl, config, remove_title_bar_on_pinned);
     map_prop!(tbl, config, work_mode);
     map_prop!(tbl, config, light_theme);
     map_prop!(tbl, config, multi_monitor);
@@ -423,6 +425,20 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                         }
                         Ok(())
                     }),
+                    "use_border_on_pinned" => set_prop!(use_border_on_pinned, bool, |old, new, _| -> RuntimeResult<()> {
+                        if old != new && state.work_mode {
+                            state.each_pinned_window(|w| {
+                                if new {
+                                    w.add_border()
+                                } else {
+                                    w.remove_border()
+                                }
+                            }).unwrap();
+
+                            state.redraw()?;
+                        }
+                        Ok(())
+                    }),
                     "outer_gap" => set_prop!(outer_gap, i32, |old, new, _| -> RuntimeResult<()> {
                         if old != new && state.work_mode {
                             state.redraw()?;
@@ -438,6 +454,20 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                     "remove_title_bar" => set_prop!(remove_title_bar, bool, |old, new, _| -> RuntimeResult<()> {
                         if old != new && state.work_mode {
                             state.each_window(|w| {
+                                if new {
+                                    w.remove_title_bar()
+                                } else {
+                                    w.add_title_bar()
+                                }
+                            }).unwrap();
+
+                            state.redraw()?;
+                        }
+                        Ok(())
+                    }),
+                    "remove_title_bar_on_pinned" => set_prop!(remove_title_bar_on_pinned, bool, |old, new, _| -> RuntimeResult<()> {
+                        if old != new && state.work_mode {
+                            state.each_pinned_window(|w| {
                                 if new {
                                     w.remove_title_bar()
                                 } else {
@@ -859,6 +889,7 @@ fn load_window_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) -> ml
         l_def_ffi_fn!("minimize", minimize_window);
         l_def_ffi_fn!("toggle_floating", toggle_floating);
         l_def_ffi_fn!("toggle_pin", toggle_pin);
+        l_def_ffi_fn!("toggle_pin_to_ws", toggle_pin_to_ws);
         l_def_ffi_fn!("ignore", ignore_window);
         l_def_ffi_fn!("close", close_window);
         l_def_ffi_fn!("move_to_ws", move_window_to_workspace, ws_id: i32);
@@ -903,6 +934,7 @@ fn load_workspace_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) ->
         }
 
         l_def_ffi_fn!("toggle_fullscreen", toggle_fullscreen);
+        l_def_ffi_fn!("toggle_view_pinned", toggle_ws_view_pinned);
         l_def_ffi_fn!("reset_row", reset_row);
         l_def_ffi_fn!("reset_col", reset_column);
         l_def_ffi_fn!(

@@ -32,25 +32,29 @@ pub fn handle(state: &mut AppState, mut window: NativeWindow, force: bool) -> Sy
 
     let parent = window.get_parent_window();
     let rule = window.rule.clone().unwrap_or_default();
-    let is_pinned_window = state.pinned_windows.contains_key(&window.id.into());
-    let should_manage = force || rule.action == RuleAction::Manage || (rule.action == RuleAction::Validate && !too_small && parent.is_err() && window.should_manage() && grid_allows_managing);
+    let is_window_pinned = state.is_window_pinned(&window.id.into());
+    let should_manage = force || rule.action == RuleAction::Manage || rule.action == RuleAction::Pin ||
+                        (rule.action == RuleAction::Validate && !too_small 
+                         && parent.is_err() && window.should_manage() && grid_allows_managing);
 
-    if rule.action == RuleAction::Pin {
-        state.pin_window(window.id.into())?;
-        state.store_pinned();
-    } else if should_manage && !is_pinned_window {
-        debug!("Managing window");
-        if rule.workspace_id != -1 {
-            state.change_workspace(rule.workspace_id, false)?;
+    if should_manage && !is_window_pinned {
+        if rule.action == RuleAction::Pin {
+            state.pin_window(window.id.into())?;
+            state.store_pinned();
+        } else {
+            debug!("Managing window");
+            if rule.workspace_id != -1 {
+                state.change_workspace(rule.workspace_id, false)?;
+            }
+
+            window.init(config.remove_title_bar, config.use_border)?;
+
+            let display = state.get_current_display_mut();
+            if let Some(grid) = display.get_focused_grid_mut() {
+                grid.push(window);
+            }
+            display.refresh_grid(&config)?;
         }
-
-        window.init(config.remove_title_bar, config.use_border)?;
-
-        let display = state.get_current_display_mut();
-        if let Some(grid) = display.get_focused_grid_mut() {
-            grid.push(window);
-        }
-        display.refresh_grid(&config)?;
     }
 
     Ok(())
