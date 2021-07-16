@@ -2,6 +2,8 @@
 pub enum WinEventType {
     Destroy,
     Hide,
+    Minimize,
+    Unminimize,
     ///Takes a bool, which tells us whether to ignore all rules
     Show(bool),
     FocusChange,
@@ -9,7 +11,7 @@ pub enum WinEventType {
 
 #[cfg(target_os = "windows")]
 use winapi::um::winuser::{
-    EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE, EVENT_OBJECT_SHOW, EVENT_SYSTEM_FOREGROUND,
+    EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE, EVENT_OBJECT_SHOW, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZESTART, EVENT_SYSTEM_MINIMIZEEND
 };
 #[cfg(target_os = "windows")]
 impl WinEventType {
@@ -22,6 +24,10 @@ impl WinEventType {
             Some(Self::FocusChange)
         } else if v == EVENT_OBJECT_HIDE {
             Some(Self::Hide)
+        } else if v == EVENT_SYSTEM_MINIMIZESTART {
+            Some(Self::Minimize)
+        } else if v == EVENT_SYSTEM_MINIMIZEEND {
+            Some(Self::Unminimize)
         } else {
             None
         }

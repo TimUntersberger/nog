@@ -26,6 +26,7 @@ use winapi::{
     um::winuser::WS_BORDER, um::winuser::WS_EX_NOACTIVATE, um::winuser::WS_EX_TOPMOST,
     um::winuser::WS_OVERLAPPEDWINDOW, um::winuser::WS_POPUPWINDOW,
 };
+use mlua::Result as RuntimeResult;
 
 use crate::{
     display::Display,
@@ -99,6 +100,30 @@ impl Api {
     pub fn set_text_color(&self, color: i32) {
         unsafe {
             SetTextColor(self.hdc as HDC, convert_color_to_winapi(color as u32));
+        }
+    }
+    pub fn with_font<T>(&self, name: &str, size: i32, cb: impl Fn() -> RuntimeResult<T>) -> RuntimeResult<T> {
+        unsafe {
+            let mut logfont = LOGFONTA::default();
+            let mut font_name: [i8; 32] = [0; 32];
+
+            for (i, byte) in CString::new(name)
+                .unwrap()
+                .as_bytes()
+                .iter()
+                .enumerate()
+            {
+                font_name[i] = *byte as i8;
+            }
+
+            logfont.lfHeight = size;
+            logfont.lfFaceName = font_name;
+
+            let font = CreateFontIndirectA(&logfont);
+            SelectObject(self.hdc as HDC, font as *mut c_void);
+            let res = cb();
+            DeleteObject(font as *mut c_void);
+            return res;
         }
     }
     pub fn set_background_color(&self, color: i32) {
@@ -418,25 +443,6 @@ impl Window {
                             let mut paint = PAINTSTRUCT::default();
 
                             BeginPaint(hwnd, &mut paint);
-
-                            let mut logfont = LOGFONTA::default();
-                            let mut font_name: [i8; 32] = [0; 32];
-
-                            for (i, byte) in CString::new(font.as_str())
-                                .unwrap()
-                                .as_bytes()
-                                .iter()
-                                .enumerate()
-                            {
-                                font_name[i] = *byte as i8;
-                            }
-
-                            logfont.lfHeight = font_size;
-                            logfont.lfFaceName = font_name;
-
-                            let font = CreateFontIndirectA(&logfont);
-                            SelectObject(hdc, font as *mut c_void);
-
                             SetBkColor(hdc, background_color as u32);
 
                             let api = Api {
@@ -451,8 +457,6 @@ impl Window {
                                 state_arc: state_arc.clone(),
                                 api,
                             });
-
-                            DeleteObject(font as *mut c_void);
                             EndPaint(hwnd, &paint);
                         } else if msg.code == WM_LBUTTONDOWN {
                             let mut point = POINT::default();

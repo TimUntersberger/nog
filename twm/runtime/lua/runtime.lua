@@ -264,7 +264,9 @@ function create_proxy(path)
   setmetatable(proxy, {
     __index = tbl,
     __newindex = function(t, k, v)
-      nog.__on_config_updated(prefix, k, v, nog.__is_setup)
+      if nog.config.enable_hot_reloading then
+        nog.__on_config_updated(prefix, k, v, nog.__is_setup)
+      end
       tbl[k] = v
     end
   })

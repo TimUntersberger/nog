@@ -1,7 +1,7 @@
-use mlua::{Error as LuaError, FromLua, Function, Table, ToLua, Value};
+use mlua::{Error as LuaError, FromLua, Table, ToLua, Value};
 
 use crate::{
-    bar::component::Component, config::workspace_setting::WorkspaceSetting,
+    bar::component::Component, config::rule::Action as RuleAction,
     keybindings::keybinding::Keybinding, split_direction::SplitDirection,
 keybindings::keybinding::KeybindingKind};
 use crate::{bar::component::ComponentText, direction::Direction, system::SystemError};
@@ -22,6 +22,16 @@ impl FromLua<'_> for Direction {
         raw_direction.get_mut(0..1).map(|s| s.make_ascii_uppercase());
 
         Ok(Direction::from_str(&raw_direction).unwrap_or(Direction::Right))
+    }
+}
+
+impl FromLua<'_> for RuleAction {
+    fn from_lua(lua_value: mlua::Value<'_>, lua: &'_ mlua::Lua) -> mlua::Result<Self> {
+        let mut raw_action = String::from_lua(lua_value, lua)?.to_lowercase();
+
+        raw_action.get_mut(0..1).map(|s| s.make_ascii_lowercase());
+
+        Ok(RuleAction::from_str(&raw_action).unwrap_or(RuleAction::Validate))
     }
 }
 

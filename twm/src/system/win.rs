@@ -158,14 +158,33 @@ impl Window {
             _ => false,
         }
     }
-    pub fn remove_title_bar(&mut self, use_border: bool) -> SystemResult {
+    pub fn add_title_bar(&mut self) -> SystemResult {
+        let rule = self.rule.clone().unwrap_or_default();
+        if !rule.chromium && !rule.firefox {
+            self.style.insert(GwlStyle::CAPTION);
+            self.style.insert(GwlStyle::THICKFRAME);
+        }
+        self.update_style()
+            .map(|_| {})
+            .map_err(SystemError::Unknown)
+    }
+    pub fn add_border(&mut self) -> SystemResult {
+        self.style.insert(GwlStyle::BORDER);
+        self.update_style()
+            .map(|_| {})
+            .map_err(SystemError::Unknown)
+    }
+    pub fn remove_border(&mut self) -> SystemResult {
+        self.style.remove(GwlStyle::BORDER);
+        self.update_style()
+            .map(|_| {})
+            .map_err(SystemError::Unknown)
+    }
+    pub fn remove_title_bar(&mut self) -> SystemResult {
         let rule = self.rule.clone().unwrap_or_default();
         if !rule.chromium && !rule.firefox {
             self.style.remove(GwlStyle::CAPTION);
             self.style.remove(GwlStyle::THICKFRAME);
-        }
-        if use_border {
-            self.style.insert(GwlStyle::BORDER);
         }
         self.update_style()
             .map(|_| {})
@@ -381,7 +400,11 @@ impl Window {
         self.original_rect = self.get_rect().map_err(SystemError::Init)?;
 
         if remove_title_bar {
-            self.remove_title_bar(use_border)?;
+            self.remove_title_bar()?;
+        }
+
+        if use_border {
+            self.add_border()?;
         }
 
         Ok(())

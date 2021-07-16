@@ -24,7 +24,7 @@ use std::{fmt::Debug, fs::ReadDir};
 use std::{mem, thread, time::Duration};
 use std::{process, sync::Arc};
 use system::NativeWindow;
-use system::{DisplayId, SystemResult, WinEventListener, WindowId};
+use system::{DisplayId, SystemResult, SystemError, WinEventListener, WindowId};
 use task_bar::Taskbar;
 use tile_grid::{store::Store, TileGrid};
 use win_event_handler::{win_event::WinEvent, win_event_type::WinEventType};
@@ -120,7 +120,6 @@ mod keyboardhook;
 mod logging;
 mod lua;
 mod message_loop;
-// mod nogscript;
 mod popup;
 mod renderer;
 mod split_direction;
@@ -172,9 +171,7 @@ impl AppState {
     /// TODO: maybe rename this function
     pub fn cleanup(&mut self) -> SystemResult {
         for d in self.displays.iter_mut() {
-            for grid in d.grids.iter_mut() {
-                grid.cleanup()?;
-            }
+            d.cleanup(self.config.remove_task_bar)?;
         }
 
         Ok(())
@@ -408,6 +405,19 @@ impl AppState {
         Ok(())
     }
 
+    pub fn redraw(&mut self) -> SystemResult {
+        let fg_win = NativeWindow::get_foreground_window()?;
+        fg_win.to_foreground(true)?;
+        for d in &mut self.displays {
+            for g in &d.grids {
+                g.draw_grid(d, &self.config)?;
+                g.show()?;
+            }
+        }
+        fg_win.remove_topmost()?;
+        Ok(())
+    }
+
     pub fn ignore_window(&mut self) -> SystemResult {
         if let Some(window) = self.get_current_grid().unwrap().get_focused_window() {
             let mut rule = Rule::default();
@@ -418,11 +428,11 @@ impl AppState {
             debug!("Adding rule with pattern {}", pattern);
 
             rule.pattern = regex::Regex::new(&pattern).expect("Failed to build regex");
-            rule.manage = false;
+            rule.action = RuleAction::Ignore;
 
             self.additonal_rules.push(rule);
 
-            self.toggle_floating();
+            self.toggle_floating()?;
         }
 
         Ok(())
@@ -456,6 +466,14 @@ impl AppState {
         Ok(())
     }
 
+    pub fn create_app_bars(state_arc: Arc<Mutex<AppState>>) {
+        bar::create::create(state_arc.clone())
+    }
+
+    pub fn close_app_bars(state_arc: Arc<Mutex<AppState>>) {
+        bar::close_all(state_arc.clone());
+    }
+
     pub fn enter_work_mode(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
         let mut this = state_arc.lock();
         if this.config.remove_task_bar {
@@ -465,7 +483,7 @@ impl AppState {
 
         if this.config.display_app_bar {
             drop(this);
-            bar::create::create(state_arc.clone());
+            Self::create_app_bars(state_arc.clone());
             this = state_arc.lock();
         }
 
@@ -534,7 +552,7 @@ impl AppState {
 
         if this.config.display_app_bar {
             drop(this);
-            bar::close_all(state_arc.clone());
+            Self::close_app_bars(state_arc.clone());
             this = state_arc.lock();
         }
 
@@ -651,6 +669,16 @@ impl AppState {
         if let Some(grid) = display.get_focused_grid_mut() {
             grid.next_axis = direction;
         }
+        Ok(())
+    }
+
+    pub fn each_window(&mut self, cb: impl Fn(&mut NativeWindow) -> SystemResult + Copy) -> SystemResult {
+        for d in &mut self.displays {
+            for g in &mut d.grids {
+                g.modify_windows(cb)?;
+            }
+        }
+
         Ok(())
     }
 
@@ -935,10 +963,6 @@ fn on_quit(state: &mut AppState) -> SystemResult {
     state.cleanup()?;
 
     popup::cleanup();
-
-    if state.config.remove_task_bar {
-        state.show_taskbars();
-    }
 
     state.window_event_listener.stop();
 

@@ -1,4 +1,5 @@
 use crate::{system::NativeWindow, system::SystemResult, AppState};
+use crate::config::rule::Action as RuleAction;
 use log::{debug, error};
 
 pub fn handle(state: &mut AppState, mut window: NativeWindow, force: bool) -> SystemResult {
@@ -10,9 +11,7 @@ pub fn handle(state: &mut AppState, mut window: NativeWindow, force: bool) -> Sy
         .get_rect()
         .map_err(|_| "Failed to get rectangle of new window"));
 
-    if !force && (rect.right - rect.left < min_width || rect.bottom - rect.top < min_height) {
-        return Ok(());
-    }
+    let too_small = rect.right - rect.left < min_width || rect.bottom - rect.top < min_height;
 
     let grid_allows_managing = {
         let display = state.get_current_display();
@@ -33,13 +32,12 @@ pub fn handle(state: &mut AppState, mut window: NativeWindow, force: bool) -> Sy
 
     let parent = window.get_parent_window();
     let rule = window.rule.clone().unwrap_or_default();
-    let should_manage =
-        force || (rule.manage && parent.is_err() && window.should_manage() && grid_allows_managing);
+    let should_manage = force || rule.action == RuleAction::Manage || (rule.action == RuleAction::Validate && !too_small && parent.is_err() && window.should_manage() && grid_allows_managing);
 
     if should_manage {
         debug!("Managing window");
         if rule.workspace_id != -1 {
-            state.change_workspace(rule.workspace_id, false);
+            state.change_workspace(rule.workspace_id, false)?;
         }
 
         window.init(config.remove_title_bar, config.use_border)?;
