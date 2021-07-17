@@ -15,7 +15,6 @@ use crate::{
 };
 use log::{debug, error, info};
 use std::cmp;
-use std::collections::HashMap;
 
 pub mod graph_wrapper;
 pub mod node;
@@ -25,8 +24,6 @@ pub mod tile_render_info;
 
 static FULL_SIZE: u32 = 120;
 static HALF_SIZE: u32 = FULL_SIZE / 2;
-const PINNED_VISIBLE: &'static str = "v";
-const PINNED_INVISIBLE: &'static str = "n";
 
 #[derive(Clone, Debug)]
 pub struct TileGrid<TRenderer: Renderer = NativeRenderer> {
@@ -41,8 +38,6 @@ pub struct TileGrid<TRenderer: Renderer = NativeRenderer> {
     //       as opposed to the current way where it always adds below/after
     pub next_direction: Direction,
     graph: GraphWrapper,
-    pub pinned_windows: HashMap<i32, NativeWindow>,
-    pub are_pinned_windows_visible: bool,
 }
 
 impl TileGrid {
@@ -107,19 +102,6 @@ impl TileGrid {
                 width,
                 height,
             )?;
-        }
-
-        if self.are_pinned_windows_visible {
-            self.pinned_windows.values().for_each(|w| {
-                debug!("Pinned ws window (visible) '{}' | {}", w.title, w.id);
-                w.show();
-                w.focus();
-            });
-        } else {
-            self.pinned_windows.values().for_each(|w| {
-                debug!("Pinned ws window (hidden) '{}' | {}", w.title, w.id);
-                w.hide();
-            });
         }
 
         info!("Rendering completed");
@@ -282,13 +264,11 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             focused_id: None,
             next_axis: SplitDirection::Vertical,
             next_direction: Direction::Right,
-            are_pinned_windows_visible: false,
-            pinned_windows: HashMap::new(),
         }
     }
     /// Returns whether the tile grid is populated or not
     pub fn is_empty(&self) -> bool {
-        self.graph.is_empty() && self.pinned_windows.is_empty()
+        self.graph.is_empty()
     }
     /// Returns whether the tile grid is fullscreened or not
     pub fn is_fullscreened(&self) -> bool {
@@ -301,10 +281,6 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                 self.graph.node(node_id).get_window().hide();
             }
         }
-
-        self.pinned_windows.values().for_each(|w| {
-            w.hide();
-        });
     }
     /// Removes the focused node, if it exists, and returns the window on that node.
     /// Leaves the tile_grid in an unfocused state and un-fullscreens if currently fullscreened.
@@ -318,15 +294,6 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     /// Calls cleanup on all managed windows and clears the tile_grid
     pub fn cleanup(&mut self) -> SystemResult {
         self.modify_windows(|window| window.cleanup())?;
-        self.pinned_windows.values_mut()
-                           .for_each(|w| {
-                               if w.is_hidden() {
-                                   w.show();
-                               }
-                               w.remove_topmost();
-                               w.cleanup();
-                           });
-        self.pinned_windows.clear();
         self.graph.clear();
         self.focused_id = None;
         self.fullscreen_id = None;
@@ -343,10 +310,6 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                 self.fullscreen_id = self.focused_id;
             }
         }
-    }
-    /// toggles visibility of any pinned windows on the current grid
-    pub fn toggle_view_pinned(&mut self) {
-        self.are_pinned_windows_visible = !self.are_pinned_windows_visible;
     }
     /// Travels up the graph from the focused node until it finds a row
     /// and then resets the size of all of that row's children.
@@ -420,13 +383,6 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             }
         }
 
-        if self.are_pinned_windows_visible {
-            self.pinned_windows.values().for_each(|w| {
-                w.show();
-                w.focus();
-            });
-        }
-
         Ok(())
     }
     /// Returns the window of the currently focused tile if it exists
@@ -465,17 +421,6 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                 node.modify_window(f)?;
             }
         }
-        Ok(())
-    }
-    /// Calls the passed in function for each pinned window. 
-    pub fn modify_pinned_windows<TFunction>(self: &mut Self, mut f: TFunction) -> SystemResult
-    where
-        TFunction: FnMut(&mut NativeWindow) -> SystemResult + Copy,
-    {
-        for w in self.pinned_windows.values_mut() {
-            f(w)?;
-        }
-
         Ok(())
     }
     /// Returns a list of immutable window references.
@@ -706,9 +651,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                     self.fullscreen_id = None;
                 }
             }
-        } else if self.pinned_windows.contains_key(&id.into()) {
-            window = self.pinned_windows.remove(&id.into());
-        }
+        } 
 
         window
     }
@@ -1244,29 +1187,11 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     ///    11114444         / | \
     ///                   t2 t3 t4
     /// Note that the children arrays [] can nest columns and rows.
-    /// Following the graph info is a space and then a list of any pinned windows
-    ///   v|1234|5678
-    ///   ^  ^    ^
-    ///   |  |    |
-    ///   |  |    -- 2nd pinned window
-    ///   |  -- 1st pinned window
-    ///   -- indicates whether pinned windows are visible (v) or not (n)
     pub fn to_string(&self) -> String {
-        format!("{} {}", match self.graph.get_root() {
-                             Some(root) => self.inner_to_string(root),
-                             _ => "".into(),
-                         }, self.stringify_pinned())
-    }
-    fn stringify_pinned(&self) -> String {
-        let visible = if self.are_pinned_windows_visible { PINNED_VISIBLE } else { PINNED_INVISIBLE };
-        let window_ids = self.pinned_windows
-                             .keys()
-                             .collect::<Vec::<_>>();
-        let pinned = window_ids.iter()
-                               .map(|x| x.to_string())
-                               .collect::<Vec::<_>>()
-                               .join("|");
-        format!("{}|{}", visible, pinned)
+        match self.graph.get_root() {
+            Some(root) => self.inner_to_string(root),
+            _ => "".into(),
+        }
     }
     fn inner_to_string(&self, id: usize) -> String {
         match self.graph.node(id) {
@@ -1294,29 +1219,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
             return;
         }
 
-        let split_target = target.split(" ").collect::<Vec::<_>>();
-        if let Some(graph) = split_target.get(0) {
-            if graph.len() != 0 {
-                self.inner_from_string(&graph[..], None);
-            }
-        }
-        if let Some(pinned) = split_target.get(1) {
-            let split_pinned = pinned.split("|").collect::<Vec::<_>>();
-            let (are_pinned_visible, pinned_ids) = split_pinned.split_at(1);
-            self.are_pinned_windows_visible = *are_pinned_visible.get(0).unwrap_or(&PINNED_INVISIBLE) == PINNED_VISIBLE;
-            pinned_ids.into_iter()
-                      .map(|x| x.parse::<i32>()) 
-                      .filter(|x| x.is_ok())
-                      .map(|x| x.unwrap())
-                      .for_each(|x| {
-                            let window_id: WindowId = (x).into();
-                            let mut window: NativeWindow = NativeWindow::from(window_id);
-                            if window.is_window() {
-                                self.pinned_windows.insert(window.id.into(), window);
-                            }
-                      });
-        }
-
+        self.inner_from_string(&target[..], None);
 
         #[cfg(not(test))] // TODO: Need to refactor Window to be able to fake calls in unit tests
         {

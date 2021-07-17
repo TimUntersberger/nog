@@ -32,15 +32,18 @@ pub fn handle(state: &mut AppState, mut window: NativeWindow, force: bool) -> Sy
 
     let parent = window.get_parent_window();
     let rule = window.rule.clone().unwrap_or_default();
-    let is_window_pinned = state.is_window_pinned(&window.id.into());
+    let is_window_pinned = state.pinned.is_pinned(&window.id.into());
     let should_manage = force || rule.action == RuleAction::Manage || rule.action == RuleAction::Pin ||
                         (rule.action == RuleAction::Validate && !too_small 
                          && parent.is_err() && window.should_manage() && grid_allows_managing);
 
     if should_manage && !is_window_pinned {
         if rule.action == RuleAction::Pin {
-            state.pin_window(window.id.into())?;
-            state.store_pinned();
+            if state.pinned.can_pin(&window) {
+                let additional_rules = state.additonal_rules.clone();
+                state.pinned.pin_window(window.id.into(), None, &config, &additional_rules)?;
+                state.pinned.store(None);
+            }
         } else {
             debug!("Managing window");
             if rule.workspace_id != -1 {
