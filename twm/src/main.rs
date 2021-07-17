@@ -6,6 +6,7 @@ extern crate num_derive;
 extern crate strum_macros;
 
 use config::{rule::Rule, workspace_setting::WorkspaceSetting, Config};
+use crate::config::rule::Action as RuleAction;
 use crossbeam_channel::select;
 use direction::Direction;
 use display::Display;
