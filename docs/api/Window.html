@@ -95,7 +95,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item affix "><a href="../index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="../getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="../getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="../getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item "><a href="../getting-started/floating_mode.html">Floating Mode</a></li><li class="chapter-item "><a href="../getting-started/fullscreen_mode.html">Fullscreen Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="../configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="../configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="../configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="../configuration/modes.html">Modes</a></li><li class="chapter-item "><a href="../configuration/rules.html">Rules</a></li><li class="chapter-item "><a href="../configuration/bar.html">Bar</a></li><li class="chapter-item "><a href="../configuration/plugins.html">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="../api/General.html">General</a></li><li class="chapter-item expanded "><a href="../api/Window.html" class="active">Window</a></li><li class="chapter-item "><a href="../api/Workspace.html">Workspace</a></li><li class="chapter-item "><a href="../api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="../api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../api/Popup.html">Popup</a></li><li class="chapter-item "><a href="../api/Components.html">Components</a></li></ol>
+                <ol class="chapter"><li class="chapter-item affix "><a href="../index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="../getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="../getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="../getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item "><a href="../getting-started/floating_mode.html">Floating Mode</a></li><li class="chapter-item "><a href="../getting-started/fullscreen_mode.html">Fullscreen Mode</a></li><li class="chapter-item "><a href="../getting-started/pinning_mode.html">Pinning Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="../configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="../configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="../configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="../configuration/modes.html">Modes</a></li><li class="chapter-item "><a href="../configuration/rules.html">Rules</a></li><li class="chapter-item "><a href="../configuration/bar.html">Bar</a></li><li class="chapter-item "><a href="../configuration/plugins.html">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="../api/General.html">General</a></li><li class="chapter-item expanded "><a href="../api/Window.html" class="active">Window</a></li><li class="chapter-item "><a href="../api/Workspace.html">Workspace</a></li><li class="chapter-item "><a href="../api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="../api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../api/Popup.html">Popup</a></li><li class="chapter-item "><a href="../api/Components.html">Components</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -167,37 +167,81 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#window" id="window">Window</a></h1>
-<h2><a class="header" href="#get_win_titlewin_id" id="get_win_titlewin_id">get_win_title(win_id)</a></h2>
+                        <h1 id="window"><a class="header" href="#window">Window</a></h1>
+<h2 id="get_win_titlewin_id"><a class="header" href="#get_win_titlewin_id">get_win_title(win_id)</a></h2>
 <p>Returns the title of window with the given <code>win_id</code></p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>win_id</code> [number] id of window</li>
 </ul>
 <p><strong>Return</strong>: [string] window title</p>
-<h2><a class="header" href="#get_current_win" id="get_current_win">get_current_win()</a></h2>
+<h2 id="get_current_win"><a class="header" href="#get_current_win">get_current_win()</a></h2>
 <p>Returns the id of the window that has currently focus and is managed by nog.</p>
 <p><strong>Return</strong>: [number] window id</p>
-<h2><a class="header" href="#get_focused_win_of_displaydisplay_id" id="get_focused_win_of_displaydisplay_id">get_focused_win_of_display(display_id)</a></h2>
+<h2 id="get_focused_win_of_displaydisplay_id"><a class="header" href="#get_focused_win_of_displaydisplay_id">get_focused_win_of_display(display_id)</a></h2>
 <p>Returns the id of the window on the given display that is focused and is managed by nog.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>display_id</code> [number] id of display</li>
 </ul>
 <p><strong>Return</strong>: [number] window id</p>
-<h2><a class="header" href="#win_minimize" id="win_minimize">win_minimize()</a></h2>
+<h2 id="win_minimize"><a class="header" href="#win_minimize">win_minimize()</a></h2>
 <p>Minimizes the currently focused window and unmanages it.</p>
-<h2><a class="header" href="#win_ignore" id="win_ignore">win_ignore()</a></h2>
+<h2 id="win_ignore"><a class="header" href="#win_ignore">win_ignore()</a></h2>
 <p>Unmanages the currently focused window and adds a rule that prevents this window from being managed while nog is running.</p>
-<h2><a class="header" href="#win_close" id="win_close">win_close()</a></h2>
+<h2 id="win_close"><a class="header" href="#win_close">win_close()</a></h2>
 <p>Closes the currently focused window.</p>
-<h2><a class="header" href="#win_toggle_floating" id="win_toggle_floating">win_toggle_floating()</a></h2>
+<h2 id="win_toggle_floating"><a class="header" href="#win_toggle_floating">win_toggle_floating()</a></h2>
 <p>Toggles <a href="/getting-started/floating_mode.html">floating mode</a> of the currently focused window.</p>
-<h2><a class="header" href="#win_move_to_wsws_id" id="win_move_to_wsws_id">win_move_to_ws(ws_id)</a></h2>
+<h2 id="win_move_to_wsws_id"><a class="header" href="#win_move_to_wsws_id">win_move_to_ws(ws_id)</a></h2>
 <p>Moves the currently focused window to the workspace with the provided <code>ws_id</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>ws_id</code> [number] id of workspace</li>
+</ul>
+<h2 id="win_toggle_pinwin_id"><a class="header" href="#win_toggle_pinwin_id">win_toggle_pin(win_id)</a></h2>
+<p>Pins or unpins the given window. This is a no-op if the window is currently tile-managed by nog.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>win_id</code> [number] id of window</li>
+</ul>
+<h2 id="win_toggle_ws_pinwin_id"><a class="header" href="#win_toggle_ws_pinwin_id">win_toggle_ws_pin(win_id)</a></h2>
+<p>Pins or unpins the given window to the current workspace. This is a no-op if the window is currently tile-managed by nog.
+Note: when using multiple monitors only one workspace is focused. Ensure you're pinning the window to the correct workspace.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>win_id</code> [number] id of window</li>
+</ul>
+<h2 id="win_is_pinnedwin_id"><a class="header" href="#win_is_pinnedwin_id">win_is_pinned(win_id)</a></h2>
+<p>Returns whether the given window is pinned or not.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>win_id</code> [number] id of window</li>
+</ul>
+<p><strong>Return</strong>: [bool] true if pinned, otherwise false</p>
+<h2 id="win_hide_title_barwin_id"><a class="header" href="#win_hide_title_barwin_id">win_hide_title_bar(win_id)</a></h2>
+<p>Hides the title bar on the given window.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>win_id</code> [number] id of window</li>
+</ul>
+<h2 id="win_show_title_barwin_id"><a class="header" href="#win_show_title_barwin_id">win_show_title_bar(win_id)</a></h2>
+<p>Shows the title bar on the given window.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>win_id</code> [number] id of window</li>
+</ul>
+<h2 id="win_hide_borderwin_id"><a class="header" href="#win_hide_borderwin_id">win_hide_border(win_id)</a></h2>
+<p>Hides the border on the given window.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>win_id</code> [number] id of window</li>
+</ul>
+<h2 id="win_show_borderwin_id"><a class="header" href="#win_show_borderwin_id">win_show_border(win_id)</a></h2>
+<p>Shows the border on the given window.</p>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>win_id</code> [number] id of window</li>
 </ul>
 
                     </main>
@@ -237,6 +281,21 @@
 
         </div>
 
+        
+        <!-- Livereload script (if served using the cli tool) -->
+        <script type="text/javascript">
+            var socket = new WebSocket("ws://localhost:3000/__livereload");
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
         
 
         

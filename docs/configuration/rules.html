@@ -95,7 +95,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item affix "><a href="../index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="../getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="../getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="../getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item "><a href="../getting-started/floating_mode.html">Floating Mode</a></li><li class="chapter-item "><a href="../getting-started/fullscreen_mode.html">Fullscreen Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="../configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="../configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="../configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="../configuration/modes.html">Modes</a></li><li class="chapter-item expanded "><a href="../configuration/rules.html" class="active">Rules</a></li><li class="chapter-item "><a href="../configuration/bar.html">Bar</a></li><li class="chapter-item "><a href="../configuration/plugins.html">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="../api/General.html">General</a></li><li class="chapter-item "><a href="../api/Window.html">Window</a></li><li class="chapter-item "><a href="../api/Workspace.html">Workspace</a></li><li class="chapter-item "><a href="../api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="../api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../api/Popup.html">Popup</a></li><li class="chapter-item "><a href="../api/Components.html">Components</a></li></ol>
+                <ol class="chapter"><li class="chapter-item affix "><a href="../index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="../getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="../getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="../getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item "><a href="../getting-started/floating_mode.html">Floating Mode</a></li><li class="chapter-item "><a href="../getting-started/fullscreen_mode.html">Fullscreen Mode</a></li><li class="chapter-item "><a href="../getting-started/pinning_mode.html">Pinning Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="../configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="../configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="../configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="../configuration/modes.html">Modes</a></li><li class="chapter-item expanded "><a href="../configuration/rules.html" class="active">Rules</a></li><li class="chapter-item "><a href="../configuration/bar.html">Bar</a></li><li class="chapter-item "><a href="../configuration/plugins.html">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="../api/General.html">General</a></li><li class="chapter-item "><a href="../api/Window.html">Window</a></li><li class="chapter-item "><a href="../api/Workspace.html">Workspace</a></li><li class="chapter-item "><a href="../api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="../api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../api/Popup.html">Popup</a></li><li class="chapter-item "><a href="../api/Components.html">Components</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -167,7 +167,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#rules" id="rules">Rules</a></h1>
+                        <h1 id="rules"><a class="header" href="#rules">Rules</a></h1>
 <p>Rules are used to add special handling to windows that match a regex pattern.</p>
 <pre><code class="language-lua">nog.rules = {
   [&quot;notepad.exe&quot;] = {
@@ -179,7 +179,7 @@
 <p>A rule can contain the following settings</p>
 <table><thead><tr><th>Key</th><th>Value</th><th>Description</th></tr></thead><tbody>
 <tr><td>has_custom_titlebar</td><td>Boolean</td><td>Changes how we align the window (applications like <a href="https://code.visualstudio.com/">vscode</a> should have this enabled)</td></tr>
-<tr><td>ignore</td><td>Boolean</td><td>Tells nog to not manage this window</td></tr>
+<tr><td>action</td><td>String</td><td>Tells nog how to behave when a new window is created. The value is expected to be one of the following: <ul> <li><strong>Ignore</strong> - nog will ignore the window</li> <li><strong>Manage</strong> - nog will manage the window and add it to the currently active workspace</li> <li><strong>Pin</strong> - nog will globally pin the window (see <a href="/getting-started/pinning_mode.html">pinning mode</a>)</li> <li><strong>Validate</strong> - nog will check other config values to determine whether to manage or not </li> </ul></td></tr>
 <tr><td>chromium</td><td>Boolean</td><td>Adds chromium specific handling (anything based on chromium like the new microsoft edge should have this enabled)</td></tr>
 <tr><td>firefox</td><td>Boolean</td><td>Adds firefx specific handling</td></tr>
 <tr><td>workspace_id</td><td>Number</td><td>Which workspace this window gets moved to</td></tr>
@@ -223,6 +223,21 @@
 
         </div>
 
+        
+        <!-- Livereload script (if served using the cli tool) -->
+        <script type="text/javascript">
+            var socket = new WebSocket("ws://localhost:3000/__livereload");
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
         
 
         

@@ -103,6 +103,7 @@ impl TileGrid {
                 height,
             )?;
         }
+
         info!("Rendering completed");
 
         Ok(())
@@ -381,6 +382,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                 _ => (),
             }
         }
+
         Ok(())
     }
     /// Returns the window of the currently focused tile if it exists
@@ -649,7 +651,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                     self.fullscreen_id = None;
                 }
             }
-        }
+        } 
 
         window
     }

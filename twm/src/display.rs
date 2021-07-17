@@ -124,7 +124,7 @@ impl Display {
     pub fn get_grid_by_id(&self, id: i32) -> Option<&TileGrid> {
         self.grids.iter().find(|g| g.id == id)
     }
-    /// A grid is considered being active when it either has focus or contains one or more tiles
+    /// A grid is considered being active when it either has focus or contains tiles (pinned or managed)
     pub fn get_active_grids(&self) -> Vec<&TileGrid> {
         self.grids
             .iter()

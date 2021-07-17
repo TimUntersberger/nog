@@ -34,6 +34,7 @@ use task_bar::Taskbar;
 use tile_grid::{store::Store, TileGrid};
 use win_event_handler::{win_event::WinEvent, win_event_type::WinEventType};
 use window::Window;
+use pinned::Pinned;
 
 pub const NOG_BAR_NAME: &'static str = "nog_bar";
 pub const NOG_POPUP_NAME: &'static str = "nog_popup";
@@ -133,6 +134,7 @@ mod system;
 mod task_bar;
 mod tile;
 mod tile_grid;
+mod pinned;
 mod tray;
 mod update;
 mod util;
@@ -150,6 +152,7 @@ pub struct AppState {
     pub additonal_rules: Vec<Rule>,
     pub window_event_listener: WinEventListener,
     pub workspace_id: i32,
+    pub pinned: Pinned,
 }
 
 impl Default for AppState {
@@ -165,6 +168,7 @@ impl Default for AppState {
             window_event_listener: WinEventListener::default(),
             workspace_id: 1,
             config,
+            pinned: Pinned::new()
         }
     }
 }
@@ -181,6 +185,8 @@ impl AppState {
         for d in self.displays.iter_mut() {
             d.cleanup(self.config.remove_task_bar)?;
         }
+
+        self.pinned.cleanup()?;
 
         Ok(())
     }
@@ -345,7 +351,9 @@ impl AppState {
             new_display.grids.sort_by_key(|g| g.id);
             new_display.focus_workspace(&config, id)?;
             self.workspace_id = id;
+            self.refresh_pinned()?;
         }
+
 
         Ok(())
     }
@@ -369,6 +377,7 @@ impl AppState {
             if let Some(display) = self.find_grid_display_mut(workspace_id) {
                 display.focus_workspace(&config, workspace_id)?;
                 self.workspace_id = workspace_id;
+                self.refresh_pinned()?;
             }
         }
 
@@ -416,13 +425,16 @@ impl AppState {
     pub fn redraw(&mut self) -> SystemResult {
         let fg_win = NativeWindow::get_foreground_window()?;
         fg_win.to_foreground(true)?;
+
         for d in &mut self.displays {
             for g in &d.grids {
                 g.draw_grid(d, &self.config)?;
                 g.show()?;
             }
         }
+
         fg_win.remove_topmost()?;
+
         Ok(())
     }
 
@@ -474,6 +486,19 @@ impl AppState {
         Ok(())
     }
 
+    pub fn toggle_view_pinned(&mut self, ws_id: Option<i32>) -> SystemResult {
+        let config = self.config.clone();
+        let current_id = self.workspace_id.clone();
+
+        if let Some(display) = self.find_grid_display_mut(current_id) {
+            display.focus_workspace(&config, current_id)?;
+        }
+
+        self.pinned.toggle_view_pinned(ws_id);
+
+        Ok(())
+    }
+
     pub fn create_app_bars(state_arc: Arc<Mutex<AppState>>) {
         bar::create::create(state_arc.clone())
     }
@@ -498,12 +523,13 @@ impl AppState {
         let mut focused_workspaces = Vec::<i32>::new();
         let remove_title_bar = this.config.remove_title_bar;
         let use_border = this.config.use_border;
-        let stored_grids: Vec<String> = Store::load();
+        let stored_data = Store::load();
+
         let rules = this.config.rules.clone();
         let additional_rules = this.additonal_rules.clone();
         for display in this.displays.iter_mut() {
             for grid in display.grids.iter_mut() {
-                if let Some(stored_grid) = stored_grids.get((grid.id - 1) as usize) {
+                if let Some(stored_grid) = stored_data.grids.get((grid.id - 1) as usize) {
                     grid.from_string(stored_grid);
                     Store::save(grid.id, grid.to_string());
 
@@ -535,6 +561,8 @@ impl AppState {
             // otherwise just focus first workspace
             this.change_workspace(1, false)?;
         }
+
+        this.pinned = Pinned::load(stored_data.pinned_windows, &this)?;
 
         info!("Registering windows event handler");
         this.window_event_listener.start(&this.event_channel);
@@ -693,20 +721,21 @@ impl AppState {
         let window =
             NativeWindow::get_foreground_window().expect("Failed to get foreground window");
         let current_workspace_id = self.workspace_id;
-        let grid = self.find_grid_containing_window(window.id);
+        let is_pinned = self.pinned.is_pinned(&window.id.into());
+        let grid = self.find_mut_grid_containing_window(window.id);
 
         if let Some(grid) = grid {
             // don't do anything if focused window isn't on current grid
             if grid.id == current_workspace_id {
                 if let Some(mut w) = grid.remove_by_window_id(window.id) {
                     debug!("Unmanaging window '{}' | {}", w.title, w.id);
-                    w.cleanup();
+                    w.cleanup()?;
                     if let Some(d) = self.find_grid_display(current_workspace_id) {
-                        d.refresh_grid(&config);
+                        d.refresh_grid(&config)?;
                     }
                 }
             }
-        } else {
+        } else if !is_pinned {
             self.event_channel
                 .sender
                 .clone()
@@ -715,6 +744,58 @@ impl AppState {
                     window,
                 }))
                 .expect("Failed to send WinEvent");
+        }
+
+        Ok(())
+    }
+
+    pub fn show_title_bar(&mut self, window_id: i32) -> SystemResult {
+        let window_id: WindowId = window_id.into();
+        let mut window: NativeWindow = NativeWindow::from(window_id);
+
+        window.add_title_bar()?;
+
+        if window.is_hidden() {
+            window.show();
+        }
+
+        Ok(())
+    }
+
+    pub fn hide_title_bar(&mut self, window_id: i32) -> SystemResult {
+        let window_id: WindowId = window_id.into();
+        let mut window: NativeWindow = NativeWindow::from(window_id);
+
+        window.remove_title_bar()?;
+
+        if window.is_hidden() {
+            window.show();
+        }
+
+        Ok(())
+    }
+
+    pub fn show_border(&mut self, window_id: i32) -> SystemResult {
+        let window_id: WindowId = window_id.into();
+        let mut window: NativeWindow = NativeWindow::from(window_id);
+
+        window.add_border()?;
+
+        if window.is_hidden() {
+            window.show();
+        }
+
+        Ok(())
+    }
+
+    pub fn hide_border(&mut self, window_id: i32) -> SystemResult {
+        let window_id: WindowId = window_id.into();
+        let mut window: NativeWindow = NativeWindow::from(window_id);
+
+        window.remove_border()?;
+
+        if window.is_hidden() {
+            window.show();
         }
 
         Ok(())
@@ -767,9 +848,22 @@ impl AppState {
                 self.get_display_by_id(current)
                     .map(|d| d.refresh_grid(&config));
             }
+            self.refresh_pinned()?;
         }
 
         Ok(())
+    }
+
+    pub fn get_focused_workspaces(&self) -> Vec<i32> {
+        self.displays.iter()
+                     .map(|d| d.focused_grid_id)
+                     .filter(|g_id| g_id.is_some())
+                     .map(|g_id| g_id.unwrap())
+                     .collect()
+    }
+
+    fn refresh_pinned(&mut self) -> SystemResult {
+        self.pinned.show(self.get_focused_workspaces())
     }
 
     pub fn get_ws_text(&mut self, id: i32) -> String {
@@ -793,6 +887,12 @@ impl AppState {
             .and_then(|d| d.get_focused_grid())
             .and_then(|g| g.get_focused_window())
             .map(|w| w.id.0)
+    }
+
+    pub fn get_focused_win(&self) -> i32 {
+        NativeWindow::get_foreground_window()
+            .expect("Failed to get foreground window")
+            .id.into()
     }
 
     pub fn redraw_app_bars(&self) {
@@ -864,15 +964,28 @@ impl AppState {
         None
     }
 
-    /// Returns the grid containing the window and its corresponding tile
-    pub fn find_grid_containing_window(&mut self, id: WindowId) -> Option<&mut TileGrid> {
+    /// Returns mutable grid containing the window and its corresponding tile
+    pub fn find_mut_grid_containing_window(&mut self, id: WindowId) -> Option<&mut TileGrid> {
         for d in self.displays.iter_mut() {
             for g in d.grids.iter_mut() {
-                if g.contains(id) {
+                if g.contains(id) || self.pinned.contains(&id.into(), Some(g.id)) {
                     return Some(g);
                 }
             }
         }
+        None
+    }
+
+    /// Returns grid containing the window and its corresponding tile
+    pub fn find_grid_containing_window(&self, id: WindowId) -> Option<&TileGrid> {
+        for d in self.displays.iter() {
+            for g in d.grids.iter() {
+                if g.contains(id) || self.pinned.contains(&id.into(), Some(g.id)) {
+                    return Some(g);
+                }
+            }
+        }
+
         None
     }
 
