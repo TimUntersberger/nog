@@ -77,8 +77,7 @@ and separated by `+`.
 
 ### Modifiers
 
-The windows key can't be bound, because windows 10 reserves all win key related keybindings for itself.
-
+* Win
 * Shift
 * Control
 * Alt
