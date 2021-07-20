@@ -487,7 +487,7 @@ impl AppState {
             display.focus_workspace(&config, current_id)?;
         }
 
-        self.pinned.toggle_view_pinned(ws_id);
+        self.pinned.toggle_view_pinned(ws_id)?;
 
         Ok(())
     }
@@ -718,7 +718,7 @@ impl AppState {
             NativeWindow::get_foreground_window().expect("Failed to get foreground window");
         let current_workspace_id = self.workspace_id;
         let is_pinned = self.pinned.is_pinned(&window.id.into());
-        let grid = self.find_mut_grid_containing_window(window.id);
+        let grid = self.find_grid_containing_window_mut(window.id);
 
         if let Some(grid) = grid {
             // don't do anything if focused window isn't on current grid
@@ -746,52 +746,32 @@ impl AppState {
     }
 
     pub fn show_title_bar(&mut self, window_id: i32) -> SystemResult {
-        let window_id: WindowId = window_id.into();
-        let mut window: NativeWindow = NativeWindow::from(window_id);
-
-        window.add_title_bar()?;
-
-        if window.is_hidden() {
-            window.show();
+        if let Some(window) = self.get_window_mut(&window_id) {
+            window.add_title_bar()?;
         }
 
         Ok(())
     }
 
     pub fn hide_title_bar(&mut self, window_id: i32) -> SystemResult {
-        let window_id: WindowId = window_id.into();
-        let mut window: NativeWindow = NativeWindow::from(window_id);
-
-        window.remove_title_bar()?;
-
-        if window.is_hidden() {
-            window.show();
+        if let Some(window) = self.get_window_mut(&window_id) {
+            window.remove_title_bar()?;
         }
 
         Ok(())
     }
 
     pub fn show_border(&mut self, window_id: i32) -> SystemResult {
-        let window_id: WindowId = window_id.into();
-        let mut window: NativeWindow = NativeWindow::from(window_id);
-
-        window.add_border()?;
-
-        if window.is_hidden() {
-            window.show();
+        if let Some(window) = self.get_window_mut(&window_id) {
+            window.add_border()?;
         }
 
         Ok(())
     }
 
     pub fn hide_border(&mut self, window_id: i32) -> SystemResult {
-        let window_id: WindowId = window_id.into();
-        let mut window: NativeWindow = NativeWindow::from(window_id);
-
-        window.remove_border()?;
-
-        if window.is_hidden() {
-            window.show();
+        if let Some(window) = self.get_window_mut(&window_id) {
+            window.remove_border()?;
         }
 
         Ok(())
@@ -891,6 +871,18 @@ impl AppState {
             .id.into()
     }
 
+    pub fn get_window_mut(&mut self, window_id: &i32) -> Option<&mut NativeWindow> {
+        if self.pinned.is_pinned(window_id) {
+            if let Some(window) = self.pinned.get_mut(window_id) {
+                return Some(window);
+            } 
+        } else if let Some(grid) = self.find_grid_containing_window_mut(WindowId::from(*window_id)) {
+            return grid.get_window_mut(WindowId::from(*window_id));
+        }
+
+        None
+    }
+
     pub fn redraw_app_bars(&self) {
         debug!("Sending redraw-app-bar event");
         self.event_channel
@@ -961,7 +953,7 @@ impl AppState {
     }
 
     /// Returns mutable grid containing the window and its corresponding tile
-    pub fn find_mut_grid_containing_window(&mut self, id: WindowId) -> Option<&mut TileGrid> {
+    pub fn find_grid_containing_window_mut(&mut self, id: WindowId) -> Option<&mut TileGrid> {
         for d in self.displays.iter_mut() {
             for g in d.grids.iter_mut() {
                 if g.contains(id) || self.pinned.contains(&id.into(), Some(g.id)) {

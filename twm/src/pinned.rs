@@ -215,6 +215,16 @@ impl Pinned {
         self.containers[container_index].windows.get(window_id)
     }
 
+    pub fn get_mut(&mut self, window_id: &i32) -> Option<&mut NativeWindow> {
+        for container in self.containers.iter_mut() {
+            if container.contains(window_id) {
+                return container.windows.get_mut(window_id);
+            }
+        }
+
+        None
+    }
+
     pub fn get_active_workspaces(&self) -> Vec<i32> {
         self.containers
             .iter()
@@ -253,5 +263,15 @@ impl Pinned {
         }
 
         Ok(())
+    }
+
+    pub fn remove(&mut self, window_id: &i32) -> Option<NativeWindow> {
+        for container in self.containers.iter_mut() {
+            if container.contains(window_id) {
+                return container.remove(window_id);
+            }
+        }
+
+        None
     }
 }

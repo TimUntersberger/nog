@@ -58,7 +58,7 @@ pub fn handle(state: &mut AppState, ev: WinEvent) -> SystemResult {
         WinEventType::FocusChange => focus_change::handle(state, ev.window)?,
         WinEventType::Minimize => {
             if let Some(mut win) = state
-                .find_mut_grid_containing_window(ev.window.id)
+                .find_grid_containing_window_mut(ev.window.id)
                 .and_then(|g| g.remove_by_window_id(ev.window.id))
             {
                 win.cleanup()?;

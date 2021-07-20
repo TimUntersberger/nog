@@ -41,7 +41,7 @@ pub fn handle(state: &mut AppState, mut window: NativeWindow, force: bool) -> Sy
         if rule.action == RuleAction::Pin {
             if state.pinned.can_pin(&window) {
                 let additional_rules = state.additonal_rules.clone();
-                state.pinned.pin_window(window.id.into(), None, &config, &additional_rules)?;
+                state.pinned.pin_window(window, None, &config, &additional_rules)?;
                 state.pinned.store(None);
             }
         } else {
