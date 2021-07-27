@@ -14,10 +14,10 @@ use crate::{
 use log::{debug, error};
 use regex::Regex;
 use winapi::{
-    shared::{minwindef::*, windef::*},
+    shared::{minwindef::*, windef::*, winerror::*},
     um::{
         errhandlingapi::*, processthreadsapi::*, shellscalingapi::*, winbase::*, winnt::*,
-        winreg::*, winuser::*,
+        winreg::*, winuser::*, shellscalingapi::*,
     },
 };
 
@@ -257,5 +257,16 @@ pub fn launch_program(cmd: String) -> SystemResult {
         } else {
             Ok(())
         }
+    }
+}
+
+pub fn enable_high_dpi() -> SystemResult {
+    let res = unsafe { 
+        SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE)
+    };
+    if (SUCCEEDED(res)) {
+        Ok(())
+    } else {
+        Err(SystemError::DpiScaling())
     }
 }

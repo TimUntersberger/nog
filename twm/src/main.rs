@@ -30,7 +30,6 @@ use task_bar::Taskbar;
 use tile_grid::{store::Store, TileGrid};
 use win_event_handler::{win_event::WinEvent, win_event_type::WinEventType};
 use window::Window;
-
 pub const NOG_BAR_NAME: &'static str = "nog_bar";
 pub const NOG_POPUP_NAME: &'static str = "nog_popup";
 
@@ -1173,6 +1172,8 @@ fn run_config(rt: &LuaRuntime) {
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
     logging::setup().expect("Failed to setup logging");
+
+    crate::system::api::enable_high_dpi().expect("Failed to enable high dpi mode");
 
     info!("Config: {:?}", get_config_path());
     info!("Runtime: {:?}", get_runtime_path());

@@ -94,6 +94,8 @@ pub enum SystemError {
     UnregisterKeybinding { key: String, os_error: String },
     #[error("An error that is specific to the platform occured")]
     Native(#[from] SpecificError),
+    #[error("Failed to enable high dpi mode")]
+    DpiScaling(),
     #[error("An unknown error occured")]
     Unknown(SpecificError),
 }
