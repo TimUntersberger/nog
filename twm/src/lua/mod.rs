@@ -543,6 +543,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                                     bar.change_height(new)?;
                                 }
                             }
+                            state.redraw();
                         }
                         Ok(())
                     }),
