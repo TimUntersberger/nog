@@ -8,6 +8,7 @@ use crate::{
     task_bar,
     tile_grid::store::Store,
     tile_grid::TileGrid,
+    util,
 };
 use std::cmp::Ordering;
 use task_bar::{Taskbar, TaskbarPosition};
@@ -69,7 +70,7 @@ impl Display {
         self.height()
             - if config.remove_task_bar { 0 } else { tb_height }
             - if config.display_app_bar {
-                config.bar.height
+                util::points_to_pixels(config.bar.height, &self)
             } else {
                 0
             }
@@ -102,7 +103,7 @@ impl Display {
 
         self.rect.top
             + if config.display_app_bar {
-                config.bar.height
+                util::points_to_pixels(config.bar.height, &self) 
             } else {
                 0
             }

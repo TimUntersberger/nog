@@ -8,6 +8,7 @@ use crate::{
     system::SystemError,
     system::SystemResult,
     system::WindowId,
+    util,
     tile_grid::{
         graph_wrapper::GraphWrapper, node::Node, node::NodeInfo, text_renderer::TextRenderer,
         tile_render_info::TileRenderInfo,
@@ -64,6 +65,8 @@ impl TileGrid {
                 0
             },
         );
+        let padding = util::points_to_pixels(padding, &display);
+        let maging = util::points_to_pixels(margin, &display);
 
         let display_width = display.working_area_width(config) - margin;
         let display_height = display.working_area_height(config) - margin;

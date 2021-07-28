@@ -3,7 +3,7 @@ use super::{
 };
 use crate::{
     config::Config, display::Display, event::Event, system::DisplayId, system::Rectangle,
-    window::Api, window::WindowEvent, AppState, NOG_BAR_NAME,
+    window::Api, window::WindowEvent, AppState, NOG_BAR_NAME, util,
 };
 use log::{debug, error, info};
 use mlua::Result as RuntimeResult;
@@ -47,11 +47,12 @@ fn draw_component_text(
 fn draw_components(
     api: &Api,
     config: &Config,
-    display_id: DisplayId,
+    display: &Display,
     mut offset: i32,
     components: &[Component],
 ) -> RuntimeResult<()> {
     for component in components {
+        let display_id = display.id;
         let component_texts = component.render(display_id)?;
 
         for (_i, component_text) in component_texts.iter().enumerate() {
@@ -62,7 +63,7 @@ fn draw_components(
             let rect = Rectangle {
                 left: offset,
                 right: offset + width,
-                bottom: config.bar.height,
+                bottom: util::points_to_pixels(config.bar.height, &display),
                 top: 0,
             };
 
@@ -115,8 +116,9 @@ fn components_to_section(
     Ok(section)
 }
 
-fn clear_section(api: &Api, config: &Config, left: i32, right: i32) {
-    api.fill_rect(left, 0, right - left, config.bar.height, config.bar.color)
+fn clear_section(api: &Api, config: &Config, left: i32, right: i32, display: &Display) {
+    let height = util::points_to_pixels(config.bar.height, display);
+    api.fill_rect(left, 0, right - left, height, config.bar.color)
 }
 
 pub fn create(state_arc: Arc<Mutex<AppState>>) {
@@ -154,8 +156,9 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
 
         bar.display_id = display.id;
 
+        let height = util::points_to_pixels(config.bar.height, &display);
         let left = display.working_area_left();
-        let top = display.working_area_top(&config) - config.bar.height;
+        let top = display.working_area_top(&config) - height;
         let width = display.working_area_width(&config);
 
         bar.window = bar
@@ -168,7 +171,7 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
             .with_font_size(config.bar.font_size)
             .with_background_color(config.bar.color)
             .with_pos(left, top)
-            .with_size(width, config.bar.height);
+            .with_size(width, height);
 
         let sender = sender.clone();
         let state_arc2 = state_arc.clone();
@@ -283,35 +286,35 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
                                 draw_components(
                                     api,
                                     &config,
-                                    *display_id,
+                                    &display,
                                     left.left,
                                     &config.bar.components.left,
                                 )?;
                                 draw_components(
                                     api,
                                     &config,
-                                    *display_id,
+                                    &display,
                                     center.left,
                                     &config.bar.components.center,
                                 )?;
                                 draw_components(
                                     api,
                                     &config,
-                                    *display_id,
+                                    &display,
                                     right.left,
                                     &config.bar.components.right,
                                 )?;
 
                                 if bar.left.width() > left.width() {
-                                    clear_section(api, &config, left.right, bar.left.right);
+                                    clear_section(api, &config, left.right, bar.left.right, &display);
                                 }
 
                                 if bar.center.width() > center.width() {
-                                    clear_section(api, &config, bar.center.left, bar.center.right);
+                                    clear_section(api, &config, bar.center.left, bar.center.right, &display);
                                 }
 
                                 if bar.right.width() > right.width() {
-                                    clear_section(api, &config, bar.right.left, right.left);
+                                    clear_section(api, &config, bar.right.left, right.left, &display);
                                 }
 
                                 sender

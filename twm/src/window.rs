@@ -103,6 +103,7 @@ impl Api {
         }
     }
     pub fn with_font<T>(&self, name: &str, size: i32, cb: impl Fn() -> RuntimeResult<T>) -> RuntimeResult<T> {
+        let display = self.window.get_display().unwrap();
         unsafe {
             let mut logfont = LOGFONTA::default();
             let mut font_name: [i8; 32] = [0; 32];
@@ -116,7 +117,10 @@ impl Api {
                 font_name[i] = *byte as i8;
             }
 
-            logfont.lfHeight = size;
+            // Note, negative values specifies the actual font size and is consistent with other
+            // programs
+            // Positive values specifies the cell height, so the actual font is slightly smaller
+            logfont.lfHeight = -util::points_to_pixels(size, &display);
             logfont.lfFaceName = font_name;
 
             let font = CreateFontIndirectA(&logfont);
