@@ -121,7 +121,7 @@ fn clear_section(api: &Api, config: &Config, left: i32, right: i32, display: &Di
     api.fill_rect(left, 0, right - left, height, config.bar.color)
 }
 
-pub fn create(state_arc: Arc<Mutex<AppState>>) {
+pub fn create_or_update(state_arc: Arc<Mutex<AppState>>) {
     info!("Creating appbar");
 
     let sender = state_arc
@@ -143,11 +143,9 @@ pub fn create(state_arc: Arc<Mutex<AppState>>) {
             .config
             .clone();
 
-        if display.appbar.is_some() {
-            error!(
-                "Appbar for monitor {:?} already exists. Aborting",
-                display.id
-            );
+        if let Some(existing_bar) = display.appbar {
+            // Change height of existing bars in case the display has changed
+            existing_bar.change_height(config.bar.height);
             continue;
         }
 

@@ -95,7 +95,7 @@ pub fn update_config(state_arc: Arc<Mutex<AppState>>, new_config: Config) -> Sys
 
     if draw_app_bar {
         drop(state);
-        bar::create::create(state_arc.clone());
+        bar::create::create_or_update(state_arc.clone());
         state = state_arc.lock();
     }
 

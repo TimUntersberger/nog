@@ -197,7 +197,7 @@ impl Display {
     }
 }
 
-pub fn init(config: &Config) -> Vec<Display> {
+pub fn init(config: &Config, old_displays: Option<&Vec<Display>>) -> Vec<Display> {
     let mut displays = api::get_displays();
     let taskbars = api::get_taskbars();
 
@@ -228,28 +228,48 @@ pub fn init(config: &Config) -> Vec<Display> {
         ordering
     });
 
-    for i in 1..11 {
-        let monitor = config
-            .workspaces
-            .iter()
-            .find(|s| s.id == i)
-            .map(|s| s.monitor)
-            .unwrap_or(-1);
+    if let Some(old_displays) = old_displays {
+        for old_display in old_displays.iter() {
+            let new_display = displays.iter_mut().find(|d| d.id == old_display.id);
+            if let Some(mut new_display) = new_display {
+                new_display.grids = old_display.grids.clone();
+                new_display.focused_grid_id = old_display.focused_grid_id;
+                new_display.appbar = old_display.appbar.clone();
+            } else {
+                let primary = displays.iter_mut().find(|d| d.is_primary());
+                let primary = match primary {
+                    Some(p) => p,
+                    None => &mut displays[0]
+                };
+                if let Some(appbar) = &old_display.appbar {
+                    appbar.window.close();
+                }
+                primary.grids.append(&mut old_display.grids.clone());
+            }
+        }
+    } else {
+        for i in 1..11 {
+            let monitor = config
+                .workspaces
+                .iter()
+                .find(|s| s.id == i)
+                .map(|s| s.monitor)
+                .unwrap_or(-1);
 
-        let grid = TileGrid::new(i, renderer::NativeRenderer);
+            let grid = TileGrid::new(i, renderer::NativeRenderer);
 
-        if let Some(d) = displays.get_mut((monitor - 1) as usize) {
-            d.grids.push(grid);
-        } else {
-            for d in displays.iter_mut() {
-                if d.is_primary() {
-                    d.grids.push(grid);
-                    break;
+            if let Some(d) = displays.get_mut((monitor - 1) as usize) {
+                d.grids.push(grid);
+            } else {
+                for d in displays.iter_mut() {
+                    if d.is_primary() {
+                        d.grids.push(grid);
+                        break;
+                    }
                 }
             }
         }
     }
-
     displays
 
     // task_bar::update_task_bars();

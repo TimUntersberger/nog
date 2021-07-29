@@ -152,7 +152,7 @@ impl Default for AppState {
         Self {
             work_mode: true,
             lua_rt: LuaRuntime::new(),
-            displays: time!("initializing displays", display::init(&config)),
+            displays: time!("initializing displays", display::init(&config, None)),
             event_channel: EventChannel::default(),
             additonal_rules: Vec::new(),
             window_event_listener: WinEventListener::default(),
@@ -165,7 +165,7 @@ impl Default for AppState {
 impl AppState {
     pub fn init(&mut self, state_arc: Arc<Mutex<AppState>>) {
         self.work_mode = self.config.work_mode;
-        self.displays = display::init(&self.config);
+        self.displays = display::init(&self.config, None);
     }
 
     /// TODO: maybe rename this function
@@ -467,7 +467,7 @@ impl AppState {
     }
 
     pub fn create_app_bars(state_arc: Arc<Mutex<AppState>>) {
-        bar::create::create(state_arc.clone())
+        bar::create::create_or_update(state_arc.clone())
     }
 
     pub fn close_app_bars(state_arc: Arc<Mutex<AppState>>) {
@@ -476,6 +476,9 @@ impl AppState {
 
     pub fn enter_work_mode(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
         let mut this = state_arc.lock();
+        // Re-init the displays, we don't run an event loop when not in work
+        // mode, so something might have changed
+        this.displays = display::init(&this.config, Some(&this.displays));
         if this.config.remove_task_bar {
             info!("Hiding taskbar");
             this.hide_taskbars();
