@@ -82,7 +82,7 @@ pub fn get_display_dpi(id: DisplayId) -> u32 {
     let mut dpi_y: u32 = 0;
 
     unsafe {
-        GetDpiForMonitor(id.into(), MDT_RAW_DPI, &mut dpi_x, &mut dpi_y);
+        GetDpiForMonitor(id.into(), MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y);
     }
 
     dpi_x
