@@ -474,10 +474,8 @@ impl AppState {
         bar::close_all(state_arc.clone());
     }
 
-    pub fn enter_work_mode(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
+    pub fn reinit_displays(state_arc: Arc<Mutex<AppState>>) {
         let mut this = state_arc.lock();
-        // Re-init the displays, we don't run an event loop when not in work
-        // mode, so something might have changed
         this.displays = display::init(&this.config, Some(&this.displays));
         if this.config.remove_task_bar {
             info!("Hiding taskbar");
@@ -487,9 +485,41 @@ impl AppState {
         if this.config.display_app_bar {
             drop(this);
             Self::create_app_bars(state_arc.clone());
-            this = state_arc.lock();
+        }
+    }
+
+    pub fn handle_display_change(state_arc: Arc<Mutex<AppState>>)-> SystemResult {
+        if state_arc.lock().work_mode {
+            info!("Handle display change");
+            AppState::reinit_displays(state_arc.clone());
+            let mut state = state_arc.lock();
+            let grid_id = state.get_current_grid()
+                .map_or(None, |g| Some(g.id));
+
+            // Make sure the focused grid is visible on the display it was potentially moved to
+            state.get_current_display_mut().
+                focused_grid_id = grid_id;
+
+            state.redraw_app_bars();
+
+            for display in &state.displays {
+                if let Some(grid_id) = display.focused_grid_id {
+                    let grid = state.get_grid_by_id(grid_id);
+                    if let Some(grid) = grid {
+                        grid.draw_grid(&display, &state.config);
+                    }
+                }
+            }
         }
 
+        Ok(())
+    }
+
+    pub fn enter_work_mode(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
+        // Re-init the displays, because we don't handle display changes outside work mode,
+        // so something might have changed
+        Self::reinit_displays(state_arc.clone());
+        let mut this = state_arc.lock();
         let mut focused_workspaces = Vec::<i32>::new();
         let remove_title_bar = this.config.remove_title_bar;
         let use_border = this.config.use_border;
