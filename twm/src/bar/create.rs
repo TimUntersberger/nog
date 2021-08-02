@@ -176,21 +176,18 @@ pub fn create_or_update(state_arc: Arc<Mutex<AppState>>) {
 
         bar.window.create(state_arc.clone(), true, move |event| {
             match event {
-                WindowEvent::Native {
+                WindowEvent::AppBar {
                     msg, display_id, ..
                 } => {
                     //TODO: make this cleaner
                     #[cfg(target_os = "windows")]
                     {
                         use winapi::um::shellapi::ABN_FULLSCREENAPP;
-                        use winapi::um::winuser::WM_APP;
 
-                        if msg.code == WM_APP + 1 {
-                            if msg.params.0 == ABN_FULLSCREENAPP as usize {
-                                sender
-                                    .send(Event::ToggleAppbar(*display_id))
-                                    .expect("Failed to send ToggleAppbar event");
-                            }
+                        if msg.params.0 == ABN_FULLSCREENAPP as usize {
+                            sender
+                                .send(Event::ToggleAppbar(*display_id))
+                                .expect("Failed to send ToggleAppbar event");
                         }
                     }
                 }

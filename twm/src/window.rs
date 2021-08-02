@@ -42,7 +42,10 @@ use crate::{
 pub mod gwl_ex_style;
 pub mod gwl_style;
 
-const WM_IDENT: u32 = WM_APP + 80;
+enum AppMessage {
+    Ident = (WM_APP + 1) as isize,
+    AppBar,
+}
 
 #[derive(Debug, Copy, Clone)]
 pub struct WindowMsg {
@@ -59,7 +62,7 @@ unsafe extern "system" fn window_cb(
 ) -> LRESULT {
     if msg == WM_SETCURSOR {
         return 1;
-    } else if msg != WM_IDENT {
+    } else if msg != AppMessage::Ident as u32 {
         let payload = WindowMsg {
             code: msg,
             hwnd,
@@ -69,7 +72,7 @@ unsafe extern "system" fn window_cb(
         let ptr = Box::into_raw(Box::new(payload));
 
         //TODO: Does nothing when WM_CLOSE is sent
-        PostMessageA(hwnd, WM_IDENT, ptr as usize, 0);
+        PostMessageA(hwnd, AppMessage::Ident as u32, ptr as usize, 0);
     }
 
     DefWindowProcA(hwnd, msg, w_param, l_param)
@@ -221,6 +224,12 @@ pub enum WindowEvent {
         y: i32,
     },
     Native {
+        display_id: DisplayId,
+        window_id: WindowId,
+        state_arc: Arc<Mutex<AppState>>,
+        msg: WindowMsg,
+    },
+    AppBar {
         display_id: DisplayId,
         window_id: WindowId,
         state_arc: Arc<Mutex<AppState>>,
@@ -412,12 +421,11 @@ impl Window {
                 use winapi::um::shellapi::ABE_TOP;
                 use winapi::um::shellapi::ABM_NEW;
                 use winapi::um::shellapi::APPBARDATA;
-                use winapi::um::winuser::WM_APP;
 
                 let mut appbar_data = APPBARDATA {
                     cbSize: 4 + 4 + 4 + 4 + 16 + 4,
                     hWnd: hwnd,
-                    uCallbackMessage: WM_APP + 1,
+                    uCallbackMessage: AppMessage::AppBar as u32,
                     uEdge: ABE_TOP,
                     ..Default::default()
                 };
@@ -427,7 +435,7 @@ impl Window {
 
             message_loop::start(move |msg| {
                 if let Some(msg) = msg {
-                    if msg.message == WM_IDENT {
+                    if msg.message == AppMessage::Ident as u32 {
                         let window: NativeWindow = hwnd.into();
                         let display_id = fail_with!(window.get_display(), true).id;
                         let hdc = GetDC(hwnd);
@@ -508,6 +516,13 @@ impl Window {
                                 api,
                                 x: point.x - win_rect.left,
                                 y: point.y - win_rect.top,
+                            });
+                        } else if msg.code == AppMessage::AppBar as u32 {
+                            call_handler(&WindowEvent::AppBar {
+                                display_id,
+                                window_id: window.id,
+                                state_arc: state_arc.clone(),
+                                msg,
                             });
                         } else {
                             call_handler(&WindowEvent::Native {
