@@ -749,9 +749,9 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                     state.config.keybindings.remove(i);
                 }
             }
-            if let Some(kbm) = state.keybindings_manager.as_ref() {
-                kbm.unregister_keybinding_batch(kbs);
-            }
+            let tx = state.event_channel.sender.clone();
+            drop(state);
+            tx.send(Event::UpdateKeybindings);
             Ok(())
         });
 
@@ -770,9 +770,9 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                 .map(|(i, kb)| (i, kb.clone()))
             {
                 state_g.config.keybindings.remove(i);
-                if let Some(kbm) = state_g.keybindings_manager.as_ref() {
-                    kbm.unregister_keybinding(kb);
-                }
+                let tx = state_g.event_channel.sender.clone();
+                drop(state_g);
+                tx.send(Event::UpdateKeybindings);
             }
 
             Ok(())
@@ -794,9 +794,9 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             for kb in &kbs {
                 state.config.keybindings.push(kb.clone());
             }
-            if let Some(kbm) = state.keybindings_manager.as_ref() {
-                kbm.register_keybinding_batch(kbs);
-            }
+            let tx = state.event_channel.sender.clone();
+            drop(state);
+            tx.send(Event::UpdateKeybindings);
             Ok(())
         });
 
@@ -821,17 +821,10 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
 
             kb.callback_id = id;
             let mut state = state.lock();
-            match state.config.keybindings.iter_mut().find(|x| x.get_id() == kb.get_id()) {
-                Some(kb) => {
-                    kb.callback_id = id;
-                },
-                None => {
-                    state.config.keybindings.push(kb.clone());
-                    if let Some(kbm) = state.keybindings_manager.as_ref() {
-                        kbm.register_keybinding(kb);
-                    }
-                }
-            }
+            state.config.keybindings.push(kb.clone());
+            let tx = state.event_channel.sender.clone();
+            drop(state);
+            tx.send(Event::UpdateKeybindings);
             Ok(())
         });
 

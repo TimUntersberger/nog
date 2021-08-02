@@ -17,7 +17,7 @@ A rule can contain the following settings
 | Key                       | Value   | Description                                                                   |
 |---------------------------|---------|-------------------------------------------------------------------------------|
 | has_custom_titlebar       | Boolean | Changes how we align the window (applications like [vscode](https://code.visualstudio.com/) should have this enabled) |
-| ignore                    | Boolean | Tells nog to not manage this window |
+| action                    | String  | Tells nog what to do when the rule matches. Can be either ignore, validate or manage |
 | chromium                  | Boolean | Adds chromium specific handling (anything based on chromium like the new microsoft edge should have this enabled) |
 | firefox                   | Boolean | Adds firefx specific handling |
 | workspace_id              | Number  | Which workspace this window gets moved to |
