@@ -12,6 +12,7 @@ use crate::{
 };
 use std::cmp::Ordering;
 use task_bar::{Taskbar, TaskbarPosition};
+use log::info;
 
 #[derive(Default, Debug, Clone)]
 pub struct Display {
@@ -58,12 +59,15 @@ impl Display {
         let tb_height = self
             .taskbar
             .clone()
-            .map(|tb| match tb.get_position() {
-                // Should probably handle the error at some point instead of just unwraping
-                TaskbarPosition::Top | TaskbarPosition::Bottom => {
-                    tb.window.get_rect().unwrap().height()
-                }
-                _ => 0,
+            .and_then(|tb| {
+                tb.get_position()
+                .and_then(|tbp| match tbp {
+                    TaskbarPosition::Top | TaskbarPosition::Bottom => {
+                        tb.window.get_rect().map(|tbr| tbr.height())
+                    }
+                    _ => Ok(0),
+                })
+                .ok()
             })
             .unwrap_or(0);
 
@@ -79,12 +83,15 @@ impl Display {
         let tb_width = self
             .taskbar
             .clone()
-            .map(|tb| match tb.get_position() {
-                // Should probably handle the error at some point instead of just unwraping
-                TaskbarPosition::Left | TaskbarPosition::Right => {
-                    tb.window.get_rect().unwrap().width()
-                }
-                _ => 0,
+            .and_then(|tb| {
+                tb.get_position()
+                .and_then(|tbp| match tbp {
+                    TaskbarPosition::Left | TaskbarPosition::Right => {
+                        tb.window.get_rect().map(|tbr| tbr.width())
+                    }
+                    _ => Ok(0),
+                })
+                .ok()
             })
             .unwrap_or(0);
 
@@ -94,10 +101,13 @@ impl Display {
         let offset = self
             .taskbar
             .clone()
-            .map(|t| match t.get_position() {
-                // Should probably handle the error at some point instead of just unwraping
-                TaskbarPosition::Top => t.window.get_rect().unwrap().height(),
-                _ => 0,
+            .and_then(|tb| {
+                tb.get_position()
+                .and_then(|tbp| match tbp {
+                    TaskbarPosition::Top => tb.window.get_rect().map(|tbr| tbr.height()),
+                    _ => Ok(0),
+                })
+                .ok()
             })
             .unwrap_or(0);
 
@@ -113,10 +123,13 @@ impl Display {
         let offset = self
             .taskbar
             .clone()
-            .map(|t| match t.get_position() {
-                // Should probably handle the error at some point instead of just unwraping
-                TaskbarPosition::Left => t.window.get_rect().unwrap().width(),
-                _ => 0,
+            .and_then(|tb| {
+                tb.get_position()
+                .and_then(|tbp| match tbp {
+                    TaskbarPosition::Left => tb.window.get_rect().map(|tbr| tbr.width()),
+                    _ => Ok(0),
+                })
+                .ok()
             })
             .unwrap_or(0);
 
@@ -199,13 +212,16 @@ impl Display {
 
 pub fn init(config: &Config, old_displays: Option<&Vec<Display>>) -> Vec<Display> {
     let mut displays = api::get_displays();
+
     let taskbars = api::get_taskbars();
 
     for d in displays.iter_mut() {
         for tb in &taskbars {
-            let display = tb.window.get_display().unwrap();
-            if display.id == d.id {
-                d.taskbar = Some(tb.clone());
+            let display = tb.window.get_display();
+            if let Ok(display) = display {
+                if display.id == d.id {
+                    d.taskbar = Some(tb.clone());
+                }
             }
         }
     }
