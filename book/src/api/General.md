@@ -56,7 +56,7 @@ Scales the `color` by `factor`. Useful for creating different shades of a color.
 
 ## toggle_work_mode()
 
-Either leaves or enters [work mode](/getting-started/work_mode.html)
+Either leaves or enters [work mode](../getting-started/work_mode.html)
 
 ## inspect(value, [options])
 

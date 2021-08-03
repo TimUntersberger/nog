@@ -4,47 +4,27 @@
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
         <title>Workspace - Nog Documentation</title>
-        
-        
-
-
         <!-- Custom HTML head -->
-        
-
-
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff" />
 
-        
         <link rel="icon" href="../favicon.svg">
-        
-        
         <link rel="shortcut icon" href="../favicon.png">
-        
         <link rel="stylesheet" href="../css/variables.css">
         <link rel="stylesheet" href="../css/general.css">
         <link rel="stylesheet" href="../css/chrome.css">
-        
         <link rel="stylesheet" href="../css/print.css" media="print">
-        
-
         <!-- Fonts -->
         <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
-        
         <link rel="stylesheet" href="../fonts/fonts.css">
-        
-
         <!-- Highlight.js Stylesheets -->
         <link rel="stylesheet" href="../highlight.css">
         <link rel="stylesheet" href="../tomorrow-night.css">
         <link rel="stylesheet" href="../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        
-
-        
     </head>
     <body>
         <!-- Provide site root to javascript -->
@@ -103,7 +83,6 @@
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                
                 <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky bordered">
                     <div class="left-buttons">
@@ -120,33 +99,26 @@
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-                        
                         <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
-                        
                     </div>
 
                     <h1 class="menu-title">Nog Documentation</h1>
 
                     <div class="right-buttons">
-                        
                         <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
-                        
-                        
                         <a href="https://github.com/TimUntersberger/nog" title="Git repository" aria-label="Git repository">
                             <i id="git-repository-button" class="fa fa-github"></i>
                         </a>
-                        
                     </div>
                 </div>
 
-                
                 <div id="search-wrapper" class="hidden">
                     <form id="searchbar-outer" class="searchbar-outer">
-                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
                     </form>
                     <div id="searchresults-outer" class="searchresults-outer hidden">
                         <div id="searchresults-header" class="searchresults-header"></div>
@@ -154,8 +126,6 @@
                         </ul>
                     </div>
                 </div>
-                
-
                 <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
                 <script type="text/javascript">
                     document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
@@ -167,22 +137,22 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#workspace" id="workspace">Workspace</a></h1>
-<h2><a class="header" href="#get_active_ws_of_displaydisplay_id" id="get_active_ws_of_displaydisplay_id">get_active_ws_of_display(display_id)</a></h2>
+                        <h1 id="workspace"><a class="header" href="#workspace">Workspace</a></h1>
+<h2 id="get_active_ws_of_displaydisplay_id"><a class="header" href="#get_active_ws_of_displaydisplay_id">get_active_ws_of_display(display_id)</a></h2>
 <p>Returns an array of ids of active workspaces of the display with <code>display_id</code>. An &quot;active&quot; workspace is a workspace that is managing windows.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>display_id</code> [number] id of display</li>
 </ul>
 <p><strong>Return</strong>: [array] ids of active workspaces</p>
-<h2><a class="header" href="#is_ws_focusedws_id" id="is_ws_focusedws_id">is_ws_focused(ws_id)</a></h2>
+<h2 id="is_ws_focusedws_id"><a class="header" href="#is_ws_focusedws_id">is_ws_focused(ws_id)</a></h2>
 <p>Checks if the workspace with the <code>ws_id</code> is focused.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>ws_id</code> [number] id of workspace</li>
 </ul>
 <p><strong>Return</strong>: [boolean] whether the workspace is focused</p>
-<h2><a class="header" href="#get_ws_infows_id" id="get_ws_infows_id">get_ws_info(ws_id)</a></h2>
+<h2 id="get_ws_infows_id"><a class="header" href="#get_ws_infows_id">get_ws_info(ws_id)</a></h2>
 <p>Returns a table with various information about the workspace with the <code>ws_id</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -196,41 +166,41 @@
 <li><code>split_direction</code> in which direction a new window gets managed (<code>&quot;Vertical&quot;</code> or <code>&quot;Horizontal&quot;</code>)</li>
 <li><code>windows</code> a list of window ids that are inside the workspace</li>
 </ul>
-<h2><a class="header" href="#get_current_ws" id="get_current_ws">get_current_ws()</a></h2>
+<h2 id="get_current_ws"><a class="header" href="#get_current_ws">get_current_ws()</a></h2>
 <p>Returns the id of the currently focused workspace.</p>
 <p><strong>Return</strong>: [number] id of workspace</p>
-<h2><a class="header" href="#get_ws_textws_id" id="get_ws_textws_id">get_ws_text(ws_id)</a></h2>
+<h2 id="get_ws_textws_id"><a class="header" href="#get_ws_textws_id">get_ws_text(ws_id)</a></h2>
 <p>Returns the display text of the workspace with the <code>ws_id</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>ws_id</code> [number] id of workspace</li>
 </ul>
 <p><strong>Return</strong>: [string] display text of workspace</p>
-<h2><a class="header" href="#ws_toggle_fullscreen" id="ws_toggle_fullscreen">ws_toggle_fullscreen()</a></h2>
-<p>Toggles the <a href="/getting-started/fullscreen_mode.html">fullscreen mode</a> of the current workspace.</p>
-<h2><a class="header" href="#ws_reset_row" id="ws_reset_row">ws_reset_row()</a></h2>
+<h2 id="ws_toggle_fullscreen"><a class="header" href="#ws_toggle_fullscreen">ws_toggle_fullscreen()</a></h2>
+<p>Toggles the <a href="../getting-started/fullscreen_mode.html">fullscreen mode</a> of the current workspace.</p>
+<h2 id="ws_reset_row"><a class="header" href="#ws_reset_row">ws_reset_row()</a></h2>
 <p>Resets any resizing done on the current row.</p>
-<h2><a class="header" href="#ws_reset_col" id="ws_reset_col">ws_reset_col()</a></h2>
+<h2 id="ws_reset_col"><a class="header" href="#ws_reset_col">ws_reset_col()</a></h2>
 <p>Resets any resizing done on the current column.</p>
-<h2><a class="header" href="#ws_move_to_monitordisplay_id" id="ws_move_to_monitordisplay_id">ws_move_to_monitor(display_id)</a></h2>
+<h2 id="ws_move_to_monitordisplay_id"><a class="header" href="#ws_move_to_monitordisplay_id">ws_move_to_monitor(display_id)</a></h2>
 <p>Moves the current workspace to the display with the <code>display_id</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>display_id</code> [number] id of display</li>
 </ul>
-<h2><a class="header" href="#ws_replacews_id" id="ws_replacews_id">ws_replace(ws_id)</a></h2>
+<h2 id="ws_replacews_id"><a class="header" href="#ws_replacews_id">ws_replace(ws_id)</a></h2>
 <p>Empties the workspace with the <code>ws_id</code> and moves the content of the current workspace into the given one.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>ws_id</code> [number] id of workspace</li>
 </ul>
-<h2><a class="header" href="#ws_changews_id" id="ws_changews_id">ws_change(ws_id)</a></h2>
+<h2 id="ws_changews_id"><a class="header" href="#ws_changews_id">ws_change(ws_id)</a></h2>
 <p>Changes the focus from the current workspace to the workspace with the <code>ws_id</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
 <li><code>ws_id</code> [number] id of workspace</li>
 </ul>
-<h2><a class="header" href="#ws_focusdirection" id="ws_focusdirection">ws_focus(direction)</a></h2>
+<h2 id="ws_focusdirection"><a class="header" href="#ws_focusdirection">ws_focus(direction)</a></h2>
 <p>Changes the focus from the current window to the next window in the <code>direction</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -243,7 +213,7 @@
 </ul>
 </li>
 </ul>
-<h2><a class="header" href="#ws_resizedirection" id="ws_resizedirection">ws_resize(direction)</a></h2>
+<h2 id="ws_resizedirection"><a class="header" href="#ws_resizedirection">ws_resize(direction)</a></h2>
 <p>Resizes either the row or the column by the given <code>amount</code> depending on the given <code>direction</code>.</p>
 <p>Left | Right -&gt; Column</p>
 <p>Up | Down -&gt; Row</p>
@@ -259,7 +229,7 @@
 </li>
 <li><code>amount</code> [number] by how much to resize</li>
 </ul>
-<h2><a class="header" href="#ws_swapdirection" id="ws_swapdirection">ws_swap(direction)</a></h2>
+<h2 id="ws_swapdirection"><a class="header" href="#ws_swapdirection">ws_swap(direction)</a></h2>
 <p>Swaps the position of the current window with the next window in the <code>direction</code>.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -272,9 +242,9 @@
 </ul>
 </li>
 </ul>
-<h2><a class="header" href="#ws_swap_columns_and_rows" id="ws_swap_columns_and_rows">ws_swap_columns_and_rows()</a></h2>
+<h2 id="ws_swap_columns_and_rows"><a class="header" href="#ws_swap_columns_and_rows">ws_swap_columns_and_rows()</a></h2>
 <p>Turns all columns in the current workspace into rows and all rows into columns</p>
-<h2><a class="header" href="#ws_set_split_directiondirection" id="ws_set_split_directiondirection">ws_set_split_direction(direction)</a></h2>
+<h2 id="ws_set_split_directiondirection"><a class="header" href="#ws_set_split_directiondirection">ws_set_split_direction(direction)</a></h2>
 <p>Sets the split direction of the current workspace.</p>
 <p><strong>Arguments</strong>:</p>
 <ul>
@@ -285,7 +255,7 @@
 </ul>
 </li>
 </ul>
-<h2><a class="header" href="#ws_move_indirection" id="ws_move_indirection">ws_move_in(direction)</a></h2>
+<h2 id="ws_move_indirection"><a class="header" href="#ws_move_indirection">ws_move_in(direction)</a></h2>
 <p>Moves the current window into the adjacent row/column/window found in the given <code>direction</code>.</p>
 <ul>
 <li>If the adjecent item is a row or column, this simply moves the window to the end of the row or column. </li>
@@ -303,7 +273,7 @@ whichever is the opposite of the current window's parent, and appends the window
 </ul>
 </li>
 </ul>
-<h2><a class="header" href="#ws_move_outdirection" id="ws_move_outdirection">ws_move_out(direction)</a></h2>
+<h2 id="ws_move_outdirection"><a class="header" href="#ws_move_outdirection">ws_move_out(direction)</a></h2>
 <p>Moves the current window out of a row/column in the given <code>direction</code>. 
 The behavior of this movement is essentially moving the current window so that it is a sibling of its parent and introducing a new parent node that is the opposite type of the previous parent if necessary.</p>
 <p><strong>Arguments</strong>:</p>
@@ -322,67 +292,38 @@ The behavior of this movement is essentially moving the current window so that i
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                        
                             <a rel="prev" href="../api/Window.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
-                        
-
-                        
                             <a rel="next" href="../api/Plugin.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
-                        
-
                         <div style="clear: both"></div>
                     </nav>
                 </div>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                
                     <a rel="prev" href="../api/Window.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
-                
-
-                
                     <a rel="next" href="../api/Plugin.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
-                
             </nav>
 
         </div>
 
-        
-
-        
-
-        
-
-        
         <script type="text/javascript">
             window.playground_copyable = true;
         </script>
-        
-
-        
-
-        
         <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
-        
-
         <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
         <script src="../book.js" type="text/javascript" charset="utf-8"></script>
 
         <!-- Custom JS scripts -->
-        
-
-        
-
     </body>
 </html>

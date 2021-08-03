@@ -23,5 +23,5 @@ Now to toggle a mode all you have to do is call `nog.toggle_mode`
 nog.toggle_mode("my mode")
 ```
 
-When entering a mode nog will unbind all [normal](/configuration/keybindings.html) keybindings and execute the provided `cb`.
+When entering a mode nog will unbind all [normal](../configuration/keybindings.html) keybindings and execute the provided `cb`.
 Leaving a mode will cause nog to unbind all normal keybindings again and afterwards rebind all normal keybindings that were defined previously.

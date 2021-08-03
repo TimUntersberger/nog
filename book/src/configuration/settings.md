@@ -10,7 +10,7 @@ Below you can find a list of settings you can change and their description:
 | outer_gap                 | Number  | The margin between workspace and the display                                  |
 | launch_on_startup         | Boolean | Start when you start your computer                                            |
 | multi_monitor             | Boolean | Use all monitors                                                              |
-| work_mode                 | Boolean | Start in [work mode](/getting-started/work_mode.html)                         |
+| work_mode                 | Boolean | Start in [work mode](../getting-started/work_mode.html)                         |
 | use_border                | Boolean | Force managed windows to draw a border. (This can help clarity)               |
 | light_theme               | Boolean | Changes how the bar colors get generated to fit light colors                  |
 | display_app_bar           | Boolean | Enable the bar                                                                |

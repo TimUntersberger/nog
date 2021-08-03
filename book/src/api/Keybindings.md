@@ -13,7 +13,7 @@ Registers a new keybinding.
 * `cb` [function] the function that gets called on keybinding activation
 
 **See Also**:
-* [configuring keybindings](/configuration/keybindings.html)
+* [configuring keybindings](../configuration/keybindings.html)
 
 ## nbind(key, cb)
 
@@ -24,7 +24,7 @@ Registers a new keybinding in `normal` mode.
 * `cb` [function] the function that gets called on keybinding activation
 
 **See Also**:
-* [configuring keybindings](/configuration/keybindings.html)
+* [configuring keybindings](../configuration/keybindings.html)
 
 ## gbind(key, cb)
 
@@ -35,7 +35,7 @@ Registers a new keybinding in `global` mode.
 * `cb` [function] the function that gets called on keybinding activation
 
 **See Also**:
-* [configuring keybindings](/configuration/keybindings.html)
+* [configuring keybindings](../configuration/keybindings.html)
 
 ## wbind(key, cb)
 
@@ -46,7 +46,7 @@ Registers a new keybinding in `work` mode.
 * `cb` [function] the function that gets called on keybinding activation
 
 **See Also**:
-* [configuring keybindings](/configuration/keybindings.html)
+* [configuring keybindings](../configuration/keybindings.html)
 
 ## nbind_tbl(modifiers, cb, tbl)
 
@@ -89,4 +89,4 @@ Unregisters the keybinding that has the given `key`.
 * `key` [string] the key combination that activates this binding
 
 **See Also**:
-* [configuring keybindings](/configuration/keybindings.html)
+* [configuring keybindings](../configuration/keybindings.html)

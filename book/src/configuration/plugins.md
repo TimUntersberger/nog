@@ -1,6 +1,6 @@
 # Plugins
 
-The plugins live the in the `plugins` folder located next to the `config` ([ref](/configuration/introduction.md)).
+The plugins live the in the `plugins` folder located next to the `config` ([ref](../configuration/introduction.md)).
 
 You can install plugins either manually or using the provided API. Manually installing plugins is as 
 easy as cloning a valid plugin into the `plugins` folder. This works because nog uses this folder as the plugins index.

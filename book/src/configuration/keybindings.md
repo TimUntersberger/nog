@@ -6,9 +6,9 @@ Nog keybindings can be of three different kinds:
 * Work (w)
 * Global (g)
 
-`Normal` keybindings are only active while being inside [work mode](/getting-started/work_mode.html) **and** inside the current [mode](/configuration/modes.html) (or while not in any mode).
+`Normal` keybindings are only active while being inside [work mode](../getting-started/work_mode.html) **and** inside the current [mode](../configuration/modes.html) (or while not in any mode).
 
-`Work` keybindings are only active while being inside [work mode](/getting-started/work_mode.html).
+`Work` keybindings are only active while being inside [work mode](../getting-started/work_mode.html).
 
 `Global` keybindings are always active as long as nog is running.
 

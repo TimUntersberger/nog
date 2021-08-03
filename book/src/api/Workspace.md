@@ -49,7 +49,7 @@ Returns the display text of the workspace with the `ws_id`.
 
 ## ws_toggle_fullscreen()
 
-Toggles the [fullscreen mode](/getting-started/fullscreen_mode.html) of the current workspace.
+Toggles the [fullscreen mode](../getting-started/fullscreen_mode.html) of the current workspace.
 
 ## ws_reset_row()
 

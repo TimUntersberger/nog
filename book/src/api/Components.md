@@ -19,7 +19,7 @@ The workspace that has focus is highlighted.
 Creates a component that displays the current datetime formatted with the `pattern`.
 
 **Arguments**:
-* `pattern` [string] a pattern for [fmt_datetime](/api/general#fmt-datetime)
+* `pattern` [string] a pattern for [fmt_datetime](../api/general#fmt-datetime)
 
 **Return**: [Component](#component)
 
@@ -58,7 +58,7 @@ Creates a component that displays either the first item of `values` or the last 
 
 ## fullscreen_indicator(indicator)
 
-Creates a component that displays either nothing or the `indicator` if the workspace is in [fullscreen mode](/getting-started/fullscreen-mode).
+Creates a component that displays either nothing or the `indicator` if the workspace is in [fullscreen mode](../getting-started/fullscreen-mode).
 
 **Arguments**:
 * `indicator` [string] the text to display

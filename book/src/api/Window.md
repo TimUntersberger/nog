@@ -39,7 +39,7 @@ Closes the currently focused window.
 
 ## win_toggle_floating()
 
- Toggles [floating mode](/getting-started/floating_mode.html) of the currently focused window.
+ Toggles [floating mode](../getting-started/floating_mode.html) of the currently focused window.
 
 ## win_move_to_ws(ws_id)
 
