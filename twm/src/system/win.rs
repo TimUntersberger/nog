@@ -376,6 +376,9 @@ impl Window {
     }
     pub fn focus(&self) -> SystemResult {
         unsafe {
+            // Send a fake keyboard event to let windows think that we received
+            // the last input. Otherwise SetForegroundWindow will fail.
+            keybd_event(0, 0, 0, 0);
             bool_to_result(SetForegroundWindow(self.id.into()))
                 .map(|_| {})
                 .map_err(SystemError::FocusWindow)
