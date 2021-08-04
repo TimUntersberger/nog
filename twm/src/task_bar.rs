@@ -1,4 +1,5 @@
 use crate::system::NativeWindow;
+use crate::system::win::WinResult;
 
 #[derive(Debug, Clone, Copy)]
 pub enum TaskbarPosition {
@@ -29,37 +30,35 @@ impl Taskbar {
         }
     }
 
-    pub fn get_position(&self) -> TaskbarPosition {
+    pub fn get_position(&self) -> WinResult<TaskbarPosition> {
         let tb_rect = self
             .window
-            .get_rect()
-            .expect("Failed to get rect of taskbar window");
+            .get_rect()?;
 
         let display_rect = self
             .window
-            .get_display()
-            .expect("Failed to get display of taskbar")
+            .get_display()?
             .rect;
 
         if self.window.is_hidden() {
-            TaskbarPosition::Hidden
+            Ok(TaskbarPosition::Hidden)
         } else if tb_rect.left == display_rect.left
             && tb_rect.top == display_rect.top
             && tb_rect.bottom == display_rect.bottom
         {
-            TaskbarPosition::Left
+            Ok(TaskbarPosition::Left)
         } else if tb_rect.right == display_rect.right
             && tb_rect.top == display_rect.top
             && tb_rect.bottom == display_rect.bottom
         {
-            TaskbarPosition::Right
+            Ok(TaskbarPosition::Right)
         } else if tb_rect.left == display_rect.left
             && tb_rect.top == display_rect.top
             && tb_rect.right == display_rect.right
         {
-            TaskbarPosition::Top
+            Ok(TaskbarPosition::Top)
         } else {
-            TaskbarPosition::Bottom
+            Ok(TaskbarPosition::Bottom)
         }
     }
 }

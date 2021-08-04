@@ -32,6 +32,7 @@ enum WindowCommand {
     Created = (WM_APP + 1) as isize,
     InputChanged,
     LostFocus,
+    AppBar,
 }
 
 unsafe extern "system" fn window_cb(

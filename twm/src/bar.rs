@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{system::DisplayId, window::Window, AppState};
 use item::Item;
-use crate::{SystemResult, SystemError};
+use crate::{SystemResult, SystemError, util};
 use item_section::ItemSection;
 use parking_lot::Mutex;
 
@@ -49,14 +49,10 @@ impl Bar {
     
     pub fn change_height(&self, height: i32) -> SystemResult {
         let nwin = self.window.get_native_window();
+        let display = nwin.get_display().unwrap();
         let mut rect = nwin.get_rect()?;
-
-        if rect.top == 0 {
-            rect.bottom = height;
-        } else {
-            rect.top = rect.bottom - height;
-        }
-
+        let height = util::points_to_pixels(height, &display);
+        rect.bottom = rect.top + height;
         nwin.set_window_pos(rect, None, None).map_err(|e| SystemError::Unknown(e))
     }
 }

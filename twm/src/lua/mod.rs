@@ -467,7 +467,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                             }
 
                             if new {
-                                for d in crate::display::init(&state.config) {
+                                for d in crate::display::init(&state.config, None) {
                                     if !d.is_primary() {
                                         state.displays.push(d);
                                     }
@@ -543,6 +543,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                                     bar.change_height(new)?;
                                 }
                             }
+                            state.redraw();
                         }
                         Ok(())
                     }),

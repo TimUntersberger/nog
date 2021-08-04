@@ -1,3 +1,6 @@
+use crate::Display;
+use num_traits::{PrimInt, AsPrimitive, FromPrimitive, signum};
+
 pub fn bytes_to_string(buffer: &[i8]) -> String {
     buffer
         .iter()
@@ -28,4 +31,14 @@ pub fn scale_color(color: i32, factor: f64) -> i32 {
     blue = (blue as f64 * factor).round() as i32;
 
     rgb_to_hex((red, green, blue))
+}
+
+pub fn points_to_pixels<T: PrimInt + AsPrimitive<i64> + FromPrimitive>(points: T, display: &Display) -> T {
+    let signed_p: i64 = points.as_();
+    let unsigned_p = signed_p.abs() as u64;
+    const points_per_inch: u64 = 72;
+    let dpi = display.dpi as u64;
+    // Note the (points_per_inch << 1) rounds the result to the nearest integer
+    let res = ((unsigned_p * dpi + (points_per_inch << 1)) / points_per_inch) as i64;
+    FromPrimitive::from_i64(res * signum(signed_p)).unwrap()
 }

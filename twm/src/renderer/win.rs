@@ -20,76 +20,35 @@ impl Renderer for WinRenderer {
         width: i32,
         height: i32,
     ) -> SystemResult {
-        let rule = window.rule.clone().unwrap_or_default();
+        {
+            let mut rect = RECT {
+                left: x,
+                right: x + width,
+                top: y,
+                bottom: y + height,
+            };
 
-        let mut left = x;
-        let mut right = x + width;
-        let mut top = y;
-        let mut bottom = y + height;
+            let window_display = window.get_display()?;
 
-        unsafe {
-            let border_width = GetSystemMetricsForDpi(SM_CXFRAME, display.dpi);
-            let border_height = GetSystemMetricsForDpi(SM_CYFRAME, display.dpi);
-
-            if rule.chromium || rule.firefox || !config.remove_title_bar {
-                let caption_height = GetSystemMetricsForDpi(SM_CYCAPTION, display.dpi);
-                top += caption_height;
-            } else {
-                top -= border_height * 2;
-
-                if config.use_border {
-                    left += 1;
-                    right -= 1;
-                    top += 1;
-                    bottom -= 1;
-                }
+            // If the display dpi is different, then first position the window on the correct display.
+            // Otherwise the extended rect calculations below will not be correct
+            if (display.dpi != window_display.dpi) {
+                window.set_window_pos(rect.into(), None, Some(SWP_NOSENDCHANGING))?
             }
 
-            if rule.firefox
-                || rule.chromium
-                || (!config.remove_title_bar && rule.has_custom_titlebar)
-            {
-                if rule.firefox {
-                    left -= (border_width as f32 * 1.5) as i32;
-                    right += (border_width as f32 * 1.5) as i32;
-                    bottom += (border_height as f32 * 1.5) as i32;
-                } else if rule.chromium {
-                    top -= border_height / 2;
-                    left -= border_width * 2;
-                    right += border_width * 2;
-                    bottom += border_height * 2;
-                }
-                left += border_width * 2;
-                right -= border_width * 2;
-                top += border_height * 2;
-                bottom -= border_height * 2;
-            } else {
-                top += border_height * 2;
-            }
-        }
+            // Windows adds an invisible border around the windows, so we need to take that into
+            // account when positioning the windows
+            let window_rect = window.get_rect()?;
+            let frame_rect = window.get_extended_rect()?;
+            let left_margin = frame_rect.left - window_rect.left;
+            let right_margin = frame_rect.right - window_rect.right;
+            let bottom_margin = frame_rect.bottom - window_rect.bottom;
+            rect.left -= left_margin;
+            rect.right -= right_margin;
+            rect.bottom -= bottom_margin;
 
-        let mut rect = RECT {
-            left,
-            right,
-            top,
-            bottom,
-        };
-
-        // println!("before {}", rect_to_string(rect));
-
-        unsafe {
-            AdjustWindowRectEx(
-                &mut rect,
-                window.style.bits() as u32,
-                0,
-                window.exstyle.bits() as u32,
-            );
-        }
-
-        // println!("after {}", rect_to_string(rect));
-
-        window
-            .set_window_pos(rect.into(), None, Some(SWP_NOSENDCHANGING))
-            .map_err(SystemError::DrawTile)
+            window
+                .set_window_pos(rect.into(), None, Some(SWP_NOSENDCHANGING))
+        }.map_err(SystemError::DrawTile)
     }
 }

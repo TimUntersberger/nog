@@ -33,6 +33,9 @@ use winapi::{
     um::winuser::WM_COMMAND,
     um::winuser::WM_INITMENUPOPUP,
     um::winuser::WM_RBUTTONUP,
+    um::winuser::WM_DISPLAYCHANGE,
+    um::winuser::WM_DPICHANGED,
+    um::shellapi::ABN_POSCHANGED,
 };
 
 pub static WINDOW: Mutex<Option<Window>> = Mutex::new(None);
@@ -55,7 +58,7 @@ pub fn create(state: Arc<Mutex<AppState>>) {
 
     drop(state);
 
-    window.create(state_arc, false, move |event| {
+    window.create(state_arc.clone(), false, move |event| {
         match event {
             WindowEvent::Create { window_id, .. } => {
                 add_icon(window_id.to_owned().into());
@@ -84,6 +87,15 @@ pub fn create(state: Arc<Mutex<AppState>>) {
                         show_popup_menu(msg.hwnd);
                         PostMessageW(msg.hwnd, WM_APP + 1, 0, 0);
                     }
+                } else if
+                    msg.code == WM_DISPLAYCHANGE || msg.code == WM_DPICHANGED {
+                        AppState::handle_display_change(state_arc.clone())?;
+                }
+            }
+            WindowEvent::AppBar {msg, .. } => {
+                 // Taskbar position or size changed
+                if msg.params.0 == ABN_POSCHANGED as usize {
+                    AppState::handle_display_change(state_arc.clone())?;
                 }
             }
             _ => {}

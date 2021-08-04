@@ -30,7 +30,6 @@ use task_bar::Taskbar;
 use tile_grid::{store::Store, TileGrid};
 use win_event_handler::{win_event::WinEvent, win_event_type::WinEventType};
 use window::Window;
-
 pub const NOG_BAR_NAME: &'static str = "nog_bar";
 pub const NOG_POPUP_NAME: &'static str = "nog_popup";
 
@@ -153,7 +152,7 @@ impl Default for AppState {
         Self {
             work_mode: true,
             lua_rt: LuaRuntime::new(),
-            displays: time!("initializing displays", display::init(&config)),
+            displays: time!("initializing displays", display::init(&config, None)),
             event_channel: EventChannel::default(),
             additonal_rules: Vec::new(),
             window_event_listener: WinEventListener::default(),
@@ -166,7 +165,7 @@ impl Default for AppState {
 impl AppState {
     pub fn init(&mut self, state_arc: Arc<Mutex<AppState>>) {
         self.work_mode = self.config.work_mode;
-        self.displays = display::init(&self.config);
+        self.displays = display::init(&self.config, None);
     }
 
     /// TODO: maybe rename this function
@@ -468,15 +467,16 @@ impl AppState {
     }
 
     pub fn create_app_bars(state_arc: Arc<Mutex<AppState>>) {
-        bar::create::create(state_arc.clone())
+        bar::create::create_or_update(state_arc.clone())
     }
 
     pub fn close_app_bars(state_arc: Arc<Mutex<AppState>>) {
         bar::close_all(state_arc.clone());
     }
 
-    pub fn enter_work_mode(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
+    pub fn reinit_displays(state_arc: Arc<Mutex<AppState>>) {
         let mut this = state_arc.lock();
+        this.displays = display::init(&this.config, Some(&this.displays));
         if this.config.remove_task_bar {
             info!("Hiding taskbar");
             this.hide_taskbars();
@@ -485,9 +485,41 @@ impl AppState {
         if this.config.display_app_bar {
             drop(this);
             Self::create_app_bars(state_arc.clone());
-            this = state_arc.lock();
+        }
+    }
+
+    pub fn handle_display_change(state_arc: Arc<Mutex<AppState>>)-> SystemResult {
+        if state_arc.lock().work_mode {
+            info!("Handle display change");
+            AppState::reinit_displays(state_arc.clone());
+            let mut state = state_arc.lock();
+            let grid_id = state.get_current_grid()
+                .map_or(None, |g| Some(g.id));
+
+            // Make sure the focused grid is visible on the display it was potentially moved to
+            state.get_current_display_mut().
+                focused_grid_id = grid_id;
+
+            state.redraw_app_bars();
+
+            for display in &state.displays {
+                if let Some(grid_id) = display.focused_grid_id {
+                    let grid = state.get_grid_by_id(grid_id);
+                    if let Some(grid) = grid {
+                        grid.draw_grid(&display, &state.config);
+                    }
+                }
+            }
         }
 
+        Ok(())
+    }
+
+    pub fn enter_work_mode(state_arc: Arc<Mutex<AppState>>) -> SystemResult {
+        // Re-init the displays, because we don't handle display changes outside work mode,
+        // so something might have changed
+        Self::reinit_displays(state_arc.clone());
+        let mut this = state_arc.lock();
         let mut focused_workspaces = Vec::<i32>::new();
         let remove_title_bar = this.config.remove_title_bar;
         let use_border = this.config.use_border;
@@ -1173,6 +1205,8 @@ fn run_config(rt: &LuaRuntime) {
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
     logging::setup().expect("Failed to setup logging");
+
+    crate::system::api::enable_high_dpi().expect("Failed to enable high dpi mode");
 
     info!("Config: {:?}", get_config_path());
     info!("Runtime: {:?}", get_runtime_path());

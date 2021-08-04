@@ -5,9 +5,10 @@ use crate::{
 use log::{debug, error};
 use thiserror::Error;
 use winapi::{
-    shared::{minwindef::*, windef::*},
-    um::{errhandlingapi::*, psapi::*, winnt::*, winuser::*, *},
+    shared::{minwindef::*, windef::*, winerror::*, winerror::HRESULT},
+    um::{errhandlingapi::*, psapi::*, winnt::*, winuser::*, dwmapi::*, *},
 };
+use std::mem;
 
 pub mod api;
 pub mod menu;
@@ -63,6 +64,8 @@ pub enum WinError {
     Null,
     #[error("Winapi return value is false")]
     Bool,
+    #[error("Winapi failed")]
+    Failed,
 }
 
 pub type WinResult<T = ()> = Result<T, WinError>;
@@ -107,6 +110,15 @@ fn nullable_to_result<T: PartialEq<i32>>(v: T) -> WinResult<T> {
 
 fn lresult_to_result(v: LRESULT) -> WinResult<LRESULT> {
     Ok(v)
+}
+
+fn hresult_to_result(v: HRESULT) -> WinResult
+{
+    if (FAILED(v)) {
+        Err(WinError::Failed)
+    } else {
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -246,6 +258,19 @@ impl Window {
             nullable_to_result(GetWindowRect(self.id.into(), &mut temp)).map(|_| temp.into())
         }
     }
+    pub fn get_extended_rect(&self) -> WinResult<Rectangle> {
+        unsafe {
+            let mut frame_rect: RECT = mem::zeroed();
+            hresult_to_result(DwmGetWindowAttribute(
+                    self.id.into(),
+                    DWMWA_EXTENDED_FRAME_BOUNDS,
+                    &mut frame_rect as *mut _ as LPVOID,
+                    mem::size_of::<RECT>() as DWORD
+                ))
+                .map(|_| frame_rect.into())
+        }
+    }
+
     pub fn is_window(&self) -> bool {
         unsafe { IsWindow(self.id.into()) != 0 }
     }
@@ -278,17 +303,23 @@ impl Window {
         order: Option<HWND>,
         flags: Option<u32>,
     ) -> WinResult {
-        unsafe {
-            bool_to_result(SetWindowPos(
-                self.id.into(),
-                order.unwrap_or(std::ptr::null_mut()),
-                rect.left,
-                rect.top,
-                rect.right - rect.left,
-                rect.bottom - rect.top,
-                flags.unwrap_or_default(),
-            ))
-        }
+        let set_window_pos = || {
+            unsafe {
+                bool_to_result(SetWindowPos(
+                    self.id.into(),
+                    order.unwrap_or(std::ptr::null_mut()),
+                    rect.left,
+                    rect.top,
+                    rect.right - rect.left,
+                    rect.bottom - rect.top,
+                    flags.unwrap_or_default()
+                ))
+            }
+        };
+        // When moving windows from one monitor to another with a different DPI
+        // the size becomes wrong. So set the position twice.
+        set_window_pos()?;
+        set_window_pos()
     }
     fn reset_pos(&self) -> WinResult {
         self.set_window_pos(self.original_rect, None, None)

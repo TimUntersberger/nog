@@ -14,10 +14,10 @@ use crate::{
 use log::{debug, error};
 use regex::Regex;
 use winapi::{
-    shared::{minwindef::*, windef::*},
+    shared::{minwindef::*, windef::*, winerror::*},
     um::{
         errhandlingapi::*, processthreadsapi::*, shellscalingapi::*, winbase::*, winnt::*,
-        winreg::*, winuser::*,
+        winreg::*, winuser::*, shellscalingapi::*,
     },
 };
 
@@ -82,7 +82,7 @@ pub fn get_display_dpi(id: DisplayId) -> u32 {
     let mut dpi_y: u32 = 0;
 
     unsafe {
-        GetDpiForMonitor(id.into(), MDT_RAW_DPI, &mut dpi_x, &mut dpi_y);
+        GetDpiForMonitor(id.into(), MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y);
     }
 
     dpi_x
@@ -257,5 +257,16 @@ pub fn launch_program(cmd: String) -> SystemResult {
         } else {
             Ok(())
         }
+    }
+}
+
+pub fn enable_high_dpi() -> SystemResult {
+    let res = unsafe { 
+        SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE)
+    };
+    if (SUCCEEDED(res)) {
+        Ok(())
+    } else {
+        Err(SystemError::DpiScaling())
     }
 }
