@@ -266,9 +266,13 @@ impl Pinned {
     }
 
     pub fn remove(&mut self, window_id: &i32) -> Option<NativeWindow> {
-        for container in self.containers.iter_mut() {
+        for (container_id, container) in self.containers.iter_mut().enumerate() {
             if container.contains(window_id) {
-                return container.remove(window_id);
+                let window = container.remove(window_id);
+
+                self.store(Some(container_id as i32));
+
+                return window;
             }
         }
 

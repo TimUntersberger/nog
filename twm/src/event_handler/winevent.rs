@@ -14,6 +14,7 @@ pub fn handle(state: &mut AppState, ev: WinEvent) -> SystemResult {
     let mut title: Option<String> = None;
     let mut grid_id: Option<i32> = None;
 
+    // checking tiled of each grid
     for grid in grids.iter() {
         if let Some(window) = grid.get_window(ev.window.id) {
             title = Some(window.title.clone());
@@ -22,6 +23,7 @@ pub fn handle(state: &mut AppState, ev: WinEvent) -> SystemResult {
         }
     }
 
+    // checking pinned of each grid
     grids.iter()
          .map(|g| g.id)
          .collect::<Vec::<_>>()
@@ -33,9 +35,13 @@ pub fn handle(state: &mut AppState, ev: WinEvent) -> SystemResult {
             }
          });
 
+    // checking global pinned
+    if let Some(window) = state.pinned.get(&ev.window.id.into(), None) {
+        title = Some(window.title.clone());
+    }
+
     // window is not already managed and the event isn't `Show`
-    if title.is_none() && ev.typ != WinEventType::Show(false) && ev.typ != WinEventType::Show(true)
-    {
+    if title.is_none() && ev.typ != WinEventType::Show(false) && ev.typ != WinEventType::Show(true) {
         return Ok(());
     }
 
