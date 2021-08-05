@@ -625,12 +625,25 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             move |lua, display_id: Value| {
                 validate!(lua, { display_id: i32 });
                 let state_g = state.lock();
-                let grids = state_g
-                    .get_display_by_id(DisplayId(display_id))
-                    .unwrap()
-                    .get_active_grids();
+                let display = state_g.get_display_by_id(DisplayId(display_id))
+                                     .unwrap();
 
-                Ok(grids.iter().map(|g| g.id).collect::<Vec<_>>())
+                let display_grid_ids = display.grids
+                                              .iter()
+                                              .map(|g| g.id)
+                                              .collect::<Vec<_>>();
+                let mut grids = display.get_active_grids()
+                                       .iter()
+                                       .map(|g| g.id)
+                                       .collect::<Vec<_>>();
+                grids.extend(state_g.pinned
+                                    .get_active_workspaces()
+                                    .iter()
+                                    .filter(|id| display_grid_ids.contains(id)));
+                grids.sort();
+                grids.dedup();
+
+                Ok(grids)
             }
         );
 
@@ -649,6 +662,19 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
         def_fn!(lua, nog_tbl, "toggle_work_mode", move |_, (): ()| {
             AppState::toggle_work_mode(state.clone())
                 .map_err(|e| LuaError::RuntimeError(e.to_string()))
+        });
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "toggle_view_pinned", move |_, (): ()| {
+            state.lock()
+                 .pinned
+                 .toggle_view_pinned(None)
+                 .map_err(|e| LuaError::RuntimeError(e.to_string()))
+        });
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "has_pinned", move |_, (): ()| {
+            Ok(!state.lock().pinned.is_empty(None))
         });
 
         let state = state_arc.clone();
@@ -709,6 +735,15 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                 .get_focused_grid()
                 .and_then(|g| g.get_focused_window())
                 .map(|w| w.id.0);
+
+            Ok(win_id)
+        });
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "get_focused_win", move |_, (): ()| {
+            let win_id = state
+                .lock()
+                .get_focused_win();
 
             Ok(win_id)
         });
@@ -855,6 +890,88 @@ fn load_window_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) -> ml
         l_def_ffi_fn!("close", close_window);
         l_def_ffi_fn!("move_to_ws", move_window_to_workspace, ws_id: i32);
 
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "win_hide_title_bar",
+            move |lua, win_id: Value| {
+                validate!(lua, { win_id: i32 });
+
+                state.lock().hide_title_bar(win_id)?;
+                Ok(())
+            }
+        );
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "win_show_title_bar",
+            move |lua, win_id: Value| {
+                validate!(lua, { win_id: i32 });
+
+                state.lock().show_title_bar(win_id)?;
+                Ok(())
+            }
+        );
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "win_hide_border",
+            move |lua, win_id: Value| {
+                validate!(lua, { win_id: i32 });
+
+                state.lock().hide_border(win_id)?;
+                Ok(())
+            }
+        );
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "win_show_border",
+            move |lua, win_id: Value| {
+                validate!(lua, { win_id: i32 });
+
+                state.lock().show_border(win_id)?;
+                Ok(())
+            }
+        );
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "win_toggle_pin",
+            move |lua, win_id: Value| {
+                validate!(lua, { win_id: i32 });
+
+                let config = state.lock().config.clone();
+                let additional_rules = state.lock().additonal_rules.clone();
+
+                state.lock().pinned.toggle_pin(win_id, None, &config, &additional_rules)?;
+                Ok(())
+            }
+        );
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "win_toggle_ws_pin",
+            move |lua, win_id: Value| {
+                validate!(lua, { win_id: i32 });
+
+                let config = state.lock().config.clone();
+                let additional_rules = state.lock().additonal_rules.clone();
+                let ws_id = state
+                    .lock()
+                    .get_current_display()
+                    .get_focused_grid()
+                    .map(|ws| ws.id);
+
+                state.lock()
+                     .pinned
+                     .toggle_pin(win_id, ws_id, &config, &additional_rules)?;
+
+                Ok(())
+            }
+        );
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "win_is_pinned",
+            move |lua, win_id: Value| {
+                validate!(lua, { win_id: i32 });
+                Ok(state.lock().pinned.is_pinned(&win_id))
+            }
+        );
+
         Ok(())
     })
 }
@@ -914,6 +1031,29 @@ fn load_workspace_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) ->
             "set_split_direction",
             set_split_direction,
             direction: SplitDirection
+        );
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "ws_toggle_view_pinned",
+            move |lua, workspace_id: Value| {
+                validate!(lua, { workspace_id: i32 });
+
+                state.lock()
+                        .pinned
+                        .toggle_view_pinned(Some(workspace_id))?;
+                Ok(())
+            }
+        );
+
+        let state = state_arc.clone();
+        def_fn!(lua, nog_tbl, "ws_has_pinned",
+            move |lua, workspace_id: Value| {
+                validate!(lua, { workspace_id: i32 });
+
+                Ok(!state.lock()
+                         .pinned
+                         .is_empty(Some(workspace_id)))
+            }
         );
 
         Ok(())

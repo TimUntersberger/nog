@@ -103,6 +103,7 @@ impl TileGrid {
                 height,
             )?;
         }
+
         info!("Rendering completed");
 
         Ok(())
@@ -381,6 +382,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                 _ => (),
             }
         }
+
         Ok(())
     }
     /// Returns the window of the currently focused tile if it exists
@@ -396,6 +398,18 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                 node.is_tile() && node.get_window().id == id
             })
             .map(|n| self.graph.node(n).get_window())
+    }
+    /// Returns the window that matches by ID if it exists
+    pub fn get_window_mut(&mut self, id: WindowId) -> Option<&mut NativeWindow> {
+        let node = self.graph.nodes()
+                        .find(|n| {
+                            let node = self.graph.node(*n);
+                            node.is_tile() && node.get_window().id == id
+                        });
+        match node {
+            Some(n) => Some(self.graph.node_mut(n).get_window_mut()),
+            _ => None
+        }
     }
     /// Runs the passed in function on the currently focused tile's window in the current tile grid.
     pub fn modify_focused_window<TFunction>(self: &mut Self, f: TFunction) -> SystemResult
@@ -649,7 +663,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                     self.fullscreen_id = None;
                 }
             }
-        }
+        } 
 
         window
     }

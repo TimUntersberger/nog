@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Bar - Nog Documentation</title>
+        <title>Pinning Mode - Nog Documentation</title>
         
         
 
@@ -95,7 +95,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item affix "><a href="../index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="../getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="../getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="../getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item "><a href="../getting-started/floating_mode.html">Floating Mode</a></li><li class="chapter-item "><a href="../getting-started/fullscreen_mode.html">Fullscreen Mode</a></li><li class="chapter-item "><a href="../getting-started/pinning_mode.html">Pinning Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="../configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="../configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="../configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="../configuration/modes.html">Modes</a></li><li class="chapter-item "><a href="../configuration/rules.html">Rules</a></li><li class="chapter-item expanded "><a href="../configuration/bar.html" class="active">Bar</a></li><li class="chapter-item "><a href="../configuration/plugins.html">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="../api/General.html">General</a></li><li class="chapter-item "><a href="../api/Window.html">Window</a></li><li class="chapter-item "><a href="../api/Workspace.html">Workspace</a></li><li class="chapter-item "><a href="../api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="../api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../api/Popup.html">Popup</a></li><li class="chapter-item "><a href="../api/Components.html">Components</a></li></ol>
+                <ol class="chapter"><li class="chapter-item affix "><a href="../index.html">Nog</a></li><li class="chapter-item affix "><li class="part-title">Getting Started</li><li class="chapter-item "><a href="../getting-started/installation.html">Installation</a></li><li class="chapter-item "><a href="../getting-started/quick_start.html">Quick Start</a></li><li class="chapter-item "><a href="../getting-started/work_mode.html">Work Mode</a></li><li class="chapter-item "><a href="../getting-started/floating_mode.html">Floating Mode</a></li><li class="chapter-item "><a href="../getting-started/fullscreen_mode.html">Fullscreen Mode</a></li><li class="chapter-item expanded "><a href="../getting-started/pinning_mode.html" class="active">Pinning Mode</a></li><li class="chapter-item affix "><li class="part-title">Configuration</li><li class="chapter-item "><a href="../configuration/introduction.html">Introduction</a></li><li class="chapter-item "><a href="../configuration/settings.html">Settings</a></li><li class="chapter-item "><a href="../configuration/keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../configuration/workspaces.html">Workspaces</a></li><li class="chapter-item "><a href="../configuration/modes.html">Modes</a></li><li class="chapter-item "><a href="../configuration/rules.html">Rules</a></li><li class="chapter-item "><a href="../configuration/bar.html">Bar</a></li><li class="chapter-item "><a href="../configuration/plugins.html">Plugins</a></li><li class="chapter-item affix "><li class="part-title">API</li><li class="chapter-item "><a href="../api/General.html">General</a></li><li class="chapter-item "><a href="../api/Window.html">Window</a></li><li class="chapter-item "><a href="../api/Workspace.html">Workspace</a></li><li class="chapter-item "><a href="../api/Plugin.html">Plugin</a></li><li class="chapter-item "><a href="../api/Keybindings.html">Keybindings</a></li><li class="chapter-item "><a href="../api/Popup.html">Popup</a></li><li class="chapter-item "><a href="../api/Components.html">Components</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -167,102 +167,21 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="bar"><a class="header" href="#bar">Bar</a></h1>
-<p>The bar at the top of the screen when having <code>display_app_bar</code> enabled can display a lot of useful information.</p>
-<p>It is possible to change the following settings</p>
-<table><thead><tr><th>Key</th><th>Value</th><th>Description</th></tr></thead><tbody>
-<tr><td>font</td><td>String</td><td>The font of the bar</td></tr>
-<tr><td>font_size</td><td>Number</td><td>The font size of the bar</td></tr>
-<tr><td>color</td><td>Number</td><td>The color of the bar</td></tr>
-<tr><td>components</td><td>Table</td><td>The component layout of the bar</td></tr>
-</tbody></table>
-<pre><code class="language-lua">nog.config.bar.font_size = 20
-</code></pre>
-<h2 id="components"><a class="header" href="#components">Components</a></h2>
-<p>Components are the building blocks of the bar. The <code>components</code> table has the following properties:</p>
-<ul>
-<li><code>left</code> contains a list of components which are aligned to the left side of the bar</li>
-<li><code>center</code> contains a list of components which are aligned to the center of the bar</li>
-<li><code>right</code> contains a list of components which are aligned to the right side of the bar</li>
-</ul>
-<pre><code class="language-lua">nog.config.bar.components = {
-  left = {},
-  center = { nog.components.workspaces() },
-  right = {}
-}
-</code></pre>
-<p>The above snippet changes the layout so that the left side and right side are empty and the center part gets replaced by the workspaces overview.</p>
-<h3 id="builtin"><a class="header" href="#builtin">Builtin</a></h3>
-<p>All of the builtin components can be found under <code>nog.components</code>.</p>
-<ul>
-<li>datetime</li>
-<li>workspaces</li>
-<li>current_window</li>
-<li>padding</li>
-<li>fullscreen_indicator</li>
-<li>split_direction</li>
-<li>active_mode</li>
-</ul>
-<h3 id="custom"><a class="header" href="#custom">Custom</a></h3>
-<p>A bar component is a table which has to have a <code>name</code> and <code>render</code> field.</p>
-<p>The <code>name</code> can be any <code>string</code> of your chosing and is only used for debugging purposes.</p>
-<p><code>render</code> is the important part. It has to be a function which returns a list of components texts.
-A component text is a <code>table</code> with a required <code>text</code> field and optional <code>fg</code>, <code>bg</code> and <code>value</code> fields 
-which take a <code>number</code> and change the colors of the component. 
-The function also receives the current display id as argument 
-so you can know which display the component is currently being rendered on.</p>
-<p>It is common practice to define a component as a function to make it easy to add customization options later on.</p>
-<pre><code class="language-lua">local hello = function(name)
-  return {
-    name = &quot;my_component&quot;,
-    render = function()
-      return {{ text = &quot;Hello &quot; .. name .. &quot;!&quot; }}
-    end
-  }
-end
-
-nog.config.bar.components = {
-  left = {},
-  center = { hello(&quot;User&quot;) },
-  right = {}
-}
-</code></pre>
-<p>A component can also have an <code>on_click</code> function. If a component has a valid <code>on_click</code> field, 
-the cursor changes to a pointer when hovered over the rendered component. This function receives three arguments.
-The <code>display_id</code> where the component is rendered on, the <code>value</code> and <code>index</code> of the component text which was clicked.</p>
-<pre><code class="language-lua">-- The `counter` component tracks the amout of the times the component has been clicked globally.
-local counter_value = 0
-local counter = function(increment)
-  return {
-    name = &quot;counter&quot;,
-    render = function()
-      return {{ text = counter_value }}
-    end,
-    on_click = function()
-      counter_value = counter_value + increment
-    end
-  }
-end
-
-nog.config.bar.components = {
-  left = {},
-  center = { counter(1) },
-  right = {}
-}
-</code></pre>
+                        <h1 id="pinning-mode"><a class="header" href="#pinning-mode">Pinning Mode</a></h1>
+<p>Pinned windows float above all other windows in an &quot;always-on-top&quot; fashion. A program can be pinned or unpinned using <a href="/api/Window.html#win_toggle_pinwin_id">win_toggle_pin</a> or <a href="/api/Window.html#win_toggle_ws_pinwin_id">win_toggle_ws_pin</a> to pin a window above all workspaces (globally) or just to a specific workspace respectively. Pinned programs' visibility can be toggled with <a href="/api/General.html#toggle_view_pinned">toggle_view_pinned</a> or <a href="/api/Workspace.html#ws_toggle_view_pinned">ws_toggle_view_pinned</a> to toggle either the globally pinned programs or workspace pinned programs respectively.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
                         
-                            <a rel="prev" href="../configuration/rules.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../getting-started/fullscreen_mode.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
                         
 
                         
-                            <a rel="next" href="../configuration/plugins.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="../configuration/introduction.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         
@@ -274,13 +193,13 @@ nog.config.bar.components = {
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
-                    <a rel="prev" href="../configuration/rules.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../getting-started/fullscreen_mode.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
 
                 
-                    <a rel="next" href="../configuration/plugins.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="../configuration/introduction.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
                 

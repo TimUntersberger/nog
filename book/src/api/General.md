@@ -72,3 +72,10 @@ The [kikito/inspect.lua](https://github.com/kikito/inspect.lua) function.
   * `process` a function which allow altering the passed object before transforming it into a string. A typical way to use it would be to remove certain values so that they don't appear at all.
 
 **Return**: a human readable representation of the lua value in a `string`.
+
+## get_focused_win()
+
+**Return**: the window ID of the currently focused window (regardless of whether it's managed by nog or not)
+
+## toggle_view_pinned()
+Toggles the visibility of all non-workspace specific pinned programs.
