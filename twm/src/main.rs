@@ -1097,6 +1097,8 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
         config::hot_reloading::start(state_arc.clone());
     }
 
+    popup::test();
+
     startup::set_launch_on_startup(state_arc.lock().config.launch_on_startup);
 
     os_specific_setup(state_arc.clone());

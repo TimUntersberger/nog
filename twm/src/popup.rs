@@ -153,3 +153,65 @@ pub fn close() -> SystemResult {
 pub fn is_visible() -> bool {
     POPUP.lock().is_some()
 }
+
+use iced::{Application, Clipboard, Command, Element, Column, Text, Align, Settings, window};
+
+#[derive(Clone, Debug)]
+pub enum PopupMessage {
+}
+
+pub struct IcedPopup(Vec<String>);
+
+impl Application for IcedPopup {
+  type Executor = iced::executor::Default;
+  type Message = PopupMessage;
+  type Flags = Vec<String>;
+
+  fn new(flags: Self::Flags) -> (Self, Command<Self::Message>) {
+    (Self(flags), Command::none())
+  }
+
+  fn title(&self) -> String {
+    String::from(NOG_POPUP_NAME)
+  }
+
+  fn update(&mut self, message: Self::Message, _: &mut Clipboard) -> Command<Self::Message> {
+    Command::none()
+  }
+
+  fn view(&mut self) -> Element<Self::Message> {
+    let mut col = Column::new()
+      .padding(10)
+      .align_items(Align::Center);
+
+    for line in &self.0 {
+      col = col.push(Text::new(line.clone()));
+    }
+
+    col.into()
+  }
+}
+
+pub fn test() {
+  let lines = vec![
+    "Hello World 1",
+    "Hello World 2",
+    "Hello World 3",
+  ].iter().map(|x| x.to_string()).collect::<Vec<String>>();
+  let font_size = 20;
+  let height = lines.len() * font_size;
+
+  IcedPopup::run(Settings {
+    window: window::Settings {
+      position: window::Position::Centered,
+      size: (200, height as u32),
+      decorations: false,
+      resizable: false,
+      always_on_top: true,
+      ..Default::default()
+    },
+    flags: lines,
+    default_text_size: font_size as u16,
+    ..Default::default()
+  });
+}
