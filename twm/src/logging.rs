@@ -34,9 +34,8 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
     {
         logger = logger.log_to_file();
     }
-        
-    logger.start()
-        .expect("Failed to initialize logger");
+
+    logger.start().expect("Failed to initialize logger");
 
     Ok(())
 }

@@ -14,12 +14,16 @@ pub enum Action {
 
 impl std::fmt::Display for Action {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "{}", match self {
-            Self::Manage => "manage",
-            Self::Pin=> "pin",
-            Self::Validate => "validate",
-            Self::Ignore => "ignore",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Manage => "manage",
+                Self::Pin => "pin",
+                Self::Validate => "validate",
+                Self::Ignore => "ignore",
+            }
+        )
     }
 }
 
@@ -31,7 +35,7 @@ impl std::str::FromStr for Action {
             "pin" => Self::Pin,
             "validate" => Self::Validate,
             "ignore" => Self::Ignore,
-            x => return Err(format!("{} is not a valid action for a rule", x))
+            x => return Err(format!("{} is not a valid action for a rule", x)),
         })
     }
 }

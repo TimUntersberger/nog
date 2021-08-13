@@ -2,8 +2,9 @@ use mlua::{Error as LuaError, FromLua, Table, ToLua, Value};
 
 use crate::{
     bar::component::Component, config::rule::Action as RuleAction,
-    keybindings::keybinding::Keybinding, split_direction::SplitDirection,
-keybindings::keybinding::KeybindingKind};
+    keybindings::keybinding::Keybinding, keybindings::keybinding::KeybindingKind,
+    split_direction::SplitDirection,
+};
 use crate::{bar::component::ComponentText, direction::Direction, system::SystemError};
 use std::str::FromStr;
 
@@ -19,7 +20,9 @@ impl FromLua<'_> for Direction {
     fn from_lua(lua_value: mlua::Value<'_>, lua: &'_ mlua::Lua) -> mlua::Result<Self> {
         let mut raw_direction = String::from_lua(lua_value, lua)?.to_lowercase();
 
-        raw_direction.get_mut(0..1).map(|s| s.make_ascii_uppercase());
+        raw_direction
+            .get_mut(0..1)
+            .map(|s| s.make_ascii_uppercase());
 
         Ok(Direction::from_str(&raw_direction).unwrap_or(Direction::Right))
     }
@@ -39,7 +42,9 @@ impl FromLua<'_> for SplitDirection {
     fn from_lua(lua_value: mlua::Value<'_>, lua: &'_ mlua::Lua) -> mlua::Result<Self> {
         let mut raw_direction = String::from_lua(lua_value, lua)?.to_lowercase();
 
-        raw_direction.get_mut(0..1).map(|s| s.make_ascii_uppercase());
+        raw_direction
+            .get_mut(0..1)
+            .map(|s| s.make_ascii_uppercase());
 
         Ok(SplitDirection::from_str(&raw_direction).unwrap_or(SplitDirection::Horizontal))
     }
@@ -60,7 +65,8 @@ impl ToLua<'_> for Keybinding {
 impl FromLua<'_> for Keybinding {
     fn from_lua(lua_value: Value<'_>, lua: &'_ mlua::Lua) -> mlua::Result<Self> {
         let tbl = Table::from_lua(lua_value, lua)?;
-        let mut kb = Keybinding::from_str(&tbl.get::<_, String>("key")?).map_err(|e| LuaError::RuntimeError(e.to_string()))?;
+        let mut kb = Keybinding::from_str(&tbl.get::<_, String>("key")?)
+            .map_err(|e| LuaError::RuntimeError(e.to_string()))?;
 
         kb.callback_id = tbl.get::<_, usize>("callback_id")?;
 

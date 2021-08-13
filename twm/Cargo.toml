@@ -16,6 +16,7 @@ derivative = "2.1.1"
 log = "0.4"
 syn = "1.0.38"
 flexi_logger = "0.15"
+iced = { git = "https://github.com/hecrj/iced", rev = "45778ed598c0d202f8e86c47a444fd671fb3abce" }
 reqwest = { version = "0.10", features = ["blocking", "json"] }
 winapi = { version = "0.3", features = ["winuser", "errhandlingapi", "impl-default", "shellapi", "windowsx", "shellscalingapi", "processthreadsapi", "psapi"] }
 serde = "1.0"

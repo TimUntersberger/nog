@@ -1,4 +1,5 @@
 use log::error;
+use mlua::Result as RuntimeResult;
 use parking_lot::Mutex;
 use std::{
     ffi::c_void, ffi::CString, sync::atomic::AtomicBool, sync::atomic::Ordering,
@@ -26,7 +27,6 @@ use winapi::{
     um::winuser::WS_BORDER, um::winuser::WS_EX_NOACTIVATE, um::winuser::WS_EX_TOPMOST,
     um::winuser::WS_OVERLAPPEDWINDOW, um::winuser::WS_POPUPWINDOW,
 };
-use mlua::Result as RuntimeResult;
 
 use crate::{
     display::Display,
@@ -102,17 +102,17 @@ impl Api {
             SetTextColor(self.hdc as HDC, convert_color_to_winapi(color as u32));
         }
     }
-    pub fn with_font<T>(&self, name: &str, size: i32, cb: impl Fn() -> RuntimeResult<T>) -> RuntimeResult<T> {
+    pub fn with_font<T>(
+        &self,
+        name: &str,
+        size: i32,
+        cb: impl Fn() -> RuntimeResult<T>,
+    ) -> RuntimeResult<T> {
         unsafe {
             let mut logfont = LOGFONTA::default();
             let mut font_name: [i8; 32] = [0; 32];
 
-            for (i, byte) in CString::new(name)
-                .unwrap()
-                .as_bytes()
-                .iter()
-                .enumerate()
-            {
+            for (i, byte) in CString::new(name).unwrap().as_bytes().iter().enumerate() {
                 font_name[i] = *byte as i8;
             }
 

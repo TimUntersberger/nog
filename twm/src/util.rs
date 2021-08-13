@@ -20,12 +20,16 @@ pub fn hex_to_rgb(hex: i32) -> RGB {
     ((hex >> 16) & 0xFF, (hex >> 8) & 0xFF, hex & 0xFF)
 }
 
-pub fn scale_color(color: i32, factor: f64) -> i32 {
-    let (mut red, mut green, mut blue) = hex_to_rgb(color);
+pub fn scale_hex_color(color: i32, factor: f64) -> i32 {
+    rgb_to_hex(scale_rgb_color(hex_to_rgb(color), factor))
+}
 
-    red = (red as f64 * factor).round() as i32;
-    green = (green as f64 * factor).round() as i32;
-    blue = (blue as f64 * factor).round() as i32;
+pub fn scale_rgb_color(color: RGB, factor: f64) -> RGB {
+    let (red, green, blue) = color;
 
-    rgb_to_hex((red, green, blue))
+    (
+        (red as f64 * factor).round() as i32,
+        (green as f64 * factor).round() as i32,
+        (blue as f64 * factor).round() as i32,
+    )
 }

@@ -24,16 +24,17 @@ pub fn handle(state: &mut AppState, ev: WinEvent) -> SystemResult {
     }
 
     // checking pinned of each grid
-    grids.iter()
-         .map(|g| g.id)
-         .collect::<Vec::<_>>()
-         .iter()
-         .for_each(|g_id| {
+    grids
+        .iter()
+        .map(|g| g.id)
+        .collect::<Vec<_>>()
+        .iter()
+        .for_each(|g_id| {
             if let Some(window) = state.pinned.get(&ev.window.id.into(), Some(*g_id)) {
                 title = Some(window.title.clone());
                 grid_id = Some(*g_id);
             }
-         });
+        });
 
     // checking global pinned
     if let Some(window) = state.pinned.get(&ev.window.id.into(), None) {
@@ -41,7 +42,8 @@ pub fn handle(state: &mut AppState, ev: WinEvent) -> SystemResult {
     }
 
     // window is not already managed and the event isn't `Show`
-    if title.is_none() && ev.typ != WinEventType::Show(false) && ev.typ != WinEventType::Show(true) {
+    if title.is_none() && ev.typ != WinEventType::Show(false) && ev.typ != WinEventType::Show(true)
+    {
         return Ok(());
     }
 
@@ -70,9 +72,8 @@ pub fn handle(state: &mut AppState, ev: WinEvent) -> SystemResult {
                 win.cleanup()?;
                 state.get_current_display().refresh_grid(&state.config)?;
             }
-        },
-        WinEventType::Hide
-        | WinEventType::Unminimize => {}
+        }
+        WinEventType::Hide | WinEventType::Unminimize => {}
     };
 
     Ok(())

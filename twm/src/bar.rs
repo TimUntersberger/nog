@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{system::DisplayId, window::Window, AppState};
+use crate::{SystemError, SystemResult};
 use item::Item;
-use crate::{SystemResult, SystemError};
 use item_section::ItemSection;
 use parking_lot::Mutex;
 
@@ -46,7 +46,7 @@ impl Bar {
 
         None
     }
-    
+
     pub fn change_height(&self, height: i32) -> SystemResult {
         let nwin = self.window.get_native_window();
         let mut rect = nwin.get_rect()?;
@@ -57,7 +57,8 @@ impl Bar {
             rect.top = rect.bottom - height;
         }
 
-        nwin.set_window_pos(rect, None, None).map_err(|e| SystemError::Unknown(e))
+        nwin.set_window_pos(rect, None, None)
+            .map_err(|e| SystemError::Unknown(e))
     }
 }
 

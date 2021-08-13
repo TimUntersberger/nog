@@ -1,7 +1,4 @@
-use crate::{
-    system::Rectangle, system::SystemResult, window::Window, window::WindowEvent, AppState,
-    NOG_POPUP_NAME,
-};
+use crate::{config::Config, system::SystemResult, util, window::Window, NOG_POPUP_NAME};
 use parking_lot::Mutex;
 use std::{fmt::Debug, sync::Arc, thread, thread::JoinHandle};
 
@@ -47,8 +44,8 @@ impl Popup {
         )
     }
 
-    pub fn error(msg: Vec<String>, state_arc: Arc<Mutex<AppState>>) {
-        thread::spawn(move || Popup::new_error(msg).create(state_arc).unwrap());
+    pub fn error(msg: Vec<String>, config: &Config) {
+        Popup::new_error(msg).create(config).unwrap();
     }
 
     pub fn with_text<T: Into<String>>(mut self, text: Vec<T>) -> Self {
@@ -64,71 +61,42 @@ impl Popup {
     /// Creates the window for the popup with the configured parameters.
     ///
     /// This function closes a popup that is currently visible.
-    pub fn create(&mut self, state_arc: Arc<Mutex<AppState>>) -> SystemResult<JoinHandle<()>> {
+    pub fn create(&mut self, config: &Config) -> SystemResult<JoinHandle<()>> {
         if is_visible() {
             close()?;
         }
 
-        let state = state_arc.lock();
+        let base_color = util::hex_to_rgb(config.bar.color);
+        let background_color = (base_color.0 as u8, base_color.1 as u8, base_color.2 as u8);
+        let text = self.text.clone();
+        let text_color = if config.light_theme {
+            (0, 0, 0)
+        } else {
+            (255, 255, 255)
+        };
+        let font_size = config.bar.font_size as usize;
+        let height = self.text.len() * font_size;
 
-        let text = self.text.join("\n");
-        let padding = self.padding;
-
-        let mut window = Window::new()
-            .with_title(NOG_POPUP_NAME)
-            .with_font(&state.config.bar.font)
-            .with_size(10, 10)
-            .with_font_size(state.config.bar.font_size)
-            .with_is_popup(true)
-            .with_background_color(state.config.bar.color);
-
-        drop(state);
-
-        let t = window.create(state_arc, true, move |event| {
-            match event {
-                WindowEvent::Draw {
-                    api,
-                    display_id,
-                    state_arc,
-                    ..
-                } => {
-                    let (display_width, display_height) = {
-                        let state = state_arc.lock();
-                        let display = state.get_display_by_id(*display_id).unwrap();
-
-                        (display.width(), display.height())
-                    };
-                    let rect = api.calculate_text_rect(&text);
-
-                    let height = rect.height();
-                    let width = rect.width();
-
-                    let x = display_width / 2 - width / 2 - padding;
-                    let y = display_height / 2 - height / 2 - padding;
-
-                    api.window
-                        .set_window_pos(
-                            Rectangle {
-                                left: x,
-                                right: x + width + padding * 2,
-                                top: y,
-                                bottom: y + height + padding * 2,
-                            },
-                            None,
-                            None,
-                        )
-                        .expect("Failed to move popup to its location");
-
-                    api.set_text_color(0xffffff);
-                    api.write_text(&text, padding, padding, false, false);
-                }
-                _ => {}
-            }
-            Ok(())
+        let t = EventLoopExtWindows::new_any_thread(move || {
+            IcedPopup::run(Settings {
+                window: window::Settings {
+                    position: window::Position::Centered,
+                    size: (200, height as u32),
+                    decorations: false,
+                    resizable: false,
+                    always_on_top: true,
+                    ..Default::default()
+                },
+                flags: PopupSettings {
+                    content: text,
+                    text_color,
+                    background_color,
+                },
+                default_text_size: font_size as u16,
+                ..Default::default()
+            })
+            .unwrap();
         });
-
-        self.window = Some(window);
-        *POPUP.lock() = Some(self.clone());
 
         Ok(t)
     }
@@ -152,4 +120,73 @@ pub fn close() -> SystemResult {
 /// Is there a popup currently visible?
 pub fn is_visible() -> bool {
     POPUP.lock().is_some()
+}
+
+use iced::{window, Align, Application, Clipboard, Column, Command, Element, Settings, Text};
+
+#[derive(Clone, Debug)]
+enum PopupMessage {}
+
+struct IcedPopup {
+    content: Vec<String>,
+    text_color: iced::Color,
+    background_color: iced::Color,
+}
+
+#[derive(Debug, Default, Clone)]
+struct PopupSettings {
+    content: Vec<String>,
+    text_color: (u8, u8, u8),
+    background_color: (u8, u8, u8),
+}
+
+impl Application for IcedPopup {
+    type Executor = iced::executor::Default;
+    type Message = PopupMessage;
+    type Flags = PopupSettings;
+
+    fn new(flags: Self::Flags) -> (Self, Command<Self::Message>) {
+        (
+            Self {
+                content: flags.content,
+                text_color: iced::Color::from_rgb8(
+                    flags.text_color.0,
+                    flags.text_color.1,
+                    flags.text_color.2,
+                ),
+                background_color: iced::Color::from_rgb8(
+                    flags.background_color.0,
+                    flags.background_color.1,
+                    flags.background_color.2,
+                ),
+            },
+            Command::none(),
+        )
+    }
+
+    fn title(&self) -> String {
+        String::from(NOG_POPUP_NAME)
+    }
+
+    fn update(&mut self, message: Self::Message, _: &mut Clipboard) -> Command<Self::Message> {
+        Command::none()
+    }
+
+    fn background_color(&self) -> iced::Color {
+        self.background_color
+    }
+
+    fn should_exit(&self) -> bool {
+        false
+    }
+
+    fn view(&mut self) -> Element<Self::Message> {
+        let mut col = Column::new().padding(10).align_items(Align::Center);
+
+        for line in &self.content {
+            col = col.push(Text::new(line.clone()).color(self.text_color));
+        }
+
+        col.into()
+    }
 }
