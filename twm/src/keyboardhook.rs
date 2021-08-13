@@ -1,9 +1,9 @@
 use winapi::shared::minwindef::LRESULT;
 use winapi::shared::windef::HHOOK;
 use winapi::um::winuser::{
-    CallNextHookEx, DispatchMessageW, PeekMessageW, UnhookWindowsHookEx, SetWindowsHookExW, TranslateMessage,
-    KBDLLHOOKSTRUCT, MSG, PM_REMOVE, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN,
-    WM_SYSKEYUP,
+    CallNextHookEx, DispatchMessageW, PeekMessageW, SetWindowsHookExW, TranslateMessage,
+    UnhookWindowsHookEx, KBDLLHOOKSTRUCT, MSG, PM_REMOVE, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP,
+    WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
 
 use std::sync::mpsc::{channel, Receiver, RecvError, Sender};
@@ -193,7 +193,6 @@ unsafe extern "system" fn hook_cb(ncode: i32, wparam: usize, lparam: isize) -> L
                 }
             }
         }
-
     }
     CallNextHookEx(std::ptr::null_mut(), ncode, wparam, lparam)
 }

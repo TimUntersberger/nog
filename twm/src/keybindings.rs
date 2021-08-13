@@ -1,11 +1,19 @@
-use crate::{keyboardhook::{self, InputEvent}, config::Config, event::Event, popup::Popup, system, system::api, AppState};
+use crate::{
+    config::Config,
+    event::Event,
+    keyboardhook::{self, InputEvent},
+    popup::Popup,
+    system,
+    system::api,
+    AppState,
+};
 use key::Key;
 use keybinding::Keybinding;
 use log::{debug, error, info};
 use modifier::Modifier;
-use std::collections::HashMap;
 use num_traits::FromPrimitive;
 use parking_lot::Mutex;
+use std::collections::HashMap;
 use std::{
     fmt::Debug,
     sync::atomic::{AtomicBool, Ordering},
@@ -50,7 +58,15 @@ pub fn listen(state_arc: Arc<Mutex<AppState>>) -> Sender<KeybindingsMessage> {
                 }
             }
 
-            if let InputEvent::KeyDown { key_code, shift, ctrl, win, lalt, ralt } = ev {
+            if let InputEvent::KeyDown {
+                key_code,
+                shift,
+                ctrl,
+                win,
+                lalt,
+                ralt,
+            } = ev
+            {
                 let mut modifiers = Modifier::empty();
 
                 if ctrl {

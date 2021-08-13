@@ -1,11 +1,11 @@
-use std::collections::HashMap;
 use crate::{
+    config::{rule::Rule, Config},
+    system::{NativeWindow, SystemError, SystemResult, WindowId},
     tile_grid::store::Store,
-    config::{Config, rule::Rule},
-    AppState, 
-    system::{NativeWindow, SystemResult, SystemError, WindowId, }
+    AppState,
 };
 use log::debug;
+use std::collections::HashMap;
 
 static NUMBER_OF_WORKSPACES: usize = 10;
 static GLOBAL_INDEX: i32 = 0; // index of the container storing globally pinned windows
@@ -19,7 +19,7 @@ pub struct Pinned {
 #[derive(Clone, Debug)]
 struct PinnedContainer {
     is_visible: bool,
-    windows: HashMap<i32, NativeWindow>
+    windows: HashMap<i32, NativeWindow>,
 }
 
 impl PinnedContainer {
@@ -67,22 +67,29 @@ impl PinnedContainer {
 impl Pinned {
     pub fn new() -> Self {
         Pinned {
-            containers: vec!(PinnedContainer::new(); NUMBER_OF_WORKSPACES + 1),
+            containers: vec![PinnedContainer::new(); NUMBER_OF_WORKSPACES + 1],
         }
     }
 
-    pub fn load(pinned_windows: Vec::<(bool, Vec::<i32>)>, state: &AppState) -> Result<Pinned, SystemError> {
+    pub fn load(
+        pinned_windows: Vec<(bool, Vec<i32>)>,
+        state: &AppState,
+    ) -> Result<Pinned, SystemError> {
         let mut pinned = Pinned::new();
-        let pinned_windows = pinned_windows.into_iter().enumerate(); 
+        let pinned_windows = pinned_windows.into_iter().enumerate();
         for (index, (is_visible, pinned_ids)) in pinned_windows {
             let index = index as i32;
             for pinned_id in pinned_ids {
                 let window_id: WindowId = pinned_id.into();
                 let window: NativeWindow = NativeWindow::from(window_id);
                 if pinned.can_pin(&window) {
-                    pinned.pin_window(window, Some(index), &state.config, &state.additonal_rules)?;
+                    pinned.pin_window(
+                        window,
+                        Some(index),
+                        &state.config,
+                        &state.additonal_rules,
+                    )?;
                 }
-
             }
 
             if !is_visible {
@@ -108,34 +115,28 @@ impl Pinned {
     }
 
     pub fn is_pinned(&self, window_id: &i32) -> bool {
-        self.containers.iter()
-                       .any(|c| c.contains(window_id.into()))
+        self.containers.iter().any(|c| c.contains(window_id.into()))
     }
 
     pub fn contains(&self, window_id: &i32, ws_id: Option<i32>) -> bool {
-        let container_index = ws_id.unwrap_or(GLOBAL_INDEX) as usize; 
-        self.containers[container_index]
-            .contains(window_id)
+        let container_index = ws_id.unwrap_or(GLOBAL_INDEX) as usize;
+        self.containers[container_index].contains(window_id)
     }
 
     pub fn is_empty(&self, ws_id: Option<i32>) -> bool {
-        let container_index = ws_id.unwrap_or(GLOBAL_INDEX) as usize; 
+        let container_index = ws_id.unwrap_or(GLOBAL_INDEX) as usize;
         self.containers[container_index].windows.is_empty()
     }
 
     pub fn pin_window(
-        &mut self, 
-        mut window: NativeWindow, 
-        ws_id: Option<i32>, 
-        config: &Config, 
-        additional_rules: &Vec<Rule>
+        &mut self,
+        mut window: NativeWindow,
+        ws_id: Option<i32>,
+        config: &Config,
+        additional_rules: &Vec<Rule>,
     ) -> SystemResult {
-        let container_index = ws_id.unwrap_or(GLOBAL_INDEX) as usize; 
-        let rules = config
-            .rules
-            .iter()
-            .chain(additional_rules.iter())
-            .collect();
+        let container_index = ws_id.unwrap_or(GLOBAL_INDEX) as usize;
+        let rules = config.rules.iter().chain(additional_rules.iter()).collect();
 
         window.set_matching_rule(rules);
         window.init(false, config.use_border)?;
@@ -151,13 +152,21 @@ impl Pinned {
         Ok(())
     }
 
-    pub fn toggle_pin(&mut self, win_id: i32, ws_id: Option<i32>, config: &Config, additional_rules: &Vec<Rule>) -> SystemResult {
-        let container_index = ws_id.unwrap_or(GLOBAL_INDEX) as usize; 
+    pub fn toggle_pin(
+        &mut self,
+        win_id: i32,
+        ws_id: Option<i32>,
+        config: &Config,
+        additional_rules: &Vec<Rule>,
+    ) -> SystemResult {
+        let container_index = ws_id.unwrap_or(GLOBAL_INDEX) as usize;
         let win_id: WindowId = win_id.into();
         let window: NativeWindow = NativeWindow::from(win_id);
 
         if self.containers[container_index].contains(&window.id.into()) {
-            let mut window = self.containers[container_index].remove(&window.id.into()).unwrap();
+            let mut window = self.containers[container_index]
+                .remove(&window.id.into())
+                .unwrap();
             window.remove_topmost()?;
             window.cleanup()?;
         } else if self.can_pin(&window) {
@@ -170,10 +179,11 @@ impl Pinned {
     }
 
     pub fn toggle_view_pinned(&mut self, ws_id: Option<i32>) -> SystemResult {
-        let container_index = ws_id.unwrap_or(GLOBAL_INDEX) as usize; 
+        let container_index = ws_id.unwrap_or(GLOBAL_INDEX) as usize;
         if self.containers[container_index].is_visible {
             self.containers[container_index]
-                .windows.values_mut()
+                .windows
+                .values_mut()
                 .for_each(|w| w.hide());
             self.containers[container_index].is_visible = false;
         } else {
@@ -190,17 +200,20 @@ impl Pinned {
     }
 
     pub fn store(&self, ws_id: Option<i32>) {
-        let container_index = ws_id.unwrap_or(GLOBAL_INDEX) as usize; 
+        let container_index = ws_id.unwrap_or(GLOBAL_INDEX) as usize;
         let window_ids = self.containers[container_index]
-                             .windows
-                             .keys()
-                             .collect::<Vec::<_>>();
+            .windows
+            .keys()
+            .collect::<Vec<_>>();
         let pinned_visible = self.containers[container_index].is_visible;
 
         Store::save_pinned(container_index, window_ids, pinned_visible);
     }
 
-    pub fn each_pinned_window(&mut self, callback: impl Fn(&mut NativeWindow) -> SystemResult + Copy) -> SystemResult {
+    pub fn each_pinned_window(
+        &mut self,
+        callback: impl Fn(&mut NativeWindow) -> SystemResult + Copy,
+    ) -> SystemResult {
         for container in self.containers.iter_mut() {
             for window in container.windows.values_mut() {
                 callback(window)?;
@@ -211,7 +224,7 @@ impl Pinned {
     }
 
     pub fn get(&self, window_id: &i32, ws_id: Option<i32>) -> Option<&NativeWindow> {
-        let container_index = ws_id.unwrap_or(GLOBAL_INDEX) as usize; 
+        let container_index = ws_id.unwrap_or(GLOBAL_INDEX) as usize;
         self.containers[container_index].windows.get(window_id)
     }
 
@@ -235,14 +248,17 @@ impl Pinned {
     }
 
     pub fn show(&mut self, workspace_ids: Vec<i32>) -> SystemResult {
-        let (show_containers, hide_containers): (Vec<(usize, &mut PinnedContainer)>, Vec<(usize, &mut PinnedContainer)>)
-            = self.containers
-                  .iter_mut()
-                  .enumerate()
-                  .filter(|(i, _)| *i != GLOBAL_INDEX as usize)
-                  .partition(|(i, container)| {
-                      workspace_ids.contains(&(*i as i32)) && container.is_visible
-                  });
+        let (show_containers, hide_containers): (
+            Vec<(usize, &mut PinnedContainer)>,
+            Vec<(usize, &mut PinnedContainer)>,
+        ) = self
+            .containers
+            .iter_mut()
+            .enumerate()
+            .filter(|(i, _)| *i != GLOBAL_INDEX as usize)
+            .partition(|(i, container)| {
+                workspace_ids.contains(&(*i as i32)) && container.is_visible
+            });
 
         for (i, container) in show_containers {
             debug!("Showing {}", i);

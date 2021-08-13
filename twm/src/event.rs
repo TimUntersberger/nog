@@ -1,6 +1,6 @@
 use crate::{
-    keyboardhook::InputEvent, bar::item_section::ItemSection, keybindings::keybinding::Keybinding, popup::Popup,
-    system::DisplayId, win_event_handler::win_event::WinEvent,
+    bar::item_section::ItemSection, keybindings::keybinding::Keybinding, keyboardhook::InputEvent,
+    popup::Popup, system::DisplayId, win_event_handler::win_event::WinEvent,
 };
 use crossbeam_channel::unbounded;
 use crossbeam_channel::Receiver;
@@ -14,9 +14,7 @@ pub enum Event {
     NewPopup(Popup),
     UpdateKeybindings,
     LuaRuntimeError(LuaError),
-    CallCallback {
-        idx: usize
-    },
+    CallCallback { idx: usize },
     ToggleAppbar(DisplayId),
     UpdateBarSections(DisplayId, ItemSection, ItemSection, ItemSection),
     ChangeWorkspace(i32, bool),

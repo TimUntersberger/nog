@@ -401,14 +401,13 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
     }
     /// Returns the window that matches by ID if it exists
     pub fn get_window_mut(&mut self, id: WindowId) -> Option<&mut NativeWindow> {
-        let node = self.graph.nodes()
-                        .find(|n| {
-                            let node = self.graph.node(*n);
-                            node.is_tile() && node.get_window().id == id
-                        });
+        let node = self.graph.nodes().find(|n| {
+            let node = self.graph.node(*n);
+            node.is_tile() && node.get_window().id == id
+        });
         match node {
             Some(n) => Some(self.graph.node_mut(n).get_window_mut()),
-            _ => None
+            _ => None,
         }
     }
     /// Runs the passed in function on the currently focused tile's window in the current tile grid.
@@ -663,7 +662,7 @@ impl<TRenderer: Renderer> TileGrid<TRenderer> {
                     self.fullscreen_id = None;
                 }
             }
-        } 
+        }
 
         window
     }

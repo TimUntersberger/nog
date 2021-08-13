@@ -1,7 +1,9 @@
-use strum_macros::{EnumString, Display, AsRefStr};
+use strum_macros::{AsRefStr, Display, EnumString};
 use winapi::um::winuser::*;
 
-#[derive(Clone, Copy, FromPrimitive, ToPrimitive, PartialEq, EnumString, AsRefStr, Display, Debug)]
+#[derive(
+    Clone, Copy, FromPrimitive, ToPrimitive, PartialEq, EnumString, AsRefStr, Display, Debug,
+)]
 #[allow(dead_code)]
 pub enum Key {
     Enter = 0x0D,

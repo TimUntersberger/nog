@@ -1,7 +1,7 @@
 use std::{str::FromStr, sync::Arc};
 
 use chrono::Local;
-use mlua::{Error as LuaError, FromLua, Function, Lua, Table, Value, Result as RuntimeResult};
+use mlua::{Error as LuaError, FromLua, Function, Lua, Result as RuntimeResult, Table, Value};
 use parking_lot::Mutex;
 use regex::Regex;
 
@@ -10,10 +10,10 @@ use log::{info, warn};
 use crate::{
     bar::component::Component, config::bar_config::BarComponentsConfig, config::rule::Rule,
     config::workspace_setting::WorkspaceSetting, config::Config, direction::Direction,
-    event::Event, get_config_path, keybindings::keybinding::Keybinding,
-    keybindings::keybinding::KeybindingKind, split_direction::SplitDirection, system,
+    event::Event, get_config_path, get_runtime_path, keybindings::keybinding::Keybinding,
+    keybindings::keybinding::KeybindingKind, popup::Popup, split_direction::SplitDirection, system,
     system::DisplayId, system::WindowId, AppState,
-get_runtime_path, popup::Popup};
+};
 
 mod conversions;
 mod runtime;
@@ -334,7 +334,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             prefix,
             key,
             value,
-            is_setup
+            is_setup,
         ): (
             Value,
             Value,
@@ -360,7 +360,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             /// set_prop!(bar, "height", i32)
             ///
             /// When given a function as third/fourth argument and not in setup it calls the
-            /// function like this: 
+            /// function like this:
             ///
             /// f(old, new, state_arc)
             ///
@@ -399,30 +399,38 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             }
             match parts.as_slice() {
                 ["nog", "config"] => match key.as_str() {
-                    "launch_on_startup" => set_prop!(launch_on_startup, bool, |old, new, _| -> RuntimeResult<()> {
-                        if old != new {
-                            crate::startup::set_launch_on_startup(new);
-                        }
+                    "launch_on_startup" => set_prop!(
+                        launch_on_startup,
+                        bool,
+                        |old, new, _| -> RuntimeResult<()> {
+                            if old != new {
+                                crate::startup::set_launch_on_startup(new);
+                            }
 
-                        Ok(())
-                    }),
+                            Ok(())
+                        }
+                    ),
                     "enable_hot_reloading" => set_prop!(enable_hot_reloading, bool),
                     "min_height" => set_prop!(min_height, i32),
                     "min_width" => set_prop!(min_width, i32),
-                    "use_border" => set_prop!(use_border, bool, |old, new, _| -> RuntimeResult<()> {
-                        if old != new && state.work_mode {
-                            state.each_window(|w| {
-                                if new {
-                                    w.add_border()
-                                } else {
-                                    w.remove_border()
-                                }
-                            }).unwrap();
+                    "use_border" => {
+                        set_prop!(use_border, bool, |old, new, _| -> RuntimeResult<()> {
+                            if old != new && state.work_mode {
+                                state
+                                    .each_window(|w| {
+                                        if new {
+                                            w.add_border()
+                                        } else {
+                                            w.remove_border()
+                                        }
+                                    })
+                                    .unwrap();
 
-                            state.redraw()?;
-                        }
-                        Ok(())
-                    }),
+                                state.redraw()?;
+                            }
+                            Ok(())
+                        })
+                    }
                     "outer_gap" => set_prop!(outer_gap, i32, |old, new, _| -> RuntimeResult<()> {
                         if old != new && state.work_mode {
                             state.redraw()?;
@@ -435,76 +443,90 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                         }
                         Ok(())
                     }),
-                    "remove_title_bar" => set_prop!(remove_title_bar, bool, |old, new, _| -> RuntimeResult<()> {
-                        if old != new && state.work_mode {
-                            state.each_window(|w| {
-                                if new {
-                                    w.remove_title_bar()
-                                } else {
-                                    w.add_title_bar()
-                                }
-                            }).unwrap();
+                    "remove_title_bar" => {
+                        set_prop!(remove_title_bar, bool, |old, new, _| -> RuntimeResult<()> {
+                            if old != new && state.work_mode {
+                                state
+                                    .each_window(|w| {
+                                        if new {
+                                            w.remove_title_bar()
+                                        } else {
+                                            w.add_title_bar()
+                                        }
+                                    })
+                                    .unwrap();
 
-                            state.redraw()?;
-                        }
-                        Ok(())
-                    }),
+                                state.redraw()?;
+                            }
+                            Ok(())
+                        })
+                    }
                     "work_mode" => set_prop!(work_mode, bool),
                     "light_theme" => set_prop!(light_theme, bool),
-                    "multi_monitor" => set_prop!(multi_monitor, bool, |old, new: bool, state_arc: Arc<Mutex<AppState>>| -> RuntimeResult<()> {
-                        if old != new && state.work_mode {
-                            let display_app_bar = state.config.display_app_bar;
-                            let remove_task_bar = state.config.remove_task_bar;
+                    "multi_monitor" => set_prop!(
+                        multi_monitor,
+                        bool,
+                        |old, new: bool, state_arc: Arc<Mutex<AppState>>| -> RuntimeResult<()> {
+                            if old != new && state.work_mode {
+                                let display_app_bar = state.config.display_app_bar;
+                                let remove_task_bar = state.config.remove_task_bar;
 
-                            if !new {
-                                for mut d in std::mem::replace(&mut state.displays, vec![]) {
-                                    if !d.is_primary() {
-                                        d.cleanup(remove_task_bar)?;
-                                    } else {
-                                        state.displays.push(d);
+                                if !new {
+                                    for mut d in std::mem::replace(&mut state.displays, vec![]) {
+                                        if !d.is_primary() {
+                                            d.cleanup(remove_task_bar)?;
+                                        } else {
+                                            state.displays.push(d);
+                                        }
+                                    }
+                                }
+
+                                if new {
+                                    for d in crate::display::init(&state.config) {
+                                        if !d.is_primary() {
+                                            state.displays.push(d);
+                                        }
+                                    }
+                                    if remove_task_bar {
+                                        state.show_taskbars();
+                                    }
+                                    drop(state);
+                                    if display_app_bar {
+                                        AppState::close_app_bars(state_arc.clone());
+                                        AppState::create_app_bars(state_arc.clone());
                                     }
                                 }
                             }
-
-                            if new {
-                                for d in crate::display::init(&state.config) {
-                                    if !d.is_primary() {
-                                        state.displays.push(d);
-                                    }
+                            Ok(())
+                        }
+                    ),
+                    "remove_task_bar" => {
+                        set_prop!(remove_task_bar, bool, |old, new, _| -> RuntimeResult<()> {
+                            if state.work_mode {
+                                match (old, new) {
+                                    (false, true) => state.hide_taskbars(),
+                                    (true, false) => state.show_taskbars(),
+                                    _ => {}
                                 }
-                                if remove_task_bar {
-                                    state.show_taskbars();
-                                }
+                            }
+                            Ok(())
+                        })
+                    }
+                    "display_app_bar" => set_prop!(
+                        display_app_bar,
+                        bool,
+                        move |old, new, state_arc| -> RuntimeResult<()> {
+                            if state.work_mode {
                                 drop(state);
-                                if display_app_bar {
-                                    AppState::close_app_bars(state_arc.clone());
-                                    AppState::create_app_bars(state_arc.clone());
+                                match (old, new) {
+                                    (false, true) => AppState::create_app_bars(state_arc),
+                                    (true, false) => AppState::close_app_bars(state_arc),
+                                    _ => {}
                                 }
                             }
+                            Ok(())
                         }
-                        Ok(())
-                    }),
-                    "remove_task_bar" => set_prop!(remove_task_bar, bool, |old, new, _| -> RuntimeResult<()> {
-                        if state.work_mode {
-                            match (old, new) {
-                                (false, true) => state.hide_taskbars(),
-                                (true, false) => state.show_taskbars(),
-                                _ => {}
-                            }
-                        }
-                        Ok(())
-                    }),
-                    "display_app_bar" => set_prop!(display_app_bar, bool, move |old, new, state_arc| -> RuntimeResult<()> {
-                        if state.work_mode {
-                            drop(state);
-                            match (old, new) {
-                                (false, true) => AppState::create_app_bars(state_arc),
-                                (true, false) => AppState::close_app_bars(state_arc),
-                                _ => {}
-                            }
-                        }
-                        Ok(())
-                    }),
+                    ),
                     "ignore_fullscreen_actions" => set_prop!(ignore_fullscreen_actions, bool),
                     "allow_right_alt" => set_prop!(allow_right_alt, bool),
                     "workspaces" => {
@@ -532,7 +554,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                     x => {
                         warn!("Unknown config key {}", x);
                         Ok(())
-                    },
+                    }
                 },
                 ["nog", "config", "bar"] => match key.as_str() {
                     "color" => set_prop!(bar, color, i32),
@@ -557,11 +579,11 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                     x => {
                         warn!("Unknown config key {}", x);
                         Ok(())
-                    },
+                    }
                 },
                 x => {
                     unreachable!("Unsupported {:?}", x);
-                },
+                }
             }
         });
 
@@ -590,15 +612,17 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             for res in settings.pairs::<String, Value>() {
                 if let Ok((key, value)) = res {
                     popup = match key.as_str() {
-                        "text" => popup.with_text(validate!(lua, value : Vec<String>, "text", "string[]")?),
-                        "padding" => popup.with_padding(validate!(lua, value : i32)?),
-                        _ => popup
+                        "text" => {
+                            popup.with_text(validate!(lua, value: Vec<String>, "text", "string[]")?)
+                        }
+                        "padding" => popup.with_padding(validate!(lua, value: i32)?),
+                        _ => popup,
                     }
                 }
             }
 
             popup
-                .create(state.clone())
+                .create(&state.lock().config)
                 .map_err(|e| LuaError::RuntimeError(e.to_string()))?;
 
             Ok(())
@@ -625,21 +649,21 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
             move |lua, display_id: Value| {
                 validate!(lua, { display_id: i32 });
                 let state_g = state.lock();
-                let display = state_g.get_display_by_id(DisplayId(display_id))
-                                     .unwrap();
+                let display = state_g.get_display_by_id(DisplayId(display_id)).unwrap();
 
-                let display_grid_ids = display.grids
-                                              .iter()
-                                              .map(|g| g.id)
-                                              .collect::<Vec<_>>();
-                let mut grids = display.get_active_grids()
-                                       .iter()
-                                       .map(|g| g.id)
-                                       .collect::<Vec<_>>();
-                grids.extend(state_g.pinned
-                                    .get_active_workspaces()
-                                    .iter()
-                                    .filter(|id| display_grid_ids.contains(id)));
+                let display_grid_ids = display.grids.iter().map(|g| g.id).collect::<Vec<_>>();
+                let mut grids = display
+                    .get_active_grids()
+                    .iter()
+                    .map(|g| g.id)
+                    .collect::<Vec<_>>();
+                grids.extend(
+                    state_g
+                        .pinned
+                        .get_active_workspaces()
+                        .iter()
+                        .filter(|id| display_grid_ids.contains(id)),
+                );
                 grids.sort();
                 grids.dedup();
 
@@ -666,10 +690,11 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
 
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "toggle_view_pinned", move |_, (): ()| {
-            state.lock()
-                 .pinned
-                 .toggle_view_pinned(None)
-                 .map_err(|e| LuaError::RuntimeError(e.to_string()))
+            state
+                .lock()
+                .pinned
+                .toggle_view_pinned(None)
+                .map_err(|e| LuaError::RuntimeError(e.to_string()))
         });
 
         let state = state_arc.clone();
@@ -724,7 +749,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
                 factor: f64
             });
 
-            Ok(crate::util::scale_color(color, factor))
+            Ok(crate::util::scale_hex_color(color, factor))
         });
 
         let state = state_arc.clone();
@@ -741,18 +766,21 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
 
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "get_focused_win", move |_, (): ()| {
-            let win_id = state
-                .lock()
-                .get_focused_win();
+            let win_id = state.lock().get_focused_win();
 
             Ok(win_id)
         });
 
         let state = state_arc.clone();
-        def_fn!(lua, nog_tbl, "get_focused_win_of_display", move |lua, display_id: Value| {
-            validate!(lua, { display_id: i32 });
-            Ok(state.lock().get_focused_win_of_display(display_id))
-        });
+        def_fn!(
+            lua,
+            nog_tbl,
+            "get_focused_win_of_display",
+            move |lua, display_id: Value| {
+                validate!(lua, { display_id: i32 });
+                Ok(state.lock().get_focused_win_of_display(display_id))
+            }
+        );
 
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "get_current_ws", move |_, (): ()| {
@@ -837,7 +865,7 @@ fn setup_nog_global(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) {
 
         let state = state_arc.clone();
         def_fn!(lua, nog_tbl, "__bind", move |lua,
-                                            (mode, key, id): (
+                                              (mode, key, id): (
             Value,
             Value,
             Value
@@ -891,7 +919,10 @@ fn load_window_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) -> ml
         l_def_ffi_fn!("move_to_ws", move_window_to_workspace, ws_id: i32);
 
         let state = state_arc.clone();
-        def_fn!(lua, nog_tbl, "win_hide_title_bar",
+        def_fn!(
+            lua,
+            nog_tbl,
+            "win_hide_title_bar",
             move |lua, win_id: Value| {
                 validate!(lua, { win_id: i32 });
 
@@ -901,7 +932,10 @@ fn load_window_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) -> ml
         );
 
         let state = state_arc.clone();
-        def_fn!(lua, nog_tbl, "win_show_title_bar",
+        def_fn!(
+            lua,
+            nog_tbl,
+            "win_show_title_bar",
             move |lua, win_id: Value| {
                 validate!(lua, { win_id: i32 });
 
@@ -911,7 +945,10 @@ fn load_window_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) -> ml
         );
 
         let state = state_arc.clone();
-        def_fn!(lua, nog_tbl, "win_hide_border",
+        def_fn!(
+            lua,
+            nog_tbl,
+            "win_hide_border",
             move |lua, win_id: Value| {
                 validate!(lua, { win_id: i32 });
 
@@ -921,7 +958,10 @@ fn load_window_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) -> ml
         );
 
         let state = state_arc.clone();
-        def_fn!(lua, nog_tbl, "win_show_border",
+        def_fn!(
+            lua,
+            nog_tbl,
+            "win_show_border",
             move |lua, win_id: Value| {
                 validate!(lua, { win_id: i32 });
 
@@ -931,20 +971,24 @@ fn load_window_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) -> ml
         );
 
         let state = state_arc.clone();
-        def_fn!(lua, nog_tbl, "win_toggle_pin",
-            move |lua, win_id: Value| {
-                validate!(lua, { win_id: i32 });
+        def_fn!(lua, nog_tbl, "win_toggle_pin", move |lua, win_id: Value| {
+            validate!(lua, { win_id: i32 });
 
-                let config = state.lock().config.clone();
-                let additional_rules = state.lock().additonal_rules.clone();
+            let config = state.lock().config.clone();
+            let additional_rules = state.lock().additonal_rules.clone();
 
-                state.lock().pinned.toggle_pin(win_id, None, &config, &additional_rules)?;
-                Ok(())
-            }
-        );
+            state
+                .lock()
+                .pinned
+                .toggle_pin(win_id, None, &config, &additional_rules)?;
+            Ok(())
+        });
 
         let state = state_arc.clone();
-        def_fn!(lua, nog_tbl, "win_toggle_ws_pin",
+        def_fn!(
+            lua,
+            nog_tbl,
+            "win_toggle_ws_pin",
             move |lua, win_id: Value| {
                 validate!(lua, { win_id: i32 });
 
@@ -956,21 +1000,20 @@ fn load_window_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) -> ml
                     .get_focused_grid()
                     .map(|ws| ws.id);
 
-                state.lock()
-                     .pinned
-                     .toggle_pin(win_id, ws_id, &config, &additional_rules)?;
+                state
+                    .lock()
+                    .pinned
+                    .toggle_pin(win_id, ws_id, &config, &additional_rules)?;
 
                 Ok(())
             }
         );
 
         let state = state_arc.clone();
-        def_fn!(lua, nog_tbl, "win_is_pinned",
-            move |lua, win_id: Value| {
-                validate!(lua, { win_id: i32 });
-                Ok(state.lock().pinned.is_pinned(&win_id))
-            }
-        );
+        def_fn!(lua, nog_tbl, "win_is_pinned", move |lua, win_id: Value| {
+            validate!(lua, { win_id: i32 });
+            Ok(state.lock().pinned.is_pinned(&win_id))
+        });
 
         Ok(())
     })
@@ -1034,25 +1077,27 @@ fn load_workspace_functions(state_arc: Arc<Mutex<AppState>>, rt: &LuaRuntime) ->
         );
 
         let state = state_arc.clone();
-        def_fn!(lua, nog_tbl, "ws_toggle_view_pinned",
+        def_fn!(
+            lua,
+            nog_tbl,
+            "ws_toggle_view_pinned",
             move |lua, workspace_id: Value| {
                 validate!(lua, { workspace_id: i32 });
 
-                state.lock()
-                        .pinned
-                        .toggle_view_pinned(Some(workspace_id))?;
+                state.lock().pinned.toggle_view_pinned(Some(workspace_id))?;
                 Ok(())
             }
         );
 
         let state = state_arc.clone();
-        def_fn!(lua, nog_tbl, "ws_has_pinned",
+        def_fn!(
+            lua,
+            nog_tbl,
+            "ws_has_pinned",
             move |lua, workspace_id: Value| {
                 validate!(lua, { workspace_id: i32 });
 
-                Ok(!state.lock()
-                         .pinned
-                         .is_empty(Some(workspace_id)))
+                Ok(!state.lock().pinned.is_empty(Some(workspace_id)))
             }
         );
 
@@ -1075,7 +1120,11 @@ pub fn setup_lua_rt(state_arc: Arc<Mutex<AppState>>) {
             path = format!("{}\\lua\\?.lua;{}", plug_path, path);
         }
 
-        path = format!("{}\\config\\?.lua;{}", get_config_path().to_str().unwrap(), path);
+        path = format!(
+            "{}\\config\\?.lua;{}",
+            get_config_path().to_str().unwrap(),
+            path
+        );
 
         #[cfg(debug_assertions)]
         let dll_path = {
@@ -1103,7 +1152,8 @@ pub fn setup_lua_rt(state_arc: Arc<Mutex<AppState>>) {
         package_tbl.set("cpath", cpath)?;
 
         Ok(())
-    }).unwrap();
+    })
+    .unwrap();
 
     let mut path = get_runtime_path();
     path.push("lua");

@@ -5,19 +5,20 @@ extern crate num_derive;
 #[macro_use]
 extern crate strum_macros;
 
-use config::{rule::Rule, workspace_setting::WorkspaceSetting, Config};
 use crate::config::rule::Action as RuleAction;
+use config::{rule::Rule, workspace_setting::WorkspaceSetting, Config};
 use crossbeam_channel::select;
 use direction::Direction;
 use display::Display;
 use event::Event;
 use event::EventChannel;
 use itertools::Itertools;
-use keybindings::{keybinding::Keybinding, KeybindingsMessage, keybinding::KeybindingKind};
+use keybindings::{keybinding::Keybinding, keybinding::KeybindingKind, KeybindingsMessage};
 use log::debug;
 use log::{error, info};
 use lua::{setup_lua_rt, LuaRuntime};
 use parking_lot::{deadlock, Mutex};
+use pinned::Pinned;
 use split_direction::SplitDirection;
 use std::path::PathBuf;
 use std::process::Command;
@@ -25,12 +26,11 @@ use std::{fmt::Debug, fs::ReadDir};
 use std::{mem, thread, time::Duration};
 use std::{process, sync::Arc};
 use system::NativeWindow;
-use system::{DisplayId, SystemResult, SystemError, WinEventListener, WindowId};
+use system::{DisplayId, SystemError, SystemResult, WinEventListener, WindowId};
 use task_bar::Taskbar;
 use tile_grid::{store::Store, TileGrid};
 use win_event_handler::{win_event::WinEvent, win_event_type::WinEventType};
 use window::Window;
-use pinned::Pinned;
 
 pub const NOG_BAR_NAME: &'static str = "nog_bar";
 pub const NOG_POPUP_NAME: &'static str = "nog_popup";
@@ -122,6 +122,7 @@ mod keyboardhook;
 mod logging;
 mod lua;
 mod message_loop;
+mod pinned;
 mod popup;
 mod renderer;
 mod split_direction;
@@ -130,7 +131,6 @@ mod system;
 mod task_bar;
 mod tile;
 mod tile_grid;
-mod pinned;
 mod tray;
 mod update;
 mod util;
@@ -162,7 +162,7 @@ impl Default for AppState {
             window_event_listener: WinEventListener::default(),
             workspace_id: 1,
             config,
-            pinned: Pinned::new()
+            pinned: Pinned::new(),
         }
     }
 }
@@ -346,7 +346,6 @@ impl AppState {
             self.workspace_id = id;
             self.refresh_pinned()?;
         }
-
 
         Ok(())
     }
@@ -701,7 +700,10 @@ impl AppState {
         Ok(())
     }
 
-    pub fn each_window(&mut self, cb: impl Fn(&mut NativeWindow) -> SystemResult + Copy) -> SystemResult {
+    pub fn each_window(
+        &mut self,
+        cb: impl Fn(&mut NativeWindow) -> SystemResult + Copy,
+    ) -> SystemResult {
         for d in &mut self.displays {
             for g in &mut d.grids {
                 g.modify_windows(cb)?;
@@ -831,11 +833,12 @@ impl AppState {
     }
 
     pub fn get_focused_workspaces(&self) -> Vec<i32> {
-        self.displays.iter()
-                     .map(|d| d.focused_grid_id)
-                     .filter(|g_id| g_id.is_some())
-                     .map(|g_id| g_id.unwrap())
-                     .collect()
+        self.displays
+            .iter()
+            .map(|d| d.focused_grid_id)
+            .filter(|g_id| g_id.is_some())
+            .map(|g_id| g_id.unwrap())
+            .collect()
     }
 
     fn refresh_pinned(&mut self) -> SystemResult {
@@ -868,15 +871,17 @@ impl AppState {
     pub fn get_focused_win(&self) -> i32 {
         NativeWindow::get_foreground_window()
             .expect("Failed to get foreground window")
-            .id.into()
+            .id
+            .into()
     }
 
     pub fn get_window_mut(&mut self, window_id: &i32) -> Option<&mut NativeWindow> {
         if self.pinned.is_pinned(window_id) {
             if let Some(window) = self.pinned.get_mut(window_id) {
                 return Some(window);
-            } 
-        } else if let Some(grid) = self.find_grid_containing_window_mut(WindowId::from(*window_id)) {
+            }
+        } else if let Some(grid) = self.find_grid_containing_window_mut(WindowId::from(*window_id))
+        {
             return grid.get_window_mut(WindowId::from(*window_id));
         }
 
@@ -1097,7 +1102,7 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
         config::hot_reloading::start(state_arc.clone());
     }
 
-    popup::test();
+    popup::Popup::new_error(vec!["Hello World".into(), "Hello World".into()]).create(&state_arc.lock().config);
 
     startup::set_launch_on_startup(state_arc.lock().config.launch_on_startup);
 
@@ -1116,7 +1121,7 @@ fn run(state_arc: Arc<Mutex<AppState>>) -> Result<(), Box<dyn std::error::Error>
                 let msg = maybe_msg.unwrap();
                 let _ = match msg {
                     Event::NewPopup(mut p) => {
-                        p.create(state_arc.clone())?;
+                        p.create(&state_arc.lock().config)?;
                         Ok(())
                     },
                     Event::ToggleAppbar(display_id) => {
